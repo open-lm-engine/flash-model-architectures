@@ -15,11 +15,11 @@ MAX_EXPERTS = 4
 class ContiguousCountTest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(
-            [8200],  # size
+            TestCommons.get_1d_tensor_sizes(),  # size
             [torch.device("cuda")],  # device
-            [KernelBackend.cuda, KernelBackend.triton][:1],  # kernel_backend
-            [32],  # BLOCK_SIZE_B
-            [contiguous_count_cute],  # , torch.compile(contiguous_count_cute, fullgraph=True)],  # function
+            [KernelBackend.cuda, KernelBackend.triton],  # kernel_backend
+            [64],  # BLOCK_SIZE_B
+            [contiguous_count_cute, torch.compile(contiguous_count_cute, fullgraph=True)],  # function
         )
     )
     def test_contiguous_count(
