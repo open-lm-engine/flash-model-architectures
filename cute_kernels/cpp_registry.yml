@@ -13,6 +13,13 @@
   build_path: add_scalar
 
 - functions:
+    - contiguous_count_cuda
+  sources:
+    - kernels/contiguous_count/cuda_implementation/ops.cpp
+    - kernels/contiguous_count/cuda_implementation/kernels_forward.cu
+  build_path: contiguous_count
+
+- functions:
     - swiglu_forward_cuda
     - swiglu_backward_cuda
   sources:

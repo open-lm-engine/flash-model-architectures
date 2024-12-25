@@ -13,6 +13,13 @@
 #define AT_DISPATCH_CUSTOM_FLOAT_TYPES(TYPE, NAME, ...) \
     AT_DISPATCH_SWITCH(TYPE, NAME, AT_DISPATCH_CASE_CUSTOM_FLOAT_TYPES(__VA_ARGS__))
 
+#define AT_DISPATCH_CASE_CUSTOM_INT_TYPES(...)         \
+    AT_DISPATCH_CASE(at::ScalarType::Int, __VA_ARGS__) \
+    AT_DISPATCH_CASE(at::ScalarType::Long, __VA_ARGS__)
+
+#define AT_DISPATCH_CUSTOM_INT_TYPES(TYPE, NAME, ...) \
+    AT_DISPATCH_SWITCH(TYPE, NAME, AT_DISPATCH_CASE_CUSTOM_INT_TYPES(__VA_ARGS__))
+
 // define dtype aliases
 using fp64 = double;
 using fp64_2 = double2;
@@ -33,6 +40,7 @@ using uint64 = unsigned long;
 
 using int32 = int;
 using uint32 = uint;
+using uint32_4 = uint4;
 
 using int16 = short;
 using uint16 = ushort;

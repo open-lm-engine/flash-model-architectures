@@ -9,19 +9,13 @@ from .kernels_forward import _contiguous_count_triton_kernel
 _KERNEL_NAME = "contiguous_count_triton"
 
 
-def _fake(x: torch.Tensor, size: int, BLOCK_SIZE_B: int) -> torch.Tensor:
-    return torch.empty(size, dtype=torch.int32, device=x.device)
-
-
-@cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={}, fake_func=_fake)
-def contiguous_count_triton(x: torch.Tensor, size: int, BLOCK_SIZE_B: int) -> torch.Tensor:
+@cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"output"})
+def contiguous_count_triton(x: torch.Tensor, output: torch.Tensor, size: int, BLOCK_SIZE_B: int) -> None:
     B = x.numel()
     BLOCK_SIZE_C = get_next_power_of_2(size)
 
     sm_count = get_sm_count(x.device)
     num_programs = min(sm_count, ceil_divide(B, BLOCK_SIZE_B))
-
-    output = torch.zeros(size, dtype=torch.int32, device=x.device)
 
     with torch.device(x.device):
         _contiguous_count_triton_kernel[(num_programs,)](
@@ -32,5 +26,3 @@ def contiguous_count_triton(x: torch.Tensor, size: int, BLOCK_SIZE_B: int) -> to
             BLOCK_SIZE_B=BLOCK_SIZE_B,
             BLOCK_SIZE_C=BLOCK_SIZE_C,
         )
-
-    return output
