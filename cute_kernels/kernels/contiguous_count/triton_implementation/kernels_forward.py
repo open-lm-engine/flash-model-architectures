@@ -26,7 +26,7 @@ def contiguous_count_triton_kernel(x_ptr, output_ptr, B, C, BLOCK_SIZE_B: tl.con
 
     if num_elements_in_current_program > 0:
         num_loops = tl.cdiv(num_elements_in_current_program, BLOCK_SIZE_B)
-        counts = tl.zeros((BLOCK_SIZE_C,), dtype=tl.int32)
+        counts = tl.zeros((BLOCK_SIZE_C,), dtype=tl.uint32)
 
         for i in range(num_loops):
             indices_b = program_start + i * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
@@ -34,7 +34,7 @@ def contiguous_count_triton_kernel(x_ptr, output_ptr, B, C, BLOCK_SIZE_B: tl.con
 
             x = tl.load(x_ptr + indices_b, mask=mask_b, other=-1)
 
-            equal = (x[:, None] == indices_c[None, :]).to(tl.int32)
+            equal = (x[:, None] == indices_c[None, :]).to(tl.uint32)
             counts += tl.sum(equal, axis=0)
 
         tl.atomic_add(output_ptr + indices_c, counts, mask=mask_c)

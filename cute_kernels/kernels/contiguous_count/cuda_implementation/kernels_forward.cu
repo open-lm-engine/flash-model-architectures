@@ -11,7 +11,7 @@
 
 template <typename scalar_t>
 __global__ void _contiguous_count_cuda_kernel(const scalar_t *x,
-                                              int32 *output,
+                                              uint32 *output,
                                               const uint64 num_elements,
                                               const uint32 C) {
     const int local_thread_id = get_local_thread_id();
@@ -83,6 +83,6 @@ void contiguous_count_cuda(const torch::Tensor &x, const torch::Tensor &output, 
 
     AT_DISPATCH_CUSTOM_INT_TYPES(x.scalar_type(), "contiguous_count_cuda_kernel", ([&] {
                                      _contiguous_count_cuda_kernel<<<NUM_BLOCKS, BLOCK_SIZE, C * sizeof(int32)>>>(
-                                         x.data_ptr<scalar_t>(), output.data_ptr<int32>(), num_elements, C);
+                                         x.data_ptr<scalar_t>(), output.data_ptr<uint32>(), num_elements, C);
                                  }));
 }
