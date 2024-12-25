@@ -9,7 +9,9 @@
 
 #define MAX_ALLOWED_C 16384
 
-inline __device__ void _initialize_shared_memory(uint32 *output_shared, const int &num_loops_C) {
+inline __device__ void _initialize_shared_memory(uint32 *output_shared,
+                                                 const int &num_loops_C,
+                                                 const int &local_thread_id) {
     // clang-format off
     #pragma unroll
     // clang-format on
