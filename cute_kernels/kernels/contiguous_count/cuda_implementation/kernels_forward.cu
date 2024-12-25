@@ -66,8 +66,11 @@ void contiguous_count_cuda(const torch::Tensor &x, const torch::Tensor &output, 
     const uint64 num_elements = x.numel();
 
     // we use vector instructions of width 4
-    const int num_elements_per_block = BLOCK_SIZE << 2;
-    const int NUM_BLOCKS = (num_elements + num_elements_per_block - 1) / num_elements_per_block;
+    int NUM_BLOCKS = num_elements + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    const int sm_count = get_sm_count();
+    if (NUM_BLOCKS > sm_count) {
+        NUM_BLOCKS = sm_count;
+    }
 
     _contiguous_count_cuda_kernel<<<NUM_BLOCKS, BLOCK_SIZE, C * sizeof(int32)>>>(
         x.data_ptr<int32>(), output.data_ptr<int32>(), num_elements, C);
