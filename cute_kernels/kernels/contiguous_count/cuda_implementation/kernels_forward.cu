@@ -72,7 +72,7 @@ __global__ void _contiguous_count_cuda_kernel(const scalar_t *x,
     }
 }
 
-void contiguous_count_cuda(const torch::Tensor &x, const torch::Tensor &output, const int &C, const int &BLOCK_SIZE) {
+void contiguous_count_cuda(const torch::Tensor &x, torch::Tensor &output, const int &C, const int &BLOCK_SIZE) {
     assert(BLOCK_SIZE % WARP_SIZE == 0);
     assert(C < MAX_ALLOWED_C);
 
