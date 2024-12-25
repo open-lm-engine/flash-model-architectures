@@ -9,17 +9,7 @@
 
 #define MAX_ALLOWED_C 16384
 
-template <typename scalar_t>
-__global__ void _contiguous_count_cuda_kernel(const scalar_t *x,
-                                              uint32 *output,
-                                              const uint64 num_elements,
-                                              const uint32 C) {
-    const int local_thread_id = get_local_thread_id();
-    const int num_loops_C = (C + blockDim.x - 1) / blockDim.x;
-
-    extern __shared__ uint32 output_shared[];
-
-    // initialize shared memory and output
+inline __device__ void _initialize_shared_memory(uint32 *output_shared, const int &num_loops_C) {
     // clang-format off
     #pragma unroll
     // clang-format on
@@ -29,7 +19,18 @@ __global__ void _contiguous_count_cuda_kernel(const scalar_t *x,
             output_shared[index] = 0;
         }
     }
+}
 
+template <typename scalar_t>
+__global__ void _contiguous_count_cuda_kernel(const scalar_t *x,
+                                              uint32 *output,
+                                              const uint64 num_elements,
+                                              const uint32 C) {
+    const int local_thread_id = get_local_thread_id();
+    const int num_loops_C = (C + blockDim.x - 1) / blockDim.x;
+
+    extern __shared__ uint32 output_shared[];
+    _initialize_shared_memory(output_shared, num_loops_C);
     __syncthreads();
 
     // count the number of occurances of each number in x
