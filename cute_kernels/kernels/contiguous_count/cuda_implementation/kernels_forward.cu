@@ -89,6 +89,15 @@ void contiguous_count_cuda(const torch::Tensor &x,
     launch_config.gridDim = NUM_BLOCKS;
     launch_config.dynamicSmemBytes = C * sizeof(uint32);
 
+    cudaLaunchAttribute attributes[1];
+    attributes[0].id = cudaLaunchAttributeClusterDimension;
+    attributes[0].val.clusterDim.x = thread_block_cluster_size;
+    attributes[0].val.clusterDim.y = 1;
+    attributes[0].val.clusterDim.z = 1;
+
+    launch_config.attrs = attributes;
+    launch_config.numAttrs = 1;
+
     AT_DISPATCH_CUSTOM_INT_TYPES(x.scalar_type(), "contiguous_count_cuda_kernel", ([&] {
                                      cudaLaunchKernelEx(&launch_config,
                                                         _contiguous_count_cuda_kernel<scalar_t>,
