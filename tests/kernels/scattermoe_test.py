@@ -8,7 +8,7 @@ from cute_kernels import MoE_Torch, MoE_Triton
 from ..test_commons import TestCommons
 
 
-SEED = 42
+_SEED = 42
 
 
 class ScatterMoETest(TestCommons):
@@ -59,7 +59,7 @@ class ScatterMoETest(TestCommons):
         module_class: type[nn.Module],
         is_compiling: bool,
     ) -> None:
-        set_seed(SEED)
+        set_seed(_SEED)
 
         if num_experts_per_tok > num_experts:
             self.skipTest(

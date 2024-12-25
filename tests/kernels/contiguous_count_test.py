@@ -9,7 +9,8 @@ from cute_kernels import KernelBackend, contiguous_count_cute
 from ..test_commons import TestCommons
 
 
-MAX_EXPERTS = 4
+_MAX_EXPERTS = 72
+_SEED = 42
 
 
 class ContiguousCountTest(TestCommons):
@@ -30,9 +31,10 @@ class ContiguousCountTest(TestCommons):
         BLOCK_SIZE_B: int,
         function: Callable,
     ) -> None:
-        x = torch.randint(0, MAX_EXPERTS, (size,), device=device, dtype=torch.long)
+        set_seed(_SEED)
+        x = torch.randint(0, _MAX_EXPERTS, (size,), device=device, dtype=torch.long)
 
-        z_kernel = function(x=x, size=MAX_EXPERTS, kernel_backend=kernel_backend, BLOCK_SIZE_B=BLOCK_SIZE_B)
-        z_expected = x.view(-1).bincount(minlength=MAX_EXPERTS)
+        z_kernel = function(x=x, size=_MAX_EXPERTS, kernel_backend=kernel_backend, BLOCK_SIZE_B=BLOCK_SIZE_B)
+        z_expected = x.view(-1).bincount(minlength=_MAX_EXPERTS)
 
         self.assert_equal_tensors(z_kernel, z_expected, True)
