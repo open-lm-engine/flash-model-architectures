@@ -2,15 +2,11 @@ import torch
 import triton
 import triton.language as tl
 
-from ....constants import (
-    COMMON_TRITON_BLOCK_SIZES_POWERS_OF_2,
-    LIBRARY_NAME,
-    MAX_TRITON_BLOCK_SIZE,
-    TORCH_TO_TRITON_DTYPE,
-)
-from ....cutotune import CutoTuneConfig, cutotune
-from ....math import ceil_divide, get_powers_of_2
+from ....constants import LIBRARY_NAME, TORCH_TO_TRITON_DTYPE
+from ....cutotune import cutotune
+from ....math import ceil_divide
 from ....utils import cute_op, get_sm_count
+from .parameters import get_cutotune_parameters
 
 
 _KERNEL_NO_WEIGHT_NAME = "rmsnorm_backward_no_weight_triton"
@@ -174,20 +170,7 @@ def _rmsnorm_backward_triton(
         )
 
 
-@cutotune(
-    configs=[
-        CutoTuneConfig(
-            {"BLOCK_SIZE_B": BLOCK_SIZE_B},
-            condition=lambda **kwargs: 1024
-            <= kwargs["BLOCK_SIZE_B"] * kwargs["BLOCK_SIZE_H"]
-            <= MAX_TRITON_BLOCK_SIZE,
-        )
-        for BLOCK_SIZE_B in get_powers_of_2(1, 32) + COMMON_TRITON_BLOCK_SIZES_POWERS_OF_2
-    ],
-    default_config=CutoTuneConfig({"BLOCK_SIZE_B": 1}),
-    triggers={"x.dtype", "BLOCK_SIZE_H"},
-    functional_triggers={"has_weight": lambda **kwargs: kwargs["weight"] is not None},
-)
+@cutotune(**get_cutotune_parameters())
 def rmsnorm_backward_triton(
     x: torch.Tensor,
     weight: torch.Tensor | None,

@@ -1,17 +1,14 @@
 import torch
 
 from ...constants import MAX_TRITON_BLOCK_SIZE
-from ...cutotune import CutoTuneConfig, cutotune
+from ...cutotune import cutotune
 from ...enums import KernelBackend
 from ...math import get_next_power_of_2
+from .parameters import get_cutotune_parameters
 from .triton_implementation import rmsnorm_forward_triton
 
 
-@cutotune(
-    configs=[CutoTuneConfig({"kernel_backend": KernelBackend.triton})],
-    default_config=CutoTuneConfig({"kernel_backend": KernelBackend.triton}),
-    triggers={"x.dtype"},
-)
+@cutotune(**get_cutotune_parameters())
 def _forward(
     x: torch.Tensor,
     weight: torch.Tensor | None,
