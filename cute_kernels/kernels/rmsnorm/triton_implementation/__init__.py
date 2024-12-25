@@ -3,7 +3,7 @@ import torch
 from ....constants import LIBRARY_NAME, TORCH_TO_TRITON_DTYPE
 from ....cutotune import cutotune
 from ....math import ceil_divide
-from ....utils import cute_op, get_sm_count
+from ....utils import cute_op, get_num_elements_and_hidden_size, get_sm_count
 from .kernels_backward import _rmsnorm_backward_triton_kernel
 from .kernels_forward import _rmsnorm_forward_triton_kernel
 from .parameters import get_cutotune_parameters
@@ -25,8 +25,7 @@ def rmsnorm_forward_triton(
     BLOCK_SIZE_B: int,
     BLOCK_SIZE_H: int,
 ) -> None:
-    hidden_size = x.size(-1)
-    num_elements = x.numel() // hidden_size
+    num_elements, hidden_size = get_num_elements_and_hidden_size(x)
 
     if BLOCK_SIZE_H < hidden_size:
         raise ValueError(f"hidden_size should be more than the BLOCK_SIZE_H")
@@ -58,8 +57,7 @@ def _rmsnorm_backward_no_weight_triton(
     BLOCK_SIZE_B: int,
     BLOCK_SIZE_H: int,
 ) -> None:
-    hidden_size = x.size(-1)
-    num_elements = x.numel() // hidden_size
+    num_elements, hidden_size = get_num_elements_and_hidden_size(x)
 
     if BLOCK_SIZE_H < hidden_size:
         raise ValueError(f"hidden_size should be more than the BLOCK_SIZE_H")
@@ -98,8 +96,7 @@ def _rmsnorm_backward_triton(
     BLOCK_SIZE_B: int,
     BLOCK_SIZE_H: int,
 ) -> None:
-    hidden_size = x.size(-1)
-    num_elements = x.numel() // hidden_size
+    num_elements, hidden_size = get_num_elements_and_hidden_size(x)
 
     if BLOCK_SIZE_H < hidden_size:
         raise ValueError(f"hidden_size should be more than the BLOCK_SIZE_H")

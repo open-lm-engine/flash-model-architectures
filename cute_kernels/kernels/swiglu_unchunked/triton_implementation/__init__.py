@@ -2,7 +2,7 @@ import torch
 
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide
-from ....utils import cute_op
+from ....utils import cute_op, get_num_elements_and_hidden_size
 from .kernels_backward import _swiglu_unchunked_backward_triton_kernel
 from .kernels_forward import _swiglu_unchunked_forward_triton_kernel
 
@@ -15,8 +15,7 @@ _BACKWARD_KERNEL_NAME = "swiglu_unchunked_backward_triton"
 def swiglu_unchunked_forward_triton(
     x: torch.Tensor, output: torch.Tensor, BLOCK_SIZE_B: int, BLOCK_SIZE_H: int
 ) -> None:
-    H = x.size(-1)
-    B = x.numel() // H
+    B, H = get_num_elements_and_hidden_size(x)
 
     with torch.device(x.device):
         _swiglu_unchunked_forward_triton_kernel[(ceil_divide(B, BLOCK_SIZE_B), ceil_divide(H, BLOCK_SIZE_H))](
@@ -37,8 +36,7 @@ def swiglu_unchunked_backward_triton(
     BLOCK_SIZE_B: int,
     BLOCK_SIZE_H: int,
 ) -> None:
-    H = x.size(-1)
-    B = x.numel() // H
+    B, H = get_num_elements_and_hidden_size(x)
 
     with torch.device(x.device):
         _swiglu_unchunked_backward_triton_kernel[(ceil_divide(B, BLOCK_SIZE_B), ceil_divide(H, BLOCK_SIZE_H))](

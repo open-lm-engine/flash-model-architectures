@@ -4,6 +4,7 @@ from ...constants import MAX_TRITON_BLOCK_SIZE
 from ...cutotune import cutotune
 from ...enums import KernelBackend
 from ...math import get_next_power_of_2
+from ...utils import get_num_elements_and_hidden_size
 from .parameters import get_cutotune_parameters
 from .triton_implementation import rmsnorm_forward_triton
 
@@ -18,8 +19,7 @@ def _forward(
     BLOCK_SIZE_B: int,
     BLOCK_SIZE_H: int,
 ) -> tuple[torch.Tensor | None]:
-    hidden_size = x.size(-1)
-    num_elements = x.numel() // hidden_size
+    num_elements, hidden_size = get_num_elements_and_hidden_size(x)
 
     output = torch.empty_like(x)
     rmsnorm_denominator = None if memory_efficient else torch.empty(num_elements, device=x.device, dtype=torch.float32)
