@@ -9,7 +9,8 @@
 
 #define MAX_ALLOWED_C 16384
 
-__global__ void _contiguous_count_cuda_kernel(const int32 *x,
+template <typename scalar_t>
+__global__ void _contiguous_count_cuda_kernel(const scalar_t *x,
                                               int32 *output,
                                               const uint64 num_elements,
                                               const uint32 C) {
@@ -80,6 +81,8 @@ void contiguous_count_cuda(const torch::Tensor &x, const torch::Tensor &output, 
         NUM_BLOCKS = sm_count;
     }
 
-    _contiguous_count_cuda_kernel<<<NUM_BLOCKS, BLOCK_SIZE, C * sizeof(int32)>>>(
-        x.data_ptr<int32>(), output.data_ptr<int32>(), num_elements, C);
+    AT_DISPATCH_CUSTOM_INT_TYPES(x.scalar_type(), "contiguous_count_cuda_kernel", ([&] {
+                                     _contiguous_count_cuda_kernel<<<NUM_BLOCKS, BLOCK_SIZE, C * sizeof(int32)>>>(
+                                         x.data_ptr<scalar_t>(), output.data_ptr<int32>(), num_elements, C);
+                                 }));
 }
