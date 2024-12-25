@@ -76,16 +76,11 @@ void contiguous_count_cuda(const torch::Tensor &x,
     assert(C < MAX_ALLOWED_C);
 
     const uint64 num_elements = x.numel();
+    const int max_num_blocks = get_max_thread_blocks(sm_count, thread_block_cluster_size);
 
-    // we use vector instructions of width 4
     int NUM_BLOCKS = (num_elements + BLOCK_SIZE - 1) / BLOCK_SIZE;
-    if (NUM_BLOCKS > sm_count) {
-        NUM_BLOCKS = sm_count;
-    }
-
-    if (NUM_BLOCKS % thread_block_cluster_size != 0) {
-        NUM_BLOCKS =
-            thread_block_cluster_size * ((NUM_BLOCKS + thread_block_cluster_size - 1) / thread_block_cluster_size);
+    if (NUM_BLOCKS > max_num_blocks) {
+        NUM_BLOCKS = max_num_blocks;
     }
 
     AT_DISPATCH_CUSTOM_INT_TYPES(x.scalar_type(), "contiguous_count_cuda_kernel", ([&] {
