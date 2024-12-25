@@ -2,7 +2,7 @@
 
 #include <cuda.h>
 
-__host__ int get_sm_count() {
+inline __host__ int get_sm_count() {
     // get device id
     int device_id;
     cudaGetDevice(&device_id);
