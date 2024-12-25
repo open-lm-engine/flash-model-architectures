@@ -18,6 +18,7 @@ from .kernels import (
     add_tensor_cute,
     add_tensor_torch,
     contiguous_count_cute,
+    contiguous_count_torch,
     embedding_cute,
     embedding_torch,
     rmsnorm_cute,

@@ -3,6 +3,7 @@ import torch
 from ...enums import KernelBackend
 from ...utils import ensure_contiguous
 from .cuda_implementation import contiguous_count_cuda
+from .torch_implementation import contiguous_count_torch
 from .triton_implementation import contiguous_count_triton
 
 

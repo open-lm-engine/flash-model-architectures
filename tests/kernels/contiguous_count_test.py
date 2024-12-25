@@ -4,7 +4,7 @@ import torch
 from parameterized import parameterized
 from transformers import set_seed
 
-from cute_kernels import KernelBackend, contiguous_count_cute
+from cute_kernels import KernelBackend, contiguous_count_cute, contiguous_count_torch
 
 from ..test_commons import TestCommons
 
@@ -35,6 +35,6 @@ class ContiguousCountTest(TestCommons):
         x = torch.randint(0, _MAX_EXPERTS, (size,), device=device, dtype=torch.long)
 
         z_kernel = function(x=x, size=_MAX_EXPERTS, kernel_backend=kernel_backend, BLOCK_SIZE_B=BLOCK_SIZE_B)
-        z_expected = x.view(-1).bincount(minlength=_MAX_EXPERTS).to(torch.uint32)
+        z_expected = contiguous_count_torch(x.view(-1), size=_MAX_EXPERTS)
 
         self.assert_equal_tensors(z_kernel, z_expected, True)
