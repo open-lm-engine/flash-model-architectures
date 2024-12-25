@@ -86,7 +86,7 @@ void contiguous_count_cuda(const torch::Tensor &x, torch::Tensor &output, const 
     }
 
     AT_DISPATCH_CUSTOM_INT_TYPES(x.scalar_type(), "contiguous_count_cuda_kernel", ([&] {
-                                     _contiguous_count_cuda_kernel<<<NUM_BLOCKS, BLOCK_SIZE, C * sizeof(int32)>>>(
+                                     _contiguous_count_cuda_kernel<<<NUM_BLOCKS, BLOCK_SIZE, C * sizeof(uint32)>>>(
                                          x.data_ptr<scalar_t>(), output.data_ptr<uint32>(), num_elements, C);
                                  }));
 }
