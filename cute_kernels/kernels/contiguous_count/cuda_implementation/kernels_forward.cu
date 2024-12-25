@@ -13,7 +13,7 @@ __global__ void _contiguous_count_cuda_kernel(const int32 *x,
                                               int32 *output,
                                               const uint64 num_elements,
                                               const uint32 C) {
-    const uint64 local_thread_id = get_local_thread_id();
+    const int local_thread_id = get_local_thread_id();
     const int num_loops_C = (C + blockDim.x - 1) / blockDim.x;
 
     extern __shared__ uint32 output_shared[];
