@@ -32,7 +32,7 @@ class ContiguousCountTest(TestCommons):
         function: Callable,
     ) -> None:
         set_seed(_SEED)
-        x = torch.randint(0, _MAX_EXPERTS, (size,), device=device, dtype=torch.long)
+        x = torch.randint(0, _MAX_EXPERTS, (size,), device=device, dtype=torch.int32)
 
         z_kernel = function(x=x, size=_MAX_EXPERTS, kernel_backend=kernel_backend, BLOCK_SIZE_B=BLOCK_SIZE_B)
         z_expected = x.view(-1).bincount(minlength=_MAX_EXPERTS)
