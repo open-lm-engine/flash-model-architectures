@@ -83,8 +83,18 @@ void contiguous_count_cuda(const torch::Tensor &x,
         NUM_BLOCKS = max_num_blocks;
     }
 
+    // dynamically sized clusters need this stupid way of launching the kernel
+    cudaLaunchConfig_t launch_config = {0};
+    launch_config.blockDim = BLOCK_SIZE;
+    launch_config.gridDim = NUM_BLOCKS;
+    launch_config.dynamicSmemBytes = C * sizeof(uint32);
+
     AT_DISPATCH_CUSTOM_INT_TYPES(x.scalar_type(), "contiguous_count_cuda_kernel", ([&] {
-                                     _contiguous_count_cuda_kernel<<<NUM_BLOCKS, BLOCK_SIZE, C * sizeof(uint32)>>>(
-                                         x.data_ptr<scalar_t>(), output.data_ptr<uint32>(), num_elements, C);
+                                     cudaLaunchKernelEx(&launch_config,
+                                                        _contiguous_count_cuda_kernel<scalar_t>,
+                                                        x.data_ptr<scalar_t>(),
+                                                        output.data_ptr<uint32>(),
+                                                        num_elements,
+                                                        C);
                                  }));
 }
