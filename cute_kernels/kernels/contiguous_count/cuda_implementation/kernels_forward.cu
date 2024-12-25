@@ -3,7 +3,6 @@
 #include <cuda_runtime.h>
 #include <torch/extension.h>
 
-#include "../../../include/device.h"
 #include "../../../include/dtypes/all.h"
 #include "../../../include/threads.h"
 
@@ -80,7 +79,7 @@ void contiguous_count_cuda(const torch::Tensor &x, torch::Tensor &output, const 
 
     // we use vector instructions of width 4
     int NUM_BLOCKS = (num_elements + BLOCK_SIZE - 1) / BLOCK_SIZE;
-    const int sm_count = get_sm_count();
+    const int sm_count = 132;
     if (NUM_BLOCKS > sm_count) {
         NUM_BLOCKS = sm_count;
     }
