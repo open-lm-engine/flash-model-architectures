@@ -66,8 +66,12 @@ __global__ void _contiguous_count_cuda_kernel(const scalar_t *x,
     }
 }
 
-void contiguous_count_cuda(
-    const torch::Tensor &x, torch::Tensor &output, const int &sm_count, const int &C, const int &BLOCK_SIZE) {
+void contiguous_count_cuda(const torch::Tensor &x,
+                           torch::Tensor &output,
+                           const int &sm_count,
+                           const int &thread_block_cluster_size,
+                           const int &C,
+                           const int &BLOCK_SIZE) {
     assert(BLOCK_SIZE % WARP_SIZE == 0);
     assert(C < MAX_ALLOWED_C);
 
@@ -77,6 +81,11 @@ void contiguous_count_cuda(
     int NUM_BLOCKS = (num_elements + BLOCK_SIZE - 1) / BLOCK_SIZE;
     if (NUM_BLOCKS > sm_count) {
         NUM_BLOCKS = sm_count;
+    }
+
+    if (NUM_BLOCKS % thread_block_cluster_size != 0) {
+        NUM_BLOCKS =
+            thread_block_cluster_size * ((NUM_BLOCKS + thread_block_cluster_size - 1) / thread_block_cluster_size);
     }
 
     AT_DISPATCH_CUSTOM_INT_TYPES(x.scalar_type(), "contiguous_count_cuda_kernel", ([&] {
