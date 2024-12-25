@@ -40,11 +40,7 @@ def contiguous_count_triton_kernel(x_ptr, output_ptr, B, C, BLOCK_SIZE_B: tl.con
         tl.atomic_add(output_ptr + indices_c, counts, mask=mask_c)
 
 
-def _fake(x: torch.Tensor, size: int, BLOCK_SIZE_B: int) -> torch.Tensor:
-    return torch.empty(size, dtype=torch.int32, device=x.device)
-
-
-@cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"output"}, fake_func=_fake)
+@cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"output"})
 def contiguous_count_triton(x: torch.Tensor, output: torch.Tensor, size: int, BLOCK_SIZE_B: int) -> None:
     B = x.numel()
     BLOCK_SIZE_C = get_next_power_of_2(size)
