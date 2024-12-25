@@ -24,19 +24,20 @@ def contiguous_count_triton_kernel(x_ptr, output_ptr, B, C, BLOCK_SIZE_B: tl.con
     program_end = min(program_start + num_elements_per_program, B)
     num_elements_in_current_program = program_end - program_start
 
-    num_loops = tl.cdiv(num_elements_in_current_program, BLOCK_SIZE_B)
-    counts = tl.zeros((BLOCK_SIZE_C,), dtype=tl.int32)
+    if num_elements_in_current_program > 0:
+        num_loops = tl.cdiv(num_elements_in_current_program, BLOCK_SIZE_B)
+        counts = tl.zeros((BLOCK_SIZE_C,), dtype=tl.int32)
 
-    for i in range(num_loops):
-        indices_b = program_start + i * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
-        mask_b = indices_b < program_end
+        for i in range(num_loops):
+            indices_b = program_start + i * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
+            mask_b = indices_b < program_end
 
-        x = tl.load(x_ptr + indices_b, mask=mask_b, other=-1)
+            x = tl.load(x_ptr + indices_b, mask=mask_b, other=-1)
 
-        equal = (x[:, None] == indices_c[None, :]).to(tl.int32)
-        counts += tl.sum(equal, axis=0)
+            equal = (x[:, None] == indices_c[None, :]).to(tl.int32)
+            counts += tl.sum(equal, axis=0)
 
-    tl.atomic_add(output_ptr + indices_c, counts, mask=mask_c)
+        tl.atomic_add(output_ptr + indices_c, counts, mask=mask_c)
 
 
 def _fake(x: torch.Tensor, size: int, BLOCK_SIZE_B: int) -> torch.Tensor:
