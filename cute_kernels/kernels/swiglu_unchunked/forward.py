@@ -1,20 +1,13 @@
 import torch
 
-from ...cutotune import CutoTuneConfig, cutotune, get_cartesian_product_cutotune_configs
+from ...cutotune import cutotune
 from ...enums import KernelBackend
-from ...math import divide_if_divisible, get_powers_of_2
+from ...math import divide_if_divisible
+from .parameters import get_cutotune_parameters
 from .triton_implementation import swiglu_unchunked_forward_triton
 
 
-@cutotune(
-    configs=get_cartesian_product_cutotune_configs(
-        kernel_backend=[KernelBackend.triton],
-        BLOCK_SIZE_B=get_powers_of_2(64, 1024),
-        BLOCK_SIZE_H=[64],
-    ),
-    default_config=CutoTuneConfig({"kernel_backend": KernelBackend.triton, "BLOCK_SIZE_B": 64, "BLOCK_SIZE_H": 64}),
-    triggers={"x.dtype"},
-)
+@cutotune(**get_cutotune_parameters())
 def _forward(x: torch.Tensor, kernel_backend: KernelBackend, BLOCK_SIZE_B: int, BLOCK_SIZE_H: int) -> torch.Tensor:
     H = x.size(-1)
     output = torch.empty(*x.size()[:-1], divide_if_divisible(H, 2), device=x.device, dtype=x.dtype)

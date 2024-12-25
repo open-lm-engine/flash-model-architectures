@@ -1,20 +1,12 @@
 import torch
 
-from ...cutotune import CutoTuneConfig, cutotune, get_cartesian_product_cutotune_configs
+from ...cutotune import cutotune
 from ...enums import KernelBackend
-from ...math import get_powers_of_2
+from .parameters import get_cutotune_parameters
 from .triton_implementation import swiglu_unchunked_backward_triton
 
 
-@cutotune(
-    configs=get_cartesian_product_cutotune_configs(
-        kernel_backend=[KernelBackend.triton],
-        BLOCK_SIZE_B=get_powers_of_2(64, 1024),
-        BLOCK_SIZE_H=[64],
-    ),
-    default_config=CutoTuneConfig({"kernel_backend": KernelBackend.triton, "BLOCK_SIZE_B": 64, "BLOCK_SIZE_H": 64}),
-    triggers={"x.dtype"},
-)
+@cutotune(**get_cutotune_parameters())
 def _backward(
     x: torch.Tensor,
     output_grad: torch.Tensor,
