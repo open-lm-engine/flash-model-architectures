@@ -11,7 +11,7 @@ struct ChunkedArray {
 
 template <typename T>
 std::vector<ChunkedArray<T> > chunk_array(T* x, const size_t& num_elements) {
-    const size_t num_elements_per_chunk = 100;  // std::numeric_limits<uint>::max();
+    const size_t num_elements_per_chunk = std::numeric_limits<uint>::max();
     size_t start = 0;
 
     std::vector<ChunkedArray<T> > result;
