@@ -1,14 +1,13 @@
 import torch
 
 from ...enums import KernelBackend
-from ...utils import ensure_contiguous, get_sm_count
+from ...utils import get_sm_count
 from .cuda_implementation import contiguous_count_cuda
 from .torch_implementation import contiguous_count_torch
 from .triton_implementation import contiguous_count_triton
 
 
 @torch.no_grad()
-@ensure_contiguous
 def contiguous_count_cute(
     x: torch.Tensor,
     size: int,
