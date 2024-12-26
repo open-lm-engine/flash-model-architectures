@@ -5,6 +5,7 @@
 
 #include "../../../../include/dtypes/all.h"
 #include "../../../../include/launch.h"
+#include "../../../../include/math.h"
 #include "../../../../include/threads.h"
 
 template <typename scalar_t, typename vector_t>
@@ -100,18 +101,22 @@ void add_scalar_forward_cuda(const torch::Tensor &x,
                              const int &vector_instruction_width,
                              const int &BLOCK_SIZE) {
     assert(BLOCK_SIZE % WARP_SIZE == 0);
-
-    const uint64 num_elements = x.numel();
-
-    const int num_elements_per_block = BLOCK_SIZE * vector_instruction_width;
-    const int NUM_BLOCKS = (num_elements + num_elements_per_block - 1) / num_elements_per_block;
+    const uint64 total_elements = x.numel();
 
     AT_DISPATCH_CUSTOM_FLOAT_TYPES(
         x.scalar_type(), "add_scalar_forward_cuda_kernel", ([&] {
             std::vector<ChunkedArray<scalar_t>> x_chunked =
-                chunk_array<scalar_t>(x.data_ptr<scalar_t>(), num_elements);
+                chunk_array<scalar_t>(x.data_ptr<scalar_t>(), total_elements);
             std::vector<ChunkedArray<scalar_t>> output_chunked =
-                chunk_array<scalar_t>(output.data_ptr<scalar_t>(), num_elements);
+                chunk_array<scalar_t>(output.data_ptr<scalar_t>(), total_elements);
+
+            const uint num_elements = x_chunked.num_elements;
+
+            scalar_t *x_chunk = x_chunked.array;
+            scalar_t *output_chunk = output_chunked.array;
+
+            const uint num_elements_per_block = BLOCK_SIZE * vector_instruction_width;
+            const uint NUM_BLOCKS = ceil_divide<uint>(num_elements, num_elements_per_block);
 
             for (int i = 0; i < x_chunked.size(); i++) {
                 ChunkedArray<scalar_t> x_chunk = x_chunked[i];
