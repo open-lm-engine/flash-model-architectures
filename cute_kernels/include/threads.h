@@ -49,5 +49,5 @@ inline __host__ std::tuple<int, int> get_num_blocks(const int &num_elements,
 
     NUM_BLOCKS = thread_block_cluster_size * (NUM_BLOCKS / thread_block_cluster_size);
 
-    return std::make_vec(NUM_BLOCKS, thread_block_cluster_size);
+    return std::make_tuple(NUM_BLOCKS, thread_block_cluster_size);
 }

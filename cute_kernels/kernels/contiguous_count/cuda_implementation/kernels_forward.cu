@@ -78,17 +78,8 @@ void contiguous_count_cuda(const torch::Tensor &x,
     const uint64 num_elements = x.numel();
     const int max_num_blocks = get_max_thread_blocks(sm_count, thread_block_cluster_size);
 
-    int NUM_BLOCKS = (num_elements + BLOCK_SIZE - 1) / BLOCK_SIZE;
-    if (NUM_BLOCKS > max_num_blocks) {
-        NUM_BLOCKS = max_num_blocks;
-    }
-
-    int cluster_size = thread_block_cluster_size;
-    if (cluster_size > NUM_BLOCKS) {
-        cluster_size = NUM_BLOCKS;
-    }
-
-    NUM_BLOCKS = cluster_size * (NUM_BLOCKS / cluster_size);
+    auto [NUM_BLOCKS, cluster_size] =
+        get_num_blocks(num_elements, BLOCK_SIZE, max_num_blocks, thread_block_cluster_size);
 
     // dynamically sized clusters need this stupid way of launching the kernel
     cudaLaunchConfig_t launch_config = {0};
