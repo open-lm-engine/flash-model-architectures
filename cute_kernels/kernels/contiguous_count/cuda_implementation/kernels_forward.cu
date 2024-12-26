@@ -1,3 +1,4 @@
+#include <cooperative_groups.h>
 #include <cuda.h>
 #include <cuda_fp16.h>
 #include <cuda_runtime.h>
@@ -7,6 +8,8 @@
 #include "../../../include/threads.h"
 
 #define MAX_ALLOWED_C 16384
+
+namespace cg = cooperative_groups;
 
 template <typename scalar_t>
 __global__ void _contiguous_count_cuda_kernel(const scalar_t *x,
