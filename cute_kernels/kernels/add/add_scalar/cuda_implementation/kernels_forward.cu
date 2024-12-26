@@ -108,7 +108,7 @@ void add_scalar_forward_cuda(const torch::Tensor &x,
 
     AT_DISPATCH_CUSTOM_FLOAT_TYPES(
         x.scalar_type(), "add_scalar_forward_cuda_kernel", ([&] {
-            std::vector<scalar_t> x_chunked = chunk_array<scalar_t>(x.data_ptr<scalar_t>());
+            std::vector<scalar_t> x_chunked = chunk_array<scalar_t>(x.data_ptr<scalar_t>(), num_elements);
 
             for (int i = 0; i < x_chunked.size(); i++) {
                 scalar_t *x_ = x_chunked[i];
