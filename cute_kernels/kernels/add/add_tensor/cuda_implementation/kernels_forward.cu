@@ -131,8 +131,7 @@ void add_tensor_forward_cuda(const torch::Tensor &x,
                     break;
                 case 8:
                     if constexpr (std::is_same_v<scalar_t, fp32>) {
-                        _add_tensor_forward_cuda_kernel<scalar_t, fp64_4><<<NUM_BLOCKS, BLOCK_SIZE>>>(
-                            x.data_ptr<scalar_t>(), y.data_ptr<scalar_t>(), output.data_ptr<scalar_t>(), num_elements);
+                        throw std::runtime_error("vector_instruction_width of 8 is not supported for fp32");
                     } else {
                         _add_tensor_forward_cuda_kernel<scalar_t, fp32_4><<<NUM_BLOCKS, BLOCK_SIZE>>>(
                             x.data_ptr<scalar_t>(), y.data_ptr<scalar_t>(), output.data_ptr<scalar_t>(), num_elements);
