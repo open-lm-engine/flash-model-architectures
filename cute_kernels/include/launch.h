@@ -6,7 +6,7 @@
 template <typename T>
 struct ChunkedArray {
     T* array;
-    size_t num_elements;
+    uint num_elements;
 };
 
 template <typename T>

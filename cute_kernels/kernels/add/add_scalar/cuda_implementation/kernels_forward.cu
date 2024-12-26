@@ -11,7 +11,7 @@ template <typename scalar_t, typename vector_t>
 __global__ void _add_scalar_forward_cuda_kernel(const scalar_t *x,
                                                 const fp32 y,
                                                 scalar_t *output,
-                                                const uint64 num_elements) {
+                                                const uint num_elements) {
     constexpr int vector_instruction_width = sizeof(vector_t) / sizeof(scalar_t);
     static_assert(vector_instruction_width == 1 || vector_instruction_width == 2 || vector_instruction_width == 4 ||
                   vector_instruction_width == 8);
@@ -20,14 +20,14 @@ __global__ void _add_scalar_forward_cuda_kernel(const scalar_t *x,
     using T = typename dtype::nv_dtype;
     using T2 = typename dtype::nv_dtype2;
 
-    const uint64 thread_id = get_global_thread_id();
+    const uint thread_id = get_global_thread_id();
 
     if constexpr (vector_instruction_width == 1) {
         if (thread_id < num_elements) {
             output[thread_id] = x[thread_id] + y;
         }
     } else {
-        uint64 end = (thread_id + 1) * vector_instruction_width - 1;  // inclusive of last element
+        uint end = (thread_id + 1) * vector_instruction_width - 1;  // inclusive of last element
 
         if (end < num_elements) {
             vector_t *output_vec = (vector_t *)output;
