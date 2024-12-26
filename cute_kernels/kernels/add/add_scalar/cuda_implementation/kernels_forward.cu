@@ -106,45 +106,52 @@ void add_scalar_forward_cuda(const torch::Tensor &x,
     const int num_elements_per_block = BLOCK_SIZE * vector_instruction_width;
     const int NUM_BLOCKS = (num_elements + num_elements_per_block - 1) / num_elements_per_block;
 
-    AT_DISPATCH_CUSTOM_FLOAT_TYPES(
-        x.scalar_type(), "add_scalar_forward_cuda_kernel", ([&] {
-            std::vector<scalar_t> x_chunked = chunk_array<scalar_t>(x.data_ptr<scalar_t>(), num_elements);
+    AT_DISPATCH_CUSTOM_FLOAT_TYPES(x.scalar_type(), "add_scalar_forward_cuda_kernel", ([&] {
+                                       std::cout << typeid(x.data_ptr<scalar_t>()).name() << std::endl;
+                                       std::vector<ChunkedArray<scalar_t> > x_chunked =
+                                           chunk_array<scalar_t>(x.data_ptr<scalar_t>(), num_elements);
 
-            for (int i = 0; i < x_chunked.size(); i++) {
-                scalar_t *x_ = x_chunked[i];
+                                       // for (int i = 0; i < x_chunked.size(); i++) {
+                                       //     scalar_t *x_ = x_chunked[i];
 
-                switch (vector_instruction_width) {
-                    case 1:
-                        _add_scalar_forward_cuda_kernel<scalar_t, scalar_t>
-                            <<<NUM_BLOCKS, BLOCK_SIZE>>>(x_, y, output.data_ptr<scalar_t>(), num_elements);
-                        break;
-                    case 2:
-                        using vector_t = typename DType<scalar_t>::nv_dtype2;
-                        _add_scalar_forward_cuda_kernel<scalar_t, vector_t>
-                            <<<NUM_BLOCKS, BLOCK_SIZE>>>(x_, y, output.data_ptr<scalar_t>(), num_elements);
-                        break;
-                    case 4:
-                        if constexpr (std::is_same_v<scalar_t, fp32>) {
-                            _add_scalar_forward_cuda_kernel<scalar_t, fp32_4>
-                                <<<NUM_BLOCKS, BLOCK_SIZE>>>(x_, y, output.data_ptr<scalar_t>(), num_elements);
-                        } else {
-                            _add_scalar_forward_cuda_kernel<scalar_t, fp32_2>
-                                <<<NUM_BLOCKS, BLOCK_SIZE>>>(x_, y, output.data_ptr<scalar_t>(), num_elements);
-                        }
-                        break;
-                    case 8:
-                        if constexpr (std::is_same_v<scalar_t, fp32>) {
-                            _add_scalar_forward_cuda_kernel<scalar_t, fp64_4>
-                                <<<NUM_BLOCKS, BLOCK_SIZE>>>(x_, y, output.data_ptr<scalar_t>(), num_elements);
-                        } else {
-                            _add_scalar_forward_cuda_kernel<scalar_t, fp32_4>
-                                <<<NUM_BLOCKS, BLOCK_SIZE>>>(x_, y, output.data_ptr<scalar_t>(), num_elements);
-                        }
-                        break;
-                    default:
-                        throw std::runtime_error("invalid vector_instruction_width");
-                        break;
-                }
-            }
-        }));
+                                       //     switch (vector_instruction_width) {
+                                       //         case 1:
+                                       //             _add_scalar_forward_cuda_kernel<scalar_t, scalar_t>
+                                       //                 <<<NUM_BLOCKS, BLOCK_SIZE>>>(x_, y,
+                                       //                 output.data_ptr<scalar_t>(), num_elements);
+                                       //             break;
+                                       //         case 2:
+                                       //             using vector_t = typename DType<scalar_t>::nv_dtype2;
+                                       //             _add_scalar_forward_cuda_kernel<scalar_t, vector_t>
+                                       //                 <<<NUM_BLOCKS, BLOCK_SIZE>>>(x_, y,
+                                       //                 output.data_ptr<scalar_t>(), num_elements);
+                                       //             break;
+                                       //         case 4:
+                                       //             if constexpr (std::is_same_v<scalar_t, fp32>) {
+                                       //                 _add_scalar_forward_cuda_kernel<scalar_t, fp32_4>
+                                       //                     <<<NUM_BLOCKS, BLOCK_SIZE>>>(x_, y,
+                                       //                     output.data_ptr<scalar_t>(), num_elements);
+                                       //             } else {
+                                       //                 _add_scalar_forward_cuda_kernel<scalar_t, fp32_2>
+                                       //                     <<<NUM_BLOCKS, BLOCK_SIZE>>>(x_, y,
+                                       //                     output.data_ptr<scalar_t>(), num_elements);
+                                       //             }
+                                       //             break;
+                                       //         case 8:
+                                       //             if constexpr (std::is_same_v<scalar_t, fp32>) {
+                                       //                 _add_scalar_forward_cuda_kernel<scalar_t, fp64_4>
+                                       //                     <<<NUM_BLOCKS, BLOCK_SIZE>>>(x_, y,
+                                       //                     output.data_ptr<scalar_t>(), num_elements);
+                                       //             } else {
+                                       //                 _add_scalar_forward_cuda_kernel<scalar_t, fp32_4>
+                                       //                     <<<NUM_BLOCKS, BLOCK_SIZE>>>(x_, y,
+                                       //                     output.data_ptr<scalar_t>(), num_elements);
+                                       //             }
+                                       //             break;
+                                       //         default:
+                                       //             throw std::runtime_error("invalid vector_instruction_width");
+                                       //             break;
+                                       //     }
+                                       // }
+                                   }));
 }
