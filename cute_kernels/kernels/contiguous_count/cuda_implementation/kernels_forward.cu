@@ -56,14 +56,35 @@ __global__ void _contiguous_count_cuda_kernel(const scalar_t *x,
 
         __syncthreads();
 
+        cg::cluster_group cluster = cg::this_cluster();
+        const uint cluster_block_rank = cluster.block_rank();
+
+        if (cluster_block_rank != 0) {
+            uint32 *destination_output_shared = cluster.map_shared_rank(output_shared, 0);
+
+            // clang-format off
+            #pragma unroll
+            // clang-format on
+            for (int i = 0; i < num_loops_C; i++) {
+                const int index = i * blockDim.x + local_thread_id;
+                if (index < C) {
+                    atomicAdd(&destination_output_shared[index], output_shared[index]);
+                }
+            }
+        }
+
+        cluster.sync();
+
         // write the output to the global memory
-        // clang-format off
-        #pragma unroll
-        // clang-format on
-        for (int i = 0; i < num_loops_C; i++) {
-            const int index = i * blockDim.x + local_thread_id;
-            if (index < C) {
-                atomicAdd(&output[index], output_shared[index]);
+        if (cluster_block_rank == 0) {
+            // clang-format off
+            #pragma unroll
+            // clang-format on
+            for (int i = 0; i < num_loops_C; i++) {
+                const int index = i * blockDim.x + local_thread_id;
+                if (index < C) {
+                    atomicAdd(&output[index], output_shared[index]);
+                }
             }
         }
     }
