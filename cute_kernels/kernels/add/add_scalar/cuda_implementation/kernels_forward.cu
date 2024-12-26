@@ -105,49 +105,49 @@ void add_scalar_forward_cuda(const torch::Tensor &x,
 
     AT_DISPATCH_CUSTOM_FLOAT_TYPES(
         x.scalar_type(), "add_scalar_forward_cuda_kernel", ([&] {
-            std::vector<ChunkedArray<scalar_t>> x_chunked =
+            std::vector<ChunkedArray<scalar_t>> x_chunks =
                 chunk_array<scalar_t>(x.data_ptr<scalar_t>(), total_elements);
-            std::vector<ChunkedArray<scalar_t>> output_chunked =
+            std::vector<ChunkedArray<scalar_t>> output_chunks =
                 chunk_array<scalar_t>(output.data_ptr<scalar_t>(), total_elements);
 
-            const uint num_elements = x_chunked.num_elements;
-
-            scalar_t *x_chunk = x_chunked.array;
-            scalar_t *output_chunk = output_chunked.array;
-
-            const uint num_elements_per_block = BLOCK_SIZE * vector_instruction_width;
-            const uint NUM_BLOCKS = ceil_divide<uint>(num_elements, num_elements_per_block);
-
             for (int i = 0; i < x_chunked.size(); i++) {
-                ChunkedArray<scalar_t> x_chunk = x_chunked[i];
-                ChunkedArray<scalar_t> output_chunk = output_chunked[i];
+                ChunkedArray<scalar_t> x_chunk = x_chunks[i];
+                ChunkedArray<scalar_t> output_chunk = output_chunks[i];
+
+                const uint num_elements = x_chunk.num_elements;
+
+                scalar_t *_x = x_chunk.array;
+                scalar_t *_output = output_chunk.array;
+
+                const uint num_elements_per_block = BLOCK_SIZE * vector_instruction_width;
+                const uint NUM_BLOCKS = ceil_divide<uint>(num_elements, num_elements_per_block);
 
                 switch (vector_instruction_width) {
                     case 1:
                         _add_scalar_forward_cuda_kernel<scalar_t, scalar_t>
-                            <<<NUM_BLOCKS, BLOCK_SIZE>>>(x_chunk.array, y, output_chunk.array, x_chunk.num_elements);
+                            <<<NUM_BLOCKS, BLOCK_SIZE>>>(_x, y, _output, x_chunk.num_elements);
                         break;
                     case 2:
                         using vector_t = typename DType<scalar_t>::nv_dtype2;
                         _add_scalar_forward_cuda_kernel<scalar_t, vector_t>
-                            <<<NUM_BLOCKS, BLOCK_SIZE>>>(x_chunk.array, y, output_chunk.array, x_chunk.num_elements);
+                            <<<NUM_BLOCKS, BLOCK_SIZE>>>(_x, y, _output, x_chunk.num_elements);
                         break;
                     case 4:
                         if constexpr (std::is_same_v<scalar_t, fp32>) {
-                            _add_scalar_forward_cuda_kernel<scalar_t, fp32_4><<<NUM_BLOCKS, BLOCK_SIZE>>>(
-                                x_chunk.array, y, output_chunk.array, x_chunk.num_elements);
+                            _add_scalar_forward_cuda_kernel<scalar_t, fp32_4>
+                                <<<NUM_BLOCKS, BLOCK_SIZE>>>(_x, y, _output, x_chunk.num_elements);
                         } else {
-                            _add_scalar_forward_cuda_kernel<scalar_t, fp32_2><<<NUM_BLOCKS, BLOCK_SIZE>>>(
-                                x_chunk.array, y, output_chunk.array, x_chunk.num_elements);
+                            _add_scalar_forward_cuda_kernel<scalar_t, fp32_2>
+                                <<<NUM_BLOCKS, BLOCK_SIZE>>>(_x, y, _output, x_chunk.num_elements);
                         }
                         break;
                     case 8:
                         if constexpr (std::is_same_v<scalar_t, fp32>) {
-                            _add_scalar_forward_cuda_kernel<scalar_t, fp64_4><<<NUM_BLOCKS, BLOCK_SIZE>>>(
-                                x_chunk.array, y, output_chunk.array, x_chunk.num_elements);
+                            _add_scalar_forward_cuda_kernel<scalar_t, fp64_4>
+                                <<<NUM_BLOCKS, BLOCK_SIZE>>>(_x, y, _output, x_chunk.num_elements);
                         } else {
-                            _add_scalar_forward_cuda_kernel<scalar_t, fp32_4><<<NUM_BLOCKS, BLOCK_SIZE>>>(
-                                x_chunk.array, y, output_chunk.array, x_chunk.num_elements);
+                            _add_scalar_forward_cuda_kernel<scalar_t, fp32_4>
+                                <<<NUM_BLOCKS, BLOCK_SIZE>>>(_x, y, _output, x_chunk.num_elements);
                         }
                         break;
                     default:
