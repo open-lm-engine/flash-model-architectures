@@ -1,3 +1,4 @@
+#include <cooperative_groups.h>
 #include <cuda.h>
 #include <cuda_fp16.h>
 #include <cuda_runtime.h>
@@ -7,6 +8,8 @@
 #include "../../../include/threads.h"
 
 #define MAX_ALLOWED_C 16384
+
+namespace cg = cooperative_groups;
 
 template <typename scalar_t>
 __global__ void _contiguous_count_cuda_kernel(const scalar_t *x,
@@ -53,34 +56,76 @@ __global__ void _contiguous_count_cuda_kernel(const scalar_t *x,
 
         __syncthreads();
 
+        cg::cluster_group cluster = cg::this_cluster();
+        const uint cluster_block_rank = cluster.block_rank();
+
+        if (cluster_block_rank != 0) {
+            uint32 *destination_output_shared = cluster.map_shared_rank(output_shared, 0);
+
+            // clang-format off
+            #pragma unroll
+            // clang-format on
+            for (int i = 0; i < num_loops_C; i++) {
+                const int index = i * blockDim.x + local_thread_id;
+                if (index < C) {
+                    atomicAdd(&destination_output_shared[index], output_shared[index]);
+                }
+            }
+        }
+
+        cluster.sync();
+
         // write the output to the global memory
-        // clang-format off
-        #pragma unroll
-        // clang-format on
-        for (int i = 0; i < num_loops_C; i++) {
-            const int index = i * blockDim.x + local_thread_id;
-            if (index < C) {
-                atomicAdd(&output[index], output_shared[index]);
+        if (cluster_block_rank == 0) {
+            // clang-format off
+            #pragma unroll
+            // clang-format on
+            for (int i = 0; i < num_loops_C; i++) {
+                const int index = i * blockDim.x + local_thread_id;
+                if (index < C) {
+                    atomicAdd(&output[index], output_shared[index]);
+                }
             }
         }
     }
 }
 
-void contiguous_count_cuda(
-    const torch::Tensor &x, torch::Tensor &output, const int &sm_count, const int &C, const int &BLOCK_SIZE) {
+void contiguous_count_cuda(const torch::Tensor &x,
+                           torch::Tensor &output,
+                           const int &sm_count,
+                           const int &thread_block_cluster_size,
+                           const int &C,
+                           const int &BLOCK_SIZE) {
     assert(BLOCK_SIZE % WARP_SIZE == 0);
     assert(C < MAX_ALLOWED_C);
 
     const uint64 num_elements = x.numel();
+    const int max_num_blocks = get_max_thread_blocks(sm_count, thread_block_cluster_size);
 
-    // we use vector instructions of width 4
-    int NUM_BLOCKS = (num_elements + BLOCK_SIZE - 1) / BLOCK_SIZE;
-    if (NUM_BLOCKS > sm_count) {
-        NUM_BLOCKS = sm_count;
-    }
+    auto [NUM_BLOCKS, cluster_size] =
+        get_num_blocks(num_elements, BLOCK_SIZE, max_num_blocks, thread_block_cluster_size);
+
+    // dynamically sized clusters need this stupid way of launching the kernel
+    cudaLaunchConfig_t launch_config = {0};
+    launch_config.blockDim = BLOCK_SIZE;
+    launch_config.gridDim = NUM_BLOCKS;
+    launch_config.dynamicSmemBytes = C * sizeof(uint32);
+
+    cudaLaunchAttribute attributes[1];
+    attributes[0].id = cudaLaunchAttributeClusterDimension;
+    attributes[0].val.clusterDim.x = cluster_size;
+    attributes[0].val.clusterDim.y = 1;
+    attributes[0].val.clusterDim.z = 1;
+
+    launch_config.attrs = attributes;
+    launch_config.numAttrs = 1;
 
     AT_DISPATCH_CUSTOM_INT_TYPES(x.scalar_type(), "contiguous_count_cuda_kernel", ([&] {
-                                     _contiguous_count_cuda_kernel<<<NUM_BLOCKS, BLOCK_SIZE, C * sizeof(uint32)>>>(
-                                         x.data_ptr<scalar_t>(), output.data_ptr<uint32>(), num_elements, C);
+                                     cudaLaunchKernelEx(&launch_config,
+                                                        _contiguous_count_cuda_kernel<scalar_t>,
+                                                        x.data_ptr<scalar_t>(),
+                                                        output.data_ptr<uint32>(),
+                                                        num_elements,
+                                                        C);
                                  }));
 }

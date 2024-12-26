@@ -1,14 +1,13 @@
 import torch
 
 from ...enums import KernelBackend
-from ...utils import ensure_contiguous, get_sm_count
+from ...utils import get_sm_count
 from .cuda_implementation import contiguous_count_cuda
 from .torch_implementation import contiguous_count_torch
 from .triton_implementation import contiguous_count_triton
 
 
 @torch.no_grad()
-@ensure_contiguous
 def contiguous_count_cute(
     x: torch.Tensor,
     size: int,
@@ -22,7 +21,12 @@ def contiguous_count_cute(
 
     if kernel_backend == KernelBackend.cuda:
         contiguous_count_cuda(
-            x=x, output=output, sm_count=get_sm_count(x.device), size=size, BLOCK_SIZE_B=BLOCK_SIZE_B
+            x=x,
+            output=output,
+            sm_count=get_sm_count(x.device),
+            thread_block_cluster_size=4,
+            size=size,
+            BLOCK_SIZE_B=BLOCK_SIZE_B,
         )
     elif kernel_backend == KernelBackend.triton:
         contiguous_count_triton(x=x, output=output, size=size, BLOCK_SIZE_B=BLOCK_SIZE_B)
