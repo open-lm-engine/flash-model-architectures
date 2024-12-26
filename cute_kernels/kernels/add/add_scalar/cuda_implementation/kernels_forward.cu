@@ -110,7 +110,7 @@ void add_scalar_forward_cuda(const torch::Tensor &x,
             std::vector<ChunkedArray<scalar_t>> output_chunks =
                 chunk_array<scalar_t>(output.data_ptr<scalar_t>(), total_elements);
 
-            for (int i = 0; i < x_chunked.size(); i++) {
+            for (int i = 0; i < x_chunks.size(); i++) {
                 ChunkedArray<scalar_t> x_chunk = x_chunks[i];
                 ChunkedArray<scalar_t> output_chunk = output_chunks[i];
 
