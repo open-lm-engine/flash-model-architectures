@@ -1,5 +1,7 @@
 #include <torch/extension.h>
 
+#include "../../../../include/dtypes/all.h"
+
 void add_tensor_forward_cuda(const torch::Tensor &x,
                              const torch::Tensor &y,
                              torch::Tensor &output,
