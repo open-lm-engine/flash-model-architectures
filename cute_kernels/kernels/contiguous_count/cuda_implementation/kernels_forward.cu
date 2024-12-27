@@ -57,7 +57,7 @@ __global__ void _contiguous_count_cuda_kernel(const scalar_t *x,
         __syncthreads();
 
         cg::cluster_group cluster = cg::this_cluster();
-        const uint cluster_block_rank = cluster.block_rank();
+        const uint32 cluster_block_rank = cluster.block_rank();
 
         if (cluster_block_rank != 0) {
             uint32 *destination_output_shared = cluster.map_shared_rank(output_shared, 0);

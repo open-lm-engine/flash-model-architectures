@@ -8,15 +8,15 @@
 
 #include "dtypes/all.h"
 
-inline __device__ uint get_threads_per_block() { return blockDim.x * blockDim.y * blockDim.z; }
+inline __device__ uint32 get_threads_per_block() { return blockDim.x * blockDim.y * blockDim.z; }
 
-inline __device__ uint get_num_blocks() { return gridDim.x * gridDim.y * gridDim.z; }
+inline __device__ uint32 get_num_blocks() { return gridDim.x * gridDim.y * gridDim.z; }
 
-inline __device__ uint get_block_id() {
+inline __device__ uint32 get_block_id() {
     return gridDim.x * gridDim.y * blockIdx.z + gridDim.x * blockIdx.y + blockIdx.x;
 }
 
-inline __device__ uint get_local_thread_id() {
+inline __device__ uint32 get_local_thread_id() {
     return blockDim.x * blockDim.y * threadIdx.z + blockDim.x * threadIdx.y + threadIdx.x;
 }
 

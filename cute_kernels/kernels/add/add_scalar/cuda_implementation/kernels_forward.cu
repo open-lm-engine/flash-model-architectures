@@ -21,14 +21,14 @@ __global__ void _add_scalar_forward_cuda_kernel(const scalar_t *x,
     using T = typename dtype::nv_dtype;
     using T2 = typename dtype::nv_dtype2;
 
-    const uint thread_id = get_global_thread_id();
+    const uint32 thread_id = get_global_thread_id();
 
     if constexpr (vector_instruction_width == 1) {
         if (thread_id < num_elements) {
             output[thread_id] = x[thread_id] + y;
         }
     } else {
-        uint end = (thread_id + 1) * vector_instruction_width - 1;  // inclusive of last element
+        uint32 end = (thread_id + 1) * vector_instruction_width - 1;  // inclusive of last element
 
         if (end < num_elements) {
             vector_t *output_vec = (vector_t *)output;
@@ -119,8 +119,8 @@ void add_scalar_forward_cuda(const torch::Tensor &x,
                 scalar_t *_x = x_chunk.array;
                 scalar_t *_output = output_chunk.array;
 
-                const uint num_elements_per_block = BLOCK_SIZE * vector_instruction_width;
-                const uint NUM_BLOCKS = ceil_divide<uint64>(num_elements, num_elements_per_block);
+                const uint32 num_elements_per_block = BLOCK_SIZE * vector_instruction_width;
+                const uint32 NUM_BLOCKS = ceil_divide<uint64>(num_elements, num_elements_per_block);
 
                 switch (vector_instruction_width) {
                     case 1:
