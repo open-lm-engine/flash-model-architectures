@@ -114,13 +114,13 @@ void add_scalar_forward_cuda(const torch::Tensor &x,
                 ChunkedArray<scalar_t> x_chunk = x_chunks[i];
                 ChunkedArray<scalar_t> output_chunk = output_chunks[i];
 
-                const uint num_elements = x_chunk.num_elements;
+                const size_t num_elements = x_chunk.num_elements;
 
                 scalar_t *_x = x_chunk.array;
                 scalar_t *_output = output_chunk.array;
 
                 const uint num_elements_per_block = BLOCK_SIZE * vector_instruction_width;
-                const uint NUM_BLOCKS = ceil_divide<uint>(num_elements, num_elements_per_block);
+                const uint NUM_BLOCKS = ceil_divide<size_t>(num_elements, num_elements_per_block);
 
                 switch (vector_instruction_width) {
                     case 1:
