@@ -12,7 +12,7 @@ template <typename scalar_t, typename vector_t>
 __global__ void _add_scalar_forward_cuda_kernel(const scalar_t *x,
                                                 const fp32 y,
                                                 scalar_t *output,
-                                                const uint num_elements) {
+                                                const uint64 num_elements) {
     constexpr int vector_instruction_width = sizeof(vector_t) / sizeof(scalar_t);
     static_assert(vector_instruction_width == 1 || vector_instruction_width == 2 || vector_instruction_width == 4 ||
                   vector_instruction_width == 8);
@@ -114,18 +114,13 @@ void add_scalar_forward_cuda(const torch::Tensor &x,
                 ChunkedArray<scalar_t> x_chunk = x_chunks[i];
                 ChunkedArray<scalar_t> output_chunk = output_chunks[i];
 
-                const size_t num_elements = x_chunk.num_elements;
+                const uint64 num_elements = x_chunk.num_elements;
 
                 scalar_t *_x = x_chunk.array;
                 scalar_t *_output = output_chunk.array;
 
-                // std::cout << "hi: " << x_chunks.size() << std::endl;
-                // std::cout << num_elements << std::endl;
-                // std::cout << _x << std::endl;
-                // std::cout << _output << std::endl;
-
                 const uint num_elements_per_block = BLOCK_SIZE * vector_instruction_width;
-                const uint NUM_BLOCKS = ceil_divide<uint>(num_elements, num_elements_per_block);
+                const uint NUM_BLOCKS = ceil_divide<uint64>(num_elements, num_elements_per_block);
 
                 switch (vector_instruction_width) {
                     case 1:
