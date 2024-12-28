@@ -1,10 +1,6 @@
 import torch
 
-from ...constants import (
-    COMMON_CUDA_BLOCK_SIZES_POWERS_OF_2,
-    COMMON_TRITON_BLOCK_SIZES_POWERS_OF_2,
-    MAX_CUDA_BLOCK_SIZE,
-)
+from ...constants import COMMON_CUDA_BLOCK_SIZES_POWERS_OF_2, MAX_CUDA_BLOCK_SIZE
 from ...cutotune import CutoTuneConfig, CutoTuneParameter, cutotune, get_cartesian_product_cutotune_configs
 from ...enums import KernelBackend
 from ...math import get_next_power_of_2
@@ -42,30 +38,21 @@ def _contiguous_count_cute(
     return output
 
 
-# @torch.no_grad()
-# @cutotune(
-#     configs=(
-#         get_cartesian_product_cutotune_configs(
-#             kernel_backend=[KernelBackend.cuda], BLOCK_SIZE=COMMON_CUDA_BLOCK_SIZES_POWERS_OF_2
-#         )
-#         if torch.cuda.is_available()
-#         else []
-#     )
-#     + (
-#         get_cartesian_product_cutotune_configs(
-#             kernel_backend=[KernelBackend.cuda],
-#             BLOCK_SIZE=COMMON_CUDA_BLOCK_SIZES_POWERS_OF_2,
-#             condition=lambda **kwargs: kwargs["x"].dtype in [torch.float16, torch.bfloat16],
-#         )
-#         if torch.cuda.is_available()
-#         else []
-#     )
-#     + get_cartesian_product_cutotune_configs(
-#         kernel_backend=[KernelBackend.triton], BLOCK_SIZE=COMMON_TRITON_BLOCK_SIZES_POWERS_OF_2
-#     ),
-#     default_config=CutoTuneConfig({"kernel_backend": KernelBackend.triton, "BLOCK_SIZE": MAX_CUDA_BLOCK_SIZE}),
-#     functional_triggers={"size_next_power_of_2": lambda **kwargs: get_next_power_of_2(kwargs["size"])},
-# )
+@torch.no_grad()
+@cutotune(
+    configs=(
+        get_cartesian_product_cutotune_configs(
+            kernel_backend=[KernelBackend.cuda], BLOCK_SIZE=COMMON_CUDA_BLOCK_SIZES_POWERS_OF_2
+        )
+        if torch.cuda.is_available()
+        else []
+    )
+    + get_cartesian_product_cutotune_configs(
+        kernel_backend=[KernelBackend.triton], BLOCK_SIZE=COMMON_CUDA_BLOCK_SIZES_POWERS_OF_2
+    ),
+    default_config=CutoTuneConfig({"kernel_backend": KernelBackend.triton, "BLOCK_SIZE": MAX_CUDA_BLOCK_SIZE}),
+    functional_triggers={"size_next_power_of_2": lambda **kwargs: get_next_power_of_2(kwargs["size"])},
+)
 def contiguous_count_cute(
     x: torch.Tensor,
     size: int,
