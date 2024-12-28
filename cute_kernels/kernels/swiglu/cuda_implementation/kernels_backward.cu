@@ -92,7 +92,7 @@ void swiglu_backward_cuda(const torch::Tensor &gate,
                           const torch::Tensor &output_grad,
                           torch::Tensor &gate_grad,
                           torch::Tensor &up_grad,
-                          const int &BLOCK_SIZE) {
+                          const uint32 &BLOCK_SIZE) {
     const uint64 total_elements = gate.numel();
 
     AT_DISPATCH_CUSTOM_FLOAT_TYPES(
