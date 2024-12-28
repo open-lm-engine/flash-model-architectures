@@ -58,7 +58,7 @@ __global__ void _contiguous_count_cuda_kernel(const scalar_t *x,
     __syncthreads();
 
     // count the number of occurances of each number in x
-    const int num_elements_per_block = (num_elements + gridDim.x - 1) / gridDim.x;
+    const uint32 num_elements_per_block = ceil_divide<uint64>(num_elements, gridDim.x);
 
     const int start = blockIdx.x * num_elements_per_block;
     int end = start + num_elements_per_block;
