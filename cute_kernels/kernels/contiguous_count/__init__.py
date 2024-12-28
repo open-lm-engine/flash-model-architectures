@@ -1,5 +1,11 @@
 import torch
 
+from ...constants import (
+    COMMON_CUDA_BLOCK_SIZES_POWERS_OF_2,
+    COMMON_TRITON_BLOCK_SIZES_POWERS_OF_2,
+    MAX_CUDA_BLOCK_SIZE,
+)
+from ...cutotune import CutoTuneConfig, CutoTuneParameter, cutotune, get_cartesian_product_cutotune_configs
 from ...enums import KernelBackend
 from ...utils import get_sm_count
 from .cuda_implementation import contiguous_count_cuda
@@ -7,8 +13,7 @@ from .torch_implementation import contiguous_count_torch
 from .triton_implementation import contiguous_count_triton
 
 
-@torch.no_grad()
-def contiguous_count_cute(
+def _contiguous_count_cute(
     x: torch.Tensor,
     size: int,
     kernel_backend: KernelBackend = KernelBackend.triton,
@@ -34,3 +39,36 @@ def contiguous_count_cute(
         raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
     return output
+
+
+@torch.no_grad()
+@cutotune(
+    configs=(
+        get_cartesian_product_cutotune_configs(
+            kernel_backend=[KernelBackend.cuda], BLOCK_SIZE=COMMON_CUDA_BLOCK_SIZES_POWERS_OF_2
+        )
+        if torch.cuda.is_available()
+        else []
+    )
+    + (
+        get_cartesian_product_cutotune_configs(
+            kernel_backend=[KernelBackend.cuda],
+            BLOCK_SIZE=COMMON_CUDA_BLOCK_SIZES_POWERS_OF_2,
+            condition=lambda **kwargs: kwargs["x"].dtype in [torch.float16, torch.bfloat16],
+        )
+        if torch.cuda.is_available()
+        else []
+    )
+    + get_cartesian_product_cutotune_configs(
+        kernel_backend=[KernelBackend.triton], BLOCK_SIZE=COMMON_TRITON_BLOCK_SIZES_POWERS_OF_2
+    ),
+    default_config=CutoTuneConfig({"kernel_backend": KernelBackend.triton, "BLOCK_SIZE": MAX_CUDA_BLOCK_SIZE}),
+    triggers={"x.dtype"},
+)
+def contiguous_count_cute(
+    x: torch.Tensor,
+    size: int,
+    kernel_backend: KernelBackend = CutoTuneParameter(),
+    BLOCK_SIZE_B: int = CutoTuneParameter(),
+) -> torch.Tensor:
+    return _contiguous_count_cute(x=x, size=size, kernel_backend=kernel_backend, BLOCK_SIZE_B=BLOCK_SIZE_B)
