@@ -17,9 +17,6 @@ inline __device__ void _initialize_shared_memory(uint32 *output_shared,
                                                  const uint32 &num_loops_C,
                                                  const uint32 &C,
                                                  const uint32 &local_thread_id) {
-    // clang-format off
-    #pragma unroll
-    // clang-format on
     for (uint32 i = 0; i < num_loops_C; i++) {
         const uint32 index = i * blockDim.x + local_thread_id;
         if (index < C) {
@@ -33,9 +30,6 @@ inline __device__ void _looped_atomic_add(uint32 *output_shared,
                                           const uint32 &num_loops_C,
                                           const uint32 &C,
                                           const uint32 &local_thread_id) {
-    // clang-format off
-    #pragma unroll
-    // clang-format on
     for (int i = 0; i < num_loops_C; i++) {
         const int index = i * blockDim.x + local_thread_id;
         if (index < C) {
