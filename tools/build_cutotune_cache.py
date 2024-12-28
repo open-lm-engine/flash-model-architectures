@@ -7,6 +7,7 @@ from cute_kernels import (
     add_scalar_cute,
     add_tensor_cute,
     embedding_cute,
+    get_all_cutotune_caches,
     get_powers_of_2,
     rmsnorm_cute,
     save_cutotune_cache,
@@ -62,4 +63,5 @@ for dtype in all_dtypes:
             )
 
 
-save_cutotune_cache()
+for function_hash in get_all_cutotune_caches():
+    save_cutotune_cache(function_hash)

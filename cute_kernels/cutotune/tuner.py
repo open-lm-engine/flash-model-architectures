@@ -53,7 +53,7 @@ class _CutoTune:
             raise NotImplementedError()
 
         self.function_hash = f"{inspect.stack()[2].filename.split('cute_kernels')[1][1:]}->{function.__name__}"
-        self.best_configs = get_cutotune_cache().get_best_configs(self.function_hash)
+        self.best_configs = get_cutotune_cache(self.function_hash).get_best_configs()
 
     def __call__(self, *args, **kwargs) -> Any:
         override_cutotune_parameters = self._check_all_or_no_args_are_cutotune_parameters(*args, **kwargs)
@@ -61,26 +61,20 @@ class _CutoTune:
 
         disable_cutotune = _DISABLE_CUTOTUNE or torch.compiler.is_compiling()
 
-        if len(self.configs) == 1:
-            best_config = self.configs[0]
+        best_config = self.best_configs.get(
+            lookup_key, (self.default_config, None) if disable_cutotune else (None, None)
+        )[0]
 
-            if not disable_cutotune:
-                self.best_configs[lookup_key] = (best_config, 0)
-        else:
-            best_config = self.best_configs.get(
-                lookup_key, (self.default_config, None) if disable_cutotune else (None, None)
-            )[0]
+        if best_config is None:
+            best_config, best_time, timed_configs = self._cutotune(*args, **kwargs)
+            self._update_cutotune_cache(lookup_key=lookup_key, timed_configs=timed_configs)
 
-            if best_config is None:
-                best_config, best_time, timed_configs = self._cutotune(*args, **kwargs)
-                self._update_cutotune_cache(lookup_key=lookup_key, timed_configs=timed_configs)
+            self.best_configs[lookup_key] = (best_config, best_time)
 
-                self.best_configs[lookup_key] = (best_config, best_time)
-
-                if _DEBUG_CUTOTUNE and (not torch.distributed.is_initialized() or torch.distributed.get_rank() == 0):
-                    print(
-                        f"config {best_config} achieved the best time ({best_time} sec) for {lookup_key} for function {self.function.__name__}"
-                    )
+            if _DEBUG_CUTOTUNE and (not torch.distributed.is_initialized() or torch.distributed.get_rank() == 0):
+                print(
+                    f"config {best_config} achieved the best time ({best_time} sec) for {lookup_key} for function {self.function.__name__}"
+                )
 
         output = self.function(
             **self._get_function_arguments(
@@ -94,12 +88,10 @@ class _CutoTune:
         return output
 
     def _update_cutotune_cache(self, lookup_key: str, timed_configs: list[tuple[CutoTuneConfig, float]]) -> None:
-        cutotune_cache = get_cutotune_cache()
+        cutotune_cache = get_cutotune_cache(self.function_hash)
 
         for config, time in timed_configs:
-            cutotune_cache.add_config(
-                function_hash=self.function_hash, lookup_key=lookup_key, config=config, time=time
-            )
+            cutotune_cache.add_config(lookup_key=lookup_key, config=config, time=time)
 
     def _check_all_or_no_args_are_cutotune_parameters(self, *args, **kwargs) -> bool:
         num_cutotune_overrideables = 0

@@ -1,0 +1,26 @@
+all_configs:
+  '''x.dtype = torch.bfloat16''':
+  - config:
+      kernel_backend: triton
+    time: 0.060659199953079224
+  '''x.dtype = torch.float16''':
+  - config:
+      kernel_backend: triton
+    time: 0.05674239993095398
+  '''x.dtype = torch.float32''':
+  - config:
+      kernel_backend: triton
+    time: 0.058303999900817874
+best_configs:
+  '''x.dtype = torch.bfloat16''':
+    config:
+      kernel_backend: triton
+    time: 0.060659199953079224
+  '''x.dtype = torch.float16''':
+    config:
+      kernel_backend: triton
+    time: 0.05674239993095398
+  '''x.dtype = torch.float32''':
+    config:
+      kernel_backend: triton
+    time: 0.058303999900817874
