@@ -1,13 +1,17 @@
 import torch
 
-from ....cutotune import CutoTuneParameter
+from ....cutotune import CutoTuneParameter, cutotune
 from ....enums import KernelBackend
+from ..parameters import get_cutotune_parameters
+from .cuda_implementation import add_scalar_forward_cuda
 from .forward import _forward
 from .torch_implementation import add_scalar_torch
+from .triton_implementation import add_scalar_forward_triton
 
 
 class _AddScalar_Cute(torch.autograd.Function):
     @staticmethod
+    @cutotune(**get_cutotune_parameters())
     def forward(
         ctx,
         x: torch.Tensor,

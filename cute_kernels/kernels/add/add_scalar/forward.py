@@ -1,13 +1,10 @@
 import torch
 
-from ....cutotune import cutotune
 from ....enums import KernelBackend
-from ..parameters import get_cutotune_parameters
 from .cuda_implementation import add_scalar_forward_cuda
 from .triton_implementation import add_scalar_forward_triton
 
 
-@cutotune(**get_cutotune_parameters())
 def _forward(
     x: torch.Tensor,
     y: float,
