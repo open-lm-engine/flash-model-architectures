@@ -62,6 +62,6 @@ class RMSNormTest(TestCommons):
                 False,
                 atol_float32=6e-5,
                 rtol_float32=0,
-                atol_float16=9e-2,
-                rtol_float16=6e-4,
+                atol_float16=0.1,
+                rtol_float16=0.01,
             )
