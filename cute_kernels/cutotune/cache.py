@@ -8,7 +8,6 @@ from ..utils import get_boolean_env_variable
 from .config import CutoTuneConfig
 
 
-_CUTOTUNE_CACHE_FILENAME = os.path.join(os.path.dirname(__file__), "cutotune_cache.yml")
 _LOAD_CUTOTUNE_CACHE = get_boolean_env_variable("LOAD_CUTOTUNE_CACHE", True)
 
 
@@ -17,9 +16,13 @@ class _CutoTuneCache:
         self.full_cache = {}
         self.best_cache = {}
         self.function_hash = function_hash
+        self.filename = f"{self.function_hash.split('->')[0]}.yml"
 
-        if _LOAD_CUTOTUNE_CACHE and os.path.exists(_CUTOTUNE_CACHE_FILENAME):
-            self.load()
+        if _LOAD_CUTOTUNE_CACHE and os.path.exists(self.filename):
+            cache = yaml.load(open(self.filename, "r"), yaml.SafeLoader)
+
+            self.full_cache = self._deserialize(cache["all_configs"], True)
+            self.best_cache = self._deserialize(cache["best_configs"], False)
 
     def add_config(self, lookup_key: str, config: CutoTuneConfig, time: float) -> None:
         if lookup_key not in self.full_cache:
@@ -43,13 +46,7 @@ class _CutoTuneCache:
         for lookup_key in full_cache_serialized["all_configs"]:
             full_cache_serialized["all_configs"][lookup_key].sort(key=lambda x: x["time"])
 
-        yaml.dump(full_cache_serialized, open(_CUTOTUNE_CACHE_FILENAME, "w"))
-
-    def load(self) -> None:
-        cache = yaml.load(open(_CUTOTUNE_CACHE_FILENAME, "r"), yaml.SafeLoader)
-
-        self.full_cache = self._deserialize(cache["all_configs"], True)
-        self.best_cache = self._deserialize(cache["best_configs"], False)
+        yaml.dump(full_cache_serialized, open(self.filename, "w"))
 
     def get_best_configs(self) -> dict[str, CutoTuneConfig]:
         return self.best_cache
