@@ -7,6 +7,7 @@ from ...constants import (
 )
 from ...cutotune import CutoTuneConfig, CutoTuneParameter, cutotune, get_cartesian_product_cutotune_configs
 from ...enums import KernelBackend
+from ...math import get_next_power_of_2
 from ...utils import get_sm_count
 from .cuda_implementation import contiguous_count_cuda
 from .torch_implementation import contiguous_count_torch
@@ -63,7 +64,7 @@ def _contiguous_count_cute(
         kernel_backend=[KernelBackend.triton], BLOCK_SIZE=COMMON_TRITON_BLOCK_SIZES_POWERS_OF_2
     ),
     default_config=CutoTuneConfig({"kernel_backend": KernelBackend.triton, "BLOCK_SIZE": MAX_CUDA_BLOCK_SIZE}),
-    triggers={"x.dtype"},
+    functional_triggers=[lambda **kwargs: get_next_power_of_2(kwargs["size"])],
 )
 def contiguous_count_cute(
     x: torch.Tensor,
