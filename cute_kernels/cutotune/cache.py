@@ -119,8 +119,10 @@ def get_cutotune_cache(function_hash: str) -> _CutoTuneCache:
     return cutotune_cache
 
 
-def save_cutotune_cache() -> None:
-    global _CUTOTUNE_CACHE
-    assert _CUTOTUNE_CACHE is not None
+def save_cutotune_cache(function_hash: str) -> None:
+    global _CUTOTUNE_CACHE_MAP
+    _CUTOTUNE_CACHE_MAP[function_hash].save()
 
-    _CUTOTUNE_CACHE.save()
+
+def get_all_cutotune_caches() -> dict:
+    return _CUTOTUNE_CACHE_MAP
