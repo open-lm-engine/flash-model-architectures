@@ -17,7 +17,7 @@ def _contiguous_count_cute(
     x: torch.Tensor,
     size: int,
     kernel_backend: KernelBackend = KernelBackend.triton,
-    BLOCK_SIZE_B: int = 64,
+    BLOCK_SIZE: int = 64,
 ) -> torch.Tensor:
     assert x.dim() == 1, "x should be 1-dimensional"
     assert x.dtype in [torch.int32, torch.long]
@@ -31,10 +31,10 @@ def _contiguous_count_cute(
             sm_count=get_sm_count(x.device),
             thread_block_cluster_size=4,
             size=size,
-            BLOCK_SIZE_B=BLOCK_SIZE_B,
+            BLOCK_SIZE=BLOCK_SIZE,
         )
     elif kernel_backend == KernelBackend.triton:
-        contiguous_count_triton(x=x, output=output, size=size, BLOCK_SIZE_B=BLOCK_SIZE_B)
+        contiguous_count_triton(x=x, output=output, size=size, BLOCK_SIZE=BLOCK_SIZE)
     else:
         raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
@@ -69,6 +69,6 @@ def contiguous_count_cute(
     x: torch.Tensor,
     size: int,
     kernel_backend: KernelBackend = CutoTuneParameter(),
-    BLOCK_SIZE_B: int = CutoTuneParameter(),
+    BLOCK_SIZE: int = CutoTuneParameter(),
 ) -> torch.Tensor:
-    return _contiguous_count_cute(x=x, size=size, kernel_backend=kernel_backend, BLOCK_SIZE_B=BLOCK_SIZE_B)
+    return _contiguous_count_cute(x=x, size=size, kernel_backend=kernel_backend, BLOCK_SIZE=BLOCK_SIZE)
