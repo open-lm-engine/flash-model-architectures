@@ -1,16 +1,14 @@
 import torch
 
-from ....cutotune import CutoTuneParameter, cutotune
+from ....cutotune import CutoTuneParameter
 from ....enums import KernelBackend
 from ....utils import ensure_same_strides
-from ..parameters import get_cutotune_parameters
 from .forward import _forward
 from .torch_implementation import add_tensor_torch
 
 
 class _AddTensor_Cute(torch.autograd.Function):
     @staticmethod
-    @cutotune(**get_cutotune_parameters())
     def forward(
         ctx,
         x: torch.Tensor,
