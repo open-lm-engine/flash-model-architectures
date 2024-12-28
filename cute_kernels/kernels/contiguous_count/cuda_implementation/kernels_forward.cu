@@ -28,22 +28,21 @@ inline __device__ void _initialize_shared_memory(uint32 *output_shared,
     }
 }
 
-// inline __device__ void _looped_atomic_add(uint32 *source_output_shared,
-//                                           uint32 *destination_output_shared,
-//                                           const uint32 &num_loops,
-//                                           const uint32 &start,
-//                                           const uint32 &end,
-//                                           const uint32 &local_thread_id) {
-//     // clang-format off
-//     #pragma unroll
-//     // clang-format on
-//     for (int i = 0; i < num_loops; i++) {
-//         const uint32 index = start + i * blockDim.x + local_thread_id;
-//         if (index < end) {
-//             atomicAdd(&destination_output_shared[index], source_output_shared[index]);
-//         }
-//     }
-// }
+inline __device__ void _looped_atomic_add(uint32 *output_shared,
+                                          uint32 *destination_output_shared,
+                                          const uint32 &num_loops_C,
+                                          const uint32 &C,
+                                          const uint32 &local_thread_id) {
+    // clang-format off
+    #pragma unroll
+    // clang-format on
+    for (int i = 0; i < num_loops_C; i++) {
+        const int index = i * blockDim.x + local_thread_id;
+        if (index < C) {
+            atomicAdd(&destination_output_shared[index], output_shared[index]);
+        }
+    }
+}
 
 template <typename scalar_t>
 __global__ void _contiguous_count_cuda_kernel(const scalar_t *x,
@@ -85,33 +84,14 @@ __global__ void _contiguous_count_cuda_kernel(const scalar_t *x,
 
         if (cluster_block_rank != 0) {
             uint32 *destination_output_shared = cluster.map_shared_rank(output_shared, 0);
-
-            // clang-format off
-            #pragma unroll
-            // clang-format on
-            for (int i = 0; i < num_loops_C; i++) {
-                const int index = i * blockDim.x + local_thread_id;
-                if (index < C) {
-                    atomicAdd(&destination_output_shared[index], output_shared[index]);
-                }
-            }
-            // _looped_atomic_add(output_shared, destination_output_shared, num_loops_C, start, C, local_thread_id);
+            _looped_atomic_add(output_shared, destination_output_shared, num_loops_C, C, local_thread_id);
         }
 
         cluster.sync();
 
         // write the output to the global memory
         if (cluster_block_rank == 0) {
-            // clang-format off
-            #pragma unroll
-            // clang-format on
-            for (int i = 0; i < num_loops_C; i++) {
-                const int index = i * blockDim.x + local_thread_id;
-                if (index < C) {
-                    atomicAdd(&output[index], output_shared[index]);
-                }
-            }
-            // _looped_atomic_add(output_shared, output, num_loops_C, start, C, local_thread_id);
+            _looped_atomic_add(output_shared, output, num_loops_C, C, local_thread_id);
         }
     }
 }
