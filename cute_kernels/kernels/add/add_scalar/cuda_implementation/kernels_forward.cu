@@ -116,29 +116,26 @@ void add_scalar_forward_cuda(const torch::Tensor &x,
 
                 const uint64 num_elements = x_chunk.num_elements;
 
-                scalar_t *_x = x_chunk.array;
-                scalar_t *_output = output_chunk.array;
-
                 const uint32 num_elements_per_block = BLOCK_SIZE * vector_instruction_width;
                 const uint32 NUM_BLOCKS = ceil_divide<uint64>(num_elements, num_elements_per_block);
 
                 switch (vector_instruction_width) {
                     case 1:
                         _add_scalar_forward_cuda_kernel<scalar_t, scalar_t>
-                            <<<NUM_BLOCKS, BLOCK_SIZE>>>(_x, y, _output, num_elements);
+                            <<<NUM_BLOCKS, BLOCK_SIZE>>>(x_chunk.array, y, output_chunk.array, num_elements);
                         break;
                     case 2:
                         using vector_t = typename DType<scalar_t>::nv_dtype2;
                         _add_scalar_forward_cuda_kernel<scalar_t, vector_t>
-                            <<<NUM_BLOCKS, BLOCK_SIZE>>>(_x, y, _output, num_elements);
+                            <<<NUM_BLOCKS, BLOCK_SIZE>>>(x_chunk.array, y, output_chunk.array, num_elements);
                         break;
                     case 4:
                         if constexpr (std::is_same_v<scalar_t, fp32>) {
                             _add_scalar_forward_cuda_kernel<scalar_t, fp32_4>
-                                <<<NUM_BLOCKS, BLOCK_SIZE>>>(_x, y, _output, num_elements);
+                                <<<NUM_BLOCKS, BLOCK_SIZE>>>(x_chunk.array, y, output_chunk.array, num_elements);
                         } else {
                             _add_scalar_forward_cuda_kernel<scalar_t, fp32_2>
-                                <<<NUM_BLOCKS, BLOCK_SIZE>>>(_x, y, _output, num_elements);
+                                <<<NUM_BLOCKS, BLOCK_SIZE>>>(x_chunk.array, y, output_chunk.array, num_elements);
                         }
                         break;
                     case 8:
@@ -146,7 +143,7 @@ void add_scalar_forward_cuda(const torch::Tensor &x,
                             throw std::runtime_error("vector_instruction_width of 8 is not supported for fp32");
                         } else {
                             _add_scalar_forward_cuda_kernel<scalar_t, fp32_4>
-                                <<<NUM_BLOCKS, BLOCK_SIZE>>>(_x, y, _output, num_elements);
+                                <<<NUM_BLOCKS, BLOCK_SIZE>>>(x_chunk.array, y, output_chunk.array, num_elements);
                         }
                         break;
                     default:
