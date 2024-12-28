@@ -53,7 +53,7 @@ class _CutoTune:
             raise NotImplementedError()
 
         self.function_hash = f"{inspect.stack()[2].filename.split('cute_kernels')[1][1:]}->{function.__name__}"
-        self.best_configs = get_cutotune_cache().get_best_configs(self.function_hash)
+        self.best_configs = get_cutotune_cache(self.function_hash).get_best_configs()
 
     def __call__(self, *args, **kwargs) -> Any:
         override_cutotune_parameters = self._check_all_or_no_args_are_cutotune_parameters(*args, **kwargs)
@@ -94,12 +94,10 @@ class _CutoTune:
         return output
 
     def _update_cutotune_cache(self, lookup_key: str, timed_configs: list[tuple[CutoTuneConfig, float]]) -> None:
-        cutotune_cache = get_cutotune_cache()
+        cutotune_cache = get_cutotune_cache(self.function_hash)
 
         for config, time in timed_configs:
-            cutotune_cache.add_config(
-                function_hash=self.function_hash, lookup_key=lookup_key, config=config, time=time
-            )
+            cutotune_cache.add_config(lookup_key=lookup_key, config=config, time=time)
 
     def _check_all_or_no_args_are_cutotune_parameters(self, *args, **kwargs) -> bool:
         num_cutotune_overrideables = 0
