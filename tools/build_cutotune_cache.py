@@ -63,10 +63,10 @@ for dtype in all_dtypes:
         weight=torch.randn(weight_size, device=torch.cuda.current_device(), dtype=dtype, requires_grad=True),
     )
 
-    size = 104857600
-    n = 72
-    x = torch.randint(0, n, (size,), device=torch.cuda.current_device())
-    contiguous_count_cute(x, n)
+size = 104857600
+n = 72
+x = torch.randint(0, n, (size,), device=torch.cuda.current_device())
+contiguous_count_cute(x, n)
 
 
 for function_hash in get_all_cutotune_caches():
