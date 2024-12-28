@@ -28,13 +28,13 @@ class ContiguousCountTest(TestCommons):
         size: int,
         device: torch.device,
         kernel_backend: KernelBackend,
-        BLOCK_SIZE_B: int,
+        BLOCK_SIZE: int,
         function: Callable,
     ) -> None:
         set_seed(_SEED)
         x = torch.randint(0, _MAX_EXPERTS, (size,), device=device, dtype=torch.long)
 
-        z_kernel = function(x=x, size=_MAX_EXPERTS, kernel_backend=kernel_backend, BLOCK_SIZE_B=BLOCK_SIZE_B)
+        z_kernel = function(x=x, size=_MAX_EXPERTS, kernel_backend=kernel_backend, BLOCK_SIZE=BLOCK_SIZE)
         z_expected = contiguous_count_torch(x.view(-1), size=_MAX_EXPERTS)
 
         self.assert_equal_tensors(z_kernel, z_expected, True)
