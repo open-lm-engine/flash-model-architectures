@@ -12,11 +12,16 @@ _LOAD_CUTOTUNE_CACHE = get_boolean_env_variable("LOAD_CUTOTUNE_CACHE", True)
 
 
 class _CutoTuneCache:
-    def __init__(self, function_hash: str) -> None:
+    def __init__(self, function_hash: str, filename: str | None = None) -> None:
         self.full_cache = {}
         self.best_cache = {}
         self.function_hash = function_hash
-        self.filename = f"{os.path.join(os.path.dirname(os.path.dirname(__file__)), self.function_hash)}.yml"
+
+        self.filename = (
+            f"{os.path.join(os.path.dirname(os.path.dirname(__file__)), self.function_hash)}.yml"
+            if filename is None
+            else filename
+        )
 
         if _LOAD_CUTOTUNE_CACHE and os.path.exists(self.filename):
             cache = yaml.load(open(self.filename, "r"), yaml.SafeLoader)
