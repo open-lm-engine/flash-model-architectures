@@ -5,6 +5,8 @@
 
 #include "../../../include/activations.h"
 #include "../../../include/dtypes/all.h"
+#include "../../../include/launch.h"
+#include "../../../include/math.h"
 #include "../../../include/threads.h"
 
 template <typename scalar_t>
