@@ -13,9 +13,10 @@ _LOAD_CUTOTUNE_CACHE = get_boolean_env_variable("LOAD_CUTOTUNE_CACHE", True)
 
 
 class _CutoTuneCache:
-    def __init__(self) -> None:
+    def __init__(self, function_hash: str) -> None:
         self.full_cache = {}
         self.best_cache = {}
+        self.function_hash = function_hash
 
         if _LOAD_CUTOTUNE_CACHE and os.path.exists(_CUTOTUNE_CACHE_FILENAME):
             self.load()
@@ -39,9 +40,8 @@ class _CutoTuneCache:
             "best_configs": self._serialize(self.best_cache, False),
         }
 
-        for function_hash in full_cache_serialized["all_configs"]:
-            for lookup_key in full_cache_serialized["all_configs"]:
-                full_cache_serialized["all_configs"][lookup_key].sort(key=lambda x: x["time"])
+        for lookup_key in full_cache_serialized["all_configs"]:
+            full_cache_serialized["all_configs"][lookup_key].sort(key=lambda x: x["time"])
 
         yaml.dump(full_cache_serialized, open(_CUTOTUNE_CACHE_FILENAME, "w"))
 
