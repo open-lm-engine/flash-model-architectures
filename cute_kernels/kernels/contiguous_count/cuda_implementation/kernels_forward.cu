@@ -14,8 +14,8 @@
 namespace cg = cooperative_groups;
 
 inline __device__ void _initialize_shared_memory(uint32 *output_shared,
-                                                 const uint32 &C,
                                                  const uint32 &num_loops_C,
+                                                 const uint32 &C,
                                                  const uint32 &local_thread_id) {
     // clang-format off
     #pragma unroll
@@ -53,7 +53,7 @@ __global__ void _contiguous_count_cuda_kernel(const scalar_t *x,
     const uint32 num_loops_C = ceil_divide<uint32>(C, blockDim.x);
 
     extern __shared__ uint32 output_shared[];
-    _initialize_shared_memory(output_shared, C, num_loops_C, local_thread_id);
+    _initialize_shared_memory(output_shared, num_loops_C, C, local_thread_id);
     __syncthreads();
 
     // count the number of occurances of each number in x
