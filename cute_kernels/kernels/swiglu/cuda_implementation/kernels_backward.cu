@@ -5,6 +5,8 @@
 
 #include "../../../include/activations.h"
 #include "../../../include/dtypes/all.h"
+#include "../../../include/launch.h"
+#include "../../../include/math.h"
 #include "../../../include/threads.h"
 
 template <typename scalar_t>
@@ -90,8 +92,8 @@ void swiglu_backward_cuda(const torch::Tensor &gate,
                           const torch::Tensor &output_grad,
                           torch::Tensor &gate_grad,
                           torch::Tensor &up_grad,
-                          const int &BLOCK_SIZE) {
-    const uint64 num_elements = gate.numel();
+                          const uint32 &BLOCK_SIZE) {
+    const uint64 total_elements = gate.numel();
 
     AT_DISPATCH_CUSTOM_FLOAT_TYPES(
         gate.scalar_type(), "swiglu_backward_cuda_kernel", ([&] {
@@ -102,14 +104,35 @@ void swiglu_backward_cuda(const torch::Tensor &gate,
                 log_vector_instruction_width = 3;
             }
 
-            const int num_elements_per_block = BLOCK_SIZE << log_vector_instruction_width;
-            const int NUM_BLOCKS = (num_elements + num_elements_per_block - 1) / num_elements_per_block;
+            std::vector<ChunkedArray<scalar_t>> gate_chunks =
+                chunk_array<scalar_t>(gate.data_ptr<scalar_t>(), total_elements);
+            std::vector<ChunkedArray<scalar_t>> up_chunks =
+                chunk_array<scalar_t>(up.data_ptr<scalar_t>(), total_elements);
+            std::vector<ChunkedArray<scalar_t>> output_grad_chunks =
+                chunk_array<scalar_t>(output_grad.data_ptr<scalar_t>(), total_elements);
+            std::vector<ChunkedArray<scalar_t>> gate_grad_chunks =
+                chunk_array<scalar_t>(gate_grad.data_ptr<scalar_t>(), total_elements);
+            std::vector<ChunkedArray<scalar_t>> up_grad_chunks =
+                chunk_array<scalar_t>(up_grad.data_ptr<scalar_t>(), total_elements);
 
-            _swiglu_backward_cuda_kernel<scalar_t><<<NUM_BLOCKS, BLOCK_SIZE>>>(gate.data_ptr<scalar_t>(),
-                                                                               up.data_ptr<scalar_t>(),
-                                                                               output_grad.data_ptr<scalar_t>(),
-                                                                               gate_grad.data_ptr<scalar_t>(),
-                                                                               up_grad.data_ptr<scalar_t>(),
-                                                                               num_elements);
+            for (int i = 0; i < gate_chunks.size(); i++) {
+                ChunkedArray<scalar_t> gate_chunk = gate_chunks[i];
+                ChunkedArray<scalar_t> up_chunk = up_chunks[i];
+                ChunkedArray<scalar_t> output_grad_chunk = output_grad_chunks[i];
+                ChunkedArray<scalar_t> gate_grad_chunk = gate_grad_chunks[i];
+                ChunkedArray<scalar_t> up_grad_chunk = up_grad_chunks[i];
+
+                const uint64 num_elements = gate_chunk.num_elements;
+
+                const uint32 num_elements_per_block = BLOCK_SIZE << log_vector_instruction_width;
+                const uint32 NUM_BLOCKS = ceil_divide<uint64>(num_elements, num_elements_per_block);
+
+                _swiglu_backward_cuda_kernel<scalar_t><<<NUM_BLOCKS, BLOCK_SIZE>>>(gate_chunk.array,
+                                                                                   up_chunk.array,
+                                                                                   output_grad_chunk.array,
+                                                                                   gate_grad_chunk.array,
+                                                                                   up_grad_chunk.array,
+                                                                                   num_elements);
+            }
         }));
 }
