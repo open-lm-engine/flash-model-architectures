@@ -5,6 +5,7 @@
 #include <torch/extension.h>
 
 #include "../../../include/dtypes/all.h"
+#include "../../../include/launch.h"
 #include "../../../include/threads.h"
 
 #define MAX_ALLOWED_C 16384
@@ -99,33 +100,45 @@ void contiguous_count_cuda(const torch::Tensor &x,
     assert(BLOCK_SIZE % WARP_SIZE == 0);
     assert(C < MAX_ALLOWED_C);
 
-    const uint64 num_elements = x.numel();
+    const uint64 total_elements = x.numel();
     const int max_num_blocks = get_max_thread_blocks(sm_count, thread_block_cluster_size);
 
-    auto [NUM_BLOCKS, cluster_size] =
-        get_num_blocks(num_elements, BLOCK_SIZE, max_num_blocks, thread_block_cluster_size);
+    AT_DISPATCH_CUSTOM_INT_TYPES(
+        x.scalar_type(), "contiguous_count_cuda_kernel", ([&] {
+            std::vector<ChunkedArray<scalar_t>> x_chunks =
+                chunk_array<scalar_t>(x.data_ptr<scalar_t>(), total_elements);
+            std::vector<ChunkedArray<uint32>> output_chunks =
+                chunk_array<uint32>(output.data_ptr<uint32>(), total_elements);
 
-    // dynamically sized clusters need this stupid way of launching the kernel
-    cudaLaunchConfig_t launch_config = {0};
-    launch_config.blockDim = BLOCK_SIZE;
-    launch_config.gridDim = NUM_BLOCKS;
-    launch_config.dynamicSmemBytes = C * sizeof(uint32);
+            for (int i = 0; i < x_chunks.size(); i++) {
+                ChunkedArray<scalar_t> x_chunk = x_chunks[i];
+                ChunkedArray<uint32> output_chunk = output_chunks[i];
 
-    cudaLaunchAttribute attributes[1];
-    attributes[0].id = cudaLaunchAttributeClusterDimension;
-    attributes[0].val.clusterDim.x = cluster_size;
-    attributes[0].val.clusterDim.y = 1;
-    attributes[0].val.clusterDim.z = 1;
+                const uint32 num_elements = x_chunk.num_elements;
 
-    launch_config.attrs = attributes;
-    launch_config.numAttrs = 1;
+                scalar_t *_x = x_chunk.array;
+                uint32 *_output = output_chunk.array;
 
-    AT_DISPATCH_CUSTOM_INT_TYPES(x.scalar_type(), "contiguous_count_cuda_kernel", ([&] {
-                                     cudaLaunchKernelEx(&launch_config,
-                                                        _contiguous_count_cuda_kernel<scalar_t>,
-                                                        x.data_ptr<scalar_t>(),
-                                                        output.data_ptr<uint32>(),
-                                                        num_elements,
-                                                        C);
-                                 }));
+                auto [NUM_BLOCKS, cluster_size] =
+                    get_num_blocks(num_elements, BLOCK_SIZE, max_num_blocks, thread_block_cluster_size);
+
+                // dynamically sized clusters need this stupid way of launching the kernel
+                cudaLaunchConfig_t launch_config = {0};
+                launch_config.blockDim = BLOCK_SIZE;
+                launch_config.gridDim = NUM_BLOCKS;
+                launch_config.dynamicSmemBytes = C * sizeof(uint32);
+
+                cudaLaunchAttribute attributes[1];
+                attributes[0].id = cudaLaunchAttributeClusterDimension;
+                attributes[0].val.clusterDim.x = cluster_size;
+                attributes[0].val.clusterDim.y = 1;
+                attributes[0].val.clusterDim.z = 1;
+
+                launch_config.attrs = attributes;
+                launch_config.numAttrs = 1;
+
+                cudaLaunchKernelEx(
+                    &launch_config, _contiguous_count_cuda_kernel<scalar_t>, _x, _output, num_elements, C);
+            }
+        }));
 }
