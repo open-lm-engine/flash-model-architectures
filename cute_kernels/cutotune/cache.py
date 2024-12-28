@@ -16,7 +16,7 @@ class _CutoTuneCache:
         self.full_cache = {}
         self.best_cache = {}
         self.function_hash = function_hash
-        self.filename = f"{self.function_hash}.yml"
+        self.filename = f"{os.path.join(os.path.dirname(os.path.dirname(__file__)), self.function_hash)}.yml"
 
         if _LOAD_CUTOTUNE_CACHE and os.path.exists(self.filename):
             cache = yaml.load(open(self.filename, "r"), yaml.SafeLoader)
