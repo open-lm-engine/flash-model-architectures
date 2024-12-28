@@ -59,10 +59,10 @@ __global__ void _contiguous_count_cuda_kernel(const scalar_t *x,
         end = num_elements;
     }
 
-    const uint32 num_elements_in_current_block = end - start;
+    const int num_elements_in_current_block = end - start;
 
     if (num_elements_in_current_block > 0) {
-        const uint32 num_loops = (num_elements_in_current_block + blockDim.x - 1) / blockDim.x;
+        const uint32 num_loops = ceil_divide<uint32>(num_elements_in_current_block, blockDim.x);
 
         for (int i = 0; i < num_loops; i++) {
             const int index = start + i * blockDim.x + local_thread_id;
