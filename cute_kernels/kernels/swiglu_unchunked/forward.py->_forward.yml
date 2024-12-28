@@ -1,98 +1,98 @@
 all_configs:
   '''x.dtype = torch.bfloat16''':
   - config:
-      BLOCK_SIZE_B: 128
-      BLOCK_SIZE_H: 64
-      kernel_backend: triton
-    time: 0.9557727813720703
-  - config:
       BLOCK_SIZE_B: 64
       BLOCK_SIZE_H: 64
       kernel_backend: triton
-    time: 0.9557920455932617
+    time: 0.955843162536621
+  - config:
+      BLOCK_SIZE_B: 128
+      BLOCK_SIZE_H: 64
+      kernel_backend: triton
+    time: 0.9559552192687988
   - config:
       BLOCK_SIZE_B: 256
       BLOCK_SIZE_H: 64
       kernel_backend: triton
-    time: 1.048947238922119
+    time: 1.047276782989502
   - config:
       BLOCK_SIZE_B: 512
       BLOCK_SIZE_H: 64
       kernel_backend: triton
-    time: 1.320963191986084
+    time: 1.3150079727172852
   - config:
       BLOCK_SIZE_B: 1024
       BLOCK_SIZE_H: 64
       kernel_backend: triton
-    time: 6.213577651977539
+    time: 6.214643096923828
   '''x.dtype = torch.float16''':
   - config:
       BLOCK_SIZE_B: 64
       BLOCK_SIZE_H: 64
       kernel_backend: triton
-    time: 0.9416864395141602
+    time: 0.941766357421875
   - config:
       BLOCK_SIZE_B: 128
       BLOCK_SIZE_H: 64
       kernel_backend: triton
-    time: 0.9478464126586914
+    time: 0.948038387298584
   - config:
       BLOCK_SIZE_B: 256
       BLOCK_SIZE_H: 64
       kernel_backend: triton
-    time: 1.0418880462646485
+    time: 1.0423199653625488
   - config:
       BLOCK_SIZE_B: 512
       BLOCK_SIZE_H: 64
       kernel_backend: triton
-    time: 1.2485471725463868
+    time: 1.2567359924316406
   - config:
       BLOCK_SIZE_B: 1024
       BLOCK_SIZE_H: 64
       kernel_backend: triton
-    time: 6.159625625610351
+    time: 6.156822586059571
   '''x.dtype = torch.float32''':
   - config:
       BLOCK_SIZE_B: 64
       BLOCK_SIZE_H: 64
       kernel_backend: triton
-    time: 1.5745280265808106
+    time: 1.5742527961730957
   - config:
       BLOCK_SIZE_B: 128
       BLOCK_SIZE_H: 64
       kernel_backend: triton
-    time: 1.634012794494629
+    time: 1.6343391418457032
   - config:
       BLOCK_SIZE_B: 256
       BLOCK_SIZE_H: 64
       kernel_backend: triton
-    time: 1.8552608489990234
+    time: 1.8549631118774415
   - config:
       BLOCK_SIZE_B: 512
       BLOCK_SIZE_H: 64
       kernel_backend: triton
-    time: 8.701145935058594
+    time: 8.70056610107422
   - config:
       BLOCK_SIZE_B: 1024
       BLOCK_SIZE_H: 64
       kernel_backend: triton
-    time: 8.708838653564452
+    time: 8.710582733154297
 best_configs:
   '''x.dtype = torch.bfloat16''':
     config:
-      BLOCK_SIZE_B: 128
+      BLOCK_SIZE_B: 64
       BLOCK_SIZE_H: 64
       kernel_backend: triton
-    time: 0.9557727813720703
+    time: 0.955843162536621
   '''x.dtype = torch.float16''':
     config:
       BLOCK_SIZE_B: 64
       BLOCK_SIZE_H: 64
       kernel_backend: triton
-    time: 0.9416864395141602
+    time: 0.941766357421875
   '''x.dtype = torch.float32''':
     config:
       BLOCK_SIZE_B: 64
       BLOCK_SIZE_H: 64
       kernel_backend: triton
-    time: 1.5745280265808106
+    time: 1.5742527961730957

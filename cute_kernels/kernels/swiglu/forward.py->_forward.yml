@@ -3,222 +3,222 @@ all_configs:
   - config:
       BLOCK_SIZE: 1024
       kernel_backend: triton
-    time: 0.1409440040588379
+    time: 0.14080640077590942
   - config:
       BLOCK_SIZE: 2048
       kernel_backend: triton
-    time: 0.14144959449768066
+    time: 0.14131840467453002
   - config:
       BLOCK_SIZE: 4096
       kernel_backend: triton
-    time: 0.1423359990119934
+    time: 0.1424191951751709
   - config:
       BLOCK_SIZE: 8192
       kernel_backend: triton
-    time: 0.14271680116653443
+    time: 0.14298880100250244
   - config:
       BLOCK_SIZE: 512
       kernel_backend: triton
-    time: 0.14687039852142333
+    time: 0.14718079566955566
   - config:
       BLOCK_SIZE: 16384
       kernel_backend: triton
-    time: 0.14942079782485962
-  - config:
-      BLOCK_SIZE: 64
-      kernel_backend: cuda
-    time: 0.20228159427642822
+    time: 0.14953279495239258
   - config:
       BLOCK_SIZE: 128
       kernel_backend: cuda
-    time: 0.20244159698486328
+    time: 0.2024384021759033
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+    time: 0.20251839160919188
   - config:
       BLOCK_SIZE: 256
       kernel_backend: cuda
-    time: 0.20292479991912843
+    time: 0.20287039279937744
   - config:
       BLOCK_SIZE: 512
       kernel_backend: cuda
-    time: 0.20471999645233155
+    time: 0.20460479259490966
   - config:
       BLOCK_SIZE: 32768
       kernel_backend: triton
-    time: 0.2142848014831543
+    time: 0.2134943962097168
   - config:
       BLOCK_SIZE: 1024
       kernel_backend: cuda
-    time: 0.22516160011291503
+    time: 0.22534079551696778
   - config:
       BLOCK_SIZE: 256
       kernel_backend: triton
-    time: 0.2500607967376709
+    time: 0.25027520656585694
   - config:
       BLOCK_SIZE: 32
       kernel_backend: cuda
-    time: 0.2530400037765503
+    time: 0.2530463933944702
   - config:
       BLOCK_SIZE: 128
       kernel_backend: triton
-    time: 0.4957632064819336
+    time: 0.49578561782836916
   - config:
       BLOCK_SIZE: 64
       kernel_backend: triton
-    time: 0.9886591911315918
+    time: 0.9884032249450684
   - config:
       BLOCK_SIZE: 65536
       kernel_backend: triton
-    time: 1.1521023750305175
+    time: 1.1530336380004882
   '''gate.dtype = torch.float16''':
   - config:
       BLOCK_SIZE: 1024
       kernel_backend: triton
-    time: 0.14094719886779786
+    time: 0.14089280366897583
   - config:
       BLOCK_SIZE: 2048
       kernel_backend: triton
-    time: 0.1412287950515747
+    time: 0.14158719778060913
   - config:
       BLOCK_SIZE: 4096
       kernel_backend: triton
-    time: 0.1422752022743225
+    time: 0.1426367998123169
   - config:
       BLOCK_SIZE: 512
       kernel_backend: triton
-    time: 0.14668480157852173
+    time: 0.14638400077819824
   - config:
       BLOCK_SIZE: 8192
       kernel_backend: triton
-    time: 0.14708160161972045
+    time: 0.14702719449996948
   - config:
       BLOCK_SIZE: 16384
       kernel_backend: triton
-    time: 0.15699520111083984
+    time: 0.1569983959197998
   - config:
       BLOCK_SIZE: 64
       kernel_backend: cuda
-    time: 0.19926719665527343
+    time: 0.19907840490341186
   - config:
       BLOCK_SIZE: 128
       kernel_backend: cuda
-    time: 0.19936319589614868
+    time: 0.19925440549850465
   - config:
       BLOCK_SIZE: 256
       kernel_backend: cuda
-    time: 0.1994752049446106
+    time: 0.19991040229797363
   - config:
       BLOCK_SIZE: 512
       kernel_backend: cuda
-    time: 0.201529598236084
+    time: 0.2014591932296753
   - config:
       BLOCK_SIZE: 32768
       kernel_backend: triton
-    time: 0.20617280006408692
+    time: 0.20629439353942872
   - config:
       BLOCK_SIZE: 1024
       kernel_backend: cuda
-    time: 0.22224960327148438
+    time: 0.2216639995574951
   - config:
       BLOCK_SIZE: 256
       kernel_backend: triton
-    time: 0.2501215934753418
+    time: 0.25019838809967043
   - config:
       BLOCK_SIZE: 32
       kernel_backend: cuda
-    time: 0.25294079780578616
+    time: 0.2529504060745239
   - config:
       BLOCK_SIZE: 128
       kernel_backend: triton
-    time: 0.4957759857177734
+    time: 0.49578561782836916
   - config:
       BLOCK_SIZE: 64
       kernel_backend: triton
-    time: 0.9887359619140625
+    time: 0.988377571105957
   - config:
       BLOCK_SIZE: 65536
       kernel_backend: triton
-    time: 1.1544416427612305
+    time: 1.1535264015197755
   '''gate.dtype = torch.float32''':
   - config:
       BLOCK_SIZE: 512
       kernel_backend: triton
-    time: 0.27781760692596436
+    time: 0.2776639938354492
   - config:
       BLOCK_SIZE: 1024
       kernel_backend: triton
-    time: 0.27877120971679686
-  - config:
-      BLOCK_SIZE: 64
-      kernel_backend: cuda
-    time: 0.27898240089416504
+    time: 0.27867200374603274
   - config:
       BLOCK_SIZE: 128
       kernel_backend: cuda
-    time: 0.27898879051208497
+    time: 0.27891199588775634
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+    time: 0.2789695978164673
   - config:
       BLOCK_SIZE: 4096
       kernel_backend: triton
-    time: 0.2816287994384766
+    time: 0.28154559135437013
   - config:
       BLOCK_SIZE: 2048
       kernel_backend: triton
-    time: 0.28257598876953127
+    time: 0.2824543952941895
   - config:
       BLOCK_SIZE: 256
       kernel_backend: cuda
-    time: 0.28436479568481443
+    time: 0.28452799320220945
   - config:
       BLOCK_SIZE: 256
       kernel_backend: triton
-    time: 0.2871040105819702
+    time: 0.28712639808654783
   - config:
       BLOCK_SIZE: 512
       kernel_backend: cuda
-    time: 0.29335999488830566
+    time: 0.2934976100921631
   - config:
       BLOCK_SIZE: 1024
       kernel_backend: cuda
-    time: 0.3030848026275635
+    time: 0.3030944108963013
   - config:
       BLOCK_SIZE: 8192
       kernel_backend: triton
-    time: 0.30610558986663816
+    time: 0.31188158988952636
   - config:
       BLOCK_SIZE: 16384
       kernel_backend: triton
-    time: 0.34960639476776123
-  - config:
-      BLOCK_SIZE: 128
-      kernel_backend: triton
-    time: 0.4966591835021973
+    time: 0.34904320240020753
   - config:
       BLOCK_SIZE: 32
       kernel_backend: cuda
-    time: 0.4968224048614502
+    time: 0.4967040061950684
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: triton
+    time: 0.4967072010040283
   - config:
       BLOCK_SIZE: 64
       kernel_backend: triton
-    time: 0.9878303527832031
+    time: 0.9877535820007324
   - config:
       BLOCK_SIZE: 32768
       kernel_backend: triton
-    time: 1.9849983215332032
+    time: 1.982841682434082
   - config:
       BLOCK_SIZE: 65536
       kernel_backend: triton
-    time: 2.0578144073486326
+    time: 2.0560800552368166
 best_configs:
   '''gate.dtype = torch.bfloat16''':
     config:
       BLOCK_SIZE: 1024
       kernel_backend: triton
-    time: 0.1409440040588379
+    time: 0.14080640077590942
   '''gate.dtype = torch.float16''':
     config:
       BLOCK_SIZE: 1024
       kernel_backend: triton
-    time: 0.14094719886779786
+    time: 0.14089280366897583
   '''gate.dtype = torch.float32''':
     config:
       BLOCK_SIZE: 512
       kernel_backend: triton
-    time: 0.27781760692596436
+    time: 0.2776639938354492

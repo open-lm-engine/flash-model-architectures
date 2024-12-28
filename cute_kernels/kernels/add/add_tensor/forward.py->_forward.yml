@@ -1,518 +1,518 @@
 all_configs:
   '''x.dtype = torch.bfloat16''':
   - config:
-      BLOCK_SIZE: 128
-      kernel_backend: cuda
-      vector_instruction_width: 8
-    time: 0.1407871961593628
-  - config:
-      BLOCK_SIZE: 64
-      kernel_backend: cuda
-      vector_instruction_width: 8
-    time: 0.14083199501037597
-  - config:
       BLOCK_SIZE: 512
       kernel_backend: cuda
       vector_instruction_width: 8
-    time: 0.14091839790344238
+    time: 0.14092799425125122
   - config:
       BLOCK_SIZE: 1024
       kernel_backend: triton
       vector_instruction_width: null
-    time: 0.14106240272521972
+    time: 0.14096319675445557
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      vector_instruction_width: 8
+    time: 0.14103360176086427
   - config:
       BLOCK_SIZE: 256
       kernel_backend: cuda
       vector_instruction_width: 8
-    time: 0.1412320017814636
+    time: 0.14105919599533082
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      vector_instruction_width: 8
+    time: 0.14117439985275268
   - config:
       BLOCK_SIZE: 2048
       kernel_backend: triton
       vector_instruction_width: null
-    time: 0.14139519929885863
+    time: 0.1415295958518982
   - config:
       BLOCK_SIZE: 1024
       kernel_backend: cuda
       vector_instruction_width: 8
-    time: 0.14168640375137329
+    time: 0.14154560565948487
   - config:
       BLOCK_SIZE: 32768
       kernel_backend: triton
       vector_instruction_width: null
-    time: 0.14188480377197266
-  - config:
-      BLOCK_SIZE: 4096
-      kernel_backend: triton
-      vector_instruction_width: null
-    time: 0.14195200204849243
+    time: 0.14172799587249757
   - config:
       BLOCK_SIZE: 16384
       kernel_backend: triton
       vector_instruction_width: null
-    time: 0.14216320514678954
+    time: 0.1420256018638611
+  - config:
+      BLOCK_SIZE: 4096
+      kernel_backend: triton
+      vector_instruction_width: null
+    time: 0.14206080436706542
   - config:
       BLOCK_SIZE: 8192
       kernel_backend: triton
       vector_instruction_width: null
-    time: 0.14223359823226928
+    time: 0.14225280284881592
   - config:
       BLOCK_SIZE: 512
       kernel_backend: triton
       vector_instruction_width: null
-    time: 0.14439359903335572
+    time: 0.14444479942321778
   - config:
       BLOCK_SIZE: 128
       kernel_backend: cuda
       vector_instruction_width: 4
-    time: 0.14567999839782714
+    time: 0.14580800533294677
   - config:
       BLOCK_SIZE: 256
       kernel_backend: cuda
       vector_instruction_width: 4
-    time: 0.14800000190734863
+    time: 0.1480031967163086
   - config:
       BLOCK_SIZE: 512
       kernel_backend: cuda
       vector_instruction_width: 4
-    time: 0.15260159969329834
+    time: 0.15259519815444947
   - config:
       BLOCK_SIZE: 1024
       kernel_backend: cuda
       vector_instruction_width: 4
-    time: 0.1587648034095764
+    time: 0.1587231993675232
   - config:
       BLOCK_SIZE: 256
       kernel_backend: cuda
       vector_instruction_width: 2
-    time: 0.182425594329834
+    time: 0.18239680528640748
   - config:
       BLOCK_SIZE: 512
       kernel_backend: cuda
       vector_instruction_width: 2
-    time: 0.20023040771484374
+    time: 0.2003040075302124
   - config:
       BLOCK_SIZE: 1024
       kernel_backend: cuda
       vector_instruction_width: 2
-    time: 0.22653439044952392
+    time: 0.22649600505828857
   - config:
       BLOCK_SIZE: 32
       kernel_backend: cuda
       vector_instruction_width: 8
-    time: 0.24978559017181395
+    time: 0.24983360767364501
   - config:
       BLOCK_SIZE: 64
       kernel_backend: cuda
       vector_instruction_width: 4
-    time: 0.2498431921005249
+    time: 0.2499392032623291
   - config:
       BLOCK_SIZE: 256
       kernel_backend: triton
       vector_instruction_width: null
-    time: 0.2499743938446045
+    time: 0.2499488115310669
   - config:
       BLOCK_SIZE: 128
       kernel_backend: cuda
       vector_instruction_width: 2
-    time: 0.2504447937011719
+    time: 0.2503232002258301
   - config:
       BLOCK_SIZE: 256
       kernel_backend: cuda
       vector_instruction_width: 1
-    time: 0.3061376094818115
+    time: 0.30612161159515383
   - config:
       BLOCK_SIZE: 512
       kernel_backend: cuda
       vector_instruction_width: 1
-    time: 0.33769280910491944
+    time: 0.3378175973892212
   - config:
       BLOCK_SIZE: 1024
       kernel_backend: cuda
       vector_instruction_width: 1
-    time: 0.3869983911514282
+    time: 0.38708479404449464
   - config:
       BLOCK_SIZE: 128
       kernel_backend: triton
       vector_instruction_width: null
-    time: 0.4957024097442627
+    time: 0.4956831932067871
   - config:
       BLOCK_SIZE: 64
       kernel_backend: cuda
       vector_instruction_width: 2
-    time: 0.4958144187927246
+    time: 0.49580798149108884
   - config:
       BLOCK_SIZE: 32
       kernel_backend: cuda
       vector_instruction_width: 4
-    time: 0.4959519863128662
+    time: 0.4958911895751953
   - config:
       BLOCK_SIZE: 128
       kernel_backend: cuda
       vector_instruction_width: 1
-    time: 0.49596800804138186
+    time: 0.496124792098999
   - config:
       BLOCK_SIZE: 65536
       kernel_backend: triton
       vector_instruction_width: null
-    time: 0.962940788269043
+    time: 0.9633312225341797
   - config:
       BLOCK_SIZE: 64
       kernel_backend: triton
       vector_instruction_width: null
-    time: 0.9884703636169434
+    time: 0.9885248184204102
   - config:
       BLOCK_SIZE: 32
       kernel_backend: cuda
       vector_instruction_width: 2
-    time: 0.9888480186462403
+    time: 0.9888223648071289
   - config:
       BLOCK_SIZE: 64
       kernel_backend: cuda
       vector_instruction_width: 1
-    time: 0.9892831802368164
+    time: 0.9891679763793946
   - config:
       BLOCK_SIZE: 32
       kernel_backend: cuda
       vector_instruction_width: 1
-    time: 1.9748895645141602
+    time: 1.974870491027832
   '''x.dtype = torch.float16''':
   - config:
       BLOCK_SIZE: 512
       kernel_backend: cuda
       vector_instruction_width: 8
-    time: 0.14052159786224366
+    time: 0.14048000574111938
   - config:
       BLOCK_SIZE: 256
       kernel_backend: cuda
       vector_instruction_width: 8
-    time: 0.14078400135040284
-  - config:
-      BLOCK_SIZE: 128
-      kernel_backend: cuda
-      vector_instruction_width: 8
-    time: 0.14081599712371826
+    time: 0.14073920249938965
   - config:
       BLOCK_SIZE: 64
       kernel_backend: cuda
       vector_instruction_width: 8
-    time: 0.14097280502319337
+    time: 0.14084800481796264
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: triton
+      vector_instruction_width: null
+    time: 0.1409152030944824
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      vector_instruction_width: 8
+    time: 0.14096640348434447
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      vector_instruction_width: 8
+    time: 0.1412160038948059
   - config:
       BLOCK_SIZE: 2048
       kernel_backend: triton
       vector_instruction_width: null
-    time: 0.14101760387420653
-  - config:
-      BLOCK_SIZE: 1024
-      kernel_backend: triton
-      vector_instruction_width: null
-    time: 0.1411520004272461
-  - config:
-      BLOCK_SIZE: 1024
-      kernel_backend: cuda
-      vector_instruction_width: 8
-    time: 0.14127999544143677
+    time: 0.14145920276641846
   - config:
       BLOCK_SIZE: 32768
       kernel_backend: triton
       vector_instruction_width: null
-    time: 0.14147520065307617
-  - config:
-      BLOCK_SIZE: 4096
-      kernel_backend: triton
-      vector_instruction_width: null
-    time: 0.14173120260238647
+    time: 0.14168319702148438
   - config:
       BLOCK_SIZE: 16384
       kernel_backend: triton
       vector_instruction_width: null
-    time: 0.1421183943748474
+    time: 0.1421663999557495
+  - config:
+      BLOCK_SIZE: 4096
+      kernel_backend: triton
+      vector_instruction_width: null
+    time: 0.14220800399780273
   - config:
       BLOCK_SIZE: 8192
       kernel_backend: triton
       vector_instruction_width: null
-    time: 0.14277440309524536
+    time: 0.14249919652938842
   - config:
       BLOCK_SIZE: 512
       kernel_backend: triton
       vector_instruction_width: null
-    time: 0.14415680170059203
+    time: 0.1438815951347351
   - config:
       BLOCK_SIZE: 128
       kernel_backend: cuda
       vector_instruction_width: 4
-    time: 0.14570560455322265
+    time: 0.14551039934158325
   - config:
       BLOCK_SIZE: 256
       kernel_backend: cuda
       vector_instruction_width: 4
-    time: 0.14797760248184205
+    time: 0.1477247953414917
   - config:
       BLOCK_SIZE: 512
       kernel_backend: cuda
       vector_instruction_width: 4
-    time: 0.15237760543823242
+    time: 0.15243840217590332
   - config:
       BLOCK_SIZE: 1024
       kernel_backend: cuda
       vector_instruction_width: 4
-    time: 0.15838719606399537
+    time: 0.158624005317688
   - config:
       BLOCK_SIZE: 256
       kernel_backend: cuda
       vector_instruction_width: 2
-    time: 0.18248000144958496
+    time: 0.18264960050582885
   - config:
       BLOCK_SIZE: 512
       kernel_backend: cuda
       vector_instruction_width: 2
-    time: 0.2004319906234741
+    time: 0.20042879581451417
   - config:
       BLOCK_SIZE: 1024
       kernel_backend: cuda
       vector_instruction_width: 2
-    time: 0.22671680450439452
+    time: 0.2266688108444214
   - config:
       BLOCK_SIZE: 64
       kernel_backend: cuda
       vector_instruction_width: 4
-    time: 0.24965438842773438
+    time: 0.24992640018463136
   - config:
       BLOCK_SIZE: 32
       kernel_backend: cuda
       vector_instruction_width: 8
-    time: 0.24980480670928956
+    time: 0.2499295949935913
   - config:
       BLOCK_SIZE: 256
       kernel_backend: triton
       vector_instruction_width: null
-    time: 0.2499743938446045
+    time: 0.2500384092330933
   - config:
       BLOCK_SIZE: 128
       kernel_backend: cuda
       vector_instruction_width: 2
-    time: 0.25046401023864745
+    time: 0.2504192113876343
   - config:
       BLOCK_SIZE: 256
       kernel_backend: cuda
       vector_instruction_width: 1
-    time: 0.3069279909133911
+    time: 0.3065664052963257
   - config:
       BLOCK_SIZE: 512
       kernel_backend: cuda
       vector_instruction_width: 1
-    time: 0.3383807897567749
+    time: 0.3383552074432373
   - config:
       BLOCK_SIZE: 1024
       kernel_backend: cuda
       vector_instruction_width: 1
-    time: 0.38777918815612794
+    time: 0.3879136085510254
   - config:
       BLOCK_SIZE: 128
       kernel_backend: triton
       vector_instruction_width: null
-    time: 0.4955743789672852
+    time: 0.49578242301940917
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      vector_instruction_width: 2
+    time: 0.49586238861083987
   - config:
       BLOCK_SIZE: 32
       kernel_backend: cuda
       vector_instruction_width: 4
-    time: 0.4959392070770264
-  - config:
-      BLOCK_SIZE: 64
-      kernel_backend: cuda
-      vector_instruction_width: 2
-    time: 0.49603838920593263
+    time: 0.4958752155303955
   - config:
       BLOCK_SIZE: 128
       kernel_backend: cuda
       vector_instruction_width: 1
-    time: 0.4961408138275146
+    time: 0.49604477882385256
   - config:
       BLOCK_SIZE: 64
       kernel_backend: triton
       vector_instruction_width: null
-    time: 0.9885151863098145
+    time: 0.9886943817138671
   - config:
       BLOCK_SIZE: 32
       kernel_backend: cuda
       vector_instruction_width: 2
-    time: 0.988748836517334
+    time: 0.9889375686645507
   - config:
       BLOCK_SIZE: 64
       kernel_backend: cuda
       vector_instruction_width: 1
-    time: 0.9889727592468261
+    time: 0.9891263961791992
   - config:
       BLOCK_SIZE: 65536
       kernel_backend: triton
       vector_instruction_width: null
-    time: 1.0367712020874023
+    time: 1.0378975868225098
   - config:
       BLOCK_SIZE: 32
       kernel_backend: cuda
       vector_instruction_width: 1
-    time: 1.9750431060791016
+    time: 1.9750015258789062
   '''x.dtype = torch.float32''':
   - config:
       BLOCK_SIZE: 512
       kernel_backend: cuda
       vector_instruction_width: 4
-    time: 0.27761919498443605
+    time: 0.27774720191955565
   - config:
       BLOCK_SIZE: 256
       kernel_backend: cuda
       vector_instruction_width: 4
-    time: 0.2777120113372803
-  - config:
-      BLOCK_SIZE: 128
-      kernel_backend: cuda
-      vector_instruction_width: 4
-    time: 0.2779936075210571
+    time: 0.2777600049972534
   - config:
       BLOCK_SIZE: 64
       kernel_backend: cuda
       vector_instruction_width: 4
-    time: 0.2781503915786743
+    time: 0.2781375885009766
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      vector_instruction_width: 4
+    time: 0.2782912015914917
   - config:
       BLOCK_SIZE: 512
       kernel_backend: triton
       vector_instruction_width: null
-    time: 0.2784032106399536
-  - config:
-      BLOCK_SIZE: 1024
-      kernel_backend: cuda
-      vector_instruction_width: 4
-    time: 0.2789472103118896
+    time: 0.2784543991088867
   - config:
       BLOCK_SIZE: 1024
       kernel_backend: triton
       vector_instruction_width: null
-    time: 0.2791264057159424
+    time: 0.2787872076034546
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      vector_instruction_width: 4
+    time: 0.27895679473876955
   - config:
       BLOCK_SIZE: 16384
       kernel_backend: triton
       vector_instruction_width: null
-    time: 0.2793215990066528
+    time: 0.2794496059417725
   - config:
       BLOCK_SIZE: 8192
       kernel_backend: triton
       vector_instruction_width: null
-    time: 0.2806560039520264
+    time: 0.28051199913024905
   - config:
       BLOCK_SIZE: 2048
       kernel_backend: triton
       vector_instruction_width: null
-    time: 0.280678391456604
+    time: 0.2810656070709229
   - config:
       BLOCK_SIZE: 4096
       kernel_backend: triton
       vector_instruction_width: null
-    time: 0.2814687967300415
+    time: 0.28143360614776614
   - config:
       BLOCK_SIZE: 256
       kernel_backend: triton
       vector_instruction_width: null
-    time: 0.28524160385131836
+    time: 0.2852960109710693
   - config:
       BLOCK_SIZE: 128
       kernel_backend: cuda
       vector_instruction_width: 2
-    time: 0.28736000061035155
+    time: 0.2870239973068237
   - config:
       BLOCK_SIZE: 256
       kernel_backend: cuda
       vector_instruction_width: 2
-    time: 0.2917632102966309
+    time: 0.29170238971710205
   - config:
       BLOCK_SIZE: 512
       kernel_backend: cuda
       vector_instruction_width: 2
-    time: 0.3008768081665039
+    time: 0.30108160972595216
   - config:
       BLOCK_SIZE: 1024
       kernel_backend: cuda
       vector_instruction_width: 2
-    time: 0.31252479553222656
+    time: 0.31235198974609374
   - config:
       BLOCK_SIZE: 256
       kernel_backend: cuda
       vector_instruction_width: 1
-    time: 0.35928640365600584
+    time: 0.35927040576934816
   - config:
       BLOCK_SIZE: 512
       kernel_backend: cuda
       vector_instruction_width: 1
-    time: 0.39330239295959474
+    time: 0.3932960033416748
   - config:
       BLOCK_SIZE: 1024
       kernel_backend: cuda
       vector_instruction_width: 1
-    time: 0.4398848056793213
+    time: 0.43976640701293945
   - config:
       BLOCK_SIZE: 64
       kernel_backend: cuda
       vector_instruction_width: 2
-    time: 0.4957759857177734
+    time: 0.4958176136016846
   - config:
       BLOCK_SIZE: 32
       kernel_backend: cuda
       vector_instruction_width: 4
-    time: 0.4958208084106445
+    time: 0.4958975791931152
   - config:
       BLOCK_SIZE: 128
       kernel_backend: cuda
       vector_instruction_width: 1
-    time: 0.4968992233276367
+    time: 0.4969759941101074
   - config:
       BLOCK_SIZE: 128
       kernel_backend: triton
       vector_instruction_width: null
-    time: 0.49754881858825684
-  - config:
-      BLOCK_SIZE: 64
-      kernel_backend: triton
-      vector_instruction_width: null
-    time: 0.9878720283508301
+    time: 0.4977439880371094
   - config:
       BLOCK_SIZE: 32
       kernel_backend: cuda
       vector_instruction_width: 2
-    time: 0.9880703926086426
+    time: 0.9882431983947754
   - config:
       BLOCK_SIZE: 64
       kernel_backend: cuda
       vector_instruction_width: 1
-    time: 0.9881695747375489
+    time: 0.9882752418518066
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: triton
+      vector_instruction_width: null
+    time: 0.9910207748413086
   - config:
       BLOCK_SIZE: 32
       kernel_backend: cuda
       vector_instruction_width: 1
-    time: 1.9735424041748046
+    time: 1.973695945739746
   - config:
       BLOCK_SIZE: 32768
       kernel_backend: triton
       vector_instruction_width: null
-    time: 2.004640007019043
+    time: 1.9993440628051757
   - config:
       BLOCK_SIZE: 65536
       kernel_backend: triton
       vector_instruction_width: null
-    time: 2.0937952041625976
+    time: 2.095267105102539
 best_configs:
   '''x.dtype = torch.bfloat16''':
     config:
-      BLOCK_SIZE: 128
+      BLOCK_SIZE: 512
       kernel_backend: cuda
       vector_instruction_width: 8
-    time: 0.1407871961593628
+    time: 0.14092799425125122
   '''x.dtype = torch.float16''':
     config:
       BLOCK_SIZE: 512
       kernel_backend: cuda
       vector_instruction_width: 8
-    time: 0.14052159786224366
+    time: 0.14048000574111938
   '''x.dtype = torch.float32''':
     config:
       BLOCK_SIZE: 512
       kernel_backend: cuda
       vector_instruction_width: 4
-    time: 0.27761919498443605
+    time: 0.27774720191955565
