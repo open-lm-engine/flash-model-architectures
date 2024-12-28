@@ -1,0 +1,14 @@
+all_configs: {}
+best_configs:
+  '''x.dtype = torch.bfloat16''':
+    config:
+      kernel_backend: triton
+    time: 0
+  '''x.dtype = torch.float16''':
+    config:
+      kernel_backend: triton
+    time: 0
+  '''x.dtype = torch.float32''':
+    config:
+      kernel_backend: triton
+    time: 0
