@@ -64,7 +64,7 @@ def _contiguous_count_cute(
         kernel_backend=[KernelBackend.triton], BLOCK_SIZE=COMMON_TRITON_BLOCK_SIZES_POWERS_OF_2
     ),
     default_config=CutoTuneConfig({"kernel_backend": KernelBackend.triton, "BLOCK_SIZE": MAX_CUDA_BLOCK_SIZE}),
-    functional_triggers=[lambda **kwargs: get_next_power_of_2(kwargs["size"])],
+    functional_triggers={"size_next_power_of_2": lambda **kwargs: get_next_power_of_2(kwargs["size"])},
 )
 def contiguous_count_cute(
     x: torch.Tensor,
