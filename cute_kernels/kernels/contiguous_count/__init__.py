@@ -43,7 +43,9 @@ def contiguous_count_cute(
             BLOCK_SIZE=BLOCK_SIZE,
         )
     elif kernel_backend == KernelBackend.triton:
-        contiguous_count_triton(x=x, output=output, size=size, BLOCK_SIZE=BLOCK_SIZE)
+        contiguous_count_triton(
+            x=x, output=output, size=size, BLOCK_SIZE=BLOCK_SIZE, BLOCK_SIZE_C=get_next_power_of_2(size)
+        )
     else:
         raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 

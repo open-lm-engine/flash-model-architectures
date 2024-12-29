@@ -1,7 +1,8 @@
 import torch
 
-from ....constants import LIBRARY_NAME
-from ....math import ceil_divide, get_next_power_of_2
+from ....constants import COMMON_CUDA_BLOCK_SIZES_POWERS_OF_2, LIBRARY_NAME, MAX_CUDA_BLOCK_SIZE, MAX_TRITON_BLOCK_SIZE
+from ....cutotune import CutoTuneConfig, cutotune, get_cartesian_product_cutotune_configs
+from ....math import ceil_divide
 from ....utils import cute_op, get_sm_count
 from .kernels_forward import _contiguous_count_triton_kernel
 
@@ -9,10 +10,19 @@ from .kernels_forward import _contiguous_count_triton_kernel
 _KERNEL_NAME = "contiguous_count_triton"
 
 
+@cutotune(
+    configs=get_cartesian_product_cutotune_configs(
+        BLOCK_SIZE_B=COMMON_CUDA_BLOCK_SIZES_POWERS_OF_2,
+        condition=lambda **kwargs: 1024 <= kwargs["BLOCK_SIZE_B"] * kwargs["BLOCK_SIZE_H"] <= MAX_TRITON_BLOCK_SIZE,
+    ),
+    default_config=CutoTuneConfig({"BLOCK_SIZE": MAX_CUDA_BLOCK_SIZE}),
+    triggers={"BLOCK_SIZE_C"},
+)
 @cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"output"})
-def contiguous_count_triton(x: torch.Tensor, output: torch.Tensor, size: int, BLOCK_SIZE: int) -> None:
+def contiguous_count_triton(
+    x: torch.Tensor, output: torch.Tensor, size: int, BLOCK_SIZE: int, BLOCK_SIZE_C: int
+) -> None:
     B = x.numel()
-    BLOCK_SIZE_C = get_next_power_of_2(size)
 
     sm_count = get_sm_count(x.device)
     num_programs = min(sm_count, ceil_divide(B, BLOCK_SIZE))
