@@ -14,8 +14,6 @@ def get_cutotune_parameters() -> dict:
             <= kwargs["BLOCK_SIZE_B"] * kwargs["BLOCK_SIZE_H"]
             <= MAX_TRITON_BLOCK_SIZE,
         ),
-        default_config=CutoTuneConfig(
-            {"kernel_backend": KernelBackend.triton, "BLOCK_SIZE_B": 128, "BLOCK_SIZE_H": 128}
-        ),
+        default_config=CutoTuneConfig(dict(kernel_backend=KernelBackend.triton, BLOCK_SIZE_B=128, BLOCK_SIZE_H=128)),
         triggers={"weight.dtype"},
     )

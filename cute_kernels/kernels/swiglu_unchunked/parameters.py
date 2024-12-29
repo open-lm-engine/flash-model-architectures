@@ -10,8 +10,6 @@ def get_cutotune_parameters() -> dict:
             BLOCK_SIZE_B=get_powers_of_2(64, 1024),
             BLOCK_SIZE_H=[64],
         ),
-        default_config=CutoTuneConfig(
-            {"kernel_backend": KernelBackend.triton, "BLOCK_SIZE_B": 64, "BLOCK_SIZE_H": 64}
-        ),
+        default_config=CutoTuneConfig(dict(kernel_backend=KernelBackend.triton, BLOCK_SIZE_B=64, BLOCK_SIZE_H=64)),
         triggers={"x.dtype"},
     )

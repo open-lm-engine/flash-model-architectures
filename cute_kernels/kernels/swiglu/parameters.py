@@ -17,6 +17,6 @@ def get_cutotune_parameters() -> dict:
         + get_cartesian_product_cutotune_configs(
             kernel_backend=[KernelBackend.triton], BLOCK_SIZE=COMMON_TRITON_BLOCK_SIZES_POWERS_OF_2
         ),
-        default_config=CutoTuneConfig({"kernel_backend": KernelBackend.triton, "BLOCK_SIZE": 1024}),
+        default_config=CutoTuneConfig(dict(kernel_backend=KernelBackend.triton, BLOCK_SIZE=1024)),
         triggers={"gate.dtype"},
     )

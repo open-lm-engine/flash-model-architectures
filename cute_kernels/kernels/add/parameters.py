@@ -38,11 +38,7 @@ def get_cutotune_parameters() -> dict:
             BLOCK_SIZE=COMMON_TRITON_BLOCK_SIZES_POWERS_OF_2,
         ),
         default_config=CutoTuneConfig(
-            {
-                "kernel_backend": KernelBackend.triton,
-                "vector_instruction_width": None,
-                "BLOCK_SIZE": MAX_CUDA_BLOCK_SIZE,
-            }
+            dict(kernel_backend=KernelBackend.triton, vector_instruction_width=None, BLOCK_SIZE=MAX_CUDA_BLOCK_SIZE)
         ),
         triggers={"x.dtype"},
     )
