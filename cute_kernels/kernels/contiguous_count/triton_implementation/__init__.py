@@ -13,7 +13,7 @@ _KERNEL_NAME = "contiguous_count_triton"
 @cutotune(
     configs=get_cartesian_product_cutotune_configs(
         BLOCK_SIZE_B=COMMON_CUDA_BLOCK_SIZES_POWERS_OF_2,
-        condition=lambda **kwargs: 1024 <= kwargs["BLOCK_SIZE_B"] * kwargs["BLOCK_SIZE_H"] <= MAX_TRITON_BLOCK_SIZE,
+        condition=lambda **kwargs: 1024 <= kwargs["BLOCK_SIZE_B"] * kwargs["BLOCK_SIZE_C"] <= MAX_TRITON_BLOCK_SIZE,
     ),
     default_config=CutoTuneConfig({"BLOCK_SIZE": MAX_CUDA_BLOCK_SIZE}),
     triggers={"BLOCK_SIZE_C"},
