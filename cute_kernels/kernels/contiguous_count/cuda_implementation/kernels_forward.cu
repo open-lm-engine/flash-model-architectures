@@ -74,9 +74,9 @@ __global__ void _contiguous_count_cuda_kernel(const scalar_t *x,
         __syncthreads();
 
         cg::cluster_group cluster = cg::this_cluster();
-        const uint32 cluster_block_rank = cluster.block_rank();
+        const bool is_first_cluster_block = cluster.block_rank() == 0;
 
-        if (cluster_block_rank != 0) {
+        if (!is_first_cluster_block) {
             _looped_atomic_add(
                 output_shared, cluster.map_shared_rank(output_shared, 0), num_loops_C, C, local_thread_id);
         }
@@ -84,7 +84,7 @@ __global__ void _contiguous_count_cuda_kernel(const scalar_t *x,
         cluster.sync();
 
         // write the output to the global memory
-        if (cluster_block_rank == 0) {
+        if (is_first_cluster_block) {
             _looped_atomic_add(output_shared, output, num_loops_C, C, local_thread_id);
         }
     }
