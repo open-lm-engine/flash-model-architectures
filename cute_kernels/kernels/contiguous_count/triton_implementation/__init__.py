@@ -1,6 +1,6 @@
 import torch
 
-from ....constants import COMMON_TRITON_BLOCK_SIZES_POWERS_OF_2, LIBRARY_NAME
+from ....constants import COMMON_TRITON_BLOCK_SIZES_POWERS_OF_2, LIBRARY_NAME, MAX_TRITON_BLOCK_SIZE
 from ....cutotune import CutoTuneConfig, cutotune, get_cartesian_product_cutotune_configs
 from ....math import ceil_divide, get_powers_of_2
 from ....utils import cute_op, get_sm_count
@@ -13,7 +13,7 @@ _KERNEL_NAME = "contiguous_count_triton"
 @cutotune(
     configs=get_cartesian_product_cutotune_configs(
         BLOCK_SIZE=get_powers_of_2(1, 32) + COMMON_TRITON_BLOCK_SIZES_POWERS_OF_2,
-        condition=lambda **kwargs: kwargs["BLOCK_SIZE"] * kwargs["BLOCK_SIZE_C"] <= 1024,
+        condition=lambda **kwargs: 1024 <= kwargs["BLOCK_SIZE"] * kwargs["BLOCK_SIZE_C"] <= MAX_TRITON_BLOCK_SIZE,
     ),
     default_config=CutoTuneConfig({"BLOCK_SIZE": 1}),
     triggers={"x.dtype", "BLOCK_SIZE_C"},
