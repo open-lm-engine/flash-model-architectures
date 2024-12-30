@@ -65,6 +65,7 @@ for dtype in all_dtypes:
 
 size = 104857600
 for n in get_powers_of_2(1, 16384):
+    print(n)
     x = torch.randint(0, n, (size,), device=torch.cuda.current_device())
     contiguous_count_cute(x, n)
 
