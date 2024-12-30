@@ -59,10 +59,7 @@ __global__ void _contiguous_count_cuda_kernel(const scalar_t *x,
         end = num_elements;
     }
 
-    const bool num_elements_in_current_block = (end - start) > 0;
-
-    cg::cluster_group cluster = cg::this_cluster();
-    const bool is_first_cluster_block = cluster.block_rank() == 0;
+    const int num_elements_in_current_block = end - start;
 
     if (num_elements_in_current_block > 0) {
         const uint32 num_loops = ceil_divide<uint32>(num_elements_in_current_block, blockDim.x);
@@ -76,16 +73,20 @@ __global__ void _contiguous_count_cuda_kernel(const scalar_t *x,
 
         __syncthreads();
 
+        cg::cluster_group cluster = cg::this_cluster();
+        const bool is_first_cluster_block = cluster.block_rank() == 0;
+
         if (!is_first_cluster_block) {
             _looped_atomic_add(
                 output_shared, cluster.map_shared_rank(output_shared, 0), num_loops_C, C, local_thread_id);
         }
-    }
 
-    cluster.sync();
+        cluster.sync();
 
-    if (num_elements_in_current_block > 0 && is_first_cluster_block) {
-        _looped_atomic_add(output_shared, output, num_loops_C, C, local_thread_id);
+        // write the output to the global memory
+        if (is_first_cluster_block) {
+            _looped_atomic_add(output_shared, output, num_loops_C, C, local_thread_id);
+        }
     }
 }
 
@@ -96,7 +97,7 @@ void contiguous_count_cuda(const torch::Tensor &x,
                            const uint32 &C,
                            const uint32 &BLOCK_SIZE) {
     assert(BLOCK_SIZE % WARP_SIZE == 0);
-    assert(C <= MAX_ALLOWED_C);
+    assert(C < MAX_ALLOWED_C);
 
     const uint64 total_elements = x.numel();
     const int max_num_blocks = get_max_thread_blocks(sm_count, thread_block_cluster_size);
