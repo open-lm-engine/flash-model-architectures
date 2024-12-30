@@ -1,7 +1,8 @@
 import torch
 
-from ....constants import LIBRARY_NAME
-from ....math import ceil_divide
+from ....constants import COMMON_TRITON_BLOCK_SIZES_POWERS_OF_2, LIBRARY_NAME
+from ....cutotune import CutoTuneConfig, cutotune, get_cartesian_product_cutotune_configs
+from ....math import ceil_divide, get_powers_of_2
 from ....utils import cute_op, get_sm_count
 from .kernels_forward import _contiguous_count_triton_kernel
 
@@ -9,6 +10,17 @@ from .kernels_forward import _contiguous_count_triton_kernel
 _KERNEL_NAME = "contiguous_count_triton"
 
 
+@cutotune(
+    dict(
+        configs=get_cartesian_product_cutotune_configs(
+            BLOCK_SIZE_B=get_powers_of_2(1, 32) + COMMON_TRITON_BLOCK_SIZES_POWERS_OF_2,
+            condition=lambda **kwargs: kwargs["BLOCK_SIZE_B"] * kwargs["BLOCK_SIZE_H"] <= 1024,
+        ),
+        default_config=CutoTuneConfig({"BLOCK_SIZE_B": 1}),
+        triggers={"x.dtype", "BLOCK_SIZE_H"},
+        functional_triggers={"has_weight": lambda **kwargs: kwargs["weight"] is not None},
+    )
+)
 @cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"output"})
 def contiguous_count_triton(
     x: torch.Tensor, output: torch.Tensor, size: int, BLOCK_SIZE: int, BLOCK_SIZE_C: int
