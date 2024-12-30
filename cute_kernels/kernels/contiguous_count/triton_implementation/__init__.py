@@ -12,12 +12,11 @@ _KERNEL_NAME = "contiguous_count_triton"
 
 @cutotune(
     configs=get_cartesian_product_cutotune_configs(
-        BLOCK_SIZE_B=get_powers_of_2(1, 32) + COMMON_TRITON_BLOCK_SIZES_POWERS_OF_2,
-        condition=lambda **kwargs: kwargs["BLOCK_SIZE_B"] * kwargs["BLOCK_SIZE_H"] <= 1024,
+        BLOCK_SIZE=get_powers_of_2(1, 32) + COMMON_TRITON_BLOCK_SIZES_POWERS_OF_2,
+        condition=lambda **kwargs: kwargs["BLOCK_SIZE"] * kwargs["BLOCK_SIZE_C"] <= 1024,
     ),
-    default_config=CutoTuneConfig({"BLOCK_SIZE_B": 1}),
-    triggers={"x.dtype", "BLOCK_SIZE_H"},
-    functional_triggers={"has_weight": lambda **kwargs: kwargs["weight"] is not None},
+    default_config=CutoTuneConfig({"BLOCK_SIZE": 1}),
+    triggers={"x.dtype", "BLOCK_SIZE_C"},
 )
 @cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"output"})
 def contiguous_count_triton(
