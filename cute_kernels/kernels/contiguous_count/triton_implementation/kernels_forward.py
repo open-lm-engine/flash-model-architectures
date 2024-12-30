@@ -3,7 +3,9 @@ import triton.language as tl
 
 
 @triton.jit
-def _contiguous_count_triton_kernel(x_ptr, output_ptr, B, C, BLOCK_SIZE_B: tl.constexpr, BLOCK_SIZE_C: tl.constexpr):
+def _contiguous_count_low_atomic_add_triton_kernel(
+    x_ptr, output_ptr, B, C, BLOCK_SIZE_B: tl.constexpr, BLOCK_SIZE_C: tl.constexpr
+):
     pid = tl.program_id(axis=0)
     num_programs = tl.num_programs(axis=0)
 
@@ -30,3 +32,14 @@ def _contiguous_count_triton_kernel(x_ptr, output_ptr, B, C, BLOCK_SIZE_B: tl.co
             counts += tl.sum(equal, axis=0)
 
         tl.atomic_add(output_ptr + indices_c, counts, mask=mask_c)
+
+
+@triton.jit
+def _contiguous_count_high_atomic_add_triton_kernel(x_ptr, output_ptr, B, BLOCK_SIZE: tl.constexpr):
+    pid = tl.program_id(axis=0)
+
+    indices = pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
+    mask = indices < B
+
+    x = tl.load(x_ptr + indices, mask=mask)
+    tl.atomic_add(output_ptr + x, 1, mask=mask)
