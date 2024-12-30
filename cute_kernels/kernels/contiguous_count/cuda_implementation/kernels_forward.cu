@@ -82,11 +82,11 @@ __global__ void _contiguous_count_cuda_kernel(const scalar_t *x,
         }
 
         cluster.sync();
+    }
 
-        // write the output to the global memory
-        if (is_first_cluster_block) {
-            _looped_atomic_add(output_shared, output, num_loops_C, C, local_thread_id);
-        }
+    // write the output to the global memory
+    if (is_first_cluster_block && num_elements_in_current_block > 0) {
+        _looped_atomic_add(output_shared, output, num_loops_C, C, local_thread_id);
     }
 }
 
