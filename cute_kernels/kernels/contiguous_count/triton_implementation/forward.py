@@ -1,5 +1,13 @@
+import torch
 import triton
 import triton.language as tl
+
+from ....constants import LIBRARY_NAME
+from ....math import ceil_divide
+from ....utils import cute_op, get_sm_count
+
+
+_KERNEL_NAME = "contiguous_count_triton"
 
 
 @triton.jit
@@ -30,3 +38,23 @@ def _contiguous_count_triton_kernel(x_ptr, output_ptr, B, C, BLOCK_SIZE_B: tl.co
             counts += tl.sum(equal, axis=0)
 
         tl.atomic_add(output_ptr + indices_c, counts, mask=mask_c)
+
+
+@cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"output"})
+def contiguous_count_triton(
+    x: torch.Tensor, output: torch.Tensor, size: int, BLOCK_SIZE: int, BLOCK_SIZE_C: int
+) -> None:
+    B = x.numel()
+
+    sm_count = get_sm_count(x.device)
+    num_programs = min(sm_count, ceil_divide(B, BLOCK_SIZE))
+
+    with torch.device(x.device):
+        _contiguous_count_triton_kernel[(num_programs,)](
+            x_ptr=x,
+            output_ptr=output,
+            B=B,
+            C=size,
+            BLOCK_SIZE_B=BLOCK_SIZE,
+            BLOCK_SIZE_C=BLOCK_SIZE_C,
+        )
