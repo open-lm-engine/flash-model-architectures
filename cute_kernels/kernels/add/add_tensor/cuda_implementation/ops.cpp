@@ -6,6 +6,4 @@ void add_tensor_cuda(const torch::Tensor &x,
                      const uint &vector_instruction_width,
                      const uint &BLOCK_SIZE);
 
-PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
-    m.def("add_tensor_cuda", &add_tensor_cuda, "Tensor addition forward (CUDA)");
-}
+PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) { m.def("add_tensor_cuda", &add_tensor_cuda, "Tensor addition (CUDA)"); }
