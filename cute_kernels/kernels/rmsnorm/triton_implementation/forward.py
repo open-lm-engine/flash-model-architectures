@@ -6,8 +6,6 @@ from ....constants import LIBRARY_NAME, TORCH_TO_TRITON_DTYPE
 from ....cutotune import cutotune
 from ....math import ceil_divide
 from ....utils import cute_op, get_num_elements_and_hidden_size, get_sm_count
-from .backward import _rmsnorm_backward_triton_kernel
-from .forward import _rmsnorm_forward_triton_kernel
 from .parameters import get_cutotune_parameters
 
 
