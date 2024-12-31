@@ -5,7 +5,7 @@ import triton.language as tl
 from ....constants import LIBRARY_NAME, TORCH_TO_TRITON_DTYPE
 from ....cutotune import cutotune
 from ....math import ceil_divide
-from ....utils import cute_op, get_num_elements_and_hidden_size, get_sm_count
+from ....utils import cute_op, get_num_elements_and_hidden_size
 from .parameters import get_cutotune_parameters
 
 
