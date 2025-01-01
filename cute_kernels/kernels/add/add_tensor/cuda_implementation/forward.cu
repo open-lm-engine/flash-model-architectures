@@ -9,10 +9,10 @@
 #include "../../../../include/threads.h"
 
 template <typename scalar_t, typename vector_t>
-__global__ void _add_tensor_forward_cuda_kernel(const scalar_t *x,
-                                                const scalar_t *y,
-                                                scalar_t *output,
-                                                const uint64 num_elements) {
+__global__ void _add_tensor_cuda_kernel(const scalar_t *x,
+                                        const scalar_t *y,
+                                        scalar_t *output,
+                                        const uint64 num_elements) {
     constexpr int vector_instruction_width = sizeof(vector_t) / sizeof(scalar_t);
     static_assert(vector_instruction_width == 1 || vector_instruction_width == 2 || vector_instruction_width == 4 ||
                   vector_instruction_width == 8);
@@ -98,16 +98,16 @@ __global__ void _add_tensor_forward_cuda_kernel(const scalar_t *x,
     }
 }
 
-void add_tensor_forward_cuda(const torch::Tensor &x,
-                             const torch::Tensor &y,
-                             torch::Tensor &output,
-                             const uint32 &vector_instruction_width,
-                             const uint32 &BLOCK_SIZE) {
+void add_tensor_cuda(const torch::Tensor &x,
+                     const torch::Tensor &y,
+                     torch::Tensor &output,
+                     const uint32 &vector_instruction_width,
+                     const uint32 &BLOCK_SIZE) {
     assert(BLOCK_SIZE % WARP_SIZE == 0);
     const uint64 total_elements = x.numel();
 
     AT_DISPATCH_CUSTOM_FLOAT_TYPES(
-        x.scalar_type(), "add_tensor_forward_cuda_kernel", ([&] {
+        x.scalar_type(), "add_tensor_cuda_kernel", ([&] {
             std::vector<ChunkedArray<scalar_t>> x_chunks =
                 chunk_array<scalar_t>(x.data_ptr<scalar_t>(), total_elements);
             std::vector<ChunkedArray<scalar_t>> y_chunks =
@@ -127,20 +127,20 @@ void add_tensor_forward_cuda(const torch::Tensor &x,
 
                 switch (vector_instruction_width) {
                     case 1:
-                        _add_tensor_forward_cuda_kernel<scalar_t, scalar_t><<<NUM_BLOCKS, BLOCK_SIZE>>>(
+                        _add_tensor_cuda_kernel<scalar_t, scalar_t><<<NUM_BLOCKS, BLOCK_SIZE>>>(
                             x_chunk.array, y_chunk.array, output_chunk.array, num_elements);
                         break;
                     case 2:
                         using vector_t = typename DType<scalar_t>::nv_dtype2;
-                        _add_tensor_forward_cuda_kernel<scalar_t, vector_t><<<NUM_BLOCKS, BLOCK_SIZE>>>(
+                        _add_tensor_cuda_kernel<scalar_t, vector_t><<<NUM_BLOCKS, BLOCK_SIZE>>>(
                             x_chunk.array, y_chunk.array, output_chunk.array, num_elements);
                         break;
                     case 4:
                         if constexpr (std::is_same_v<scalar_t, fp32>) {
-                            _add_tensor_forward_cuda_kernel<scalar_t, fp32_4><<<NUM_BLOCKS, BLOCK_SIZE>>>(
+                            _add_tensor_cuda_kernel<scalar_t, fp32_4><<<NUM_BLOCKS, BLOCK_SIZE>>>(
                                 x_chunk.array, y_chunk.array, output_chunk.array, num_elements);
                         } else {
-                            _add_tensor_forward_cuda_kernel<scalar_t, fp32_2><<<NUM_BLOCKS, BLOCK_SIZE>>>(
+                            _add_tensor_cuda_kernel<scalar_t, fp32_2><<<NUM_BLOCKS, BLOCK_SIZE>>>(
                                 x_chunk.array, y_chunk.array, output_chunk.array, num_elements);
                         }
                         break;
@@ -148,7 +148,7 @@ void add_tensor_forward_cuda(const torch::Tensor &x,
                         if constexpr (std::is_same_v<scalar_t, fp32>) {
                             throw std::runtime_error("vector_instruction_width of 8 is not supported for fp32");
                         } else {
-                            _add_tensor_forward_cuda_kernel<scalar_t, fp32_4><<<NUM_BLOCKS, BLOCK_SIZE>>>(
+                            _add_tensor_cuda_kernel<scalar_t, fp32_4><<<NUM_BLOCKS, BLOCK_SIZE>>>(
                                 x_chunk.array, y_chunk.array, output_chunk.array, num_elements);
                         }
                         break;

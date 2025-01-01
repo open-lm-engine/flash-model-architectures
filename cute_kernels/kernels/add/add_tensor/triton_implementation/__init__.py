@@ -1,1 +1,1 @@
-from .forward import add_tensor_forward_triton
+from .forward import add_tensor_triton

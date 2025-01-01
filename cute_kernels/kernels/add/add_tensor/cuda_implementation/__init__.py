@@ -1,1 +1,1 @@
-from .forward import add_tensor_forward_cuda
+from .forward import add_tensor_cuda

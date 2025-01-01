@@ -1,1 +1,1 @@
-from .forward import add_scalar_forward_triton
+from .forward import add_scalar_triton

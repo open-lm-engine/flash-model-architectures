@@ -1,1 +1,1 @@
-from .forward import add_scalar_forward_cuda
+from .forward import add_scalar_cuda
