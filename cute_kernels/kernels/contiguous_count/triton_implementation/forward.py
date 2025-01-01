@@ -1,11 +1,17 @@
+import torch
 import triton
 import triton.language as tl
 
+from ....constants import LIBRARY_NAME
+from ....math import ceil_divide
+from ....utils import cute_op, get_sm_count
+
+
+_KERNEL_NAME = "contiguous_count_triton"
+
 
 @triton.jit
-def _contiguous_count_low_atomic_add_triton_kernel(
-    x_ptr, output_ptr, B, C, BLOCK_SIZE_B: tl.constexpr, BLOCK_SIZE_C: tl.constexpr
-):
+def _contiguous_count_triton_kernel(x_ptr, output_ptr, B, C, BLOCK_SIZE_B: tl.constexpr, BLOCK_SIZE_C: tl.constexpr):
     pid = tl.program_id(axis=0)
     num_programs = tl.num_programs(axis=0)
 
@@ -34,12 +40,21 @@ def _contiguous_count_low_atomic_add_triton_kernel(
         tl.atomic_add(output_ptr + indices_c, counts, mask=mask_c)
 
 
-@triton.jit
-def _contiguous_count_high_atomic_add_triton_kernel(x_ptr, output_ptr, B, BLOCK_SIZE: tl.constexpr):
-    pid = tl.program_id(axis=0)
+@cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"output"})
+def contiguous_count_triton(
+    x: torch.Tensor, output: torch.Tensor, size: int, BLOCK_SIZE: int, BLOCK_SIZE_C: int
+) -> None:
+    B = x.numel()
 
-    indices = pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
-    mask = indices < B
+    sm_count = get_sm_count(x.device)
+    num_programs = min(sm_count, ceil_divide(B, BLOCK_SIZE))
 
-    x = tl.load(x_ptr + indices, mask=mask)
-    tl.atomic_add(output_ptr + x, 1, mask=mask)
+    with torch.device(x.device):
+        _contiguous_count_triton_kernel[(num_programs,)](
+            x_ptr=x,
+            output_ptr=output,
+            B=B,
+            C=size,
+            BLOCK_SIZE_B=BLOCK_SIZE,
+            BLOCK_SIZE_C=BLOCK_SIZE_C,
+        )

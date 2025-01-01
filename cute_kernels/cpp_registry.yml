@@ -1,22 +1,22 @@
 - functions:
-    - add_tensor_forward_cuda
+    - add_tensor_cuda
   sources:
     - kernels/add/add_tensor/cuda_implementation/ops.cpp
-    - kernels/add/add_tensor/cuda_implementation/kernels_forward.cu
+    - kernels/add/add_tensor/cuda_implementation/forward.cu
   build_path: add_tensor
 
 - functions:
-    - add_scalar_forward_cuda
+    - add_scalar_cuda
   sources:
     - kernels/add/add_scalar/cuda_implementation/ops.cpp
-    - kernels/add/add_scalar/cuda_implementation/kernels_forward.cu
+    - kernels/add/add_scalar/cuda_implementation/forward.cu
   build_path: add_scalar
 
 - functions:
     - contiguous_count_cuda
   sources:
     - kernels/contiguous_count/cuda_implementation/ops.cpp
-    - kernels/contiguous_count/cuda_implementation/kernels_forward.cu
+    - kernels/contiguous_count/cuda_implementation/forward.cu
   build_path: contiguous_count
 
 - functions:
@@ -24,6 +24,6 @@
     - swiglu_backward_cuda
   sources:
     - kernels/swiglu/cuda_implementation/ops.cpp
-    - kernels/swiglu/cuda_implementation/kernels_forward.cu
-    - kernels/swiglu/cuda_implementation/kernels_backward.cu
+    - kernels/swiglu/cuda_implementation/forward.cu
+    - kernels/swiglu/cuda_implementation/backward.cu
   build_path: swiglu
