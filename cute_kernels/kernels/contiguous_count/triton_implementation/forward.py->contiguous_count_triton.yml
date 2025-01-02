@@ -1,0 +1,25 @@
+all_configs:
+  '''BLOCK_SIZE_C = 2''':
+  - config:
+      BLOCK_SIZE: 1024
+    time: 0.9902239799499511
+  - config:
+      BLOCK_SIZE: 512
+    time: 1.199065589904785
+  - config:
+      BLOCK_SIZE: 256
+    time: 2.0856096267700197
+  - config:
+      BLOCK_SIZE: 128
+    time: 3.7825984954833984
+  - config:
+      BLOCK_SIZE: 64
+    time: 7.011145782470703
+  - config:
+      BLOCK_SIZE: 32
+    time: 13.427574157714844
+best_configs:
+  '''BLOCK_SIZE_C = 2''':
+    config:
+      BLOCK_SIZE: 1024
+    time: 0.9902239799499511
