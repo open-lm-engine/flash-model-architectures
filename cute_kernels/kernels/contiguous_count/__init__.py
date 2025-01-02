@@ -13,13 +13,9 @@ from .triton_implementation import contiguous_count_triton
 @torch.no_grad()
 @cutotune(
     get_cartesian_product_cutotune_configs(
-        kernel_backend=[KernelBackend.triton],
-        BLOCK_SIZE=COMMON_CUDA_BLOCK_SIZES_POWERS_OF_2,
-        condition=lambda **kwargs: kwargs["size"] <= 1024,
+        kernel_backend=[KernelBackend.triton], condition=lambda **kwargs: kwargs["size"] <= 1024
     )
-    + get_cartesian_product_cutotune_configs(
-        kernel_backend=[KernelBackend.cuda], BLOCK_SIZE=COMMON_CUDA_BLOCK_SIZES_POWERS_OF_2
-    ),
+    + get_cartesian_product_cutotune_configs(kernel_backend=[KernelBackend.cuda]),
     default_config=CutoTuneConfig(dict(kernel_backend=KernelBackend.cuda, BLOCK_SIZE=1024)),
 )
 def _contiguous_count_cute(
