@@ -1,7 +1,6 @@
 import torch
 
 from ...enums import KernelBackend
-from ...math import get_next_power_of_2
 from ...utils import get_sm_count
 from .cuda_implementation import contiguous_count_cuda
 from .torch_implementation import contiguous_count_torch
@@ -30,9 +29,7 @@ def contiguous_count_cute(
             BLOCK_SIZE=BLOCK_SIZE,
         )
     elif kernel_backend == KernelBackend.triton:
-        contiguous_count_triton(
-            x=x, output=output, size=size, BLOCK_SIZE=BLOCK_SIZE, BLOCK_SIZE_C=get_next_power_of_2(size)
-        )
+        contiguous_count_triton(x=x, output=output, size=size, BLOCK_SIZE=BLOCK_SIZE)
     else:
         raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
