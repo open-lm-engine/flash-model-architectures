@@ -15,7 +15,7 @@ from .triton_implementation import contiguous_count_triton
     get_cartesian_product_cutotune_configs(
         kernel_backend=[KernelBackend.triton],
         BLOCK_SIZE=COMMON_CUDA_BLOCK_SIZES_POWERS_OF_2,
-        condition=lambda **kwargs: kwargs["size"] <= 16384,
+        condition=lambda **kwargs: kwargs["size"] <= 1024,
     )
     + get_cartesian_product_cutotune_configs(
         kernel_backend=[KernelBackend.cuda], BLOCK_SIZE=COMMON_CUDA_BLOCK_SIZES_POWERS_OF_2
