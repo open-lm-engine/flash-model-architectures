@@ -4,7 +4,6 @@ import triton.language as tl
 
 from ....constants import COMMON_CUDA_BLOCK_SIZES_POWERS_OF_2, LIBRARY_NAME
 from ....cutotune import CutoTuneConfig, cutotune, get_cartesian_product_cutotune_configs
-from ....enums import KernelBackend
 from ....math import ceil_divide
 from ....utils import cute_op, get_sm_count
 
