@@ -25,6 +25,7 @@ from .triton_implementation import contiguous_count_triton
         if is_hip()
         else CutoTuneConfig(dict(kernel_backend=KernelBackend.cuda, BLOCK_SIZE=1024))
     ),
+    triggers={"size"},
 )
 def _contiguous_count_cute(
     x: torch.Tensor,
