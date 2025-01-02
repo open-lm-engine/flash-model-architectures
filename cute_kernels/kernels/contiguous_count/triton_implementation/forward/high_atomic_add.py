@@ -22,7 +22,7 @@ def _contiguous_count_high_atomic_add_triton_kernel(x_ptr, output_ptr, B, BLOCK_
 
 
 @cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"output"})
-def contiguous_count_high_atomic_add_triton(x: torch.Tensor, output: torch.Tensor, size: int, BLOCK_SIZE: int) -> None:
+def contiguous_count_high_atomic_add_triton(x: torch.Tensor, output: torch.Tensor, BLOCK_SIZE: int) -> None:
     B = x.numel()
 
     with torch.device(x.device):

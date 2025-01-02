@@ -20,4 +20,4 @@ def contiguous_count_triton(
             x=x, output=output, size=size, BLOCK_SIZE=BLOCK_SIZE, BLOCK_SIZE_C=get_next_power_of_2(size)
         )
     else:
-        contiguous_count_high_atomic_add_triton(x=x, output=output, size=size, BLOCK_SIZE=BLOCK_SIZE)
+        contiguous_count_high_atomic_add_triton(x=x, output=output, BLOCK_SIZE=BLOCK_SIZE)
