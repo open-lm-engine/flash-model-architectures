@@ -12,12 +12,12 @@ from .triton_implementation import contiguous_count_triton
 @torch.no_grad()
 @cutotune(
     get_cartesian_product_cutotune_configs(
-        kernel_backend=KernelBackend.triton,
+        kernel_backend=[KernelBackend.triton],
         BLOCK_SIZE=COMMON_CUDA_BLOCK_SIZES_POWERS_OF_2,
         condition=lambda **kwargs: kwargs["size"] <= 16384,
     )
     + get_cartesian_product_cutotune_configs(
-        kernel_backend=KernelBackend.cuda, BLOCK_SIZE=COMMON_CUDA_BLOCK_SIZES_POWERS_OF_2
+        kernel_backend=[KernelBackend.cuda], BLOCK_SIZE=COMMON_CUDA_BLOCK_SIZES_POWERS_OF_2
     )
 )
 def _contiguous_count_cute(
