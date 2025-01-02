@@ -1,6 +1,5 @@
 import torch
 
-from ...constants import COMMON_CUDA_BLOCK_SIZES_POWERS_OF_2
 from ...cutotune import CutoTuneConfig, CutoTuneParameter, cutotune, get_cartesian_product_cutotune_configs
 from ...enums import KernelBackend
 from ...math import get_next_power_of_2
