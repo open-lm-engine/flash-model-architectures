@@ -38,7 +38,6 @@ def _contiguous_count_cute(
             x=x,
             output=output,
             sm_count=get_sm_count(x.device),
-            thread_block_cluster_size=4,
             size=size,
             BLOCK_SIZE=BLOCK_SIZE,
         )
