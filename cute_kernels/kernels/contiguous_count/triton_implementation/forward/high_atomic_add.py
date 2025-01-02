@@ -31,5 +31,5 @@ def contiguous_count_high_atomic_add_triton(x: torch.Tensor, output: torch.Tenso
             output_ptr=output,
             B=B,
             C=size,
-            BLOCK_SIZE_B=BLOCK_SIZE,
+            BLOCK_SIZE=BLOCK_SIZE,
         )
