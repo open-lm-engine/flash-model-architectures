@@ -11,7 +11,7 @@ _KERNEL_NAME = "contiguous_count_high_atomic_add_triton"
 
 
 @triton.jit
-def _contiguous_count_high_atomic_add_triton_kernel(x_ptr, output_ptr, B, C, BLOCK_SIZE: tl.constexpr):
+def _contiguous_count_high_atomic_add_triton_kernel(x_ptr, output_ptr, B, BLOCK_SIZE: tl.constexpr):
     pid = tl.program_id(axis=0)
 
     indices = pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
@@ -30,6 +30,5 @@ def contiguous_count_high_atomic_add_triton(x: torch.Tensor, output: torch.Tenso
             x_ptr=x,
             output_ptr=output,
             B=B,
-            C=size,
             BLOCK_SIZE=BLOCK_SIZE,
         )
