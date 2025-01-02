@@ -3,6 +3,7 @@ import torch
 from ...constants import COMMON_CUDA_BLOCK_SIZES_POWERS_OF_2
 from ...cutotune import CutoTuneConfig, CutoTuneParameter, cutotune, get_cartesian_product_cutotune_configs
 from ...enums import KernelBackend
+from ...math import get_next_power_of_2
 from ...utils import get_sm_count, is_hip
 from .cuda_implementation import contiguous_count_cuda
 from .torch_implementation import contiguous_count_torch
@@ -46,7 +47,9 @@ def _contiguous_count_cute(
             BLOCK_SIZE=BLOCK_SIZE,
         )
     elif kernel_backend == KernelBackend.triton:
-        contiguous_count_triton(x=x, output=output, size=size, BLOCK_SIZE=BLOCK_SIZE)
+        contiguous_count_triton(
+            x=x, output=output, size=size, BLOCK_SIZE=BLOCK_SIZE, BLOCK_SIZE_C=get_next_power_of_2(size)
+        )
     else:
         raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
