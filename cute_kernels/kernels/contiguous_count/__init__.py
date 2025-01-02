@@ -59,4 +59,7 @@ def contiguous_count_cute(
     kernel_backend: KernelBackend = CutoTuneParameter(),
     BLOCK_SIZE: int = CutoTuneParameter(),
 ) -> torch.Tensor:
+    if size == 1:
+        return torch.tensor([x.numel()], dtype=torch.uint32, device=x.device)
+
     return _contiguous_count_cute(x=x, size=size, kernel_backend=kernel_backend, BLOCK_SIZE=BLOCK_SIZE)
