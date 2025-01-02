@@ -21,6 +21,7 @@ from .triton_implementation import contiguous_count_triton
 def _contiguous_count_cute(
     x: torch.Tensor,
     size: int,
+    thread_block_cluster_size: int,
     kernel_backend: KernelBackend,
     BLOCK_SIZE: int,
 ) -> torch.Tensor:
@@ -34,6 +35,7 @@ def _contiguous_count_cute(
             x=x,
             output=output,
             sm_count=get_sm_count(x.device),
+            thread_block_cluster_size=thread_block_cluster_size,
             size=size,
             BLOCK_SIZE=BLOCK_SIZE,
         )
@@ -50,10 +52,17 @@ def _contiguous_count_cute(
 def contiguous_count_cute(
     x: torch.Tensor,
     size: int,
+    thread_block_cluster_size: int = CutoTuneParameter(),
     kernel_backend: KernelBackend = CutoTuneParameter(),
     BLOCK_SIZE: int = CutoTuneParameter(),
 ) -> torch.Tensor:
     if size == 1:
         return torch.tensor([x.numel()], dtype=torch.uint32, device=x.device)
 
-    return _contiguous_count_cute(x=x, size=size, kernel_backend=kernel_backend, BLOCK_SIZE=BLOCK_SIZE)
+    return _contiguous_count_cute(
+        x=x,
+        size=size,
+        thread_block_cluster_size=thread_block_cluster_size,
+        kernel_backend=kernel_backend,
+        BLOCK_SIZE=BLOCK_SIZE,
+    )
