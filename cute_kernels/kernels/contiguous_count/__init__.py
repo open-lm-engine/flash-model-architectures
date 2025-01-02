@@ -21,7 +21,6 @@ from .triton_implementation import contiguous_count_triton
         kernel_backend=[KernelBackend.cuda], BLOCK_SIZE=COMMON_CUDA_BLOCK_SIZES_POWERS_OF_2
     ),
     default_config=CutoTuneConfig(dict(kernel_backend=KernelBackend.cuda, BLOCK_SIZE=1024)),
-    triggers={"size"},
 )
 def _contiguous_count_cute(
     x: torch.Tensor,
