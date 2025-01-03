@@ -3,102 +3,102 @@ all_configs:
   : - config:
         BLOCK_SIZE: 1024
         thread_block_cluster_size: 8
-      time: 0.37919039726257325
-    - config:
-        BLOCK_SIZE: 1024
-        thread_block_cluster_size: 4
-      time: 0.4016575813293457
+      time: 0.38167680203914645
     - config:
         BLOCK_SIZE: 1024
         thread_block_cluster_size: 1
-      time: 0.4023007869720459
+      time: 0.40361599922180175
+    - config:
+        BLOCK_SIZE: 1024
+        thread_block_cluster_size: 4
+      time: 0.4038655996322632
     - config:
         BLOCK_SIZE: 1024
         thread_block_cluster_size: 2
-      time: 0.4032735824584961
+      time: 0.4039359986782074
     - config:
         BLOCK_SIZE: 512
         thread_block_cluster_size: 8
-      time: 0.6684800148010254
+      time: 0.6658431947231293
     - config:
         BLOCK_SIZE: 512
         thread_block_cluster_size: 4
-      time: 0.6942560195922851
+      time: 0.6906687974929809
     - config:
         BLOCK_SIZE: 512
         thread_block_cluster_size: 1
-      time: 0.6975391864776611
+      time: 0.6931071937084198
     - config:
         BLOCK_SIZE: 512
         thread_block_cluster_size: 2
-      time: 0.6975776195526123
+      time: 0.6934336006641388
     - config:
         BLOCK_SIZE: 256
         thread_block_cluster_size: 8
-      time: 1.3007360458374024
+      time: 1.2854463815689088
     - config:
         BLOCK_SIZE: 256
         thread_block_cluster_size: 4
-      time: 1.3018943786621093
-    - config:
-        BLOCK_SIZE: 256
-        thread_block_cluster_size: 1
-      time: 1.3049983978271484
+      time: 1.2920544147491455
     - config:
         BLOCK_SIZE: 256
         thread_block_cluster_size: 2
-      time: 1.3054688453674317
+      time: 1.294819188117981
     - config:
-        BLOCK_SIZE: 128
-        thread_block_cluster_size: 4
-      time: 2.5569536209106447
+        BLOCK_SIZE: 256
+        thread_block_cluster_size: 1
+      time: 1.2956031918525697
     - config:
         BLOCK_SIZE: 128
         thread_block_cluster_size: 1
-      time: 2.5596736907958983
+      time: 2.5371520042419435
+    - config:
+        BLOCK_SIZE: 128
+        thread_block_cluster_size: 4
+      time: 2.5373152017593386
     - config:
         BLOCK_SIZE: 128
         thread_block_cluster_size: 2
-      time: 2.559971237182617
+      time: 2.5441343784332275
     - config:
         BLOCK_SIZE: 128
         thread_block_cluster_size: 8
-      time: 2.5872159957885743
+      time: 2.5479423999786377
     - config:
         BLOCK_SIZE: 64
         thread_block_cluster_size: 4
-      time: 5.058816146850586
+      time: 5.009766435623169
     - config:
         BLOCK_SIZE: 64
         thread_block_cluster_size: 1
-      time: 5.062499237060547
+      time: 5.025612831115723
     - config:
         BLOCK_SIZE: 64
         thread_block_cluster_size: 2
-      time: 5.062639999389648
+      time: 5.031593561172485
     - config:
         BLOCK_SIZE: 64
         thread_block_cluster_size: 8
-      time: 5.148060989379883
+      time: 5.072246360778808
     - config:
         BLOCK_SIZE: 32
         thread_block_cluster_size: 4
-      time: 10.190096282958985
+      time: 10.08303337097168
     - config:
         BLOCK_SIZE: 32
         thread_block_cluster_size: 2
-      time: 10.205142211914062
+      time: 10.10756483078003
     - config:
         BLOCK_SIZE: 32
         thread_block_cluster_size: 1
-      time: 10.228025817871094
+      time: 10.11734743118286
     - config:
         BLOCK_SIZE: 32
         thread_block_cluster_size: 8
-      time: 10.36841278076172
+      time: 10.204886341094971
 best_configs:
   ? ''
   : config:
       BLOCK_SIZE: 1024
       thread_block_cluster_size: 8
-    time: 0.37919039726257325
+    time: 0.38167680203914645

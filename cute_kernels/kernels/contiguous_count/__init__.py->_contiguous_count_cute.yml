@@ -1,13 +1,138 @@
 all_configs:
-  ? ''
-  : - config:
-        kernel_backend: cuda
-      time: 0.3818176031112671
-    - config:
-        kernel_backend: triton
-      time: 0.9938559532165527
-best_configs:
-  ? ''
-  : config:
+  '''next_power_of_2(size) = 1024''':
+  - config:
       kernel_backend: cuda
-    time: 0.3818176031112671
+    time: 0.39799679815769196
+  '''next_power_of_2(size) = 128''':
+  - config:
+      kernel_backend: cuda
+    time: 0.39789439737796783
+  - config:
+      kernel_backend: triton
+    time: 7.321216011047364
+  '''next_power_of_2(size) = 16''':
+  - config:
+      kernel_backend: cuda
+    time: 0.3972832053899765
+  - config:
+      kernel_backend: triton
+    time: 1.6901599884033203
+  '''next_power_of_2(size) = 16384''':
+  - config:
+      kernel_backend: cuda
+    time: 0.41685760021209717
+  '''next_power_of_2(size) = 2''':
+  - config:
+      kernel_backend: cuda
+    time: 0.3979968011379242
+  - config:
+      kernel_backend: triton
+    time: 1.0368992030620574
+  '''next_power_of_2(size) = 2048''':
+  - config:
+      kernel_backend: cuda
+    time: 0.398089599609375
+  '''next_power_of_2(size) = 256''':
+  - config:
+      kernel_backend: cuda
+    time: 0.3989311963319778
+  - config:
+      kernel_backend: triton
+    time: 11.778652763366699
+  '''next_power_of_2(size) = 32''':
+  - config:
+      kernel_backend: cuda
+    time: 0.3978976011276245
+  - config:
+      kernel_backend: triton
+    time: 3.506048011779785
+  '''next_power_of_2(size) = 4''':
+  - config:
+      kernel_backend: cuda
+    time: 0.39777920246124265
+  - config:
+      kernel_backend: triton
+    time: 1.0835456013679505
+  '''next_power_of_2(size) = 4096''':
+  - config:
+      kernel_backend: cuda
+    time: 0.3990240007638931
+  '''next_power_of_2(size) = 512''':
+  - config:
+      kernel_backend: cuda
+    time: 0.39812799990177156
+  '''next_power_of_2(size) = 64''':
+  - config:
+      kernel_backend: cuda
+    time: 0.39739519655704497
+  - config:
+      kernel_backend: triton
+    time: 4.740112066268921
+  '''next_power_of_2(size) = 8''':
+  - config:
+      kernel_backend: cuda
+    time: 0.39715840220451354
+  - config:
+      kernel_backend: triton
+    time: 1.2592416167259217
+  '''next_power_of_2(size) = 8192''':
+  - config:
+      kernel_backend: cuda
+    time: 0.40416639149188993
+best_configs:
+  '''next_power_of_2(size) = 1024''':
+    config:
+      kernel_backend: cuda
+    time: 0.39799679815769196
+  '''next_power_of_2(size) = 128''':
+    config:
+      kernel_backend: cuda
+    time: 0.39789439737796783
+  '''next_power_of_2(size) = 16''':
+    config:
+      kernel_backend: cuda
+    time: 0.3972832053899765
+  '''next_power_of_2(size) = 16384''':
+    config:
+      kernel_backend: cuda
+    time: 0.41685760021209717
+  '''next_power_of_2(size) = 2''':
+    config:
+      kernel_backend: cuda
+    time: 0.3979968011379242
+  '''next_power_of_2(size) = 2048''':
+    config:
+      kernel_backend: cuda
+    time: 0.398089599609375
+  '''next_power_of_2(size) = 256''':
+    config:
+      kernel_backend: cuda
+    time: 0.3989311963319778
+  '''next_power_of_2(size) = 32''':
+    config:
+      kernel_backend: cuda
+    time: 0.3978976011276245
+  '''next_power_of_2(size) = 4''':
+    config:
+      kernel_backend: cuda
+    time: 0.39777920246124265
+  '''next_power_of_2(size) = 4096''':
+    config:
+      kernel_backend: cuda
+    time: 0.3990240007638931
+  '''next_power_of_2(size) = 512''':
+    config:
+      kernel_backend: cuda
+    time: 0.39812799990177156
+  '''next_power_of_2(size) = 64''':
+    config:
+      kernel_backend: cuda
+    time: 0.39739519655704497
+  '''next_power_of_2(size) = 8''':
+    config:
+      kernel_backend: cuda
+    time: 0.39715840220451354
+  '''next_power_of_2(size) = 8192''':
+    config:
+      kernel_backend: cuda
+    time: 0.40416639149188993

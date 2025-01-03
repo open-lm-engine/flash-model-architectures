@@ -1,25 +1,186 @@
 all_configs:
+  '''BLOCK_SIZE_C = 128''':
+  - config:
+      BLOCK_SIZE: 512
+    time: 7.252166366577148
+  - config:
+      BLOCK_SIZE: 256
+    time: 9.450281715393066
+  - config:
+      BLOCK_SIZE: 128
+    time: 10.106988716125489
+  - config:
+      BLOCK_SIZE: 1024
+    time: 36.84372787475586
+  - config:
+      BLOCK_SIZE: 32
+    time: 42.2585506439209
+  - config:
+      BLOCK_SIZE: 64
+    time: 51.13585929870605
+  '''BLOCK_SIZE_C = 16''':
+  - config:
+      BLOCK_SIZE: 1024
+    time: 1.6743199944496154
+  - config:
+      BLOCK_SIZE: 512
+    time: 2.348892855644226
+  - config:
+      BLOCK_SIZE: 256
+    time: 2.976531195640564
+  - config:
+      BLOCK_SIZE: 128
+    time: 4.127420806884766
+  - config:
+      BLOCK_SIZE: 64
+    time: 12.115417671203613
+  - config:
+      BLOCK_SIZE: 32
+    time: 14.031046295166016
   '''BLOCK_SIZE_C = 2''':
   - config:
       BLOCK_SIZE: 1024
-    time: 0.9902239799499511
+    time: 1.01910719871521
   - config:
       BLOCK_SIZE: 512
-    time: 1.199065589904785
+    time: 1.2276736140251159
   - config:
       BLOCK_SIZE: 256
-    time: 2.0856096267700197
+    time: 2.1156512022018434
   - config:
       BLOCK_SIZE: 128
-    time: 3.7825984954833984
+    time: 3.8116703748703005
   - config:
       BLOCK_SIZE: 64
-    time: 7.011145782470703
+    time: 7.003372764587402
   - config:
       BLOCK_SIZE: 32
-    time: 13.427574157714844
+    time: 13.397340679168702
+  '''BLOCK_SIZE_C = 256''':
+  - config:
+      BLOCK_SIZE: 128
+    time: 11.765785598754883
+  - config:
+      BLOCK_SIZE: 256
+    time: 17.28055362701416
+  - config:
+      BLOCK_SIZE: 512
+    time: 37.98825645446777
+  - config:
+      BLOCK_SIZE: 32
+    time: 45.1974853515625
+  - config:
+      BLOCK_SIZE: 64
+    time: 46.54570541381836
+  - config:
+      BLOCK_SIZE: 1024
+    time: 212.96669158935546
+  '''BLOCK_SIZE_C = 32''':
+  - config:
+      BLOCK_SIZE: 1024
+    time: 3.490611171722412
+  - config:
+      BLOCK_SIZE: 512
+    time: 3.6648128271102904
+  - config:
+      BLOCK_SIZE: 256
+    time: 4.494764804840088
+  - config:
+      BLOCK_SIZE: 128
+    time: 5.648863935470581
+  - config:
+      BLOCK_SIZE: 32
+    time: 22.881382369995116
+  - config:
+      BLOCK_SIZE: 64
+    time: 29.382620811462402
+  '''BLOCK_SIZE_C = 4''':
+  - config:
+      BLOCK_SIZE: 1024
+    time: 1.0660096049308776
+  - config:
+      BLOCK_SIZE: 512
+    time: 1.2533151865005494
+  - config:
+      BLOCK_SIZE: 256
+    time: 2.109651207923889
+  - config:
+      BLOCK_SIZE: 128
+    time: 3.95077121257782
+  - config:
+      BLOCK_SIZE: 64
+    time: 6.944716835021973
+  - config:
+      BLOCK_SIZE: 32
+    time: 13.37955837249756
+  '''BLOCK_SIZE_C = 64''':
+  - config:
+      BLOCK_SIZE: 1024
+    time: 4.722016048431397
+  - config:
+      BLOCK_SIZE: 512
+    time: 7.0484288215637205
+  - config:
+      BLOCK_SIZE: 256
+    time: 7.842067241668701
+  - config:
+      BLOCK_SIZE: 128
+    time: 8.776208019256591
+  - config:
+      BLOCK_SIZE: 32
+    time: 38.2728832244873
+  - config:
+      BLOCK_SIZE: 64
+    time: 41.97671394348144
+  '''BLOCK_SIZE_C = 8''':
+  - config:
+      BLOCK_SIZE: 1024
+    time: 1.243891191482544
+  - config:
+      BLOCK_SIZE: 512
+    time: 1.393561601638794
+  - config:
+      BLOCK_SIZE: 256
+    time: 2.225542402267456
+  - config:
+      BLOCK_SIZE: 128
+    time: 3.978108811378479
+  - config:
+      BLOCK_SIZE: 64
+    time: 7.268156862258911
+  - config:
+      BLOCK_SIZE: 32
+    time: 13.315398406982421
 best_configs:
+  '''BLOCK_SIZE_C = 128''':
+    config:
+      BLOCK_SIZE: 512
+    time: 7.252166366577148
+  '''BLOCK_SIZE_C = 16''':
+    config:
+      BLOCK_SIZE: 1024
+    time: 1.6743199944496154
   '''BLOCK_SIZE_C = 2''':
     config:
       BLOCK_SIZE: 1024
-    time: 0.9902239799499511
+    time: 1.01910719871521
+  '''BLOCK_SIZE_C = 256''':
+    config:
+      BLOCK_SIZE: 128
+    time: 11.765785598754883
+  '''BLOCK_SIZE_C = 32''':
+    config:
+      BLOCK_SIZE: 1024
+    time: 3.490611171722412
+  '''BLOCK_SIZE_C = 4''':
+    config:
+      BLOCK_SIZE: 1024
+    time: 1.0660096049308776
+  '''BLOCK_SIZE_C = 64''':
+    config:
+      BLOCK_SIZE: 1024
+    time: 4.722016048431397
+  '''BLOCK_SIZE_C = 8''':
+    config:
+      BLOCK_SIZE: 1024
+    time: 1.243891191482544
