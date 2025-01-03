@@ -221,18 +221,27 @@ class _CutoTune:
         start = torch.cuda.Event(enable_timing=True)
         end = torch.cuda.Event(enable_timing=True)
 
-        elapsed_time = 0
+        if len(self.reset_to_zero) > 0:
+            elapsed_time = 0
 
-        for _ in range(self.benchmark_iterations):
+            for _ in range(self.benchmark_iterations):
+                start.record()
+                self.function(**kwargs)
+                end.record()
+
+                device_synchronize()
+                elapsed_time += start.elapsed_time(end)
+
+                for variable_name in self.reset_to_zero:
+                    kwargs[variable_name].zero_()
+        else:
             start.record()
-            self.function(**kwargs)
+            for _ in range(self.benchmark_iterations):
+                self.function(**kwargs)
             end.record()
 
             device_synchronize()
-            elapsed_time += start.elapsed_time(end)
-
-            for key in self.reset_to_zero:
-                kwargs[key].zero_()
+            elapsed_time = start.elapsed_time(end)
 
         return elapsed_time / self.benchmark_iterations
 

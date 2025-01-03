@@ -10,7 +10,6 @@ from .torch_implementation import contiguous_count_torch
 from .triton_implementation import contiguous_count_triton
 
 
-@torch.no_grad()
 @cutotune(
     get_cartesian_product_cutotune_configs(
         kernel_backend=[KernelBackend.triton],
@@ -60,6 +59,7 @@ def _contiguous_count_cute(
     return output
 
 
+@torch.no_grad()
 def contiguous_count_cute(
     x: torch.Tensor,
     size: int,
