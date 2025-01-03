@@ -45,6 +45,7 @@ def _contiguous_count_triton_kernel(x_ptr, output_ptr, B, C, BLOCK_SIZE_B: tl.co
     get_cartesian_product_cutotune_configs(BLOCK_SIZE=COMMON_CUDA_BLOCK_SIZES_POWERS_OF_2),
     default_config=CutoTuneConfig(dict(BLOCK_SIZE=64)),
     triggers={"BLOCK_SIZE_C"},
+    reset_to_zero={"output"},
 )
 @cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"output"})
 def contiguous_count_triton(

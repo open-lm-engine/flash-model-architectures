@@ -29,6 +29,7 @@ class _CutoTune:
         benchmark_iterations: int,
         functional_triggers: dict[str, Callable] = {},
         in_place_op: bool = False,
+        reset_to_zero: set[str] = set(),
     ) -> None:
         assert len(configs) > 0, "no cutotune config is passed"
 
@@ -48,6 +49,7 @@ class _CutoTune:
         self._check_configs()
 
         self.functional_triggers = functional_triggers
+        self.reset_to_zero = reset_to_zero
 
         if self.in_place_op:
             raise NotImplementedError()
@@ -219,13 +221,18 @@ class _CutoTune:
         start = torch.cuda.Event(enable_timing=True)
         end = torch.cuda.Event(enable_timing=True)
 
-        start.record()
-        for _ in range(self.benchmark_iterations):
-            self.function(**kwargs)
-        end.record()
+        elapsed_time = 0
 
-        device_synchronize()
-        elapsed_time = start.elapsed_time(end)
+        for _ in range(self.benchmark_iterations):
+            start.record()
+            self.function(**kwargs)
+            end.record()
+
+            device_synchronize()
+            elapsed_time += start.elapsed_time(end)
+
+            for key in self.reset_to_zero:
+                kwargs[key].zero_()
 
         return elapsed_time / self.benchmark_iterations
 
@@ -303,6 +310,7 @@ def cutotune(
     warmup_iterations: int = _DEFAULT_WARMUP_ITERATIONS,
     benchmark_iterations: int = _BENCHMARK_ITERATIONS,
     in_place_op: bool = False,
+    reset_to_zero: set[str] = set(),
 ) -> _CutoTune:
     def inner(function: Callable) -> Callable:
         return _CutoTune(
@@ -314,6 +322,7 @@ def cutotune(
             benchmark_iterations=benchmark_iterations,
             functional_triggers=functional_triggers,
             in_place_op=in_place_op,
+            reset_to_zero=reset_to_zero,
         ).__call__
 
     return inner
