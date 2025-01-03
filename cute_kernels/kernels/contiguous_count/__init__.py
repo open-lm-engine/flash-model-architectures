@@ -50,6 +50,7 @@ def _contiguous_count_cute(
             BLOCK_SIZE=BLOCK_SIZE,
         )
     elif kernel_backend == KernelBackend.triton:
+        assert thread_block_cluster_size is None
         contiguous_count_triton(
             x=x, output=output, size=size, BLOCK_SIZE=BLOCK_SIZE, BLOCK_SIZE_C=get_next_power_of_2(size)
         )

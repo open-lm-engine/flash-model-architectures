@@ -19,7 +19,15 @@ class ContiguousCountTest(TestCommons):
             TestCommons.get_1d_tensor_sizes(),  # size
             [torch.device("cuda")],  # device
             [1, 2, 4, 8],  # thread_block_cluster_size
-            [KernelBackend.cuda, KernelBackend.triton],  # kernel_backend
+            [KernelBackend.cuda],  # kernel_backend
+            [64],  # BLOCK_SIZE_B
+            [contiguous_count_cute, torch.compile(contiguous_count_cute, fullgraph=True)],  # function
+        )
+        + TestCommons.make_args_matrix(
+            TestCommons.get_1d_tensor_sizes(),  # size
+            [torch.device("cuda")],  # device
+            [None],  # thread_block_cluster_size
+            [KernelBackend.triton],  # kernel_backend
             [64],  # BLOCK_SIZE_B
             [contiguous_count_cute, torch.compile(contiguous_count_cute, fullgraph=True)],  # function
         )
