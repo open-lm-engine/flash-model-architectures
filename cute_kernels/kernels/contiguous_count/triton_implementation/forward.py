@@ -2,8 +2,7 @@ import torch
 import triton
 import triton.language as tl
 
-from ....constants import COMMON_CUDA_BLOCK_SIZES_POWERS_OF_2, LIBRARY_NAME
-from ....cutotune import CutoTuneConfig, cutotune, get_cartesian_product_cutotune_configs
+from ....constants import LIBRARY_NAME
 from ....math import ceil_divide
 from ....utils import cute_op, get_sm_count
 
@@ -41,12 +40,6 @@ def _contiguous_count_triton_kernel(x_ptr, output_ptr, B, C, BLOCK_SIZE_B: tl.co
         tl.atomic_add(output_ptr + indices_c, counts, mask=mask_c)
 
 
-@cutotune(
-    get_cartesian_product_cutotune_configs(BLOCK_SIZE=COMMON_CUDA_BLOCK_SIZES_POWERS_OF_2),
-    default_config=CutoTuneConfig(dict(BLOCK_SIZE=64)),
-    triggers={"BLOCK_SIZE_C"},
-    reset_to_zero={"output"},
-)
 @cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"output"})
 def contiguous_count_triton(
     x: torch.Tensor, output: torch.Tensor, size: int, BLOCK_SIZE: int, BLOCK_SIZE_C: int
