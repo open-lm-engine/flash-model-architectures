@@ -12,10 +12,10 @@
 #define MAX_ALLOWED_C 16384
 
 template <typename scalar_t>
-__global__ void _continuous_count_cuda_kernel(const scalar_t *x,
-                                              uint32 *output,
-                                              const uint64 num_elements,
-                                              const uint32 C) {
+__global__ void _continuous_count_and_sort_cuda_kernel(const scalar_t *x,
+                                                       uint32 *output,
+                                                       const uint64 num_elements,
+                                                       const uint32 C) {
     const uint32 local_thread_id = get_local_thread_id();
     const uint32 num_loops_C = ceil_divide<uint32>(C, blockDim.x);
 
@@ -71,14 +71,14 @@ void continuous_count_and_sort_cuda(
     const uint64 num_elements = x.numel();
     assert(num_elements <= std::numeric_limits<uint32>::max());
 
-    auto [NUM_BLOCKS, std::ignore] = get_num_blocks(num_elements, BLOCK_SIZE, sm_count, 1);
+    auto [NUM_BLOCKS, q] = get_num_blocks(num_elements, BLOCK_SIZE, sm_count, 1);
 
     AT_DISPATCH_CUSTOM_INT_TYPES(x.scalar_type(), "continuous_count_cuda_kernel", ([&] {
-                                     cudaFuncSetAttribute(_continuous_count_cuda_kernel<scalar_t>,
+                                     cudaFuncSetAttribute(_continuous_count_and_sort_cuda_kernel<scalar_t>,
                                                           cudaFuncAttributeMaxDynamicSharedMemorySize,
                                                           MAX_ALLOWED_C * sizeof(uint32));
 
-                                     _continuous_count_cuda_kernel<scalar_t>
+                                     _continuous_count_and_sort_cuda_kernel<scalar_t>
                                          <<<NUM_BLOCKS, BLOCK_SIZE, C * sizeof(uint32)>>>(
                                              x.data_ptr<scalar_t>(), output.data_ptr<uint32>(), num_elements, C);
                                  }));
