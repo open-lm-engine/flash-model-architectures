@@ -71,7 +71,7 @@ void continuous_count_and_sort_cuda(
     const uint64 num_elements = x.numel();
     assert(num_elements <= std::numeric_limits<uint32>::max());
 
-    const uint32 NUM_BLOCKS = ceil_divide<uint32>(num_elements, BLOCK_SIZE);
+    auto [NUM_BLOCKS, std::ignore] = get_num_blocks(num_elements, BLOCK_SIZE, sm_count, 1);
 
     AT_DISPATCH_CUSTOM_INT_TYPES(x.scalar_type(), "continuous_count_cuda_kernel", ([&] {
                                      cudaFuncSetAttribute(_continuous_count_cuda_kernel<scalar_t>,
