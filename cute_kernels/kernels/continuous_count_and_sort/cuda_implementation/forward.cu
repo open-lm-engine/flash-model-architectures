@@ -11,21 +11,6 @@
 
 #define MAX_ALLOWED_C 16384
 
-namespace cg = cooperative_groups;
-
-inline __device__ void _looped_atomic_add(uint32 *output_shared,
-                                          uint32 *destination_output_shared,
-                                          const uint32 &num_loops_C,
-                                          const uint32 &C,
-                                          const uint32 &local_thread_id) {
-    for (int i = 0; i < num_loops_C; i++) {
-        const int index = i * blockDim.x + local_thread_id;
-        if (index < C) {
-            atomicAdd(&destination_output_shared[index], output_shared[index]);
-        }
-    }
-}
-
 template <typename scalar_t>
 __global__ void _continuous_count_cuda_kernel(const scalar_t *x,
                                               uint32 *output,
@@ -57,9 +42,6 @@ __global__ void _continuous_count_cuda_kernel(const scalar_t *x,
 
     const int num_elements_in_current_block = end - start;
 
-    cg::cluster_group cluster = cg::this_cluster();
-    const bool is_first_cluster_block = cluster.block_rank() == 0;
-
     if (num_elements_in_current_block > 0) {
         const uint32 num_loops = ceil_divide<uint32>(num_elements_in_current_block, blockDim.x);
 
@@ -72,17 +54,12 @@ __global__ void _continuous_count_cuda_kernel(const scalar_t *x,
 
         __syncthreads();
 
-        if (!is_first_cluster_block) {
-            _looped_atomic_add(
-                output_shared, cluster.map_shared_rank(output_shared, 0), num_loops_C, C, local_thread_id);
+        for (int i = 0; i < num_loops_C; i++) {
+            const int index = i * blockDim.x + local_thread_id;
+            if (index < C) {
+                atomicAdd(&output[index], output_shared[index]);
+            }
         }
-    }
-
-    cluster.sync();
-
-    // write the output to the global memory
-    if (is_first_cluster_block && num_elements_in_current_block > 0) {
-        _looped_atomic_add(output_shared, output, num_loops_C, C, local_thread_id);
     }
 }
 
