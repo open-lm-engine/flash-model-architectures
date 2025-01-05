@@ -101,8 +101,7 @@ void continuous_count_and_sort_cuda(
 
                                          const uint32 num_elements = x_chunk.num_elements;
 
-                                         auto [NUM_BLOCKS, cluster_size] = get_num_blocks(
-                                             num_elements, BLOCK_SIZE, sm_count, thread_block_cluster_size);
+                                         const uint32 NUM_BLOCKS = ceil_divide<uint32>(num_elements, BLOCK_SIZE);
 
                                          _continuous_count_and_sort_cuda_kernel<scalar_t><<<NUM_BLOCKS, BLOCK_SIZE>>>(
                                              x_chunk.array, count_chunk.array, num_elements, C);
