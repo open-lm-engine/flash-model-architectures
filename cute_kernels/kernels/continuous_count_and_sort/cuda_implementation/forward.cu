@@ -44,38 +44,38 @@ __global__ void _continuous_count_and_sort_cuda_kernel(const scalar_t *x,
         }
     }
 
-    // __syncthreads();
+    __syncthreads();
 
-    // // count the number of occurances of each number in x
-    // const uint32 num_elements_per_block = ceil_divide<uint64>(num_elements, gridDim.x);
+    // count the number of occurances of each number in x
+    const uint32 num_elements_per_block = ceil_divide<uint64>(num_elements, gridDim.x);
 
-    // const uint32 start = blockIdx.x * num_elements_per_block;
-    // uint64 end = start + num_elements_per_block;
-    // if (end > num_elements) {
-    //     end = num_elements;
-    // }
+    const uint32 start = blockIdx.x * num_elements_per_block;
+    uint64 end = start + num_elements_per_block;
+    if (end > num_elements) {
+        end = num_elements;
+    }
 
-    // const int num_elements_in_current_block = end - start;
+    const int num_elements_in_current_block = end - start;
 
-    // if (num_elements_in_current_block > 0) {
-    //     const uint32 num_loops = ceil_divide<uint32>(num_elements_in_current_block, blockDim.x);
+    if (num_elements_in_current_block > 0) {
+        const uint32 num_loops = ceil_divide<uint32>(num_elements_in_current_block, blockDim.x);
 
-    //     for (int i = 0; i < num_loops; i++) {
-    //         const int index = start + i * blockDim.x + local_thread_id;
-    //         if (index < end) {
-    //             atomicAdd(&output_shared[x[index]], 1);
-    //         }
-    //     }
+        for (int i = 0; i < num_loops; i++) {
+            const int index = start + i * blockDim.x + local_thread_id;
+            if (index < end) {
+                atomicAdd(&output_shared[x[index]], 1);
+            }
+        }
 
-    //     __syncthreads();
+        __syncthreads();
 
-    //     for (int i = 0; i < num_loops_C; i++) {
-    //         const int index = i * blockDim.x + local_thread_id;
-    //         if (index < C) {
-    //             atomicAdd(&count[index], output_shared[index]);
-    //         }
-    //     }
-    // }
+        for (int i = 0; i < num_loops_C; i++) {
+            const int index = i * blockDim.x + local_thread_id;
+            if (index < C) {
+                atomicAdd(&count[index], output_shared[index]);
+            }
+        }
+    }
 }
 
 void continuous_count_and_sort_cuda(
@@ -93,7 +93,8 @@ void continuous_count_and_sort_cuda(
                                                           cudaFuncAttributeMaxDynamicSharedMemorySize,
                                                           MAX_ALLOWED_C * sizeof(uint32));
 
-                                     _continuous_count_and_sort_cuda_kernel<scalar_t><<<NUM_BLOCKS, BLOCK_SIZE>>>(
-                                         x.data_ptr<uint32>(), count.data_ptr<uint32>(), num_elements, C);
+                                     _continuous_count_and_sort_cuda_kernel<scalar_t>
+                                         <<<NUM_BLOCKS, BLOCK_SIZE, C * sizeof(uint32)>>>(
+                                             x.data_ptr<scalar_t>(), count.data_ptr<uint32>(), num_elements, C);
                                  }));
 }
