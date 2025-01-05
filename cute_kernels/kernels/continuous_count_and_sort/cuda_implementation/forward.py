@@ -5,7 +5,7 @@ from ....jit import cpp_jit
 from ....utils import cute_op
 
 
-_KERNEL_NAME = "continuous_count_cuda"
+_KERNEL_NAME = "continuous_count_and_sort_cuda"
 
 
 @cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"output"})
