@@ -23,7 +23,6 @@ def continuous_count_and_sort_cute(
             x=x,
             output=output,
             sm_count=get_sm_count(x.device),
-            thread_block_cluster_size=1,
             size=size,
             BLOCK_SIZE=BLOCK_SIZE,
         )

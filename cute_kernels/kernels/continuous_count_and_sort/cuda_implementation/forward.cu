@@ -86,17 +86,12 @@ __global__ void _continuous_count_cuda_kernel(const scalar_t *x,
     }
 }
 
-void continuous_count_and_sort_cuda(const torch::Tensor &x,
-                                    torch::Tensor &output,
-                                    const uint32 &sm_count,
-                                    const uint32 &thread_block_cluster_size,
-                                    const uint32 &C,
-                                    const uint32 &BLOCK_SIZE) {
+void continuous_count_and_sort_cuda(
+    const torch::Tensor &x, torch::Tensor &output, const uint32 &sm_count, const uint32 &C, const uint32 &BLOCK_SIZE) {
     assert(BLOCK_SIZE % WARP_SIZE == 0);
     assert(C <= MAX_ALLOWED_C);
 
     const uint64 total_elements = x.numel();
-    const int max_num_blocks = get_max_thread_blocks(sm_count, thread_block_cluster_size);
 
     std::vector<ChunkedArray<uint32>> output_chunks = chunk_array<uint32>(output.data_ptr<uint32>(), total_elements);
 
@@ -113,31 +108,11 @@ void continuous_count_and_sort_cuda(const torch::Tensor &x,
                                          ChunkedArray<uint32> output_chunk = output_chunks[i];
 
                                          const uint32 num_elements = x_chunk.num_elements;
+                                         const uint32 NUM_BLOCKS = ceil_divide<uint32>(num_elements, BLOCK_SIZE);
 
-                                         auto [NUM_BLOCKS, cluster_size] = get_num_blocks(
-                                             num_elements, BLOCK_SIZE, max_num_blocks, thread_block_cluster_size);
-
-                                         // dynamically sized clusters need this stupid way of launching the kernel
-                                         cudaLaunchConfig_t launch_config = {0};
-                                         launch_config.blockDim = BLOCK_SIZE;
-                                         launch_config.gridDim = NUM_BLOCKS;
-                                         launch_config.dynamicSmemBytes = C * sizeof(uint32);
-
-                                         cudaLaunchAttribute attributes[1];
-                                         attributes[0].id = cudaLaunchAttributeClusterDimension;
-                                         attributes[0].val.clusterDim.x = cluster_size;
-                                         attributes[0].val.clusterDim.y = 1;
-                                         attributes[0].val.clusterDim.z = 1;
-
-                                         launch_config.attrs = attributes;
-                                         launch_config.numAttrs = 1;
-
-                                         cudaLaunchKernelEx(&launch_config,
-                                                            _continuous_count_cuda_kernel<scalar_t>,
-                                                            x_chunk.array,
-                                                            output_chunk.array,
-                                                            num_elements,
-                                                            C);
+                                         _continuous_count_cuda_kernel<scalar_t>
+                                             <<<NUM_BLOCKS, BLOCK_SIZE, C * sizeof(uint32)>>>(
+                                                 x_chunk.array, output_chunk.array, num_elements, C);
                                      }
                                  }));
 }
