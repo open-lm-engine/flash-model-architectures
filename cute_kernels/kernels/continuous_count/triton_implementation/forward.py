@@ -20,6 +20,9 @@ def _continuous_count_triton_kernel(x_ptr, output_ptr, B, C, BLOCK_SIZE_B: tl.co
     indices_c = tl.arange(0, BLOCK_SIZE_C)
     mask_c = indices_c < C
 
+    # intialize to 0 since we are using atomic add
+    tl.store(output_ptr + indices_c, 0, mask=mask_c)
+
     program_start = pid * num_elements_per_program
     program_end = min(program_start + num_elements_per_program, B)
     num_elements_in_current_program = program_end - program_start

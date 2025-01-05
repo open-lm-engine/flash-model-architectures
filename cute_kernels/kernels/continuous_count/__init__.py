@@ -37,7 +37,7 @@ def _continuous_count_cute(
     assert x.dim() == 1, "x should be 1-dimensional"
     assert x.dtype in [torch.int32, torch.long]
 
-    output = torch.zeros(size, dtype=torch.uint32, device=x.device)
+    output = torch.empty(size, dtype=torch.uint32, device=x.device)
 
     if kernel_backend == KernelBackend.cuda:
         continuous_count_cuda(

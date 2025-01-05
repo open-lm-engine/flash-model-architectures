@@ -13,18 +13,6 @@
 
 namespace cg = cooperative_groups;
 
-inline __device__ void _initialize_shared_memory(uint32 *output_shared,
-                                                 const uint32 &num_loops_C,
-                                                 const uint32 &C,
-                                                 const uint32 &local_thread_id) {
-    for (uint32 i = 0; i < num_loops_C; i++) {
-        const uint32 index = i * blockDim.x + local_thread_id;
-        if (index < C) {
-            output_shared[index] = 0;
-        }
-    }
-}
-
 inline __device__ void _looped_atomic_add(uint32 *output_shared,
                                           uint32 *destination_output_shared,
                                           const uint32 &num_loops_C,
@@ -47,7 +35,15 @@ __global__ void _continuous_count_cuda_kernel(const scalar_t *x,
     const uint32 num_loops_C = ceil_divide<uint32>(C, blockDim.x);
 
     extern __shared__ uint32 output_shared[];
-    _initialize_shared_memory(output_shared, num_loops_C, C, local_thread_id);
+
+    for (uint32 i = 0; i < num_loops_C; i++) {
+        const uint32 index = i * blockDim.x + local_thread_id;
+        if (index < C) {
+            output[index] = 0;
+            output_shared[index] = 0;
+        }
+    }
+
     __syncthreads();
 
     // count the number of occurances of each number in x
