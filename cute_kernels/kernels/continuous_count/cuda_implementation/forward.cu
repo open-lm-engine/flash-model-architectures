@@ -44,8 +44,6 @@ __global__ void _continuous_count_cuda_kernel(const scalar_t *x,
         }
     }
 
-    _initialize(output, num_loops_C, C, local_thread_id, 0);
-    _initialize(output_shared, num_loops_C, C, local_thread_id, 0);
     __syncthreads();
 
     // count the number of occurances of each number in x
