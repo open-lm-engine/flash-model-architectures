@@ -91,28 +91,18 @@ void continuous_count_and_sort_cuda(
     assert(BLOCK_SIZE % WARP_SIZE == 0);
     assert(C <= MAX_ALLOWED_C);
 
-    const uint64 total_elements = x.numel();
+    const uint64 num_elements = x.numel();
+    assert(num_elements <= std::numeric_limits<uint32>::max());
 
-    std::vector<ChunkedArray<uint32>> output_chunks = chunk_array<uint32>(output.data_ptr<uint32>(), total_elements);
+    const uint32 NUM_BLOCKS = ceil_divide<uint32>(num_elements, BLOCK_SIZE);
 
     AT_DISPATCH_CUSTOM_INT_TYPES(x.scalar_type(), "continuous_count_cuda_kernel", ([&] {
                                      cudaFuncSetAttribute(_continuous_count_cuda_kernel<scalar_t>,
                                                           cudaFuncAttributeMaxDynamicSharedMemorySize,
                                                           MAX_ALLOWED_C * sizeof(uint32));
 
-                                     std::vector<ChunkedArray<scalar_t>> x_chunks =
-                                         chunk_array<scalar_t>(x.data_ptr<scalar_t>(), total_elements);
-
-                                     for (int i = 0; i < x_chunks.size(); i++) {
-                                         ChunkedArray<scalar_t> x_chunk = x_chunks[i];
-                                         ChunkedArray<uint32> output_chunk = output_chunks[i];
-
-                                         const uint32 num_elements = x_chunk.num_elements;
-                                         const uint32 NUM_BLOCKS = ceil_divide<uint32>(num_elements, BLOCK_SIZE);
-
-                                         _continuous_count_cuda_kernel<scalar_t>
-                                             <<<NUM_BLOCKS, BLOCK_SIZE, C * sizeof(uint32)>>>(
-                                                 x_chunk.array, output_chunk.array, num_elements, C);
-                                     }
+                                     _continuous_count_cuda_kernel<scalar_t>
+                                         <<<NUM_BLOCKS, BLOCK_SIZE, C * sizeof(uint32)>>>(
+                                             x.data_ptr<scalar_t>(), output.data_ptr<uint32>(), num_elements, C);
                                  }));
 }
