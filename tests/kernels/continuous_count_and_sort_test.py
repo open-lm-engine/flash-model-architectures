@@ -18,7 +18,6 @@ class ContiguousCountTest(TestCommons):
         TestCommons.make_args_matrix(
             TestCommons.get_1d_tensor_sizes(),  # size
             [torch.device("cuda")],  # device
-            [1, 2, 4, 8],  # thread_block_cluster_size
             [KernelBackend.cuda],  # kernel_backend
             [64],  # BLOCK_SIZE_B
             [
@@ -31,7 +30,6 @@ class ContiguousCountTest(TestCommons):
         self,
         size: int,
         device: torch.device,
-        thread_block_cluster_size: int,
         kernel_backend: KernelBackend,
         BLOCK_SIZE: int,
         function: Callable,
@@ -42,7 +40,6 @@ class ContiguousCountTest(TestCommons):
         z_kernel = function(
             x=x,
             size=_MAX_EXPERTS,
-            thread_block_cluster_size=thread_block_cluster_size,
             kernel_backend=kernel_backend,
             BLOCK_SIZE=BLOCK_SIZE,
         )
