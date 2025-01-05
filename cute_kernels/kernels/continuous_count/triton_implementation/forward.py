@@ -7,11 +7,11 @@ from ....math import ceil_divide
 from ....utils import cute_op, get_sm_count
 
 
-_KERNEL_NAME = "contiguous_count_triton"
+_KERNEL_NAME = "continuous_count_triton"
 
 
 @triton.jit
-def _contiguous_count_triton_kernel(x_ptr, output_ptr, B, C, BLOCK_SIZE_B: tl.constexpr, BLOCK_SIZE_C: tl.constexpr):
+def _continuous_count_triton_kernel(x_ptr, output_ptr, B, C, BLOCK_SIZE_B: tl.constexpr, BLOCK_SIZE_C: tl.constexpr):
     pid = tl.program_id(axis=0)
     num_programs = tl.num_programs(axis=0)
 
@@ -41,7 +41,7 @@ def _contiguous_count_triton_kernel(x_ptr, output_ptr, B, C, BLOCK_SIZE_B: tl.co
 
 
 @cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"output"})
-def contiguous_count_triton(
+def continuous_count_triton(
     x: torch.Tensor, output: torch.Tensor, size: int, BLOCK_SIZE: int, BLOCK_SIZE_C: int
 ) -> None:
     B = x.numel()
@@ -50,7 +50,7 @@ def contiguous_count_triton(
     num_programs = min(sm_count, ceil_divide(B, BLOCK_SIZE))
 
     with torch.device(x.device):
-        _contiguous_count_triton_kernel[(num_programs,)](
+        _continuous_count_triton_kernel[(num_programs,)](
             x_ptr=x,
             output_ptr=output,
             B=B,

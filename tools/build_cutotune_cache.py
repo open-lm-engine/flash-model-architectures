@@ -6,7 +6,7 @@ from transformers import set_seed
 from cute_kernels import (
     add_scalar_cute,
     add_tensor_cute,
-    contiguous_count_cute,
+    continuous_count_cute,
     embedding_cute,
     get_all_cutotune_caches,
     get_powers_of_2,
@@ -67,7 +67,7 @@ size = 104857600
 for n in get_powers_of_2(1, 16384):
     print(n)
     x = torch.randint(0, n, (size,), device=torch.cuda.current_device())
-    contiguous_count_cute(x, n)
+    continuous_count_cute(x, n)
 
 
 for function_hash in get_all_cutotune_caches():

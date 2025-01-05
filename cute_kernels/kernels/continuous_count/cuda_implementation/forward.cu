@@ -39,7 +39,7 @@ inline __device__ void _looped_atomic_add(uint32 *output_shared,
 }
 
 template <typename scalar_t>
-__global__ void _contiguous_count_cuda_kernel(const scalar_t *x,
+__global__ void _continuous_count_cuda_kernel(const scalar_t *x,
                                               uint32 *output,
                                               const uint64 num_elements,
                                               const uint32 C) {
@@ -90,7 +90,7 @@ __global__ void _contiguous_count_cuda_kernel(const scalar_t *x,
     }
 }
 
-void contiguous_count_cuda(const torch::Tensor &x,
+void continuous_count_cuda(const torch::Tensor &x,
                            torch::Tensor &output,
                            const uint32 &sm_count,
                            const uint32 &thread_block_cluster_size,
@@ -104,8 +104,8 @@ void contiguous_count_cuda(const torch::Tensor &x,
 
     std::vector<ChunkedArray<uint32>> output_chunks = chunk_array<uint32>(output.data_ptr<uint32>(), total_elements);
 
-    AT_DISPATCH_CUSTOM_INT_TYPES(x.scalar_type(), "contiguous_count_cuda_kernel", ([&] {
-                                     cudaFuncSetAttribute(_contiguous_count_cuda_kernel<scalar_t>,
+    AT_DISPATCH_CUSTOM_INT_TYPES(x.scalar_type(), "continuous_count_cuda_kernel", ([&] {
+                                     cudaFuncSetAttribute(_continuous_count_cuda_kernel<scalar_t>,
                                                           cudaFuncAttributeMaxDynamicSharedMemorySize,
                                                           MAX_ALLOWED_C * sizeof(uint32));
 
@@ -137,7 +137,7 @@ void contiguous_count_cuda(const torch::Tensor &x,
                                          launch_config.numAttrs = 1;
 
                                          cudaLaunchKernelEx(&launch_config,
-                                                            _contiguous_count_cuda_kernel<scalar_t>,
+                                                            _continuous_count_cuda_kernel<scalar_t>,
                                                             x_chunk.array,
                                                             output_chunk.array,
                                                             num_elements,
