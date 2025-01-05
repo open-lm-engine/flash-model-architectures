@@ -28,7 +28,7 @@ inline __device__ void _looped_atomic_add(uint32 *output_shared,
 
 template <typename scalar_t>
 __global__ void _continuous_count_and_sort_cuda_kernel(const scalar_t *x,
-                                                       uint32 *output,
+                                                       uint32 *count,
                                                        const uint64 num_elements,
                                                        const uint32 C) {
     const uint32 local_thread_id = get_local_thread_id();
@@ -39,7 +39,7 @@ __global__ void _continuous_count_and_sort_cuda_kernel(const scalar_t *x,
     for (uint32 i = 0; i < num_loops_C; i++) {
         const uint32 index = i * blockDim.x + local_thread_id;
         if (index < C) {
-            output[index] = 0;
+            count[index] = 0;
             output_shared[index] = 0;
         }
     }
@@ -72,20 +72,20 @@ __global__ void _continuous_count_and_sort_cuda_kernel(const scalar_t *x,
         for (int i = 0; i < num_loops_C; i++) {
             const int index = i * blockDim.x + local_thread_id;
             if (index < C) {
-                atomicAdd(&output[index], output_shared[index]);
+                atomicAdd(&count[index], output_shared[index]);
             }
         }
     }
 }
 
 void continuous_count_and_sort_cuda(
-    const torch::Tensor &x, torch::Tensor &output, const uint32 &sm_count, const uint32 &C, const uint32 &BLOCK_SIZE) {
+    const torch::Tensor &x, torch::Tensor &count, const uint32 &sm_count, const uint32 &C, const uint32 &BLOCK_SIZE) {
     assert(BLOCK_SIZE % WARP_SIZE == 0);
     assert(C <= MAX_ALLOWED_C);
 
     const uint64 total_elements = x.numel();
 
-    std::vector<ChunkedArray<uint32>> output_chunks = chunk_array<uint32>(output.data_ptr<uint32>(), total_elements);
+    std::vector<ChunkedArray<uint32>> count_chunks = chunk_array<uint32>(count.data_ptr<uint32>(), total_elements);
 
     AT_DISPATCH_CUSTOM_INT_TYPES(x.scalar_type(), "continuous_count_and_sort_cuda_kernel", ([&] {
                                      cudaFuncSetAttribute(_continuous_count_cuda_kernel<scalar_t>,
@@ -97,7 +97,7 @@ void continuous_count_and_sort_cuda(
 
                                      for (int i = 0; i < x_chunks.size(); i++) {
                                          ChunkedArray<scalar_t> x_chunk = x_chunks[i];
-                                         ChunkedArray<uint32> output_chunk = output_chunks[i];
+                                         ChunkedArray<uint32> count_chunk = count_chunks[i];
 
                                          const uint32 num_elements = x_chunk.num_elements;
 
@@ -105,7 +105,7 @@ void continuous_count_and_sort_cuda(
                                              num_elements, BLOCK_SIZE, sm_count, thread_block_cluster_size);
 
                                          _continuous_count_and_sort_cuda_kernel<scalar_t><<<NUM_BLOCKS, BLOCK_SIZE>>>(
-                                             x_chunk.array, output_chunk.array, num_elements, C);
+                                             x_chunk.array, count_chunk.array, num_elements, C);
                                      }
                                  }));
 }

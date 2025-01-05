@@ -17,12 +17,12 @@ def continuous_count_and_sort_cute(
     assert x.dim() == 1, "x should be 1-dimensional"
     assert x.dtype in [torch.int32, torch.long]
 
-    output = torch.empty(size, dtype=torch.uint32, device=x.device)
+    count = torch.empty(size, dtype=torch.uint32, device=x.device)
 
     if kernel_backend == KernelBackend.cuda:
         continuous_count_and_sort_cuda(
             x=x,
-            output=output,
+            count=count,
             sm_count=get_sm_count(x.device),
             size=size,
             BLOCK_SIZE=BLOCK_SIZE,
@@ -30,4 +30,4 @@ def continuous_count_and_sort_cute(
     else:
         raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
-    return output
+    return count
