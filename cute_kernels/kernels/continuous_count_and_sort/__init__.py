@@ -10,7 +10,6 @@ from .torch_implementation import continuous_count_and_sort_torch
 def continuous_count_and_sort_cute(
     x: torch.Tensor,
     size: int,
-    thread_block_cluster_size: int,
     kernel_backend: KernelBackend,
     BLOCK_SIZE: int,
 ) -> tuple[torch.Tensor]:
@@ -24,7 +23,7 @@ def continuous_count_and_sort_cute(
             x=x,
             output=output,
             sm_count=get_sm_count(x.device),
-            thread_block_cluster_size=thread_block_cluster_size,
+            thread_block_cluster_size=1,
             size=size,
             BLOCK_SIZE=BLOCK_SIZE,
         )
