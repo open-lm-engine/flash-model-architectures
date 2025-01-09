@@ -47,7 +47,19 @@ __global__ void _continuous_count_cuda_kernel(const scalar_t *x,
     __syncthreads();
 
     const uint32 virtual_num_blocks = ceil_divide<uint64>(num_elements, blockDim.x);
-    const uint32 num_blocks_with_full_loops = virtual_num_blocks % gridDim.x;
+
+    // num blocks with full loops is either the
+    uint32 num_blocks_with_full_loops;
+    if (virtual_num_blocks == gridDim.x) {
+        num_blocks_with_full_loops = gridDim.x;
+    } else {
+        const uint32 remainder = virtual_num_blocks % gridDim.x;
+        if (remainder == 0) {
+            num_blocks_with_full_loops = gridDim.x;
+        } else {
+            num_blocks_with_full_loops = remainder;
+        }
+    }
 
     uint32 num_loops = ceil_divide<uint32>(virtual_num_blocks, gridDim.x);
     if (blockIdx.x >= num_blocks_with_full_loops) {
@@ -61,7 +73,7 @@ __global__ void _continuous_count_cuda_kernel(const scalar_t *x,
         const uint32 start = (gridDim.x * i + blockIdx.x) * blockDim.x;
 
         uint64 end = start + blockDim.x;
-        if (end < num_elements) {
+        if (end >= num_elements) {
             end = num_elements;
         }
 
