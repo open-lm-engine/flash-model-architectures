@@ -7,6 +7,7 @@
 #include <cuda_runtime.h>
 
 #include "dtypes/all.h"
+#include "math.h"
 
 inline __device__ uint32 get_threads_per_block() { return blockDim.x * blockDim.y * blockDim.z; }
 
@@ -33,21 +34,23 @@ inline __host__ int get_max_thread_blocks(const int &sm_count, const int &thread
     return max_num_blocks;
 }
 
-inline __host__ std::tuple<int, int> get_num_blocks(const int &num_elements,
-                                                    const int &BLOCK_SIZE,
-                                                    const int &max_num_blocks,
-                                                    const int &max_thread_block_cluster_size) {
-    int NUM_BLOCKS = (num_elements + BLOCK_SIZE - 1) / BLOCK_SIZE;
-    if (NUM_BLOCKS > max_num_blocks) {
-        NUM_BLOCKS = max_num_blocks;
+inline __host__ std::tuple<uint32, uint32, uint32> get_num_blocks(const uint32 &num_elements,
+                                                                  const uint32 &BLOCK_SIZE,
+                                                                  const uint32 &sm_count = 0,
+                                                                  const uint32 &max_thread_block_cluster_size = 1) {
+    uint32 virtual_NUM_BLOCKS = ceil_divide<uint32>(num_elements, BLOCK_SIZE);
+
+    uint32 physical_NUM_BLOCKS = virtual_NUM_BLOCKS;
+    if (sm_count != 0 && physical_NUM_BLOCKS > sm_count) {
+        physical_NUM_BLOCKS = sm_count;
     }
 
     int thread_block_cluster_size = max_thread_block_cluster_size;
-    if (thread_block_cluster_size > NUM_BLOCKS) {
-        thread_block_cluster_size = NUM_BLOCKS;
+    if (thread_block_cluster_size > physical_NUM_BLOCKS) {
+        thread_block_cluster_size = physical_NUM_BLOCKS;
     }
 
-    NUM_BLOCKS = thread_block_cluster_size * (NUM_BLOCKS / thread_block_cluster_size);
+    physical_NUM_BLOCKS = thread_block_cluster_size * (physical_NUM_BLOCKS / thread_block_cluster_size);
 
-    return std::make_tuple(NUM_BLOCKS, thread_block_cluster_size);
+    return std::make_tuple(virtual_NUM_BLOCKS, physical_NUM_BLOCKS, thread_block_cluster_size);
 }
