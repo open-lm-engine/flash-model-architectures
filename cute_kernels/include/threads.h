@@ -34,23 +34,21 @@ inline __host__ int get_max_thread_blocks(const int &sm_count, const int &thread
     return max_num_blocks;
 }
 
-inline __host__ std::tuple<uint32, uint32, uint32> get_num_blocks(const uint32 &num_elements,
-                                                                  const uint32 &BLOCK_SIZE,
-                                                                  const uint32 &sm_count = 0,
-                                                                  const uint32 &max_thread_block_cluster_size = 1) {
-    uint32 virtual_NUM_BLOCKS = ceil_divide<uint32>(num_elements, BLOCK_SIZE);
-
-    uint32 physical_NUM_BLOCKS = virtual_NUM_BLOCKS;
-    if (sm_count != 0 && physical_NUM_BLOCKS > sm_count) {
-        physical_NUM_BLOCKS = sm_count;
+inline __host__ std::tuple<uint32, uint32> get_num_blocks(const uint64 &num_elements,
+                                                          const uint32 &BLOCK_SIZE,
+                                                          const uint32 &sm_count = 0,
+                                                          const uint32 &max_thread_block_cluster_size = 1) {
+    uint32 NUM_BLOCKS = ceil_divide<uint64>(num_elements, BLOCK_SIZE);
+    if (sm_count != 0 && NUM_BLOCKS > sm_count) {
+        NUM_BLOCKS = sm_count;
     }
 
     int thread_block_cluster_size = max_thread_block_cluster_size;
-    if (thread_block_cluster_size > physical_NUM_BLOCKS) {
-        thread_block_cluster_size = physical_NUM_BLOCKS;
+    if (thread_block_cluster_size > NUM_BLOCKS) {
+        thread_block_cluster_size = NUM_BLOCKS;
     }
 
-    physical_NUM_BLOCKS = thread_block_cluster_size * (physical_NUM_BLOCKS / thread_block_cluster_size);
+    NUM_BLOCKS = thread_block_cluster_size * (NUM_BLOCKS / thread_block_cluster_size);
 
-    return std::make_tuple(virtual_NUM_BLOCKS, physical_NUM_BLOCKS, thread_block_cluster_size);
+    return std::make_tuple(NUM_BLOCKS, thread_block_cluster_size);
 }

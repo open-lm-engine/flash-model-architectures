@@ -46,42 +46,43 @@ __global__ void _continuous_count_cuda_kernel(const scalar_t *x,
 
     __syncthreads();
 
-    // count the number of occurances of each number in x
-    const uint32 num_elements_per_block = ceil_divide<uint64>(num_elements, gridDim.x);
+    const uint32 virtual_num_blocks = ceil_divide<uint64>(num_elements, blockDim.x);
+    const uint32 num_blocks_with_full_loops = virtual_num_blocks % gridDim.x;
 
-    const uint32 start = blockIdx.x * num_elements_per_block;
-    uint64 end = start + num_elements_per_block;
-    if (end > num_elements) {
-        end = num_elements;
+    uint32 num_loops = ceil_divide<uint32>(virtual_num_blocks, gridDim.x);
+    if (blockIdx.x >= num_blocks_with_full_loops) {
+        num_loops -= 1;
     }
-
-    const int num_elements_in_current_block = end - start;
 
     cg::cluster_group cluster = cg::this_cluster();
     const bool is_first_cluster_block = cluster.block_rank() == 0;
 
-    if (num_elements_in_current_block > 0) {
-        const uint32 num_loops = ceil_divide<uint32>(num_elements_in_current_block, blockDim.x);
+    for (int i = 0; i < num_loops; i++) {
+        const uint32 start = (gridDim.x * i + blockIdx.x) * blockDim.x;
 
-        for (int i = 0; i < num_loops; i++) {
-            const int index = start + i * blockDim.x + local_thread_id;
+        uint64 end = start + blockDim.x;
+        if (end < num_elements) {
+            end = num_elements;
+        }
+
+        if (end > start) {
+            const uint32 index = start + local_thread_id;
             if (index < end) {
                 atomicAdd(&output_shared[x[index]], 1);
             }
         }
+    }
 
-        __syncthreads();
+    __syncthreads();
 
-        if (!is_first_cluster_block) {
-            _looped_atomic_add(
-                output_shared, cluster.map_shared_rank(output_shared, 0), num_loops_C, C, local_thread_id);
-        }
+    if (!is_first_cluster_block) {
+        _looped_atomic_add(output_shared, cluster.map_shared_rank(output_shared, 0), num_loops_C, C, local_thread_id);
     }
 
     cluster.sync();
 
     // write the output to the global memory
-    if (is_first_cluster_block && num_elements_in_current_block > 0) {
+    if (is_first_cluster_block) {
         _looped_atomic_add(output_shared, output, num_loops_C, C, local_thread_id);
     }
 }
@@ -112,7 +113,7 @@ void continuous_count_cuda(const torch::Tensor &x,
                                          ChunkedArray<scalar_t> x_chunk = x_chunks[i];
                                          ChunkedArray<uint32> output_chunk = output_chunks[i];
 
-                                         const uint32 num_elements = x_chunk.num_elements;
+                                         const uint64 num_elements = x_chunk.num_elements;
 
                                          auto [NUM_BLOCKS, cluster_size] = get_num_blocks(
                                              num_elements, BLOCK_SIZE, max_num_blocks, thread_block_cluster_size);
