@@ -24,41 +24,22 @@ __global__ void _continuous_count_and_sort_cuda_kernel(const scalar_t *x,
     for (uint32 i = 0; i < num_loops_C; i++) {
         const uint32 index = i * blockDim.x + local_thread_id;
         if (index < C) {
-            output[index] = 0;
             output_shared[index] = 0;
         }
     }
 
     __syncthreads();
 
-    // count the number of occurances of each number in x
-    const uint32 num_elements_per_block = ceil_divide<uint64>(num_elements, gridDim.x);
-
-    const uint32 start = blockIdx.x * num_elements_per_block;
-    uint64 end = start + num_elements_per_block;
-    if (end > num_elements) {
-        end = num_elements;
+    for (uint32 i = get_global_thread_id(); i < num_elements; i += gridDim.x * blockDim.x) {
+        atomicAdd(&output_shared[x[i]], 1);
     }
 
-    const int num_elements_in_current_block = end - start;
+    __syncthreads();
 
-    if (num_elements_in_current_block > 0) {
-        const uint32 num_loops = ceil_divide<uint32>(num_elements_in_current_block, blockDim.x);
-
-        for (int i = 0; i < num_loops; i++) {
-            const int index = start + i * blockDim.x + local_thread_id;
-            if (index < end) {
-                atomicAdd(&output_shared[x[index]], 1);
-            }
-        }
-
-        __syncthreads();
-
-        for (int i = 0; i < num_loops_C; i++) {
-            const int index = i * blockDim.x + local_thread_id;
-            if (index < C) {
-                atomicAdd(&output[index], output_shared[index]);
-            }
+    for (int i = 0; i < num_loops_C; i++) {
+        const int index = i * blockDim.x + local_thread_id;
+        if (index < C) {
+            atomicAdd(&output[index], output_shared[index]);
         }
     }
 }
