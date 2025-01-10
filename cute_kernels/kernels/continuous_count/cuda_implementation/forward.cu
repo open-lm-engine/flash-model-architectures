@@ -13,15 +13,12 @@
 
 namespace cg = cooperative_groups;
 
-inline __device__ void _looped_atomic_add(uint32 *output_shared,
-                                          uint32 *destination_output_shared,
-                                          const uint32 &num_loops_C,
-                                          const uint32 &C,
-                                          const uint32 &local_thread_id) {
+inline __device__ void _looped_atomic_add(
+    uint32 *source, uint32 *destination, const uint32 &num_loops_C, const uint32 &C, const uint32 &local_thread_id) {
     for (int i = 0; i < num_loops_C; i++) {
         const int index = i * blockDim.x + local_thread_id;
         if (index < C) {
-            atomicAdd(&destination_output_shared[index], output_shared[index]);
+            atomicAdd(&destination[index], source[index]);
         }
     }
 }
@@ -37,18 +34,28 @@ inline __device__ void _initialize_global_output(uint32 *output, const uint32 &C
 }
 
 template <typename scalar_t>
+inline __device__ void _update_local_count(const scalar_t *x,
+                                           uint32 *shared_memory,
+                                           const uint64 &num_elements,
+                                           const uint32 &global_thread_id) {
+    for (uint32 i = global_thread_id; i < num_elements; i += gridDim.x * blockDim.x) {
+        atomicAdd(&shared_memory[x[i]], 1);
+    }
+}
+
+template <typename scalar_t>
 __global__ void _continuous_count_cuda_kernel(
     const scalar_t *x, uint32 *output, const uint64 num_elements, const uint32 C, const bool initialize_output) {
     const uint32 local_thread_id = get_local_thread_id();
     const uint32 global_thread_id = get_global_thread_id();
     const uint32 num_loops_C = ceil_divide<uint32>(C, blockDim.x);
 
-    extern __shared__ uint32 output_shared[];
+    extern __shared__ uint32 shared_memory[];
 
     for (uint32 i = 0; i < num_loops_C; i++) {
         const uint32 index = i * blockDim.x + local_thread_id;
         if (index < C) {
-            output_shared[index] = 0;
+            shared_memory[index] = 0;
         }
     }
 
@@ -57,9 +64,7 @@ __global__ void _continuous_count_cuda_kernel(
         cg::this_grid().sync();
     }
 
-    for (uint32 i = global_thread_id; i < num_elements; i += gridDim.x * blockDim.x) {
-        atomicAdd(&output_shared[x[i]], 1);
-    }
+    _update_local_count<scalar_t>(x, shared_memory, num_elements, global_thread_id);
 
     cg::cluster_group cluster = cg::this_cluster();
     const bool is_first_cluster_block = cluster.block_rank() == 0;
@@ -67,14 +72,14 @@ __global__ void _continuous_count_cuda_kernel(
     __syncthreads();
 
     if (!is_first_cluster_block) {
-        _looped_atomic_add(output_shared, cluster.map_shared_rank(output_shared, 0), num_loops_C, C, local_thread_id);
+        _looped_atomic_add(shared_memory, cluster.map_shared_rank(shared_memory, 0), num_loops_C, C, local_thread_id);
     }
 
     cluster.sync();
 
     // write the output to the global memory
     if (is_first_cluster_block) {
-        _looped_atomic_add(output_shared, output, num_loops_C, C, local_thread_id);
+        _looped_atomic_add(shared_memory, output, num_loops_C, C, local_thread_id);
     }
 }
 
