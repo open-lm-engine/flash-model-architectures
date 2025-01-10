@@ -37,9 +37,8 @@ def _continuous_count_cute(
     assert x.dim() == 1, "x should be 1-dimensional"
     assert x.dtype in [torch.int32, torch.long]
 
-    output = torch.zeros(size, dtype=torch.uint32, device=x.device)
-
     if kernel_backend == KernelBackend.cuda:
+        output = torch.empty(size, dtype=torch.uint32, device=x.device)
         continuous_count_cuda(
             x=x,
             output=output,
@@ -50,6 +49,8 @@ def _continuous_count_cute(
         )
     elif kernel_backend == KernelBackend.triton:
         assert thread_block_cluster_size is None
+        output = torch.zeros(size, dtype=torch.uint32, device=x.device)
+
         continuous_count_triton(
             x=x, output=output, size=size, BLOCK_SIZE=BLOCK_SIZE, BLOCK_SIZE_C=get_next_power_of_2(size)
         )

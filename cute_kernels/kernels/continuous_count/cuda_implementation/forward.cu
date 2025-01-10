@@ -26,6 +26,28 @@ inline __device__ void _looped_atomic_add(uint32 *output_shared,
     }
 }
 
+inline __device__ void _initialize_global_output(uint32 *output,
+                                                 const uint32 &C,
+                                                 const uint32 &num_loops_C,
+                                                 const uint32 &local_thread_id) {
+    // if we don't have enough threads, the first block is used to initialize the output array
+    if (gridDim.x * blockDim.x < C) {
+        if (blockIdx.x == 0) {
+            for (uint32 i = 0; i < num_loops_C; i++) {
+                const uint32 index = i * blockDim.x + local_thread_id;
+                if (index < C) {
+                    output[index] = 0;
+                }
+            }
+        }
+    } else {
+        const uint32 global_thread_id = get_global_thread_id();
+        if (global_thread_id < C) {
+            output[global_thread_id] = 0;
+        }
+    }
+}
+
 template <typename scalar_t>
 __global__ void _continuous_count_cuda_kernel(const scalar_t *x,
                                               uint32 *output,
@@ -43,7 +65,8 @@ __global__ void _continuous_count_cuda_kernel(const scalar_t *x,
         }
     }
 
-    __syncthreads();
+    _initialize_global_output(output, C, num_loops_C, local_thread_id);
+    cg::this_grid().sync();
 
     for (uint32 i = get_global_thread_id(); i < num_elements; i += gridDim.x * blockDim.x) {
         atomicAdd(&output_shared[x[i]], 1);
@@ -103,14 +126,18 @@ void continuous_count_cuda(const torch::Tensor &x,
                                          launch_config.gridDim = NUM_BLOCKS;
                                          launch_config.dynamicSmemBytes = C * sizeof(uint32);
 
-                                         cudaLaunchAttribute attributes[1];
+                                         cudaLaunchAttribute attributes[2];
+
                                          attributes[0].id = cudaLaunchAttributeClusterDimension;
                                          attributes[0].val.clusterDim.x = cluster_size;
                                          attributes[0].val.clusterDim.y = 1;
                                          attributes[0].val.clusterDim.z = 1;
 
+                                         attributes[1].id = cudaLaunchAttributeCooperative;
+                                         attributes[1].val.cooperative = 1;
+
                                          launch_config.attrs = attributes;
-                                         launch_config.numAttrs = 1;
+                                         launch_config.numAttrs = 2;
 
                                          cudaLaunchKernelEx(&launch_config,
                                                             _continuous_count_cuda_kernel<scalar_t>,
