@@ -29,7 +29,7 @@ inline __device__ void _looped_atomic_add(uint32 *output_shared,
 inline __device__ void _initialize_global_output(uint32 *output,
                                                  const uint32 &C,
                                                  const uint32 &num_loops_C,
-                                                 const uint32 &local_thread_id) {
+                                                 const uint32 &local_thread_id const uint32 &global_thread_id) {
     // if we don't have enough threads, the first block is used to initialize the output array
     if (gridDim.x * blockDim.x < C) {
         if (blockIdx.x == 0) {
@@ -41,7 +41,6 @@ inline __device__ void _initialize_global_output(uint32 *output,
             }
         }
     } else {
-        const uint32 global_thread_id = get_global_thread_id();
         if (global_thread_id < C) {
             output[global_thread_id] = 0;
         }
@@ -52,6 +51,7 @@ template <typename scalar_t>
 __global__ void _continuous_count_cuda_kernel(
     const scalar_t *x, uint32 *output, const uint64 num_elements, const uint32 C, const bool initialize_output) {
     const uint32 local_thread_id = get_local_thread_id();
+    const uint32 global_thread_id = get_global_thread_id();
     const uint32 num_loops_C = ceil_divide<uint32>(C, blockDim.x);
 
     extern __shared__ uint32 output_shared[];
@@ -64,11 +64,11 @@ __global__ void _continuous_count_cuda_kernel(
     }
 
     if (initialize_output) {
-        _initialize_global_output(output, C, num_loops_C, local_thread_id);
+        _initialize_global_output(output, C, num_loops_C, local_thread_id, global_thread_id);
         cg::this_grid().sync();
     }
 
-    for (uint32 i = get_global_thread_id(); i < num_elements; i += gridDim.x * blockDim.x) {
+    for (uint32 i = global_thread_id; i < num_elements; i += gridDim.x * blockDim.x) {
         atomicAdd(&output_shared[x[i]], 1);
     }
 
