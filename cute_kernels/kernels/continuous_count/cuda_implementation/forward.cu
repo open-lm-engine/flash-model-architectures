@@ -24,11 +24,13 @@ inline __device__ void _looped_atomic_add(
 }
 
 inline __device__ void _initialize_global_output(uint32 *output, const uint32 &C, const uint32 &global_thread_id) {
-    for (uint32 i = global_thread_id; i < C >> 2; i += gridDim.x * blockDim.x) {
+    const uint32 full_C = C >> 2;
+
+    for (uint32 i = global_thread_id; i < full_C; i += gridDim.x * blockDim.x) {
         ((uint32_4 *)output)[i] = DType<uint32>::make4(0, 0, 0, 0);
     }
 
-    if (global_thread_id < C - ((C >> 2) << 2)) {
+    if (global_thread_id < C - (full_C << 2)) {
         output[global_thread_id] = 0;
     }
 }
