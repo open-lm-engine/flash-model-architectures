@@ -39,7 +39,6 @@ __global__ void _continuous_count_cuda_kernel(const scalar_t *x,
     for (uint32 i = 0; i < num_loops_C; i++) {
         const uint32 index = i * blockDim.x + local_thread_id;
         if (index < C) {
-            output[index] = 0;
             output_shared[index] = 0;
         }
     }
