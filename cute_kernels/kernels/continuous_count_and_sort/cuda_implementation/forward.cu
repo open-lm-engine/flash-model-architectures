@@ -13,7 +13,9 @@
 
 template <typename scalar_t>
 __global__ void _continuous_count_and_sort_cuda_kernel(const scalar_t *x,
-                                                       uint32 *output,
+                                                       uint32 *count_output,
+                                                       uint32 *sorted_output,
+                                                       uint32 *argsort_output,
                                                        const uint64 num_elements,
                                                        const uint32 C) {
     const uint32 local_thread_id = get_local_thread_id();
@@ -39,13 +41,18 @@ __global__ void _continuous_count_and_sort_cuda_kernel(const scalar_t *x,
     for (int i = 0; i < num_loops_C; i++) {
         const int index = i * blockDim.x + local_thread_id;
         if (index < C) {
-            atomicAdd(&output[index], output_shared[index]);
+            atomicAdd(&count_output[index], output_shared[index]);
         }
     }
 }
 
-void continuous_count_and_sort_cuda(
-    const torch::Tensor &x, torch::Tensor &output, const uint32 &sm_count, const uint32 &C, const uint32 &BLOCK_SIZE) {
+void continuous_count_and_sort_cuda(const torch::Tensor &x,
+                                    torch::Tensor &count_output,
+                                    torch::Tensor &sorted_output,
+                                    torch::Tensor &argsort_output,
+                                    const uint32 &sm_count,
+                                    const uint32 &C,
+                                    const uint32 &BLOCK_SIZE) {
     assert(BLOCK_SIZE % WARP_SIZE == 0);
     assert(C <= MAX_ALLOWED_C);
 
@@ -61,6 +68,11 @@ void continuous_count_and_sort_cuda(
 
                                      _continuous_count_and_sort_cuda_kernel<scalar_t>
                                          <<<NUM_BLOCKS, BLOCK_SIZE, C * sizeof(uint32)>>>(
-                                             x.data_ptr<scalar_t>(), output.data_ptr<uint32>(), num_elements, C);
+                                             x.data_ptr<scalar_t>(),
+                                             count_output.data_ptr<uint32>(),
+                                             sorted_output.data_ptr<uint32>(),
+                                             argsort_output.data_ptr<uint32>(),
+                                             num_elements,
+                                             C);
                                  }));
 }
