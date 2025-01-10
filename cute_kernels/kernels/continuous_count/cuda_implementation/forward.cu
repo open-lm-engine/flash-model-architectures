@@ -26,25 +26,16 @@ inline __device__ void _looped_atomic_add(uint32 *output_shared,
     }
 }
 
-inline __device__ void _initialize_global_output(uint32 *output,
-                                                 const uint32 &C,
-                                                 const uint32 &num_loops_C,
-                                                 const uint32 &local_thread_id,
-                                                 const uint32 &global_thread_id) {
+inline __device__ void _initialize_global_output(uint32 *output, const uint32 &C, const uint32 &global_thread_id) {
     // if we don't have enough threads, the first block is used to initialize the output array
-    if (gridDim.x * blockDim.x < C) {
-        if (blockIdx.x == 0) {
-            for (uint32 i = 0; i < num_loops_C; i++) {
-                const uint32 index = i * blockDim.x + local_thread_id;
-                if (index < C) {
-                    output[index] = 0;
-                }
-            }
-        }
-    } else {
-        if (global_thread_id < C) {
-            output[global_thread_id] = 0;
-        }
+    const bool enough_threads = gridDim.x * blockDim.x >= (C >> 2);
+
+    for (uint32 i = global_thread_id; i < C >> 2; i += gridDim.x * blockDim.x) {
+        ((uint32_4 *)output)[i] = DType<uint32>::make4(0, 0, 0, 0);
+    }
+
+    if (global_thread_id < C - ((C >> 2) << 2)) {
+        output[global_thread_id] = 0;
     }
 }
 
@@ -65,7 +56,7 @@ __global__ void _continuous_count_cuda_kernel(
     }
 
     if (initialize_output) {
-        _initialize_global_output(output, C, num_loops_C, local_thread_id, global_thread_id);
+        _initialize_global_output(output, C, global_thread_id);
         cg::this_grid().sync();
     }
 
