@@ -31,7 +31,6 @@ __global__ void _continuous_count_cuda_kernel(const scalar_t *x,
                                               uint32 *output,
                                               const uint64 num_elements,
                                               const uint32 C) {
-    const uint32 global_thread_id = get_global_thread_id();
     const uint32 local_thread_id = get_local_thread_id();
     const uint32 num_loops_C = ceil_divide<uint32>(C, blockDim.x);
 
@@ -46,7 +45,7 @@ __global__ void _continuous_count_cuda_kernel(const scalar_t *x,
 
     __syncthreads();
 
-    for (uint32 i = global_thread_id; i < num_elements; i += gridDim.x * blockDim.x) {
+    for (uint32 i = get_global_thread_id(); i < num_elements; i += gridDim.x * blockDim.x) {
         atomicAdd(&output_shared[x[i]], 1);
     }
 
