@@ -31,6 +31,7 @@ __global__ void _continuous_count_cuda_kernel(const scalar_t *x,
                                               uint32 *output,
                                               const uint64 num_elements,
                                               const uint32 C) {
+    const uint32 global_thread_id = get_global_thread_id();
     const uint32 local_thread_id = get_local_thread_id();
     const uint32 num_loops_C = ceil_divide<uint32>(C, blockDim.x);
 
@@ -46,43 +47,14 @@ __global__ void _continuous_count_cuda_kernel(const scalar_t *x,
     __syncthreads();
 
     const uint32 virtual_num_blocks = ceil_divide<uint64>(num_elements, blockDim.x);
+    const uint32 num_loops = ceil_divide<uint32>(virtual_num_blocks, gridDim.x);
 
-    // num blocks with full loops is either the
-    uint32 num_blocks_with_full_loops;
-    if (virtual_num_blocks == gridDim.x) {
-        num_blocks_with_full_loops = gridDim.x;
-    } else {
-        const uint32 remainder = virtual_num_blocks % gridDim.x;
-        if (remainder == 0) {
-            num_blocks_with_full_loops = gridDim.x;
-        } else {
-            num_blocks_with_full_loops = remainder;
-        }
-    }
-
-    uint32 num_loops = ceil_divide<uint32>(virtual_num_blocks, gridDim.x);
-    if (blockIdx.x >= num_blocks_with_full_loops) {
-        num_loops -= 1;
+    for (uint32 i = global_thread_id; i < num_elements; i += gridDim.x * blockDim.x) {
+        atomicAdd(&output_shared[x[i]], 1);
     }
 
     cg::cluster_group cluster = cg::this_cluster();
     const bool is_first_cluster_block = cluster.block_rank() == 0;
-
-    for (int i = 0; i < num_loops; i++) {
-        const uint32 start = (gridDim.x * i + blockIdx.x) * blockDim.x;
-
-        uint64 end = start + blockDim.x;
-        if (end >= num_elements) {
-            end = num_elements;
-        }
-
-        if (end > start) {
-            const uint32 index = start + local_thread_id;
-            if (index < end) {
-                atomicAdd(&output_shared[x[index]], 1);
-            }
-        }
-    }
 
     __syncthreads();
 
