@@ -37,7 +37,7 @@ class ContiguousCountTest(TestCommons):
         set_seed(_SEED)
         x = torch.randint(0, _MAX_EXPERTS, (size,), device=device, dtype=torch.long)
 
-        z_kernel = function(
+        z_kernel, _, _ = function(
             x=x,
             size=_MAX_EXPERTS,
             kernel_backend=kernel_backend,

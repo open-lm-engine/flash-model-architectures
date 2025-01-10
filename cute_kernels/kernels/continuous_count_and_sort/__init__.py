@@ -33,4 +33,4 @@ def continuous_count_and_sort_cute(
     else:
         raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
-    return output
+    return count_output, sorted_output, argsort_output
