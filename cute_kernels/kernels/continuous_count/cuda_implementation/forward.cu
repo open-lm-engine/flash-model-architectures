@@ -49,10 +49,8 @@ inline __device__ void _initialize_global_output(uint32 *output,
 }
 
 template <typename scalar_t>
-__global__ void _continuous_count_cuda_kernel(const scalar_t *x,
-                                              uint32 *output,
-                                              const uint64 num_elements,
-                                              const uint32 C) {
+__global__ void _continuous_count_cuda_kernel(
+    const scalar_t *x, uint32 *output, const uint64 num_elements, const uint32 C, const bool initialize_output) {
     const uint32 local_thread_id = get_local_thread_id();
     const uint32 num_loops_C = ceil_divide<uint32>(C, blockDim.x);
 
@@ -65,8 +63,10 @@ __global__ void _continuous_count_cuda_kernel(const scalar_t *x,
         }
     }
 
-    _initialize_global_output(output, C, num_loops_C, local_thread_id);
-    cg::this_grid().sync();
+    if (initialize_output) {
+        _initialize_global_output(output, C, num_loops_C, local_thread_id);
+        cg::this_grid().sync();
+    }
 
     for (uint32 i = get_global_thread_id(); i < num_elements; i += gridDim.x * blockDim.x) {
         atomicAdd(&output_shared[x[i]], 1);
@@ -144,7 +144,8 @@ void continuous_count_cuda(const torch::Tensor &x,
                                                             x_chunk.array,
                                                             output_chunk.array,
                                                             num_elements,
-                                                            C);
+                                                            C,
+                                                            i == 0);
                                      }
                                  }));
 }
