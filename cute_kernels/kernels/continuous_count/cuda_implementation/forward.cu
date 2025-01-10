@@ -29,7 +29,8 @@ inline __device__ void _looped_atomic_add(uint32 *output_shared,
 inline __device__ void _initialize_global_output(uint32 *output,
                                                  const uint32 &C,
                                                  const uint32 &num_loops_C,
-                                                 const uint32 &local_thread_id const uint32 &global_thread_id) {
+                                                 const uint32 &local_thread_id,
+                                                 const uint32 &global_thread_id) {
     // if we don't have enough threads, the first block is used to initialize the output array
     if (gridDim.x * blockDim.x < C) {
         if (blockIdx.x == 0) {
