@@ -3,13 +3,7 @@ from typing import Callable
 import torch
 from parameterized import parameterized
 
-from cute_kernels import (
-    COMMON_VECTOR_INSTRUCTION_WIDTHS,
-    MAX_FP16_BF16_INSTRUCTION_WIDTH,
-    KernelBackend,
-    add_scalar_cute,
-    add_scalar_torch,
-)
+from cute_kernels import KernelBackend, add_scalar_cute, add_scalar_torch
 
 from ...test_commons import TestCommons
 
@@ -20,26 +14,7 @@ class AddTensorTest(TestCommons):
             TestCommons.get_2d_tensor_sizes(),  # size
             [torch.device("cuda")],  # device
             TestCommons.get_dtypes(),  # dtype
-            [KernelBackend.cuda],  # kernel_backend
-            COMMON_VECTOR_INSTRUCTION_WIDTHS,  # vector_instruction_width
-            [1024],  # BLOCK_SIZE
-            [add_scalar_cute, torch.compile(add_scalar_cute, fullgraph=True)],  # function
-        )
-        + TestCommons.make_args_matrix(
-            TestCommons.get_2d_tensor_sizes(),  # size
-            [torch.device("cuda")],  # device
-            [torch.bfloat16, torch.float16],  # dtype
-            [KernelBackend.cuda],  # kernel_backend
-            [MAX_FP16_BF16_INSTRUCTION_WIDTH],  # vector_instruction_width
-            [1024],  # BLOCK_SIZE
-            [add_scalar_cute, torch.compile(add_scalar_cute, fullgraph=True)],  # function
-        )
-        + TestCommons.make_args_matrix(
-            TestCommons.get_2d_tensor_sizes(),  # size
-            [torch.device("cuda")],  # device
-            TestCommons.get_dtypes(),  # dtype
-            [KernelBackend.triton],  # kernel_backend
-            [None],  # vector_instruction_width
+            [KernelBackend.cuda, KernelBackend.triton],  # kernel_backend
             [1024],  # BLOCK_SIZE
             [add_scalar_cute, torch.compile(add_scalar_cute, fullgraph=True)],  # function
         )
