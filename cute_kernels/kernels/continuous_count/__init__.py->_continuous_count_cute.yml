@@ -1,1294 +1,2412 @@
 all_configs:
-  '''next_power_of_2(size) = 1024''':
+  '''next_power_of_2(size) = 1024'', ''sizeof(dtype) = 4''':
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.14639999866485595
   - config:
       BLOCK_SIZE: 1024
       kernel_backend: cuda
       thread_block_cluster_size: 1
-    time: 0.2842303991317749
-  - config:
-      BLOCK_SIZE: 1024
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 0.2843679904937744
+    time: 0.14672000408172609
   - config:
       BLOCK_SIZE: 1024
       kernel_backend: cuda
       thread_block_cluster_size: 4
-    time: 0.2849632024765015
+    time: 0.15079360008239745
   - config:
       BLOCK_SIZE: 1024
       kernel_backend: cuda
       thread_block_cluster_size: 8
-    time: 0.28504960536956786
+    time: 0.1538432002067566
   - config:
       BLOCK_SIZE: 512
       kernel_backend: cuda
       thread_block_cluster_size: 2
-    time: 0.38099839687347414
+    time: 0.19433599710464478
   - config:
       BLOCK_SIZE: 512
       kernel_backend: cuda
       thread_block_cluster_size: 1
-    time: 0.3811232089996338
+    time: 0.194924795627594
   - config:
       BLOCK_SIZE: 512
       kernel_backend: cuda
       thread_block_cluster_size: 4
-    time: 0.38131520748138426
+    time: 0.1953119993209839
   - config:
       BLOCK_SIZE: 512
       kernel_backend: cuda
       thread_block_cluster_size: 8
-    time: 0.38979520797729494
-  - config:
-      BLOCK_SIZE: 256
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 0.6611839771270752
+    time: 0.20074241161346434
   - config:
       BLOCK_SIZE: 256
       kernel_backend: cuda
       thread_block_cluster_size: 1
-    time: 0.6615456104278564
+    time: 0.33636159896850587
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.33648641109466554
   - config:
       BLOCK_SIZE: 256
       kernel_backend: cuda
       thread_block_cluster_size: 4
-    time: 0.6625631809234619
+    time: 0.33704319000244143
   - config:
       BLOCK_SIZE: 256
       kernel_backend: cuda
       thread_block_cluster_size: 8
-    time: 0.6835487842559814
-  - config:
-      BLOCK_SIZE: 128
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 1.2715231895446777
+    time: 0.3483839988708496
   - config:
       BLOCK_SIZE: 128
       kernel_backend: cuda
       thread_block_cluster_size: 4
-    time: 1.2719615936279296
-  - config:
-      BLOCK_SIZE: 128
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 1.2732480049133301
-  - config:
-      BLOCK_SIZE: 128
-      kernel_backend: cuda
-      thread_block_cluster_size: 8
-    time: 1.3127167701721192
-  - config:
-      BLOCK_SIZE: 64
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 2.4954816818237306
-  - config:
-      BLOCK_SIZE: 64
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 2.4968128204345703
-  - config:
-      BLOCK_SIZE: 64
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 2.4974271774291994
-  - config:
-      BLOCK_SIZE: 64
-      kernel_backend: cuda
-      thread_block_cluster_size: 8
-    time: 2.573030471801758
-  - config:
-      BLOCK_SIZE: 32
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 5.034947204589844
-  - config:
-      BLOCK_SIZE: 32
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 5.035193634033203
-  - config:
-      BLOCK_SIZE: 32
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 5.035340881347656
-  - config:
-      BLOCK_SIZE: 32
-      kernel_backend: cuda
-      thread_block_cluster_size: 8
-    time: 5.167472076416016
-  '''next_power_of_2(size) = 128''':
-  - config:
-      BLOCK_SIZE: 1024
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 0.2845952033996582
-  - config:
-      BLOCK_SIZE: 1024
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 0.28463358879089357
-  - config:
-      BLOCK_SIZE: 1024
-      kernel_backend: cuda
-      thread_block_cluster_size: 8
-    time: 0.2849087953567505
-  - config:
-      BLOCK_SIZE: 1024
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 0.28498880863189696
-  - config:
-      BLOCK_SIZE: 512
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 0.3799999952316284
-  - config:
-      BLOCK_SIZE: 512
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 0.3811647891998291
-  - config:
-      BLOCK_SIZE: 512
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 0.3819295883178711
-  - config:
-      BLOCK_SIZE: 512
-      kernel_backend: cuda
-      thread_block_cluster_size: 8
-    time: 0.38940479755401614
-  - config:
-      BLOCK_SIZE: 256
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 0.6605247974395752
-  - config:
-      BLOCK_SIZE: 256
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 0.6608704090118408
-  - config:
-      BLOCK_SIZE: 256
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 0.6610367774963379
-  - config:
-      BLOCK_SIZE: 256
-      kernel_backend: cuda
-      thread_block_cluster_size: 8
-    time: 0.6834176063537598
+    time: 0.6450592041015625
   - config:
       BLOCK_SIZE: 128
       kernel_backend: cuda
       thread_block_cluster_size: 2
-    time: 1.2717951774597167
-  - config:
-      BLOCK_SIZE: 128
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 1.2743776321411133
+    time: 0.645411205291748
   - config:
       BLOCK_SIZE: 128
       kernel_backend: cuda
       thread_block_cluster_size: 1
-    time: 1.2747200012207032
+    time: 0.6461728096008301
   - config:
       BLOCK_SIZE: 128
       kernel_backend: cuda
       thread_block_cluster_size: 8
-    time: 1.311251163482666
-  - config:
-      BLOCK_SIZE: 64
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 2.4967519760131838
-  - config:
-      BLOCK_SIZE: 64
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 2.4978208541870117
+    time: 0.6642752170562745
   - config:
       BLOCK_SIZE: 64
       kernel_backend: cuda
       thread_block_cluster_size: 1
-    time: 2.4987071990966796
+    time: 1.2612192153930664
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 1.2625727653503418
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 1.2633503913879394
   - config:
       BLOCK_SIZE: 64
       kernel_backend: cuda
       thread_block_cluster_size: 8
-    time: 2.5711200714111326
-  - config:
-      BLOCK_SIZE: 32
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 5.031379318237304
-  - config:
-      BLOCK_SIZE: 32
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 5.035526275634766
+    time: 1.2971967697143554
   - config:
       BLOCK_SIZE: 32
       kernel_backend: cuda
       thread_block_cluster_size: 1
-    time: 5.038268661499023
+    time: 2.540342330932617
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 2.540883255004883
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 2.5421215057373048
   - config:
       BLOCK_SIZE: 32
       kernel_backend: cuda
       thread_block_cluster_size: 8
-    time: 5.168643188476563
-  - config:
-      BLOCK_SIZE: 512
-      kernel_backend: triton
-      thread_block_cluster_size: null
-    time: 7.2414909362792965
-  - config:
-      BLOCK_SIZE: 256
-      kernel_backend: triton
-      thread_block_cluster_size: null
-    time: 9.377983856201173
-  - config:
-      BLOCK_SIZE: 128
-      kernel_backend: triton
-      thread_block_cluster_size: null
-    time: 9.977657318115234
-  - config:
-      BLOCK_SIZE: 1024
-      kernel_backend: triton
-      thread_block_cluster_size: null
-    time: 35.050927734375
-  - config:
-      BLOCK_SIZE: 32
-      kernel_backend: triton
-      thread_block_cluster_size: null
-    time: 42.072210693359374
-  - config:
-      BLOCK_SIZE: 64
-      kernel_backend: triton
-      thread_block_cluster_size: null
-    time: 51.81669311523437
-  '''next_power_of_2(size) = 16''':
-  - config:
-      BLOCK_SIZE: 1024
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 0.2840127944946289
-  - config:
-      BLOCK_SIZE: 1024
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 0.28431680202484133
+    time: 2.610732841491699
+  '''next_power_of_2(size) = 1024'', ''sizeof(dtype) = 8''':
   - config:
       BLOCK_SIZE: 1024
       kernel_backend: cuda
       thread_block_cluster_size: 8
-    time: 0.2848031997680664
+    time: 0.28431038856506347
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.2845920085906982
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.2850303888320923
   - config:
       BLOCK_SIZE: 1024
       kernel_backend: cuda
       thread_block_cluster_size: 4
-    time: 0.2850208044052124
-  - config:
-      BLOCK_SIZE: 512
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 0.38103039264678956
-  - config:
-      BLOCK_SIZE: 512
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 0.38103361129760743
+    time: 0.28527040481567384
   - config:
       BLOCK_SIZE: 512
       kernel_backend: cuda
       thread_block_cluster_size: 1
-    time: 0.3810719966888428
+    time: 0.3807391881942749
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.3814176082611084
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.38153278827667236
   - config:
       BLOCK_SIZE: 512
       kernel_backend: cuda
       thread_block_cluster_size: 8
-    time: 0.3903455972671509
+    time: 0.388592004776001
   - config:
       BLOCK_SIZE: 256
       kernel_backend: cuda
       thread_block_cluster_size: 2
-    time: 0.6611775875091552
-  - config:
-      BLOCK_SIZE: 256
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 0.661843204498291
+    time: 0.6611423969268799
   - config:
       BLOCK_SIZE: 256
       kernel_backend: cuda
       thread_block_cluster_size: 1
-    time: 0.6624832153320312
+    time: 0.6621119976043701
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.6626431941986084
   - config:
       BLOCK_SIZE: 256
       kernel_backend: cuda
       thread_block_cluster_size: 8
-    time: 0.6827680110931397
+    time: 0.6834015846252441
   - config:
       BLOCK_SIZE: 128
       kernel_backend: cuda
       thread_block_cluster_size: 2
-    time: 1.2704863548278809
+    time: 1.272099208831787
   - config:
       BLOCK_SIZE: 128
       kernel_backend: cuda
       thread_block_cluster_size: 1
-    time: 1.2711872100830077
+    time: 1.2729248046875
   - config:
       BLOCK_SIZE: 128
       kernel_backend: cuda
       thread_block_cluster_size: 4
-    time: 1.272067165374756
+    time: 1.2734047889709472
   - config:
       BLOCK_SIZE: 128
       kernel_backend: cuda
       thread_block_cluster_size: 8
-    time: 1.3120832443237305
-  - config:
-      BLOCK_SIZE: 1024
-      kernel_backend: triton
-      thread_block_cluster_size: null
-    time: 1.5665023803710938
-  - config:
-      BLOCK_SIZE: 512
-      kernel_backend: triton
-      thread_block_cluster_size: null
-    time: 2.2510528564453125
-  - config:
-      BLOCK_SIZE: 64
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 2.4945663452148437
-  - config:
-      BLOCK_SIZE: 64
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 2.494828796386719
+    time: 1.3122143745422363
   - config:
       BLOCK_SIZE: 64
       kernel_backend: cuda
       thread_block_cluster_size: 4
-    time: 2.4951103210449217
+    time: 2.496454429626465
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 2.496790313720703
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 2.496899223327637
   - config:
       BLOCK_SIZE: 64
       kernel_backend: cuda
       thread_block_cluster_size: 8
-    time: 2.5733055114746093
-  - config:
-      BLOCK_SIZE: 256
-      kernel_backend: triton
-      thread_block_cluster_size: null
-    time: 2.8249759674072266
-  - config:
-      BLOCK_SIZE: 128
-      kernel_backend: triton
-      thread_block_cluster_size: null
-    time: 4.000617599487304
+    time: 2.5729536056518554
   - config:
       BLOCK_SIZE: 32
       kernel_backend: cuda
       thread_block_cluster_size: 1
-    time: 5.031532669067383
-  - config:
-      BLOCK_SIZE: 32
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 5.035747146606445
+    time: 5.034576034545898
   - config:
       BLOCK_SIZE: 32
       kernel_backend: cuda
       thread_block_cluster_size: 4
-    time: 5.0382240295410154
+    time: 5.034838485717773
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 5.035126495361328
   - config:
       BLOCK_SIZE: 32
       kernel_backend: cuda
       thread_block_cluster_size: 8
-    time: 5.16503677368164
-  - config:
-      BLOCK_SIZE: 64
-      kernel_backend: triton
-      thread_block_cluster_size: null
-    time: 11.832195281982422
-  - config:
-      BLOCK_SIZE: 32
-      kernel_backend: triton
-      thread_block_cluster_size: null
-    time: 13.558114624023437
-  '''next_power_of_2(size) = 16384''':
-  - config:
-      BLOCK_SIZE: 1024
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 0.28660800457000735
+    time: 5.168348693847657
+  '''next_power_of_2(size) = 128'', ''sizeof(dtype) = 4''':
   - config:
       BLOCK_SIZE: 1024
       kernel_backend: cuda
       thread_block_cluster_size: 2
-    time: 0.2874880075454712
+    time: 0.1461632013320923
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.14635519981384276
   - config:
       BLOCK_SIZE: 1024
       kernel_backend: cuda
       thread_block_cluster_size: 4
-    time: 0.2906464099884033
+    time: 0.14688960313796998
   - config:
       BLOCK_SIZE: 1024
       kernel_backend: cuda
       thread_block_cluster_size: 8
-    time: 0.3008671998977661
-  - config:
-      BLOCK_SIZE: 512
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 0.38268160820007324
+    time: 0.14853119850158691
   - config:
       BLOCK_SIZE: 512
       kernel_backend: cuda
       thread_block_cluster_size: 2
-    time: 0.3844768047332764
+    time: 0.1950752019882202
   - config:
       BLOCK_SIZE: 512
       kernel_backend: cuda
       thread_block_cluster_size: 4
-    time: 0.3848576068878174
+    time: 0.19527679681777954
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.19579839706420898
   - config:
       BLOCK_SIZE: 512
       kernel_backend: cuda
       thread_block_cluster_size: 8
-    time: 0.4002943992614746
-  - config:
-      BLOCK_SIZE: 256
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 0.6644127845764161
+    time: 0.1997439980506897
   - config:
       BLOCK_SIZE: 256
       kernel_backend: cuda
       thread_block_cluster_size: 2
-    time: 0.6655200004577637
+    time: 0.33649919033050535
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.336627197265625
   - config:
       BLOCK_SIZE: 256
       kernel_backend: cuda
       thread_block_cluster_size: 4
-    time: 0.6660384178161621
+    time: 0.33670721054077146
   - config:
       BLOCK_SIZE: 256
       kernel_backend: cuda
       thread_block_cluster_size: 8
-    time: 0.6892672061920166
-  - config:
-      BLOCK_SIZE: 128
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 1.2758336067199707
+    time: 0.3473119974136353
   - config:
       BLOCK_SIZE: 128
       kernel_backend: cuda
       thread_block_cluster_size: 2
-    time: 1.27673282623291
+    time: 0.6441376209259033
   - config:
       BLOCK_SIZE: 128
       kernel_backend: cuda
       thread_block_cluster_size: 4
-    time: 1.278774356842041
+    time: 0.6444447994232178
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.6451712131500245
   - config:
       BLOCK_SIZE: 128
       kernel_backend: cuda
       thread_block_cluster_size: 8
-    time: 1.320089626312256
-  - config:
-      BLOCK_SIZE: 64
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 2.503487968444824
-  - config:
-      BLOCK_SIZE: 64
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 2.506831932067871
+    time: 0.6638336181640625
   - config:
       BLOCK_SIZE: 64
       kernel_backend: cuda
       thread_block_cluster_size: 4
-    time: 2.506991958618164
+    time: 1.261308765411377
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 1.2620512008666993
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 1.2639904022216797
   - config:
       BLOCK_SIZE: 64
       kernel_backend: cuda
       thread_block_cluster_size: 8
-    time: 2.587798309326172
+    time: 1.2980928421020508
   - config:
       BLOCK_SIZE: 32
       kernel_backend: cuda
       thread_block_cluster_size: 1
-    time: 5.049004745483399
-  - config:
-      BLOCK_SIZE: 32
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 5.057129669189453
+    time: 2.5389951705932616
   - config:
       BLOCK_SIZE: 32
       kernel_backend: cuda
       thread_block_cluster_size: 2
-    time: 5.058208084106445
+    time: 2.5394079208374025
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 2.539718437194824
   - config:
       BLOCK_SIZE: 32
       kernel_backend: cuda
       thread_block_cluster_size: 8
-    time: 5.200431823730469
-  '''next_power_of_2(size) = 2''':
-  - config:
-      BLOCK_SIZE: 1024
-      kernel_backend: cuda
-      thread_block_cluster_size: 8
-    time: 0.2846816062927246
-  - config:
-      BLOCK_SIZE: 1024
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 0.28485760688781736
-  - config:
-      BLOCK_SIZE: 1024
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 0.2850271940231323
-  - config:
-      BLOCK_SIZE: 1024
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 0.2851775884628296
-  - config:
-      BLOCK_SIZE: 512
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 0.38059520721435547
-  - config:
-      BLOCK_SIZE: 512
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 0.38096320629119873
-  - config:
-      BLOCK_SIZE: 512
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 0.3812063932418823
-  - config:
-      BLOCK_SIZE: 512
-      kernel_backend: cuda
-      thread_block_cluster_size: 8
-    time: 0.38893439769744875
-  - config:
-      BLOCK_SIZE: 256
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 0.6611968040466308
-  - config:
-      BLOCK_SIZE: 256
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 0.6616928100585937
-  - config:
-      BLOCK_SIZE: 256
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 0.662227201461792
-  - config:
-      BLOCK_SIZE: 256
-      kernel_backend: cuda
-      thread_block_cluster_size: 8
-    time: 0.6830751895904541
+    time: 2.6091583251953123
   - config:
       BLOCK_SIZE: 1024
       kernel_backend: triton
       thread_block_cluster_size: null
-    time: 0.9706208229064941
+    time: 5.622576141357422
   - config:
       BLOCK_SIZE: 512
       kernel_backend: triton
       thread_block_cluster_size: null
-    time: 1.1690400123596192
-  - config:
-      BLOCK_SIZE: 128
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 1.272208023071289
-  - config:
-      BLOCK_SIZE: 128
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 1.2730655670166016
-  - config:
-      BLOCK_SIZE: 128
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 1.273411178588867
-  - config:
-      BLOCK_SIZE: 128
-      kernel_backend: cuda
-      thread_block_cluster_size: 8
-    time: 1.3108160018920898
+    time: 5.7053569793701175
   - config:
       BLOCK_SIZE: 256
       kernel_backend: triton
       thread_block_cluster_size: null
-    time: 2.025388717651367
-  - config:
-      BLOCK_SIZE: 64
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 2.4963520050048826
-  - config:
-      BLOCK_SIZE: 64
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 2.4968896865844727
-  - config:
-      BLOCK_SIZE: 64
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 2.4987360000610352
-  - config:
-      BLOCK_SIZE: 64
-      kernel_backend: cuda
-      thread_block_cluster_size: 8
-    time: 2.5727136611938475
+    time: 6.075094223022461
   - config:
       BLOCK_SIZE: 128
       kernel_backend: triton
       thread_block_cluster_size: null
-    time: 3.7379806518554686
-  - config:
-      BLOCK_SIZE: 32
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 5.033440017700196
-  - config:
-      BLOCK_SIZE: 32
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 5.034751892089844
-  - config:
-      BLOCK_SIZE: 32
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 5.036057662963867
-  - config:
-      BLOCK_SIZE: 32
-      kernel_backend: cuda
-      thread_block_cluster_size: 8
-    time: 5.168854522705078
+    time: 6.722646331787109
   - config:
       BLOCK_SIZE: 64
       kernel_backend: triton
       thread_block_cluster_size: null
-    time: 6.727180480957031
+    time: 31.526483154296876
   - config:
       BLOCK_SIZE: 32
       kernel_backend: triton
       thread_block_cluster_size: null
-    time: 12.9953369140625
-  '''next_power_of_2(size) = 2048''':
-  - config:
-      BLOCK_SIZE: 1024
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 0.28466238975524905
+    time: 31.918356323242186
+  '''next_power_of_2(size) = 128'', ''sizeof(dtype) = 8''':
   - config:
       BLOCK_SIZE: 1024
       kernel_backend: cuda
       thread_block_cluster_size: 2
-    time: 0.28512959480285643
+    time: 0.2839423894882202
   - config:
       BLOCK_SIZE: 1024
       kernel_backend: cuda
       thread_block_cluster_size: 4
-    time: 0.2852256059646606
+    time: 0.28434879779815675
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.28437440395355223
   - config:
       BLOCK_SIZE: 1024
       kernel_backend: cuda
       thread_block_cluster_size: 8
-    time: 0.2854687929153442
+    time: 0.28514559268951417
   - config:
       BLOCK_SIZE: 512
       kernel_backend: cuda
       thread_block_cluster_size: 2
-    time: 0.38096320629119873
+    time: 0.3799968004226685
   - config:
       BLOCK_SIZE: 512
       kernel_backend: cuda
       thread_block_cluster_size: 1
-    time: 0.38098878860473634
+    time: 0.3808543920516968
   - config:
       BLOCK_SIZE: 512
       kernel_backend: cuda
       thread_block_cluster_size: 4
-    time: 0.38131840229034425
+    time: 0.38106560707092285
   - config:
       BLOCK_SIZE: 512
       kernel_backend: cuda
       thread_block_cluster_size: 8
-    time: 0.39003520011901854
-  - config:
-      BLOCK_SIZE: 256
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 0.6611231803894043
+    time: 0.3895616054534912
   - config:
       BLOCK_SIZE: 256
       kernel_backend: cuda
       thread_block_cluster_size: 2
+    time: 0.6611519813537597
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.6612351894378662
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.6622496128082276
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.6826879978179932
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 1.272713565826416
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 1.273750400543213
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 1.2738400459289552
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 1.3110912322998047
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 2.49682559967041
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 2.498137664794922
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 2.49814395904541
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 2.570560073852539
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 5.0322528839111325
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 5.037753677368164
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 5.038608169555664
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 5.167327880859375
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 7.2539421081542965
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 9.375724792480469
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 9.972284698486328
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 35.0758056640625
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 42.08976745605469
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 51.864447021484374
+  '''next_power_of_2(size) = 16'', ''sizeof(dtype) = 4''':
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.1462048053741455
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.14647040367126465
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.14655359983444213
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.14687999486923217
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.19443199634552003
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.19500800371170043
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.19502400159835814
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.19895360469818116
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.3361727952957153
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.3364799976348877
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.33661439418792727
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.347491192817688
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.6447807788848877
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.6455776214599609
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.6457312107086182
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.6640704154968262
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 1.2598112106323243
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 1.2602784156799316
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 1.2625823974609376
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 1.296729564666748
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 1.396617603302002
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 1.5166048049926757
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 2.1515615463256834
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 2.538972854614258
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 2.540185546875
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 2.5407136917114257
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 2.611078453063965
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 3.717683029174805
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 10.847875213623047
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 12.683126068115234
+  '''next_power_of_2(size) = 16'', ''sizeof(dtype) = 8''':
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.283951997756958
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.28439040184020997
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.28454079627990725
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.2845855951309204
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.38079679012298584
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.38111999034881594
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.38115520477294923
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.3889888048171997
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.6608607769012451
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
     time: 0.6612768173217773
   - config:
       BLOCK_SIZE: 256
       kernel_backend: cuda
       thread_block_cluster_size: 4
-    time: 0.6618144035339355
+    time: 0.6619999885559082
   - config:
       BLOCK_SIZE: 256
       kernel_backend: cuda
       thread_block_cluster_size: 8
-    time: 0.68373122215271
-  - config:
-      BLOCK_SIZE: 128
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 1.272982406616211
+    time: 0.6826176166534423
   - config:
       BLOCK_SIZE: 128
       kernel_backend: cuda
       thread_block_cluster_size: 2
-    time: 1.2731103897094727
+    time: 1.271008014678955
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 1.2725919723510741
   - config:
       BLOCK_SIZE: 128
       kernel_backend: cuda
       thread_block_cluster_size: 4
-    time: 1.273526382446289
+    time: 1.2732159614562988
   - config:
       BLOCK_SIZE: 128
       kernel_backend: cuda
       thread_block_cluster_size: 8
-    time: 1.312003231048584
-  - config:
-      BLOCK_SIZE: 64
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 2.4949247360229494
-  - config:
-      BLOCK_SIZE: 64
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 2.4983135223388673
-  - config:
-      BLOCK_SIZE: 64
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 2.499078369140625
-  - config:
-      BLOCK_SIZE: 64
-      kernel_backend: cuda
-      thread_block_cluster_size: 8
-    time: 2.572470474243164
-  - config:
-      BLOCK_SIZE: 32
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 5.035107040405274
-  - config:
-      BLOCK_SIZE: 32
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 5.035331344604492
-  - config:
-      BLOCK_SIZE: 32
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 5.037318420410156
-  - config:
-      BLOCK_SIZE: 32
-      kernel_backend: cuda
-      thread_block_cluster_size: 8
-    time: 5.1740673065185545
-  '''next_power_of_2(size) = 256''':
+    time: 1.3122783660888673
   - config:
       BLOCK_SIZE: 1024
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 0.28447999954223635
-  - config:
-      BLOCK_SIZE: 1024
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 0.2848128080368042
-  - config:
-      BLOCK_SIZE: 1024
-      kernel_backend: cuda
-      thread_block_cluster_size: 8
-    time: 0.28481919765472413
-  - config:
-      BLOCK_SIZE: 1024
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 0.2851936101913452
-  - config:
-      BLOCK_SIZE: 512
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 0.38115200996398924
-  - config:
-      BLOCK_SIZE: 512
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 0.381443190574646
-  - config:
-      BLOCK_SIZE: 512
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 0.3817375898361206
-  - config:
-      BLOCK_SIZE: 512
-      kernel_backend: cuda
-      thread_block_cluster_size: 8
-    time: 0.3887775897979736
-  - config:
-      BLOCK_SIZE: 256
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 0.6615327835083008
-  - config:
-      BLOCK_SIZE: 256
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 0.6615359783172607
-  - config:
-      BLOCK_SIZE: 256
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 0.6624927997589112
-  - config:
-      BLOCK_SIZE: 256
-      kernel_backend: cuda
-      thread_block_cluster_size: 8
-    time: 0.6831999778747558
-  - config:
-      BLOCK_SIZE: 128
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 1.2712224006652832
-  - config:
-      BLOCK_SIZE: 128
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 1.2714783668518066
-  - config:
-      BLOCK_SIZE: 128
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 1.272873592376709
-  - config:
-      BLOCK_SIZE: 128
-      kernel_backend: cuda
-      thread_block_cluster_size: 8
-    time: 1.312217617034912
-  - config:
-      BLOCK_SIZE: 64
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 2.4965696334838867
-  - config:
-      BLOCK_SIZE: 64
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 2.496988868713379
-  - config:
-      BLOCK_SIZE: 64
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 2.4971391677856447
-  - config:
-      BLOCK_SIZE: 64
-      kernel_backend: cuda
-      thread_block_cluster_size: 8
-    time: 2.5738784790039064
-  - config:
-      BLOCK_SIZE: 32
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 5.034294509887696
-  - config:
-      BLOCK_SIZE: 32
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 5.0353343963623045
-  - config:
-      BLOCK_SIZE: 32
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 5.037859344482422
-  - config:
-      BLOCK_SIZE: 32
-      kernel_backend: cuda
-      thread_block_cluster_size: 8
-    time: 5.167462539672852
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 1.5710016250610352
   - config:
       BLOCK_SIZE: 512
       kernel_backend: triton
       thread_block_cluster_size: null
-    time: 10.854300689697265
+    time: 2.251024055480957
   - config:
-      BLOCK_SIZE: 128
-      kernel_backend: triton
-      thread_block_cluster_size: null
-    time: 11.268595123291016
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 2.4954111099243166
   - config:
-      BLOCK_SIZE: 32
-      kernel_backend: triton
-      thread_block_cluster_size: null
-    time: 45.859963989257814
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 2.4962080001831053
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 2.4964895248413086
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 2.57325439453125
   - config:
       BLOCK_SIZE: 256
       kernel_backend: triton
       thread_block_cluster_size: null
-    time: 45.90525512695312
+    time: 2.8252992630004883
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 3.997324752807617
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 5.033391952514648
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 5.033827209472657
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 5.034624099731445
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 5.166227340698242
   - config:
       BLOCK_SIZE: 64
       kernel_backend: triton
       thread_block_cluster_size: null
-    time: 46.509640502929685
+    time: 11.843746948242188
   - config:
-      BLOCK_SIZE: 1024
+      BLOCK_SIZE: 32
       kernel_backend: triton
       thread_block_cluster_size: null
-    time: 185.583154296875
-  '''next_power_of_2(size) = 32''':
+    time: 13.557884216308594
+  '''next_power_of_2(size) = 16384'', ''sizeof(dtype) = 4''':
   - config:
       BLOCK_SIZE: 1024
       kernel_backend: cuda
       thread_block_cluster_size: 1
+    time: 0.1487615942955017
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.14960000514984131
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.157750403881073
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.17017279863357543
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.19676159620285033
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.19801599979400636
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.20401279926300048
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.21896638870239257
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.33876159191131594
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.3398144006729126
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.3411231994628906
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.3600064039230347
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.6498208045959473
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.6513696193695069
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.6515647888183593
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.673033618927002
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 1.2690336227416992
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 1.2746111869812011
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 1.2763615608215333
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 1.3142720222473145
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 2.5588191986083983
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 2.5655359268188476
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 2.5673568725585936
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 2.6454656600952147
+  '''next_power_of_2(size) = 16384'', ''sizeof(dtype) = 8''':
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.2867392063140869
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.286899209022522
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.29047040939331054
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.3001823902130127
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.38207039833068845
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.38309760093688966
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.38503360748291016
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.40055999755859373
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.6649951934814453
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.6651103973388672
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.6660799980163574
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.6886240005493164
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 1.2751520156860352
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 1.2772992134094239
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 1.2781439781188966
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 1.3204544067382813
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 2.505232048034668
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 2.5079999923706056
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 2.508412742614746
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 2.5890432357788087
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 5.048799896240235
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 5.054544067382812
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 5.057235336303711
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 5.1990814208984375
+  '''next_power_of_2(size) = 2'', ''sizeof(dtype) = 4''':
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.14644479751586914
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.14653120040893555
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.14667199850082396
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.14684159755706788
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.19483200311660767
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.19495680332183837
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.19542399644851685
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.19962879419326782
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.33635199069976807
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.33645119667053225
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.3365312099456787
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.347491192817688
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.6444128036499024
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.6444416046142578
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.645414400100708
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.6638304233551026
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 0.8507776260375977
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 1.0894975662231445
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 1.2620608329772949
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 1.262070369720459
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 1.2632287979125976
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 1.2992351531982422
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 1.9141759872436523
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 2.538604736328125
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 2.539347267150879
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 2.5405792236328124
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 2.609174346923828
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 3.553446578979492
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 6.597449493408203
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 12.717660522460937
+  '''next_power_of_2(size) = 2'', ''sizeof(dtype) = 8''':
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.2836895942687988
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.28445119857788087
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.2848383903503418
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.2849440097808838
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.3803679943084717
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.3809920072555542
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.38141119480133057
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.3892159938812256
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.6611807823181153
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.6612031936645508
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.6622943878173828
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.6828288078308106
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 0.9692864418029785
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 1.1698464393615722
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 1.2721216201782226
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 1.272323226928711
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 1.2727647781372071
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 1.310422420501709
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 2.023200035095215
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 2.495043182373047
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 2.495903968811035
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 2.4969024658203125
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 2.5713312149047853
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 3.728940963745117
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 5.03094711303711
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 5.032796859741211
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 5.033987045288086
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 5.168454360961914
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 6.724205017089844
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 12.989549255371093
+  '''next_power_of_2(size) = 2048'', ''sizeof(dtype) = 4''':
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.14640640020370482
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.14658880233764648
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.15111680030822755
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.15362240076065065
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.19512959718704223
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.19535679817199708
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.1957152009010315
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.20095040798187255
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.3369375944137573
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.33702399730682375
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.33708159923553466
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.34875519275665284
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.6446271896362304
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.6455135822296143
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.6457824230194091
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.6646719932556152
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 1.2640768051147462
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 1.2640928268432616
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 1.2661151885986328
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 1.29968318939209
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 2.540060806274414
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 2.542044830322266
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 2.543728065490723
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 2.6136287689208983
+  '''next_power_of_2(size) = 2048'', ''sizeof(dtype) = 8''':
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.2846656084060669
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.2848416090011597
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.2850303888320923
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.28559041023254395
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.38021440505981446
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.3807935953140259
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.38127360343933103
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.3887903928756714
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.6614719867706299
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.6615295886993409
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.6617856025695801
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.683839988708496
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 1.2721983909606933
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 1.2728799819946288
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 1.274073600769043
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 1.3112832069396974
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 2.4954208374023437
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 2.496182441711426
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 2.4962175369262694
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 2.5717119216918944
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 5.034889602661133
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 5.035071945190429
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 5.035887908935547
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 5.1721855163574215
+  '''next_power_of_2(size) = 256'', ''sizeof(dtype) = 4''':
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.14626879692077638
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.14648319482803346
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.14912960529327393
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.15063999891281127
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.19486080408096312
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.19486720561981202
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.1956768035888672
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.20009279251098633
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.3362943887710571
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.3364000082015991
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.33655359745025637
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.34780800342559814
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.6452288150787353
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.6455071926116943
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.6456384181976318
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.6635680198669434
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 1.261023998260498
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 1.261087989807129
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 1.2629119873046875
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 1.2962911605834961
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 2.5399871826171876
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 2.540073585510254
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 2.541446495056152
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 2.611587142944336
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 6.3606719970703125
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 7.308223724365234
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 8.300768280029297
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 9.39574737548828
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 33.76124267578125
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 33.78950805664063
+  '''next_power_of_2(size) = 256'', ''sizeof(dtype) = 8''':
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.2843424081802368
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.2846143960952759
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.2846463918685913
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.28501439094543457
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.3806335926055908
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.3810208082199097
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.3812319993972778
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.3891263961791992
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.6609983921051026
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.6614848136901855
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.661897611618042
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.6828159809112548
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 1.271014404296875
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 1.2714752197265624
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 1.2720959663391114
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 1.3127552032470704
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 2.495644760131836
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 2.4957151412963867
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 2.4979551315307615
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 2.57238712310791
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 5.035494232177735
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 5.035801696777344
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 5.040153503417969
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 5.167609786987304
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 10.85663070678711
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 11.279753875732421
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 45.85838012695312
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 45.923651123046874
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 46.51188354492187
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 185.1588623046875
+  '''next_power_of_2(size) = 32'', ''sizeof(dtype) = 4''':
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.14587199687957764
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.1464352011680603
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.14686399698257446
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.14730559587478637
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.19483519792556764
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.19498879909515382
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.19500479698181153
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.19943039417266845
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.3365632057189941
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.3368704080581665
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.3369119882583618
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.3466048002243042
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.6437983989715577
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.6453663825988769
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.6455808162689209
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.6636576175689697
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 1.2618464469909667
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 1.2619775772094726
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 1.2624095916748046
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 1.2982848167419434
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 2.4322879791259764
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 2.5383935928344727
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 2.538540840148926
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 2.5395263671875
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 2.6080575942993165
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 2.7249759674072265
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 3.2867774963378906
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 4.060438537597657
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 15.868995666503906
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 17.043399047851562
+  '''next_power_of_2(size) = 32'', ''sizeof(dtype) = 8''':
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.2843296051025391
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.28487040996551516
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.28487999439239503
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.28487999439239503
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.3800672054290771
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.38091840744018557
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.38093760013580324
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.3897599935531616
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.6611455917358399
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.66146879196167
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.6618752002716064
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.6829216003417968
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 1.2711359977722168
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 1.2718079566955567
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 1.2721856117248536
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 1.3106592178344727
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 2.4955583572387696
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 2.495667266845703
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 2.4969951629638674
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 2.5707775115966798
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 3.5720958709716797
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 3.618163299560547
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 4.430582427978516
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 5.032844924926758
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 5.033321762084961
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 5.033878326416016
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 5.168620681762695
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 5.513753509521484
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 22.510295104980468
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 29.534259033203124
+  '''next_power_of_2(size) = 4'', ''sizeof(dtype) = 4''':
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.1461824059486389
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.14618560075759887
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.14658559560775758
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.14670720100402831
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.1946176052093506
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.19464000463485717
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.1946943998336792
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.19896320104599
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.33629119396209717
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.3364448070526123
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.33673601150512694
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.34702401161193847
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.6449696063995362
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.6451807975769043
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.6457856178283692
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.6636864185333252
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 0.8916511535644531
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 1.1320672035217285
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 1.2609248161315918
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 1.2614944458007813
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 1.2645055770874023
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 1.2960351943969726
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 1.9342496871948243
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 2.538777542114258
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 2.5392480850219727
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 2.5411136627197264
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 2.609721565246582
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 3.5548736572265627
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 6.5879356384277346
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 12.694601440429688
+  '''next_power_of_2(size) = 4'', ''sizeof(dtype) = 8''':
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.2841599941253662
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.28418560028076173
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
     time: 0.28467841148376466
   - config:
       BLOCK_SIZE: 1024
       kernel_backend: cuda
       thread_block_cluster_size: 4
-    time: 0.2847071886062622
-  - config:
-      BLOCK_SIZE: 1024
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 0.2851263999938965
-  - config:
-      BLOCK_SIZE: 1024
-      kernel_backend: cuda
-      thread_block_cluster_size: 8
-    time: 0.28563199043273924
-  - config:
-      BLOCK_SIZE: 512
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 0.38036160469055175
-  - config:
-      BLOCK_SIZE: 512
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 0.38039360046386717
-  - config:
-      BLOCK_SIZE: 512
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 0.38091840744018557
-  - config:
-      BLOCK_SIZE: 512
-      kernel_backend: cuda
-      thread_block_cluster_size: 8
-    time: 0.3899327993392944
-  - config:
-      BLOCK_SIZE: 256
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 0.6607103824615479
-  - config:
-      BLOCK_SIZE: 256
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 0.6608575820922852
-  - config:
-      BLOCK_SIZE: 256
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 0.6613728046417237
-  - config:
-      BLOCK_SIZE: 256
-      kernel_backend: cuda
-      thread_block_cluster_size: 8
-    time: 0.6836095809936523
-  - config:
-      BLOCK_SIZE: 128
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 1.271561622619629
-  - config:
-      BLOCK_SIZE: 128
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 1.2720928192138672
-  - config:
-      BLOCK_SIZE: 128
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 1.2741279602050781
-  - config:
-      BLOCK_SIZE: 128
-      kernel_backend: cuda
-      thread_block_cluster_size: 8
-    time: 1.3107839584350587
-  - config:
-      BLOCK_SIZE: 64
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 2.4956159591674805
-  - config:
-      BLOCK_SIZE: 64
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 2.495712089538574
-  - config:
-      BLOCK_SIZE: 64
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 2.4964160919189453
-  - config:
-      BLOCK_SIZE: 64
-      kernel_backend: cuda
-      thread_block_cluster_size: 8
-    time: 2.5706783294677735
-  - config:
-      BLOCK_SIZE: 1024
-      kernel_backend: triton
-      thread_block_cluster_size: null
-    time: 3.572835159301758
-  - config:
-      BLOCK_SIZE: 512
-      kernel_backend: triton
-      thread_block_cluster_size: null
-    time: 3.619161605834961
-  - config:
-      BLOCK_SIZE: 256
-      kernel_backend: triton
-      thread_block_cluster_size: null
-    time: 4.430796813964844
-  - config:
-      BLOCK_SIZE: 32
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 5.033916854858399
-  - config:
-      BLOCK_SIZE: 32
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 5.034000015258789
-  - config:
-      BLOCK_SIZE: 32
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 5.036780929565429
-  - config:
-      BLOCK_SIZE: 32
-      kernel_backend: cuda
-      thread_block_cluster_size: 8
-    time: 5.168924713134766
-  - config:
-      BLOCK_SIZE: 128
-      kernel_backend: triton
-      thread_block_cluster_size: null
-    time: 5.512092971801758
-  - config:
-      BLOCK_SIZE: 32
-      kernel_backend: triton
-      thread_block_cluster_size: null
-    time: 22.508921813964843
-  - config:
-      BLOCK_SIZE: 64
-      kernel_backend: triton
-      thread_block_cluster_size: null
-    time: 29.527267456054688
-  '''next_power_of_2(size) = 4''':
-  - config:
-      BLOCK_SIZE: 1024
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 0.2843424081802368
-  - config:
-      BLOCK_SIZE: 1024
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 0.28498880863189696
-  - config:
-      BLOCK_SIZE: 1024
-      kernel_backend: cuda
-      thread_block_cluster_size: 8
-    time: 0.2851648092269897
-  - config:
-      BLOCK_SIZE: 1024
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 0.28531200885772706
-  - config:
-      BLOCK_SIZE: 512
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 0.380732798576355
-  - config:
-      BLOCK_SIZE: 512
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 0.38141119480133057
-  - config:
-      BLOCK_SIZE: 512
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 0.3815392017364502
-  - config:
-      BLOCK_SIZE: 512
-      kernel_backend: cuda
-      thread_block_cluster_size: 8
-    time: 0.38921918869018557
-  - config:
-      BLOCK_SIZE: 256
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 0.6611135959625244
-  - config:
-      BLOCK_SIZE: 256
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 0.6614943981170655
-  - config:
-      BLOCK_SIZE: 256
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 0.6620351791381835
-  - config:
-      BLOCK_SIZE: 256
-      kernel_backend: cuda
-      thread_block_cluster_size: 8
-    time: 0.6829855918884278
-  - config:
-      BLOCK_SIZE: 1024
-      kernel_backend: triton
-      thread_block_cluster_size: null
-    time: 0.9692255973815918
-  - config:
-      BLOCK_SIZE: 512
-      kernel_backend: triton
-      thread_block_cluster_size: null
-    time: 1.182960033416748
-  - config:
-      BLOCK_SIZE: 128
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 1.2707807540893554
-  - config:
-      BLOCK_SIZE: 128
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 1.2720352172851563
-  - config:
-      BLOCK_SIZE: 128
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 1.272105598449707
-  - config:
-      BLOCK_SIZE: 128
-      kernel_backend: cuda
-      thread_block_cluster_size: 8
-    time: 1.311734390258789
-  - config:
-      BLOCK_SIZE: 256
-      kernel_backend: triton
-      thread_block_cluster_size: null
-    time: 2.022265625
-  - config:
-      BLOCK_SIZE: 64
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 2.4975711822509767
-  - config:
-      BLOCK_SIZE: 64
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 2.4985952377319336
-  - config:
-      BLOCK_SIZE: 64
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 2.4994720458984374
-  - config:
-      BLOCK_SIZE: 64
-      kernel_backend: cuda
-      thread_block_cluster_size: 8
-    time: 2.574518394470215
-  - config:
-      BLOCK_SIZE: 128
-      kernel_backend: triton
-      thread_block_cluster_size: null
-    time: 3.7376735687255858
-  - config:
-      BLOCK_SIZE: 32
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 5.0348960876464846
-  - config:
-      BLOCK_SIZE: 32
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 5.036380767822266
-  - config:
-      BLOCK_SIZE: 32
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 5.037459182739258
-  - config:
-      BLOCK_SIZE: 32
-      kernel_backend: cuda
-      thread_block_cluster_size: 8
-    time: 5.166416168212891
-  - config:
-      BLOCK_SIZE: 64
-      kernel_backend: triton
-      thread_block_cluster_size: null
-    time: 6.674736022949219
-  - config:
-      BLOCK_SIZE: 32
-      kernel_backend: triton
-      thread_block_cluster_size: null
-    time: 12.988627624511718
-  '''next_power_of_2(size) = 4096''':
-  - config:
-      BLOCK_SIZE: 1024
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 0.28536961078643797
-  - config:
-      BLOCK_SIZE: 1024
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 0.28555200099945066
-  - config:
-      BLOCK_SIZE: 1024
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 0.28581440448760986
-  - config:
-      BLOCK_SIZE: 1024
-      kernel_backend: cuda
-      thread_block_cluster_size: 8
-    time: 0.2858815908432007
+    time: 0.28481600284576414
   - config:
       BLOCK_SIZE: 512
       kernel_backend: cuda
@@ -1297,38 +2415,310 @@ all_configs:
   - config:
       BLOCK_SIZE: 512
       kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 0.38153600692749023
+      thread_block_cluster_size: 4
+    time: 0.3811647891998291
   - config:
       BLOCK_SIZE: 512
       kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 0.38264319896697996
+      thread_block_cluster_size: 2
+    time: 0.381548810005188
   - config:
       BLOCK_SIZE: 512
       kernel_backend: cuda
       thread_block_cluster_size: 8
-    time: 0.39064319133758546
+    time: 0.3890752077102661
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.6613984107971191
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.6615808010101318
   - config:
       BLOCK_SIZE: 256
       kernel_backend: cuda
       thread_block_cluster_size: 1
-    time: 0.6622144222259522
-  - config:
-      BLOCK_SIZE: 256
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 0.6623871803283692
-  - config:
-      BLOCK_SIZE: 256
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 0.6633056163787842
+    time: 0.6620672225952149
   - config:
       BLOCK_SIZE: 256
       kernel_backend: cuda
       thread_block_cluster_size: 8
-    time: 0.6850783824920654
+    time: 0.6831103801727295
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 0.9706591606140137
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 1.183017635345459
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 1.2708831787109376
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 1.2714207649230957
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 1.271571159362793
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 1.3123711585998534
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 2.02508487701416
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 2.4961471557617188
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 2.4963584899902345
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 2.498518371582031
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 2.5732608795166017
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 3.7538177490234377
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 5.031887817382812
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 5.033260726928711
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 5.035881423950196
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 5.16808967590332
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 6.671270751953125
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 12.987802124023437
+  '''next_power_of_2(size) = 4096'', ''sizeof(dtype) = 4''':
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.1469375967979431
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.14728959798812866
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.15140800476074218
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.15386879444122314
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.1953920006752014
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.19540480375289918
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.19614720344543457
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.20125119686126708
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.33683199882507325
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.3373248100280762
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.33747520446777346
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.3488640069961548
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.6459904193878174
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.6462783813476562
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.6462880134582519
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.6659679889678956
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 1.263263988494873
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 1.2633472442626954
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 1.2655391693115234
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 1.3013216018676759
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 2.5436895370483397
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 2.544585609436035
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 2.544707107543945
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 2.619148826599121
+  '''next_power_of_2(size) = 4096'', ''sizeof(dtype) = 8''':
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.2847359895706177
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.2854752063751221
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.2857887983322144
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.2859200000762939
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.3809920072555542
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.38150079250335694
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.38157761096954346
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.38937280178070066
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.6612287998199463
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.6625408172607422
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.6626848220825196
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.6845568180084228
   - config:
       BLOCK_SIZE: 128
       kernel_backend: cuda
@@ -1338,683 +2728,1311 @@ all_configs:
       BLOCK_SIZE: 128
       kernel_backend: cuda
       thread_block_cluster_size: 1
-    time: 1.2728896141052246
+    time: 1.2730079650878907
   - config:
       BLOCK_SIZE: 128
       kernel_backend: cuda
       thread_block_cluster_size: 4
-    time: 1.2731807708740235
+    time: 1.2735615730285645
   - config:
       BLOCK_SIZE: 128
       kernel_backend: cuda
       thread_block_cluster_size: 8
-    time: 1.3132543563842773
+    time: 1.314681625366211
   - config:
       BLOCK_SIZE: 64
       kernel_backend: cuda
       thread_block_cluster_size: 1
-    time: 2.4987648010253904
+    time: 2.4966815948486327
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 2.497452735900879
   - config:
       BLOCK_SIZE: 64
       kernel_backend: cuda
       thread_block_cluster_size: 2
-    time: 2.499007987976074
-  - config:
-      BLOCK_SIZE: 64
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 2.4996736526489256
+    time: 2.4983583450317384
   - config:
       BLOCK_SIZE: 64
       kernel_backend: cuda
       thread_block_cluster_size: 8
-    time: 2.5767391204833983
-  - config:
-      BLOCK_SIZE: 32
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 5.040915298461914
+    time: 2.576156806945801
   - config:
       BLOCK_SIZE: 32
       kernel_backend: cuda
       thread_block_cluster_size: 2
-    time: 5.0417022705078125
-  - config:
-      BLOCK_SIZE: 32
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 5.044192123413086
-  - config:
-      BLOCK_SIZE: 32
-      kernel_backend: cuda
-      thread_block_cluster_size: 8
-    time: 5.173683166503906
-  '''next_power_of_2(size) = 512''':
-  - config:
-      BLOCK_SIZE: 1024
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 0.2846656084060669
-  - config:
-      BLOCK_SIZE: 1024
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 0.28493759632110593
-  - config:
-      BLOCK_SIZE: 1024
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 0.2852479934692383
-  - config:
-      BLOCK_SIZE: 1024
-      kernel_backend: cuda
-      thread_block_cluster_size: 8
-    time: 0.28543360233306886
-  - config:
-      BLOCK_SIZE: 512
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 0.3803231954574585
-  - config:
-      BLOCK_SIZE: 512
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 0.3804480075836182
-  - config:
-      BLOCK_SIZE: 512
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 0.3817728042602539
-  - config:
-      BLOCK_SIZE: 512
-      kernel_backend: cuda
-      thread_block_cluster_size: 8
-    time: 0.3891968011856079
-  - config:
-      BLOCK_SIZE: 256
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 0.6611936092376709
-  - config:
-      BLOCK_SIZE: 256
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 0.6616000175476074
-  - config:
-      BLOCK_SIZE: 256
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 0.6616511821746827
-  - config:
-      BLOCK_SIZE: 256
-      kernel_backend: cuda
-      thread_block_cluster_size: 8
-    time: 0.6834496021270752
-  - config:
-      BLOCK_SIZE: 128
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 1.2718688011169434
-  - config:
-      BLOCK_SIZE: 128
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 1.272758388519287
-  - config:
-      BLOCK_SIZE: 128
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 1.273145580291748
-  - config:
-      BLOCK_SIZE: 128
-      kernel_backend: cuda
-      thread_block_cluster_size: 8
-    time: 1.310915184020996
-  - config:
-      BLOCK_SIZE: 64
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 2.494816017150879
-  - config:
-      BLOCK_SIZE: 64
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 2.4953567504882814
-  - config:
-      BLOCK_SIZE: 64
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 2.4972768783569337
-  - config:
-      BLOCK_SIZE: 64
-      kernel_backend: cuda
-      thread_block_cluster_size: 8
-    time: 2.571504020690918
-  - config:
-      BLOCK_SIZE: 32
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 5.0337566375732425
+    time: 5.035033416748047
   - config:
       BLOCK_SIZE: 32
       kernel_backend: cuda
       thread_block_cluster_size: 1
-    time: 5.034182357788086
+    time: 5.0369823455810545
   - config:
       BLOCK_SIZE: 32
       kernel_backend: cuda
       thread_block_cluster_size: 4
-    time: 5.036124801635742
+    time: 5.040169525146484
   - config:
       BLOCK_SIZE: 32
       kernel_backend: cuda
       thread_block_cluster_size: 8
-    time: 5.169401550292969
-  '''next_power_of_2(size) = 64''':
-  - config:
-      BLOCK_SIZE: 1024
-      kernel_backend: cuda
-      thread_block_cluster_size: 8
-    time: 0.2846560001373291
+    time: 5.174444961547851
+  '''next_power_of_2(size) = 512'', ''sizeof(dtype) = 4''':
   - config:
       BLOCK_SIZE: 1024
       kernel_backend: cuda
       thread_block_cluster_size: 1
-    time: 0.28467841148376466
+    time: 0.1461951971054077
   - config:
       BLOCK_SIZE: 1024
       kernel_backend: cuda
       thread_block_cluster_size: 2
-    time: 0.28481600284576414
+    time: 0.1463904023170471
   - config:
       BLOCK_SIZE: 1024
       kernel_backend: cuda
       thread_block_cluster_size: 4
-    time: 0.2853343963623047
+    time: 0.14996479749679564
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.15269440412521362
   - config:
       BLOCK_SIZE: 512
       kernel_backend: cuda
       thread_block_cluster_size: 2
-    time: 0.3806112051010132
-  - config:
-      BLOCK_SIZE: 512
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 0.3813728094100952
+    time: 0.19476159811019897
   - config:
       BLOCK_SIZE: 512
       kernel_backend: cuda
       thread_block_cluster_size: 1
-    time: 0.38184959888458253
+    time: 0.1953760027885437
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.19566719532012938
   - config:
       BLOCK_SIZE: 512
       kernel_backend: cuda
       thread_block_cluster_size: 8
-    time: 0.3894880056381226
-  - config:
-      BLOCK_SIZE: 256
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 0.6615583896636963
-  - config:
-      BLOCK_SIZE: 256
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 0.6618783950805665
+    time: 0.19994879961013795
   - config:
       BLOCK_SIZE: 256
       kernel_backend: cuda
       thread_block_cluster_size: 2
-    time: 0.6621568202972412
+    time: 0.3363487958908081
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.33682239055633545
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.33711678981781007
   - config:
       BLOCK_SIZE: 256
       kernel_backend: cuda
       thread_block_cluster_size: 8
-    time: 0.6836095809936523
-  - config:
-      BLOCK_SIZE: 128
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 1.2716896057128906
+    time: 0.3474431991577148
   - config:
       BLOCK_SIZE: 128
       kernel_backend: cuda
       thread_block_cluster_size: 1
-    time: 1.2720352172851563
+    time: 0.6443520069122315
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.6450431823730469
   - config:
       BLOCK_SIZE: 128
       kernel_backend: cuda
       thread_block_cluster_size: 4
-    time: 1.2728639602661134
+    time: 0.6456704139709473
   - config:
       BLOCK_SIZE: 128
       kernel_backend: cuda
       thread_block_cluster_size: 8
-    time: 1.3129183769226074
+    time: 0.6641024112701416
   - config:
       BLOCK_SIZE: 64
       kernel_backend: cuda
       thread_block_cluster_size: 4
-    time: 2.496012878417969
-  - config:
-      BLOCK_SIZE: 64
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 2.4971712112426756
+    time: 1.2622143745422363
   - config:
       BLOCK_SIZE: 64
       kernel_backend: cuda
       thread_block_cluster_size: 2
-    time: 2.4979135513305666
+    time: 1.262332820892334
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 1.2657440185546875
   - config:
       BLOCK_SIZE: 64
       kernel_backend: cuda
       thread_block_cluster_size: 8
-    time: 2.5720319747924805
+    time: 1.2994303703308105
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 2.539311981201172
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 2.540540885925293
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 2.5406911849975584
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 2.610736083984375
+  '''next_power_of_2(size) = 512'', ''sizeof(dtype) = 8''':
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.28393599987030027
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.2844223976135254
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.2849087953567505
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.2850847959518433
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.3804800033569336
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.38077759742736816
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.3809119939804077
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.3892927885055542
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.6600895881652832
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.6613279819488526
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.66146879196167
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.6825695991516113
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 1.272067165374756
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 1.2722240447998048
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 1.2730655670166016
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 1.3109536170959473
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 2.4949792861938476
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 2.4950016021728514
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 2.495737648010254
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 2.5693536758422852
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 5.0326496124267575
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 5.033497619628906
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 5.035926437377929
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 5.167379379272461
+  '''next_power_of_2(size) = 64'', ''sizeof(dtype) = 4''':
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.14642560482025146
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.14668480157852173
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.14676480293273925
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.14685440063476562
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.19453760385513305
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.19465279579162598
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.1948415994644165
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.19924479722976685
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.3357088088989258
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.33574719429016114
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.33609280586242674
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.3468735933303833
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.6446815967559815
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.6447743892669677
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.6452864170074463
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.6638368129730224
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 1.261411190032959
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 1.262166404724121
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 1.2636192321777344
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 1.2961888313293457
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 2.5387712478637696
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 2.5395391464233397
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 2.540188789367676
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 2.6108640670776366
   - config:
       BLOCK_SIZE: 1024
       kernel_backend: triton
       thread_block_cluster_size: null
-    time: 4.693190383911133
-  - config:
-      BLOCK_SIZE: 32
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 5.033155059814453
-  - config:
-      BLOCK_SIZE: 32
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 5.036383819580078
-  - config:
-      BLOCK_SIZE: 32
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 5.036387252807617
-  - config:
-      BLOCK_SIZE: 32
-      kernel_backend: cuda
-      thread_block_cluster_size: 8
-    time: 5.166131210327149
+    time: 4.756492614746094
   - config:
       BLOCK_SIZE: 512
       kernel_backend: triton
       thread_block_cluster_size: null
-    time: 7.037641906738282
+    time: 4.956320190429688
   - config:
       BLOCK_SIZE: 256
       kernel_backend: triton
       thread_block_cluster_size: null
-    time: 7.784796905517578
+    time: 5.213891220092774
   - config:
       BLOCK_SIZE: 128
       kernel_backend: triton
       thread_block_cluster_size: null
-    time: 8.669894409179687
+    time: 6.217859268188477
   - config:
       BLOCK_SIZE: 32
       kernel_backend: triton
       thread_block_cluster_size: null
-    time: 38.378903198242185
+    time: 22.103919982910156
   - config:
       BLOCK_SIZE: 64
       kernel_backend: triton
       thread_block_cluster_size: null
-    time: 40.402880859375
-  '''next_power_of_2(size) = 8''':
+    time: 24.991046142578124
+  '''next_power_of_2(size) = 64'', ''sizeof(dtype) = 8''':
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.28424639701843263
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.28447999954223635
   - config:
       BLOCK_SIZE: 1024
       kernel_backend: cuda
       thread_block_cluster_size: 1
-    time: 0.2844320058822632
+    time: 0.2845024108886719
   - config:
       BLOCK_SIZE: 1024
       kernel_backend: cuda
       thread_block_cluster_size: 8
-    time: 0.28454720973968506
-  - config:
-      BLOCK_SIZE: 1024
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 0.2849728107452393
-  - config:
-      BLOCK_SIZE: 1024
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 0.28507840633392334
-  - config:
-      BLOCK_SIZE: 512
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 0.3802880048751831
-  - config:
-      BLOCK_SIZE: 512
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 0.38084800243377687
+    time: 0.2849247932434082
   - config:
       BLOCK_SIZE: 512
       kernel_backend: cuda
       thread_block_cluster_size: 1
-    time: 0.38115200996398924
-  - config:
-      BLOCK_SIZE: 512
-      kernel_backend: cuda
-      thread_block_cluster_size: 8
-    time: 0.38901119232177733
-  - config:
-      BLOCK_SIZE: 256
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 0.6609119892120361
-  - config:
-      BLOCK_SIZE: 256
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 0.6610047817230225
-  - config:
-      BLOCK_SIZE: 256
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 0.6618080139160156
-  - config:
-      BLOCK_SIZE: 256
-      kernel_backend: cuda
-      thread_block_cluster_size: 8
-    time: 0.683513593673706
-  - config:
-      BLOCK_SIZE: 1024
-      kernel_backend: triton
-      thread_block_cluster_size: null
-    time: 1.1130816459655761
-  - config:
-      BLOCK_SIZE: 128
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 1.2716128349304199
-  - config:
-      BLOCK_SIZE: 128
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 1.2723584175109863
-  - config:
-      BLOCK_SIZE: 128
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 1.2747136116027833
-  - config:
-      BLOCK_SIZE: 512
-      kernel_backend: triton
-      thread_block_cluster_size: null
-    time: 1.2771903991699218
-  - config:
-      BLOCK_SIZE: 128
-      kernel_backend: cuda
-      thread_block_cluster_size: 8
-    time: 1.3108287811279298
-  - config:
-      BLOCK_SIZE: 256
-      kernel_backend: triton
-      thread_block_cluster_size: null
-    time: 2.1115583419799804
-  - config:
-      BLOCK_SIZE: 64
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 2.495187187194824
-  - config:
-      BLOCK_SIZE: 64
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 2.495289611816406
-  - config:
-      BLOCK_SIZE: 64
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 2.4954559326171877
-  - config:
-      BLOCK_SIZE: 64
-      kernel_backend: cuda
-      thread_block_cluster_size: 8
-    time: 2.572051239013672
-  - config:
-      BLOCK_SIZE: 128
-      kernel_backend: triton
-      thread_block_cluster_size: null
-    time: 3.784310531616211
-  - config:
-      BLOCK_SIZE: 32
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 5.031891250610352
-  - config:
-      BLOCK_SIZE: 32
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 5.036281585693359
-  - config:
-      BLOCK_SIZE: 32
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 5.037235260009766
-  - config:
-      BLOCK_SIZE: 32
-      kernel_backend: cuda
-      thread_block_cluster_size: 8
-    time: 5.170230484008789
-  - config:
-      BLOCK_SIZE: 64
-      kernel_backend: triton
-      thread_block_cluster_size: null
-    time: 6.98826904296875
-  - config:
-      BLOCK_SIZE: 32
-      kernel_backend: triton
-      thread_block_cluster_size: null
-    time: 12.921615600585938
-  '''next_power_of_2(size) = 8192''':
-  - config:
-      BLOCK_SIZE: 1024
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 0.2857280015945435
-  - config:
-      BLOCK_SIZE: 1024
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 0.28586559295654296
-  - config:
-      BLOCK_SIZE: 1024
-      kernel_backend: cuda
-      thread_block_cluster_size: 4
-    time: 0.2869055986404419
-  - config:
-      BLOCK_SIZE: 1024
-      kernel_backend: cuda
-      thread_block_cluster_size: 8
-    time: 0.28897919654846194
-  - config:
-      BLOCK_SIZE: 512
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 0.3815743923187256
+    time: 0.38045439720153806
   - config:
       BLOCK_SIZE: 512
       kernel_backend: cuda
       thread_block_cluster_size: 2
-    time: 0.3818079948425293
+    time: 0.3811359882354736
   - config:
       BLOCK_SIZE: 512
       kernel_backend: cuda
       thread_block_cluster_size: 4
-    time: 0.38306241035461425
+    time: 0.3816479921340942
   - config:
       BLOCK_SIZE: 512
       kernel_backend: cuda
       thread_block_cluster_size: 8
-    time: 0.3919167995452881
+    time: 0.3896991968154907
   - config:
       BLOCK_SIZE: 256
       kernel_backend: cuda
       thread_block_cluster_size: 1
-    time: 0.6620768070220947
+    time: 0.6614336013793946
   - config:
       BLOCK_SIZE: 256
       kernel_backend: cuda
       thread_block_cluster_size: 2
-    time: 0.6623968124389649
+    time: 0.6614943981170655
   - config:
       BLOCK_SIZE: 256
       kernel_backend: cuda
       thread_block_cluster_size: 4
-    time: 0.6628159999847412
+    time: 0.6618752002716064
   - config:
       BLOCK_SIZE: 256
       kernel_backend: cuda
       thread_block_cluster_size: 8
-    time: 0.6862143993377685
-  - config:
-      BLOCK_SIZE: 128
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 1.2744159698486328
+    time: 0.6824448108673096
   - config:
       BLOCK_SIZE: 128
       kernel_backend: cuda
       thread_block_cluster_size: 2
-    time: 1.2746047973632812
+    time: 1.2712703704833985
   - config:
       BLOCK_SIZE: 128
       kernel_backend: cuda
       thread_block_cluster_size: 4
-    time: 1.2754048347473144
+    time: 1.2721440315246582
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 1.2725631713867187
   - config:
       BLOCK_SIZE: 128
       kernel_backend: cuda
       thread_block_cluster_size: 8
-    time: 1.3160287857055664
-  - config:
-      BLOCK_SIZE: 64
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 2.499375915527344
-  - config:
-      BLOCK_SIZE: 64
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 2.501379203796387
+    time: 1.3119903564453126
   - config:
       BLOCK_SIZE: 64
       kernel_backend: cuda
       thread_block_cluster_size: 4
-    time: 2.5016704559326173
+    time: 2.4956287384033202
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 2.4959232330322267
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 2.496982383728027
   - config:
       BLOCK_SIZE: 64
       kernel_backend: cuda
       thread_block_cluster_size: 8
-    time: 2.579433631896973
+    time: 2.5723615646362306
   - config:
-      BLOCK_SIZE: 32
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 5.0430145263671875
-  - config:
-      BLOCK_SIZE: 32
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 5.044451141357422
+      BLOCK_SIZE: 1024
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 4.697119903564453
   - config:
       BLOCK_SIZE: 32
       kernel_backend: cuda
       thread_block_cluster_size: 4
-    time: 5.045564651489258
+    time: 5.032416152954101
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 5.032646560668946
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 5.035075378417969
   - config:
       BLOCK_SIZE: 32
       kernel_backend: cuda
       thread_block_cluster_size: 8
-    time: 5.185974502563477
-best_configs:
-  '''next_power_of_2(size) = 1024''':
-    config:
-      BLOCK_SIZE: 1024
-      kernel_backend: cuda
-      thread_block_cluster_size: 1
-    time: 0.2842303991317749
-  '''next_power_of_2(size) = 128''':
-    config:
+    time: 5.167763137817383
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 7.036943817138672
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 7.7722526550292965
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 8.644624328613281
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 38.39082336425781
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 40.4161865234375
+  '''next_power_of_2(size) = 8'', ''sizeof(dtype) = 4''':
+  - config:
       BLOCK_SIZE: 1024
       kernel_backend: cuda
       thread_block_cluster_size: 2
-    time: 0.2845952033996582
-  '''next_power_of_2(size) = 16''':
-    config:
-      BLOCK_SIZE: 1024
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 0.2840127944946289
-  '''next_power_of_2(size) = 16384''':
-    config:
+    time: 0.14631359577178954
+  - config:
       BLOCK_SIZE: 1024
       kernel_backend: cuda
       thread_block_cluster_size: 1
-    time: 0.28660800457000735
-  '''next_power_of_2(size) = 2''':
-    config:
+    time: 0.14634560346603392
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.14657919406890868
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.14712640047073364
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.1948415994644165
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.1951807975769043
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.1955072045326233
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.19893759489059448
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.3365504026412964
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.33656959533691405
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.33740160465240476
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.3469343900680542
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.6444608211517334
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.6445087909698486
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.6452159881591797
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.6638527870178222
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 0.8973855972290039
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 1.211680030822754
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 1.2625344276428223
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 1.2629631996154784
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 1.2653792381286622
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 1.2984576225280762
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 2.001113510131836
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 2.5382080078125
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 2.539126396179199
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 2.5421152114868164
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 2.608768081665039
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 3.640006256103516
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 6.586367797851563
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 12.57610855102539
+  '''next_power_of_2(size) = 8'', ''sizeof(dtype) = 8''':
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.2842720031738281
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.28456640243530273
+  - config:
       BLOCK_SIZE: 1024
       kernel_backend: cuda
       thread_block_cluster_size: 8
     time: 0.2846816062927246
-  '''next_power_of_2(size) = 2048''':
-    config:
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.2848927974700928
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.38002240657806396
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.3804703950881958
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.3810111999511719
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.3895008087158203
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.6611135959625244
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.6619423866271973
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.6619808197021484
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.6823232173919678
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 1.113308811187744
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 1.2716416358947753
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 1.2722463607788086
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 1.2730175971984863
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 1.276195240020752
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 1.310531234741211
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 2.111212730407715
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 2.495260810852051
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 2.4969343185424804
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 2.496982383728027
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 2.5707424163818358
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 3.7822303771972656
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 5.033033752441407
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 5.034009552001953
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 5.035744094848633
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 5.165708923339844
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 6.987430572509766
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: triton
+      thread_block_cluster_size: null
+    time: 12.926339721679687
+  '''next_power_of_2(size) = 8192'', ''sizeof(dtype) = 4''':
+  - config:
       BLOCK_SIZE: 1024
       kernel_backend: cuda
       thread_block_cluster_size: 1
-    time: 0.28466238975524905
-  '''next_power_of_2(size) = 256''':
-    config:
+    time: 0.14731199741363527
+  - config:
       BLOCK_SIZE: 1024
       kernel_backend: cuda
       thread_block_cluster_size: 2
-    time: 0.28447999954223635
-  '''next_power_of_2(size) = 32''':
-    config:
+    time: 0.14737279415130616
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.15216959714889527
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.15815039873123168
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.19630080461502075
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.19635519981384278
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.1975775957107544
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.2062432050704956
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.3381119966506958
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.3383136034011841
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.33860800266265867
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.3507200002670288
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.6461535930633545
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.6474336147308349
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.6482687950134277
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.668230390548706
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 1.2680607795715333
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 1.2684384346008302
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 1.2688896179199218
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 1.3077887535095214
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 2.5476287841796874
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 2.551670455932617
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 2.552047920227051
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 2.6233823776245115
+  '''next_power_of_2(size) = 8192'', ''sizeof(dtype) = 8''':
+  - config:
       BLOCK_SIZE: 1024
       kernel_backend: cuda
       thread_block_cluster_size: 1
-    time: 0.28467841148376466
-  '''next_power_of_2(size) = 4''':
+    time: 0.2852256059646606
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.2857215881347656
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.2865216016769409
+  - config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.2885215997695923
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.3815936088562012
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.381715202331543
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.3818943977355957
+  - config:
+      BLOCK_SIZE: 512
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.39092159271240234
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.6622335910797119
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.6632991790771484
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 0.6633024215698242
+  - config:
+      BLOCK_SIZE: 256
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.6861343860626221
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 1.2748319625854492
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 1.2749119758605958
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 1.2762335777282714
+  - config:
+      BLOCK_SIZE: 128
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 1.3158368110656737
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 2.499734306335449
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 2.5005632400512696
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 2.5009952545166017
+  - config:
+      BLOCK_SIZE: 64
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 2.579395294189453
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 5.042335891723633
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 5.042816162109375
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 4
+    time: 5.045932769775391
+  - config:
+      BLOCK_SIZE: 32
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 5.186537551879883
+best_configs:
+  '''next_power_of_2(size) = 1024'', ''sizeof(dtype) = 4''':
     config:
       BLOCK_SIZE: 1024
       kernel_backend: cuda
       thread_block_cluster_size: 2
-    time: 0.2843424081802368
-  '''next_power_of_2(size) = 4096''':
-    config:
-      BLOCK_SIZE: 1024
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 0.28536961078643797
-  '''next_power_of_2(size) = 512''':
-    config:
-      BLOCK_SIZE: 1024
-      kernel_backend: cuda
-      thread_block_cluster_size: 2
-    time: 0.2846656084060669
-  '''next_power_of_2(size) = 64''':
+    time: 0.14639999866485595
+  '''next_power_of_2(size) = 1024'', ''sizeof(dtype) = 8''':
     config:
       BLOCK_SIZE: 1024
       kernel_backend: cuda
       thread_block_cluster_size: 8
-    time: 0.2846560001373291
-  '''next_power_of_2(size) = 8''':
+    time: 0.28431038856506347
+  '''next_power_of_2(size) = 128'', ''sizeof(dtype) = 4''':
+    config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.1461632013320923
+  '''next_power_of_2(size) = 128'', ''sizeof(dtype) = 8''':
+    config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.2839423894882202
+  '''next_power_of_2(size) = 16'', ''sizeof(dtype) = 4''':
     config:
       BLOCK_SIZE: 1024
       kernel_backend: cuda
       thread_block_cluster_size: 1
-    time: 0.2844320058822632
-  '''next_power_of_2(size) = 8192''':
+    time: 0.1462048053741455
+  '''next_power_of_2(size) = 16'', ''sizeof(dtype) = 8''':
     config:
       BLOCK_SIZE: 1024
       kernel_backend: cuda
       thread_block_cluster_size: 1
-    time: 0.2857280015945435
+    time: 0.283951997756958
+  '''next_power_of_2(size) = 16384'', ''sizeof(dtype) = 4''':
+    config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.1487615942955017
+  '''next_power_of_2(size) = 16384'', ''sizeof(dtype) = 8''':
+    config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.2867392063140869
+  '''next_power_of_2(size) = 2'', ''sizeof(dtype) = 4''':
+    config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.14644479751586914
+  '''next_power_of_2(size) = 2'', ''sizeof(dtype) = 8''':
+    config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.2836895942687988
+  '''next_power_of_2(size) = 2048'', ''sizeof(dtype) = 4''':
+    config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.14640640020370482
+  '''next_power_of_2(size) = 2048'', ''sizeof(dtype) = 8''':
+    config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 8
+    time: 0.2846656084060669
+  '''next_power_of_2(size) = 256'', ''sizeof(dtype) = 4''':
+    config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.14626879692077638
+  '''next_power_of_2(size) = 256'', ''sizeof(dtype) = 8''':
+    config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.2843424081802368
+  '''next_power_of_2(size) = 32'', ''sizeof(dtype) = 4''':
+    config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.14587199687957764
+  '''next_power_of_2(size) = 32'', ''sizeof(dtype) = 8''':
+    config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.2843296051025391
+  '''next_power_of_2(size) = 4'', ''sizeof(dtype) = 4''':
+    config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.1461824059486389
+  '''next_power_of_2(size) = 4'', ''sizeof(dtype) = 8''':
+    config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.2841599941253662
+  '''next_power_of_2(size) = 4096'', ''sizeof(dtype) = 4''':
+    config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.1469375967979431
+  '''next_power_of_2(size) = 4096'', ''sizeof(dtype) = 8''':
+    config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.2847359895706177
+  '''next_power_of_2(size) = 512'', ''sizeof(dtype) = 4''':
+    config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.1461951971054077
+  '''next_power_of_2(size) = 512'', ''sizeof(dtype) = 8''':
+    config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.28393599987030027
+  '''next_power_of_2(size) = 64'', ''sizeof(dtype) = 4''':
+    config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.14642560482025146
+  '''next_power_of_2(size) = 64'', ''sizeof(dtype) = 8''':
+    config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.28424639701843263
+  '''next_power_of_2(size) = 8'', ''sizeof(dtype) = 4''':
+    config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 2
+    time: 0.14631359577178954
+  '''next_power_of_2(size) = 8'', ''sizeof(dtype) = 8''':
+    config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.2842720031738281
+  '''next_power_of_2(size) = 8192'', ''sizeof(dtype) = 4''':
+    config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.14731199741363527
+  '''next_power_of_2(size) = 8192'', ''sizeof(dtype) = 8''':
+    config:
+      BLOCK_SIZE: 1024
+      kernel_backend: cuda
+      thread_block_cluster_size: 1
+    time: 0.2852256059646606
