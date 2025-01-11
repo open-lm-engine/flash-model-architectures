@@ -53,8 +53,6 @@ inline __device__ void _update_local_count(const scalar_t *x,
             uint64_2 _x = ((uint64_2 *)x)[i];
             atomicAdd(&shared_memory[_x.x], 1);
             atomicAdd(&shared_memory[_x.y], 1);
-        } else {
-            throw std::runtime_error("invalid scalar_t");
         }
     }
 
