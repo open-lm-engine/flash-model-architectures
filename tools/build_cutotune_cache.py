@@ -64,10 +64,11 @@ for dtype in all_dtypes:
     )
 
 size = 104857600
-for n in get_powers_of_2(1, 16384):
-    print(n)
-    x = torch.randint(0, n, (size,), device=torch.cuda.current_device())
-    continuous_count_cute(x, n)
+for dtype in [torch.long, torch.int32]:
+    for n in get_powers_of_2(1, 16384):
+        print(n)
+        x = torch.randint(0, n, (size,), dtype=dtype, device=torch.cuda.current_device())
+        continuous_count_cute(x, n)
 
 
 for function_hash in get_all_cutotune_caches():

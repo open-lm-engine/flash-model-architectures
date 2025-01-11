@@ -4,8 +4,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from ..continuous_count import continuous_count_cute
-
 
 class Experts_Torch(nn.Module):
     def __init__(
@@ -174,7 +172,7 @@ class MoE_Torch(nn.Module):
         selected_experts = selected_experts.flatten()
         # selected_experts -> (total_q * top_k)
 
-        expert_frequency = continuous_count_cute(x=selected_experts, size=self.num_experts)
+        expert_frequency = selected_experts.bincount(minlength=self.num_experts)
         # expert_frequency -> (num_experts)
 
         index_sorted_experts = selected_experts.argsort()

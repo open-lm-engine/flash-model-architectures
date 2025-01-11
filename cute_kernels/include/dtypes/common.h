@@ -36,10 +36,12 @@ using bf16 = __nv_bfloat16;
 using bf16_2 = __nv_bfloat162;
 
 using int64 = long;
-using uint64 = unsigned long;
+using uint64 = ulong;
+using uint64_2 = ulong2;
 
 using int32 = int;
 using uint32 = uint;
+using uint32_2 = uint2;
 using uint32_4 = uint4;
 
 using int16 = short;
