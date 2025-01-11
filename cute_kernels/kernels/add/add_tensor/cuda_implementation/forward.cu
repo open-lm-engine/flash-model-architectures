@@ -12,7 +12,7 @@ __global__ void _add_tensor_cuda_kernel(const scalar_t *x,
                                         const scalar_t *y,
                                         scalar_t *output,
                                         const uint64 num_elements) {
-    constexpr int num_elements_per_thread = sizeof(fp32_4) / sizeof(scalar_t);
+    constexpr int num_elements_per_thread = 16 / sizeof(scalar_t);
     static_assert(num_elements_per_thread == 4 || num_elements_per_thread == 8);
 
     using dtype = DType<scalar_t>;

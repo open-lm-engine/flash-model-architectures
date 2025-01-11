@@ -15,15 +15,15 @@ __global__ void _swiglu_backward_cuda_kernel(const scalar_t *gate,
                                              scalar_t *gate_grad,
                                              scalar_t *up_grad,
                                              const uint64 num_elements) {
-    constexpr int vector_instruction_width = sizeof(fp32_4) / sizeof(scalar_t);
-    static_assert(vector_instruction_width == 4 || vector_instruction_width == 8);
+    constexpr int num_elements_per_thread = 16 / sizeof(scalar_t);
+    static_assert(num_elements_per_thread == 4 || num_elements_per_thread == 8);
 
-    const uint64 thread_id = get_global_thread_id();
     using dtype = DType<scalar_t>;
 
-    uint64 end = (thread_id + 1) * vector_instruction_width - 1;  // inclusive of last element
+    const uint32 thread_id = get_global_thread_id();
+    const uint32 num_elements4 = num_elements / num_elements_per_thread;
 
-    if (end < num_elements) {
+    if (thread_id < num_elements4) {
         const fp32 *gate_vec = (fp32 *)&((fp32_4 *)gate)[thread_id];
         const fp32 *up_vec = (fp32 *)&((fp32_4 *)up)[thread_id];
         const fp32 *output_grad_vec = (fp32 *)&((fp32_4 *)output_grad)[thread_id];
@@ -69,16 +69,16 @@ __global__ void _swiglu_backward_cuda_kernel(const scalar_t *gate,
         ((fp32_4 *)up_grad)[thread_id] = DType<fp32>::make4(up_grad_buffer);
     }
 
-    end = (num_elements / vector_instruction_width) * vector_instruction_width + thread_id;
-    if (end < num_elements) {
-        fp32 _gate_upcast = dtype::upcast(gate[end]);
+    const uint32 index = num_elements4 * num_elements_per_thread + thread_id;
+    if (index < num_elements) {
+        fp32 _gate_upcast = dtype::upcast(gate[index]);
 
         fp32 _gate_sigmoid = sigmoid<fp32, fp32>(_gate_upcast);
         fp32 _gate_silu = _gate_upcast * _gate_sigmoid;
 
-        gate_grad[end] =
-            dtype::downcast(output_grad[end] * up[end] * (_gate_sigmoid + _gate_silu * (1 - _gate_sigmoid)));
-        up_grad[end] = dtype::downcast(output_grad[end] * _gate_silu);
+        gate_grad[index] =
+            dtype::downcast(output_grad[index] * up[index] * (_gate_sigmoid + _gate_silu * (1 - _gate_sigmoid)));
+        up_grad[index] = dtype::downcast(output_grad[index] * _gate_silu);
     }
 }
 
@@ -92,7 +92,8 @@ void swiglu_backward_cuda(const torch::Tensor &gate,
 
     AT_DISPATCH_CUSTOM_FLOAT_TYPES(
         gate.scalar_type(), "swiglu_backward_cuda_kernel", ([&] {
-            const uint32 vector_instruction_width = 16 / sizeof(scalar_t);
+            const uint32 num_elements_per_thread = 16 / sizeof(scalar_t);
+            const uint32 num_elements_per_block = BLOCK_SIZE * num_elements_per_thread;
 
             std::vector<ChunkedArray<scalar_t>> gate_chunks =
                 chunk_array<scalar_t>(gate.data_ptr<scalar_t>(), total_elements);
@@ -113,8 +114,6 @@ void swiglu_backward_cuda(const torch::Tensor &gate,
                 ChunkedArray<scalar_t> up_grad_chunk = up_grad_chunks[i];
 
                 const uint64 num_elements = gate_chunk.num_elements;
-
-                const uint32 num_elements_per_block = BLOCK_SIZE * vector_instruction_width;
                 const uint32 NUM_BLOCKS = ceil_divide<uint64>(num_elements, num_elements_per_block);
 
                 _swiglu_backward_cuda_kernel<scalar_t><<<NUM_BLOCKS, BLOCK_SIZE>>>(gate_chunk.array,
