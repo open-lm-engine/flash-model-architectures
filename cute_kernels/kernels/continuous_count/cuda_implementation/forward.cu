@@ -40,8 +40,25 @@ inline __device__ void _update_local_count(const scalar_t *x,
                                            uint32 *shared_memory,
                                            const uint64 &num_elements,
                                            const uint32 &global_thread_id) {
-    for (uint32 i = global_thread_id; i < num_elements; i += gridDim.x * blockDim.x) {
-        atomicAdd(&shared_memory[x[i]], 1);
+    const uint32 vector_instruction_width = 16 / sizeof(scalar_t);
+    const uint32 num_elements4 = num_elements / vector_instruction_width;
+    for (uint32 i = global_thread_id; i < num_elements4; i += gridDim.x * blockDim.x) {
+        if constexpr (std::is_same_v<scalar_t, uint32> || std::is_same_v<scalar_t, int32>) {
+            uint32_4 _x = ((uint32_4*)x)[i];
+            atomicAdd(&shared_memory[_x.x], 1);
+            atomicAdd(&shared_memory[_x.y], 1);
+            atomicAdd(&shared_memory[_x.z], 1);
+            atomicAdd(&shared_memory[_x.w], 1);
+        } else if constexpr (std::is_same_v<scalar_t, uint64> || std::is_same_v<scalar_t, int64>) {
+            uint64_2 _x = ((uint64_2*)x)[i];
+            atomicAdd(&shared_memory[_x.x], 1);
+            atomicAdd(&shared_memory[_x.y], 1);
+        }
+    }
+
+    const uint32 index = (num_elements4 * vector_instruction_width) + global_thread_id;
+    if (index < num_elements) {
+        atomicAdd(&shared_memory[x[index]], 1);
     }
 }
 
