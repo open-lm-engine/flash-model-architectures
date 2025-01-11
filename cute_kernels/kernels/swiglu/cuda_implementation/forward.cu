@@ -67,34 +67,29 @@ void swiglu_forward_cuda(const torch::Tensor &gate,
                          const uint32 &BLOCK_SIZE) {
     const uint64 total_elements = gate.numel();
 
-    AT_DISPATCH_CUSTOM_FLOAT_TYPES(
-        gate.scalar_type(), "swiglu_forward_cuda_kernel", ([&] {
-            int log_vector_instruction_width;
-            if constexpr (std::is_same_v<scalar_t, fp32>) {
-                log_vector_instruction_width = 2;
-            } else {
-                log_vector_instruction_width = 3;
-            }
+    AT_DISPATCH_CUSTOM_FLOAT_TYPES(gate.scalar_type(), "swiglu_forward_cuda_kernel", ([&] {
+                                       const uint32 vector_instruction_width = 16 / sizeof(scalar_t);
 
-            std::vector<ChunkedArray<scalar_t>> gate_chunks =
-                chunk_array<scalar_t>(gate.data_ptr<scalar_t>(), total_elements);
-            std::vector<ChunkedArray<scalar_t>> up_chunks =
-                chunk_array<scalar_t>(up.data_ptr<scalar_t>(), total_elements);
-            std::vector<ChunkedArray<scalar_t>> output_chunks =
-                chunk_array<scalar_t>(output.data_ptr<scalar_t>(), total_elements);
+                                       std::vector<ChunkedArray<scalar_t>> gate_chunks =
+                                           chunk_array<scalar_t>(gate.data_ptr<scalar_t>(), total_elements);
+                                       std::vector<ChunkedArray<scalar_t>> up_chunks =
+                                           chunk_array<scalar_t>(up.data_ptr<scalar_t>(), total_elements);
+                                       std::vector<ChunkedArray<scalar_t>> output_chunks =
+                                           chunk_array<scalar_t>(output.data_ptr<scalar_t>(), total_elements);
 
-            for (int i = 0; i < gate_chunks.size(); i++) {
-                ChunkedArray<scalar_t> gate_chunk = gate_chunks[i];
-                ChunkedArray<scalar_t> up_chunk = up_chunks[i];
-                ChunkedArray<scalar_t> output_chunk = output_chunks[i];
+                                       for (int i = 0; i < gate_chunks.size(); i++) {
+                                           ChunkedArray<scalar_t> gate_chunk = gate_chunks[i];
+                                           ChunkedArray<scalar_t> up_chunk = up_chunks[i];
+                                           ChunkedArray<scalar_t> output_chunk = output_chunks[i];
 
-                const uint64 num_elements = gate_chunk.num_elements;
+                                           const uint64 num_elements = gate_chunk.num_elements;
 
-                const uint32 num_elements_per_block = BLOCK_SIZE << log_vector_instruction_width;
-                const uint32 NUM_BLOCKS = ceil_divide<uint64>(num_elements, num_elements_per_block);
+                                           const uint32 num_elements_per_block = BLOCK_SIZE * vector_instruction_width;
+                                           const uint32 NUM_BLOCKS =
+                                               ceil_divide<uint64>(num_elements, num_elements_per_block);
 
-                _swiglu_forward_cuda_kernel<scalar_t>
-                    <<<NUM_BLOCKS, BLOCK_SIZE>>>(gate_chunk.array, up_chunk.array, output_chunk.array, num_elements);
-            }
-        }));
+                                           _swiglu_forward_cuda_kernel<scalar_t><<<NUM_BLOCKS, BLOCK_SIZE>>>(
+                                               gate_chunk.array, up_chunk.array, output_chunk.array, num_elements);
+                                       }
+                                   }));
 }

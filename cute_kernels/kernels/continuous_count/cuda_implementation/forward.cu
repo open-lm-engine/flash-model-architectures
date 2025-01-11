@@ -16,7 +16,7 @@ namespace cg = cooperative_groups;
 inline __device__ void _looped_atomic_add(
     uint32 *source, uint32 *destination, const uint32 &num_loops_C, const uint32 &C, const uint32 &local_thread_id) {
     for (int i = 0; i < num_loops_C; i++) {
-        const int index = i * blockDim.x + local_thread_id;
+        const uint32 index = i * blockDim.x + local_thread_id;
         if (index < C) {
             atomicAdd(&destination[index], source[index]);
         }
