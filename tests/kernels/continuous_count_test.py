@@ -21,6 +21,7 @@ class ContiguousCountTest(TestCommons):
             [1, 2, 4, 8],  # thread_block_cluster_size
             [KernelBackend.cuda],  # kernel_backend
             [64],  # BLOCK_SIZE_B
+            [torch.long, torch.int],  # dtype
             [continuous_count_cute, torch.compile(continuous_count_cute, fullgraph=True)],  # function
         )
         + TestCommons.make_args_matrix(
@@ -29,6 +30,7 @@ class ContiguousCountTest(TestCommons):
             [None],  # thread_block_cluster_size
             [KernelBackend.triton],  # kernel_backend
             [64],  # BLOCK_SIZE_B
+            [torch.long, torch.int],  # dtype
             [continuous_count_cute, torch.compile(continuous_count_cute, fullgraph=True)],  # function
         )
     )
@@ -39,10 +41,11 @@ class ContiguousCountTest(TestCommons):
         thread_block_cluster_size: int,
         kernel_backend: KernelBackend,
         BLOCK_SIZE: int,
+        dtype: torch.dtype,
         function: Callable,
     ) -> None:
         set_seed(_SEED)
-        x = torch.randint(0, _MAX_EXPERTS, (size,), device=device, dtype=torch.long)
+        x = torch.randint(0, _MAX_EXPERTS, (size,), device=device, dtype=dtype)
 
         z_kernel = function(
             x=x,
