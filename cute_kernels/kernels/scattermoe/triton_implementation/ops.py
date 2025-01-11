@@ -12,7 +12,22 @@ BLOCK_M = 128
 torch._dynamo.config.capture_scalar_outputs = True
 
 
-# custom op is needed because of https://github.com/pytorch/pytorch/issues/136394
+def _fake_bincount(x: torch.Tensor, minlength: int) -> torch.Tensor:
+    return torch.empty(minlength, dtype=torch.int)
+
+
+@cute_op(f"{LIBRARY_NAME}::bincount", mutates_args={}, fake_func=_fake_bincount)
+def bincount(x: torch.Tensor, minlength: int) -> torch.Tensor:
+    return x.bincount(minlength=minlength)
+
+
+def expert_boundaries(sorted_experts_idxs: torch.Tensor, k: int) -> torch.Tensor:
+    # there is an overhead of launching a custom op so we only use the custom op when compiling
+    expert_counts = bincount(sorted_experts_idxs, k)
+    expert_boundaries_end = expert_counts.cumsum(-1)
+    return expert_boundaries_end
+
+
 @cute_op(f"{LIBRARY_NAME}::scatter2scatter", mutates_args={"out"})
 def scatter2scatter(
     X: torch.Tensor,
@@ -63,7 +78,6 @@ def scatter2scatter(
         )
 
 
-# custom op is needed because of https://github.com/pytorch/pytorch/issues/136394
 @cute_op(f"{LIBRARY_NAME}::group_bwd_W", mutates_args={"DW"})
 def group_bwd_W(DY: torch.Tensor, X: torch.Tensor, expert_offsets: torch.Tensor, DW: torch.Tensor, E: int) -> None:
     grid = lambda meta: (E * ceil_divide(meta["K"], meta["BLOCK_K"]), ceil_divide(meta["N"], meta["BLOCK_N"]))
@@ -94,7 +108,6 @@ def group_bwd_W(DY: torch.Tensor, X: torch.Tensor, expert_offsets: torch.Tensor,
         )
 
 
-# custom op is needed because of https://github.com/pytorch/pytorch/issues/136394
 @cute_op(f"{LIBRARY_NAME}::group", mutates_args={"out"})
 def group(
     A: torch.Tensor,

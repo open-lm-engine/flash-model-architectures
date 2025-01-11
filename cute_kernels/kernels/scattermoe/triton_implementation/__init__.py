@@ -3,9 +3,8 @@ from typing import Callable
 import torch
 import torch.nn as nn
 
-from ...continuous_count import continuous_count_cute
 from ..torch_implementation import Experts_Torch, MoE_Torch
-from .ops import scattered_experts
+from .ops import bincount, scattered_experts
 
 
 class Experts_Triton(Experts_Torch):
@@ -78,7 +77,7 @@ class MoE_Triton(MoE_Torch):
     ) -> torch.Tensor:
         with torch.no_grad():
             sorted_expert_idxs, sorted_scattered_idxs = selected_experts.flatten().sort()
-            expert_offsets = continuous_count_cute(x=sorted_expert_idxs, size=self.num_experts).cumsum(-1)
+            expert_offsets = bincount(sorted_expert_idxs, self.num_experts).cumsum(-1)
 
         hidden_states = self.c_fc(
             hidden_states,
