@@ -1,6 +1,6 @@
 import torch
 
-from ...constants import COMMON_CUDA_BLOCK_SIZES_POWERS_OF_2, THREAD_BLOCK_CLUSTER_SIZES
+from ...constants import COMMON_CUDA_BLOCK_SIZES_POWERS_OF_2, DTYPE_TO_SIZE, THREAD_BLOCK_CLUSTER_SIZES
 from ...cutotune import CutoTuneConfig, CutoTuneParameter, cutotune, get_cartesian_product_cutotune_configs
 from ...enums import KernelBackend
 from ...math import get_next_power_of_2
@@ -25,7 +25,10 @@ from .triton_implementation import continuous_count_triton
     default_config=CutoTuneConfig(
         dict(kernel_backend=KernelBackend.cuda, thread_block_cluster_size=8, BLOCK_SIZE=1024)
     ),
-    functional_triggers={"next_power_of_2(size)": lambda **kwargs: get_next_power_of_2(kwargs["size"])},
+    functional_triggers={
+        "next_power_of_2(size)": lambda **kwargs: get_next_power_of_2(kwargs["size"]),
+        "sizeof(dtype)": lambda **kwargs: DTYPE_TO_SIZE[kwargs["x"].dtype],
+    },
 )
 def _continuous_count_cute(
     x: torch.Tensor,

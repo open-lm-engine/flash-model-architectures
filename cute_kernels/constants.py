@@ -23,3 +23,12 @@ TORCH_TO_TRITON_DTYPE = {
     torch.float16: tl.float16,
     torch.bfloat16: tl.bfloat16,
 }
+
+DTYPE_TO_SIZE = {
+    torch.int: 4,
+    torch.int32: 4,
+    torch.uint32: 4,
+    torch.long: 8,
+    torch.int64: 8,
+    torch.uint64: 8,
+}
