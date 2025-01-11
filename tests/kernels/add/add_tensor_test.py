@@ -25,7 +25,6 @@ class AddTensorTest(TestCommons):
         device: torch.device,
         dtype: torch.dtype,
         kernel_backend: KernelBackend,
-        vector_instruction_width: int,
         BLOCK_SIZE: int,
         function: Callable,
     ) -> None:
@@ -36,7 +35,6 @@ class AddTensorTest(TestCommons):
             x_kernel,
             y_kernel,
             kernel_backend=kernel_backend,
-            vector_instruction_width=vector_instruction_width,
             BLOCK_SIZE=BLOCK_SIZE,
         )
         z_expected = add_tensor_torch(x_expected, y_expected)
