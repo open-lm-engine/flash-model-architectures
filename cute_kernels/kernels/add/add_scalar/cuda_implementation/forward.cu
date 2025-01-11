@@ -18,9 +18,9 @@ __global__ void _add_scalar_cuda_kernel(const scalar_t *x, const fp32 y, scalar_
     using T2 = typename dtype::nv_dtype2;
 
     const uint32 thread_id = get_global_thread_id();
-    uint32 end = (thread_id + 1) * num_elements_per_thread - 1;  // inclusive of last element
+    const uint32 num_elements4 = num_elements / num_elements_per_thread;
 
-    if (end < num_elements) {
+    if (thread_id < num_elements4) {
         const fp32 *x_vec = (fp32 *)&((fp32_4 *)x)[thread_id];
         fp32 output_buffer[4];
 
@@ -40,9 +40,9 @@ __global__ void _add_scalar_cuda_kernel(const scalar_t *x, const fp32 y, scalar_
         ((fp32_4 *)output)[thread_id] = DType<fp32>::make4(output_buffer);
     }
 
-    end = (num_elements / num_elements_per_thread) * num_elements_per_thread + thread_id;
-    if (end < num_elements) {
-        output[end] = x[end] + y;
+    const uint32 index = num_elements4 * num_elements_per_thread + thread_id;
+    if (index < num_elements) {
+        output[index] = x[index] + y;
     }
 }
 
