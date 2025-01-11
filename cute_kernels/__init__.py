@@ -1,4 +1,3 @@
-from .constants import COMMON_VECTOR_INSTRUCTION_WIDTHS, MAX_FP16_BF16_INSTRUCTION_WIDTH, MAX_FP32_INSTRUCTION_WIDTH
 from .cute_inductor import CuteInductor
 from .cutotune import (
     CutoTuneConfig,

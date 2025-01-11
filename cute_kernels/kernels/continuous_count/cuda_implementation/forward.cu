@@ -1,6 +1,5 @@
 #include <cooperative_groups.h>
 #include <cuda.h>
-#include <cuda_fp16.h>
 #include <cuda_runtime.h>
 #include <torch/extension.h>
 
@@ -16,7 +15,7 @@ namespace cg = cooperative_groups;
 inline __device__ void _looped_atomic_add(
     uint32 *source, uint32 *destination, const uint32 &num_loops_C, const uint32 &C, const uint32 &local_thread_id) {
     for (int i = 0; i < num_loops_C; i++) {
-        const int index = i * blockDim.x + local_thread_id;
+        const uint32 index = i * blockDim.x + local_thread_id;
         if (index < C) {
             atomicAdd(&destination[index], source[index]);
         }
@@ -40,8 +39,9 @@ inline __device__ void _update_local_count(const scalar_t *x,
                                            uint32 *shared_memory,
                                            const uint64 &num_elements,
                                            const uint32 &global_thread_id) {
-    const uint32 vector_instruction_width = 16 / sizeof(scalar_t);
-    const uint32 num_elements4 = num_elements / vector_instruction_width;
+    const uint32 num_elements_per_thread = 16 / sizeof(scalar_t);
+    const uint32 num_elements4 = num_elements / num_elements_per_thread;
+
     for (uint32 i = global_thread_id; i < num_elements4; i += gridDim.x * blockDim.x) {
         if constexpr (std::is_same_v<scalar_t, uint32> || std::is_same_v<scalar_t, int32>) {
             uint32_4 _x = ((uint32_4 *)x)[i];
@@ -56,7 +56,7 @@ inline __device__ void _update_local_count(const scalar_t *x,
         }
     }
 
-    const uint32 index = (num_elements4 * vector_instruction_width) + global_thread_id;
+    const uint32 index = (num_elements4 * num_elements_per_thread) + global_thread_id;
     if (index < num_elements) {
         atomicAdd(&shared_memory[x[index]], 1);
     }

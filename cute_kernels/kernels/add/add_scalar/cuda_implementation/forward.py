@@ -10,6 +10,4 @@ _KERNEL_NAME = "add_scalar_cuda"
 
 @cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"output"})
 @cpp_jit(_KERNEL_NAME)
-def add_scalar_cuda(
-    x: torch.Tensor, y: float, output: torch.Tensor, vector_instruction_width: int, BLOCK_SIZE: int
-) -> None: ...
+def add_scalar_cuda(x: torch.Tensor, y: float, output: torch.Tensor, BLOCK_SIZE: int) -> None: ...
