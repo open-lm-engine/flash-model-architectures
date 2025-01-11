@@ -70,20 +70,16 @@ __global__ void _swiglu_backward_cuda_kernel(const scalar_t *gate,
         ((fp32_4 *)up_grad)[thread_id] = DType<fp32>::make4(up_grad_buffer);
     }
 
-    // use first warp for computing the last elements
-    if (thread_id < WARP_SIZE) {
-        // NOTE end is same as start since we don't use vector load stores here
-        end = (num_elements / vector_instruction_width) * vector_instruction_width + thread_id;
-        if (end < num_elements) {
-            fp32 _gate_upcast = dtype::upcast(gate[end]);
+    end = (num_elements / vector_instruction_width) * vector_instruction_width + thread_id;
+    if (end < num_elements) {
+        fp32 _gate_upcast = dtype::upcast(gate[end]);
 
-            fp32 _gate_sigmoid = sigmoid<fp32, fp32>(_gate_upcast);
-            fp32 _gate_silu = _gate_upcast * _gate_sigmoid;
+        fp32 _gate_sigmoid = sigmoid<fp32, fp32>(_gate_upcast);
+        fp32 _gate_silu = _gate_upcast * _gate_sigmoid;
 
-            gate_grad[end] =
-                dtype::downcast(output_grad[end] * up[end] * (_gate_sigmoid + _gate_silu * (1 - _gate_sigmoid)));
-            up_grad[end] = dtype::downcast(output_grad[end] * _gate_silu);
-        }
+        gate_grad[end] =
+            dtype::downcast(output_grad[end] * up[end] * (_gate_sigmoid + _gate_silu * (1 - _gate_sigmoid)));
+        up_grad[end] = dtype::downcast(output_grad[end] * _gate_silu);
     }
 }
 

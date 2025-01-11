@@ -47,17 +47,13 @@ __global__ void _swiglu_forward_cuda_kernel(const scalar_t *gate,
         ((fp32_4 *)output)[thread_id] = DType<fp32>::make4(output_buffer);
     }
 
-    // use first warp for computing the last elements
-    if (thread_id < WARP_SIZE) {
-        // NOTE end is same as start since we don't use vector load stores here
-        end = (num_elements / vector_instruction_width) * vector_instruction_width + thread_id;
-        if (end < num_elements) {
-            fp32 _gate_upcast = dtype::upcast(gate[end]);
+    end = (num_elements / vector_instruction_width) * vector_instruction_width + thread_id;
+    if (end < num_elements) {
+        fp32 _gate_upcast = dtype::upcast(gate[end]);
 
-            // up is upcasted automatically
-            _gate_upcast = up[end] * _gate_upcast * sigmoid<fp32, fp32>(_gate_upcast);
-            output[end] = dtype::downcast(_gate_upcast);
-        }
+        // up is upcasted automatically
+        _gate_upcast = up[end] * _gate_upcast * sigmoid<fp32, fp32>(_gate_upcast);
+        output[end] = dtype::downcast(_gate_upcast);
     }
 }
 
