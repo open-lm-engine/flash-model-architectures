@@ -33,4 +33,4 @@ def add_scalar_cute(
     kernel_backend: KernelBackend = CutoTuneParameter(),
     BLOCK_SIZE: int = CutoTuneParameter(),
 ) -> torch.Tensor:
-    return x if y == 0 else _AddScalar_Cute.apply(x, y, kernel_backend, vector_instruction_width, BLOCK_SIZE)
+    return x if y == 0 else _AddScalar_Cute.apply(x, y, kernel_backend, BLOCK_SIZE)
