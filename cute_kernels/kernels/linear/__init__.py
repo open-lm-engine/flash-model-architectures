@@ -6,7 +6,7 @@ from .torch_implementation import linear_torch
 class _Linear_Cute(torch.autograd.Function):
     @staticmethod
     def forward(ctx, input: torch.Tensor, weight: torch.Tensor, bias: torch.Tensor | None = None) -> torch.Tensor:
-        output = torch.empty(input.size()[:-1], weight.size(0), dtype=input.dtype, device=input.device)
+        output = torch.empty(*input.size()[:-1], weight.size(0), dtype=input.dtype, device=input.device)
 
         # TODO
 
