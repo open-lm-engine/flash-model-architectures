@@ -13,10 +13,18 @@ _EPSILON = 1e-5
 _SEED = 42
 
 
+def _get_sizes() -> list[tuple]:
+    sizes = []
+    for size in TestCommons.get_1d_tensor_sizes():
+        sizes.append((size,))
+        sizes.append((400, size))
+    return sizes
+
+
 class RMSNormTest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(
-            list(TestCommons.get_1d_tensor_sizes()) + list(TestCommons.get_2d_tensor_sizes(400)),  # size
+            _get_sizes(),  # size
             [torch.device("cuda")],  # device
             [torch.float32, torch.float16],  # dtype
             [True, False],  # memory_efficient

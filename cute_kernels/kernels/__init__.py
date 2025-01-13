@@ -2,6 +2,7 @@ from .add import add_scalar_cute, add_scalar_torch, add_tensor_cute, add_tensor_
 from .continuous_count import continuous_count_cute, continuous_count_torch
 from .continuous_count_and_sort import continuous_count_and_sort_cute, continuous_count_and_sort_torch
 from .embedding import embedding_cute, embedding_torch
+from .linear import linear_cute, linear_torch
 from .rmsnorm import rmsnorm_cute, rmsnorm_torch
 from .scattermoe import MoE_Torch, MoE_Triton
 from .swiglu import swiglu_cute, swiglu_torch
