@@ -59,8 +59,6 @@ def _linear_forward_triton_kernel(
         bias = tl.load(bias_ptr + indices_n, mask=mask_n)
         accumulator += bias
 
-    return
-
 
 @cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"output"})
 def linear_forward_triton(
