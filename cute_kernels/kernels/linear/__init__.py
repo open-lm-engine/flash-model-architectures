@@ -1,6 +1,7 @@
 import torch
 
 from .torch_implementation import linear_torch
+from .triton_implementation import linear_forward_triton
 
 
 class _Linear_Cute(torch.autograd.Function):
@@ -9,7 +10,15 @@ class _Linear_Cute(torch.autograd.Function):
         ctx.save_for_backward(input, weight, bias)
         output = torch.empty(*input.size()[:-1], weight.size(0), dtype=input.dtype, device=input.device)
 
-        # TODO
+        linear_forward_triton(
+            input=input,
+            weight=weight,
+            bias=bias,
+            output=output,
+            BLOCK_SIZE_M=BLOCK_SIZE_M,
+            BLOCK_SIZE_K=BLOCK_SIZE_K,
+            BLOCK_SIZE_N=BLOCK_SIZE_N,
+        )
 
         return output
 
