@@ -24,6 +24,41 @@ def _linear_forward_triton_kernel(
     BLOCK_SIZE_K: tl.constexpr,
     BLOCK_SIZE_N: tl.constexpr,
 ):
+    # NOTE pytorch linear layer has following layout
+    # input -> M x K
+    # weight -> N x K
+    # bias -> N
+
+    pid_m = tl.program_id(axis=0)
+    pid_n = tl.program_id(axis=1)
+
+    indices_m = pid_m * BLOCK_SIZE_M + tl.arange(0, BLOCK_SIZE_M)
+    indices_n = pid_n * BLOCK_SIZE_N + tl.arange(0, BLOCK_SIZE_N)
+
+    mask_m = indices_m < M
+    mask_n = indices_n < N
+
+    accumulator = tl.zeros((BLOCK_SIZE_M, BLOCK_SIZE_N), dtype=tl.float32)
+
+    for k in range(tl.cdiv(K, BLOCK_SIZE_K)):
+        indices_k = k * BLOCK_SIZE_K + tl.arange(0, BLOCK_SIZE_K)
+        mask_k = indices_k < K
+
+        mask_mk = mask_m[:, None] & mask_k[None, :]
+        mask_nk = mask_n[:, None] & mask_k[None, :]
+
+        input_ptrs = input_ptr + indices_m[:, None] * K + indices_k[None, :]
+        input = tl.load(input_ptrs, mask=mask_mk)
+
+        weight_ptrs = weight_ptr + indices_n[:, None] * K + indices_k[None, :]
+        weight = tl.load(weight_ptrs, mask=mask_nk)
+
+        accumulator = tl.dot(input, weight.T, accumulator)
+
+    if has_bias:
+        bias = tl.load(bias_ptr + indices_n, mask=mask_n)
+        accumulator += bias
+
     return
 
 
@@ -42,9 +77,7 @@ def linear_forward_triton(
     N = weight.size(0)
 
     with torch.device(input.device):
-        _linear_forward_triton_kernel[
-            (ceil_divide(M, BLOCK_SIZE_M), ceil_divide(N, BLOCK_SIZE_N), ceil_divide(K, BLOCK_SIZE_K))
-        ](
+        _linear_forward_triton_kernel[(ceil_divide(M, BLOCK_SIZE_M), ceil_divide(N, BLOCK_SIZE_N))](
             input_ptr=input,
             weight_ptr=weight,
             has_bias=bias is not None,
