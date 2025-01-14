@@ -25,3 +25,8 @@ $$\frac{\partial L}{\partial b_i} = \sum_{m=1}^M \sum_{n=1}^N \frac{\partial L}{
 $$= \sum_{m=1}^M \sum_{n=1}^N \frac{\partial L}{\partial y_{mn}} \frac{\partial}{\partial b_i} \left( \sum_{k=1}^K w_{nk} x_{mk} + b_n \right)$$
 $$= \sum_{m=1}^M \sum_{n=1}^N \frac{\partial L}{\partial y_{mn}} \frac{\partial b_n}{\partial b_i}$$
 $$= \sum_{m=1}^M \frac{\partial L}{\partial y_{mi}}$$
+---
+Finally, we have
+$$\frac{\partial L}{\partial x_{ij}} = \sum_{n=1}^N \frac{\partial L}{\partial y_{in}} w_{nj}$$
+$$\frac{\partial L}{\partial w_{ij}} = \sum_{m=1}^M \frac{\partial L}{\partial y_{mi}} x_{mj}$$
+$$\frac{\partial L}{\partial b_i} = \sum_{m=1}^M \frac{\partial L}{\partial y_{mi}}$$
