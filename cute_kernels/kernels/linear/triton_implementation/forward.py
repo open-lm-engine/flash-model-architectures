@@ -2,7 +2,7 @@ import torch
 import triton
 import triton.language as tl
 
-from ....constants import LIBRARY_NAME, TORCH_TO_TRITON_DTYPE
+from ....constants import LIBRARY_NAME
 from ....cutotune import CutoTuneConfig, cutotune, get_cartesian_product_cutotune_configs
 from ....math import ceil_divide
 from ....utils import cute_op
@@ -18,7 +18,6 @@ def _linear_forward_triton_kernel(
     has_bias: tl.constexpr,
     bias_ptr,
     output_ptr,
-    dtype: tl.constexpr,
     M,
     K,
     N,
@@ -63,7 +62,7 @@ def _linear_forward_triton_kernel(
         accumulator += bias[None, :]
 
     output_ptrs = output_ptr + indices_m[:, None] * N + indices_n[None, :]
-    tl.store(output_ptrs, accumulator.to(dtype), mask=mask_m[:, None] & mask_n[None, :])
+    tl.store(output_ptrs, accumulator.to(input_ptr.dtype.element_ty), mask=mask_m[:, None] & mask_n[None, :])
 
 
 @cutotune(
@@ -93,7 +92,6 @@ def linear_forward_triton(
             has_bias=bias is not None,
             bias_ptr=bias,
             output_ptr=output,
-            dtype=TORCH_TO_TRITON_DTYPE[input.dtype],
             M=M,
             K=K,
             N=N,
