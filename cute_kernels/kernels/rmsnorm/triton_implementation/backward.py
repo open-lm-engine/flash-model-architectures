@@ -16,7 +16,6 @@ _KERNEL_WEIGHTED_NAME = "rmsnorm_backward_triton"
 @triton.jit
 def _rmsnorm_backward_triton_kernel(
     x_ptr,
-    has_weight: tl.constexpr,
     weight_ptr,
     output_grad_ptr,
     x_grad_ptr,
@@ -43,14 +42,15 @@ def _rmsnorm_backward_triton_kernel(
 
     num_loops = tl.cdiv(num_elements_in_current_program, BLOCK_SIZE_B)
 
+    x_dtype = x_ptr.dtype.element_ty
+    has_weight = weight_ptr is not None
+
     if has_weight:
         weight = tl.load(weight_ptr + indices_h, mask=mask_h)[None, :]
         weight_grad = tl.zeros((BLOCK_SIZE_H,), dtype=tl.float32)
     else:
         weight = 1
         weight_grad = 0
-
-    x_dtype = x_ptr.dtype.element_ty
 
     for i in range(num_loops):
         indices_b = program_start + i * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
@@ -114,7 +114,6 @@ def _rmsnorm_backward_no_weight_triton(
     with torch.device(x.device):
         _rmsnorm_backward_triton_kernel[(num_programs,)](
             x_ptr=x,
-            has_weight=False,
             weight_ptr=None,
             output_grad_ptr=output_grad,
             x_grad_ptr=x_grad,
@@ -152,7 +151,6 @@ def _rmsnorm_backward_triton(
     with torch.device(x.device):
         _rmsnorm_backward_triton_kernel[(num_programs,)](
             x_ptr=x,
-            has_weight=True,
             weight_ptr=weight,
             output_grad_ptr=output_grad,
             x_grad_ptr=x_grad,
