@@ -15,7 +15,6 @@ _KERNEL_NAME = "linear_forward_triton"
 def _linear_forward_triton_kernel(
     input_ptr,
     weight_ptr,
-    has_bias: tl.constexpr,
     bias_ptr,
     output_ptr,
     M,
@@ -57,7 +56,7 @@ def _linear_forward_triton_kernel(
 
         accumulator = tl.dot(input, weight.T, accumulator, input_precision="ieee")
 
-    if has_bias:
+    if bias_ptr is not None:
         bias = tl.load(bias_ptr + indices_n, mask=mask_n)
         accumulator += bias[None, :]
 
@@ -88,7 +87,6 @@ def linear_forward_triton(
         _linear_forward_triton_kernel[(ceil_divide(M, BLOCK_SIZE_M), ceil_divide(N, BLOCK_SIZE_N))](
             input_ptr=input,
             weight_ptr=weight,
-            has_bias=bias is not None,
             bias_ptr=bias,
             output_ptr=output,
             M=M,
