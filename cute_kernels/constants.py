@@ -14,12 +14,6 @@ COMMON_TRITON_BLOCK_SIZES_POWERS_OF_2 = get_powers_of_2(64, MAX_TRITON_BLOCK_SIZ
 
 THREAD_BLOCK_CLUSTER_SIZES = get_powers_of_2(1, 8)
 
-TORCH_TO_TRITON_DTYPE = {
-    torch.float32: tl.float32,
-    torch.float16: tl.float16,
-    torch.bfloat16: tl.bfloat16,
-}
-
 DTYPE_TO_SIZE = {
     torch.int: 4,
     torch.int32: 4,

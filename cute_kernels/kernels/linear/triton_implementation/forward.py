@@ -5,7 +5,7 @@ import triton.language as tl
 from ....constants import LIBRARY_NAME
 from ....cutotune import CutoTuneConfig, cutotune, get_cartesian_product_cutotune_configs
 from ....math import ceil_divide
-from ....utils import cute_op
+from ....utils import cute_op, get_num_elements_and_hidden_size
 
 
 _KERNEL_NAME = "linear_forward_triton"
@@ -81,8 +81,7 @@ def linear_forward_triton(
     BLOCK_SIZE_K: int,
     BLOCK_SIZE_N: int,
 ) -> None:
-    K = input.size(-1)
-    M = input.numel() // K
+    M, K = get_num_elements_and_hidden_size(input)
     N = weight.size(0)
 
     with torch.device(input.device):
