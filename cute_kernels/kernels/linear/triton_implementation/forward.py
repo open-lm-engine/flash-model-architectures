@@ -3,6 +3,7 @@ import triton
 import triton.language as tl
 
 from ....constants import LIBRARY_NAME
+from ....cutotune import CutoTuneConfig, cutotune, get_cartesian_product_cutotune_configs
 from ....math import ceil_divide
 from ....utils import cute_op
 
@@ -63,6 +64,12 @@ def _linear_forward_triton_kernel(
     tl.store(output_ptrs, accumulator, mask=mask_m[:, None] & mask_n[None, :])
 
 
+@cutotune(
+    get_cartesian_product_cutotune_configs(
+        BLOCK_SIZE_M=[32, 64, 128, 256], BLOCK_SIZE_K=[32, 64, 128], BLOCK_SIZE_N=[32, 64, 128, 256]
+    ),
+    default_config=CutoTuneConfig(dict(BLOCK_SIZE_M=64, BLOCK_SIZE_K=64, BLOCK_SIZE_N=64)),
+)
 @cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"output"})
 def linear_forward_triton(
     input: torch.Tensor,

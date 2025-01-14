@@ -1,12 +1,21 @@
 import torch
 
+from ...cutotune import CutoTuneParameter
 from .torch_implementation import linear_torch
 from .triton_implementation import linear_forward_triton
 
 
 class _Linear_Cute(torch.autograd.Function):
     @staticmethod
-    def forward(ctx, input: torch.Tensor, weight: torch.Tensor, bias: torch.Tensor | None = None) -> torch.Tensor:
+    def forward(
+        ctx,
+        input: torch.Tensor,
+        weight: torch.Tensor,
+        bias: torch.Tensor | None,
+        BLOCK_SIZE_M: int,
+        BLOCK_SIZE_K: int,
+        BLOCK_SIZE_N: int,
+    ) -> torch.Tensor:
         ctx.save_for_backward(input, weight, bias)
         output = torch.empty(*input.size()[:-1], weight.size(0), dtype=input.dtype, device=input.device)
 
@@ -28,5 +37,12 @@ class _Linear_Cute(torch.autograd.Function):
         return input, weight, bias
 
 
-def linear_cute(input: torch.Tensor, weight: torch.Tensor, bias: torch.Tensor | None = None) -> torch.Tensor:
-    return _Linear_Cute.apply(input, weight, bias)
+def linear_cute(
+    input: torch.Tensor,
+    weight: torch.Tensor,
+    bias: torch.Tensor | None = None,
+    BLOCK_SIZE_M: int = CutoTuneParameter(),
+    BLOCK_SIZE_K: int = CutoTuneParameter(),
+    BLOCK_SIZE_N: int = CutoTuneParameter(),
+) -> torch.Tensor:
+    return _Linear_Cute.apply(input, weight, bias, BLOCK_SIZE_M, BLOCK_SIZE_K, BLOCK_SIZE_N)
