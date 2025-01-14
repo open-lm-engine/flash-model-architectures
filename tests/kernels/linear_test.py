@@ -19,7 +19,7 @@ class LinearTest(TestCommons):
             TestCommons.get_2d_tensor_sizes(),  # size
             [torch.device("cuda")],  # device
             TestCommons.get_dtypes()[:1],  # dtype
-            [False],  # has_bias
+            [False, True],  # has_bias
             [linear_cute, torch.compile(linear_cute, fullgraph=True)][:1],  # function
         )
     )
