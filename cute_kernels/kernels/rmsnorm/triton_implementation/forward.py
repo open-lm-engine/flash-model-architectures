@@ -18,7 +18,6 @@ def _rmsnorm_forward_triton_kernel(
     weight_ptr,
     output_ptr,
     eps,
-    memory_efficient: tl.constexpr,
     rmsnorm_denominator_ptr,
     B,
     H,
@@ -41,7 +40,7 @@ def _rmsnorm_forward_triton_kernel(
     squared_sum = tl.sum(x * x, axis=1)
     inverse_rms = tl.rsqrt((squared_sum / H) + eps)
 
-    if not memory_efficient:
+    if rmsnorm_denominator_ptr is not None:
         tl.store(rmsnorm_denominator_ptr + indices_b, inverse_rms, mask=mask_b)
 
     x *= inverse_rms[:, None]
@@ -76,7 +75,6 @@ def rmsnorm_forward_triton(
             weight_ptr=weight,
             output_ptr=output,
             eps=eps,
-            memory_efficient=rmsnorm_denominator is None,
             rmsnorm_denominator_ptr=rmsnorm_denominator,
             B=num_elements,
             H=hidden_size,

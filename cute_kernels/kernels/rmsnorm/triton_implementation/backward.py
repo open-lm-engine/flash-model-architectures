@@ -21,7 +21,6 @@ def _rmsnorm_backward_triton_kernel(
     x_grad_ptr,
     weight_grad_ptr,
     eps,
-    memory_efficient: tl.constexpr,
     rmsnorm_denominator_ptr,
     B,
     H,
@@ -61,7 +60,7 @@ def _rmsnorm_backward_triton_kernel(
         x_ptrs = x_ptr + indices_b[:, None] * H + indices_h[None, :]
         x = tl.load(x_ptrs, mask=mask_bh).to(tl.float32)
 
-        if memory_efficient:
+        if rmsnorm_denominator_ptr is None:
             squared_sum = tl.sum(x * x, axis=1)
             inverse_rms = tl.rsqrt(squared_sum / H + eps)
         else:
@@ -119,7 +118,6 @@ def _rmsnorm_backward_no_weight_triton(
             x_grad_ptr=x_grad,
             weight_grad_ptr=None,
             eps=eps,
-            memory_efficient=rmsnorm_denominator is None,
             rmsnorm_denominator_ptr=rmsnorm_denominator,
             B=num_elements,
             H=hidden_size,
@@ -156,7 +154,6 @@ def _rmsnorm_backward_triton(
             x_grad_ptr=x_grad,
             weight_grad_ptr=weight_grad,
             eps=eps,
-            memory_efficient=rmsnorm_denominator is None,
             rmsnorm_denominator_ptr=rmsnorm_denominator,
             B=num_elements,
             H=hidden_size,
