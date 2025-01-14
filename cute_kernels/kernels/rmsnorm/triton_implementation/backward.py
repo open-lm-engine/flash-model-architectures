@@ -2,7 +2,7 @@ import torch
 import triton
 import triton.language as tl
 
-from ....constants import LIBRARY_NAME, TORCH_TO_TRITON_DTYPE
+from ....constants import LIBRARY_NAME
 from ....cutotune import cutotune
 from ....math import ceil_divide
 from ....utils import cute_op, get_num_elements_and_hidden_size, get_sm_count
@@ -16,7 +16,6 @@ _KERNEL_WEIGHTED_NAME = "rmsnorm_backward_triton"
 @triton.jit
 def _rmsnorm_backward_triton_kernel(
     x_ptr,
-    x_dtype: tl.constexpr,
     has_weight: tl.constexpr,
     weight_ptr,
     output_grad_ptr,
@@ -50,6 +49,8 @@ def _rmsnorm_backward_triton_kernel(
     else:
         weight = 1
         weight_grad = 0
+
+    x_dtype = x_ptr.dtype.element_ty
 
     for i in range(num_loops):
         indices_b = program_start + i * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
@@ -113,7 +114,6 @@ def _rmsnorm_backward_no_weight_triton(
     with torch.device(x.device):
         _rmsnorm_backward_triton_kernel[(num_programs,)](
             x_ptr=x,
-            x_dtype=TORCH_TO_TRITON_DTYPE[x.dtype],
             has_weight=False,
             weight_ptr=None,
             output_grad_ptr=output_grad,
@@ -152,7 +152,6 @@ def _rmsnorm_backward_triton(
     with torch.device(x.device):
         _rmsnorm_backward_triton_kernel[(num_programs,)](
             x_ptr=x,
-            x_dtype=TORCH_TO_TRITON_DTYPE[x.dtype],
             has_weight=True,
             weight_ptr=weight,
             output_grad_ptr=output_grad,
