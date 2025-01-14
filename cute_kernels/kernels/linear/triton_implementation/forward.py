@@ -2,7 +2,7 @@ import torch
 import triton
 import triton.language as tl
 
-from ....constants import LIBRARY_NAME
+from ....constants import LIBRARY_NAME, TORCH_TO_TRITON_DTYPE
 from ....cutotune import CutoTuneConfig, cutotune, get_cartesian_product_cutotune_configs
 from ....math import ceil_divide
 from ....utils import cute_op
@@ -18,6 +18,7 @@ def _linear_forward_triton_kernel(
     has_bias: tl.constexpr,
     bias_ptr,
     output_ptr,
+    dtype: tl.constexpr,
     M,
     K,
     N,
@@ -29,6 +30,7 @@ def _linear_forward_triton_kernel(
     # input -> M x K
     # weight -> N x K
     # bias -> N
+    # output -> M x N
 
     pid_m = tl.program_id(axis=0)
     pid_n = tl.program_id(axis=1)
@@ -54,21 +56,21 @@ def _linear_forward_triton_kernel(
         weight_ptrs = weight_ptr + indices_n[:, None] * K + indices_k[None, :]
         weight = tl.load(weight_ptrs, mask=mask_nk)
 
-        accumulator = tl.dot(input, weight.T, accumulator)
+        accumulator = tl.dot(input, weight.T, accumulator, input_precision="ieee")
 
     if has_bias:
         bias = tl.load(bias_ptr + indices_n, mask=mask_n)
         accumulator += bias[None, :]
 
     output_ptrs = output_ptr + indices_m[:, None] * N + indices_n[None, :]
-    tl.store(output_ptrs, accumulator, mask=mask_m[:, None] & mask_n[None, :])
+    tl.store(output_ptrs, accumulator.to(dtype), mask=mask_m[:, None] & mask_n[None, :])
 
 
 @cutotune(
     get_cartesian_product_cutotune_configs(
         BLOCK_SIZE_M=[32, 64, 128, 256], BLOCK_SIZE_K=[32], BLOCK_SIZE_N=[32, 64, 128, 256]
     ),
-    default_config=CutoTuneConfig(dict(BLOCK_SIZE_M=64, BLOCK_SIZE_K=32, BLOCK_SIZE_N=64)),
+    default_config=CutoTuneConfig(dict(BLOCK_SIZE_M=32, BLOCK_SIZE_K=32, BLOCK_SIZE_N=32)),
 )
 @cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"output"})
 def linear_forward_triton(
@@ -91,6 +93,7 @@ def linear_forward_triton(
             has_bias=bias is not None,
             bias_ptr=bias,
             output_ptr=output,
+            dtype=TORCH_TO_TRITON_DTYPE[input.dtype],
             M=M,
             K=K,
             N=N,
