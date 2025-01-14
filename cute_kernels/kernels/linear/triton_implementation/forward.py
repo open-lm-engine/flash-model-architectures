@@ -66,9 +66,9 @@ def _linear_forward_triton_kernel(
 
 @cutotune(
     get_cartesian_product_cutotune_configs(
-        BLOCK_SIZE_M=[32, 64, 128, 256], BLOCK_SIZE_K=[32, 64, 128], BLOCK_SIZE_N=[32, 64, 128, 256]
+        BLOCK_SIZE_M=[32, 64, 128, 256], BLOCK_SIZE_K=[32], BLOCK_SIZE_N=[32, 64, 128, 256]
     ),
-    default_config=CutoTuneConfig(dict(BLOCK_SIZE_M=64, BLOCK_SIZE_K=64, BLOCK_SIZE_N=64)),
+    default_config=CutoTuneConfig(dict(BLOCK_SIZE_M=64, BLOCK_SIZE_K=32, BLOCK_SIZE_N=64)),
 )
 @cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"output"})
 def linear_forward_triton(
