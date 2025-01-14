@@ -9,7 +9,6 @@ from cute_kernels import linear_cute, linear_torch
 from ..test_commons import TestCommons
 
 
-_EPSILON = 1e-5
 _SEED = 42
 
 
@@ -20,7 +19,7 @@ class LinearTest(TestCommons):
             [torch.device("cuda")],  # device
             TestCommons.get_dtypes()[:1],  # dtype
             [False, True],  # has_bias
-            [linear_cute, torch.compile(linear_cute, fullgraph=True)][:1],  # function
+            [linear_cute, torch.compile(linear_cute, fullgraph=True)],  # function
         )
     )
     def test_linear(
