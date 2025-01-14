@@ -1,4 +1,3 @@
-# Add Tensor
+# Tensor add
 
-## Forward
 $$z_i = x_i + y_i$$
