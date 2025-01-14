@@ -42,14 +42,13 @@ def _rmsnorm_backward_triton_kernel(
     num_loops = tl.cdiv(num_elements_in_current_program, BLOCK_SIZE_B)
 
     x_dtype = x_ptr.dtype.element_ty
-    has_weight = weight_ptr is not None
 
-    if has_weight:
-        weight = tl.load(weight_ptr + indices_h, mask=mask_h)[None, :]
-        weight_grad = tl.zeros((BLOCK_SIZE_H,), dtype=tl.float32)
-    else:
+    if weight_ptr is None:
         weight = 1
         weight_grad = 0
+    else:
+        weight = tl.load(weight_ptr + indices_h, mask=mask_h)[None, :]
+        weight_grad = tl.zeros((BLOCK_SIZE_H,), dtype=tl.float32)
 
     for i in range(num_loops):
         indices_b = program_start + i * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
@@ -85,10 +84,10 @@ def _rmsnorm_backward_triton_kernel(
         x_grad_ptrs = x_grad_ptr + indices_b[:, None] * H + indices_h[None, :]
         tl.store(x_grad_ptrs, x_grad, mask=mask_bh)
 
-        if has_weight:
+        if weight_ptr is not None:
             weight_grad += tl.sum(output_grad * (x * inverse_rms[:, None]).to(x_dtype), axis=0)
 
-    if has_weight:
+    if weight_ptr is not None:
         tl.atomic_add(weight_grad_ptr + indices_h, weight_grad, mask=mask_h)
 
 
