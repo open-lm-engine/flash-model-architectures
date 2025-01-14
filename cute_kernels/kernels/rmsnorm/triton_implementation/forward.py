@@ -15,7 +15,6 @@ _KERNEL_NAME = "rmsnorm_forward_triton"
 @triton.jit
 def _rmsnorm_forward_triton_kernel(
     x_ptr,
-    x_dtype: tl.constexpr,
     has_weight: tl.constexpr,
     weight_ptr,
     output_ptr,
@@ -50,7 +49,7 @@ def _rmsnorm_forward_triton_kernel(
 
     if has_weight:
         weight = tl.load(weight_ptr + indices_h, mask=mask_h)
-        x = x.to(x_dtype) * weight[None, :]
+        x = x.to(x_ptr.dtype.element_ty) * weight[None, :]
 
     output_ptrs = output_ptr + indices_b[:, None] * H + indices_h[None, :]
     tl.store(output_ptrs, x, mask=mask_bh)
@@ -75,7 +74,6 @@ def rmsnorm_forward_triton(
     with torch.device(x.device):
         _rmsnorm_forward_triton_kernel[(ceil_divide(num_elements, BLOCK_SIZE_B),)](
             x_ptr=x,
-            x_dtype=TORCH_TO_TRITON_DTYPE[x.dtype],
             has_weight=weight is not None,
             weight_ptr=weight,
             output_ptr=output,
