@@ -1,12 +1,14 @@
 import torch
 
 from ...cutotune import CutoTuneParameter
+from ...utils import ensure_contiguous
 from .torch_implementation import linear_torch
 from .triton_implementation import linear_forward_triton
 
 
 class _Linear_Cute(torch.autograd.Function):
     @staticmethod
+    @ensure_contiguous
     def forward(
         ctx,
         input: torch.Tensor,
@@ -34,6 +36,7 @@ class _Linear_Cute(torch.autograd.Function):
         return output
 
     @staticmethod
+    @ensure_contiguous
     def backward(ctx, output_grad: torch.Tensor) -> torch.Tensor:
         input, weight, bias = ctx.saved_tensors
         return input, weight, bias, *[None] * 4
