@@ -10,6 +10,7 @@ from cute_kernels import (
     embedding_cute,
     get_all_cutotune_caches,
     get_powers_of_2,
+    linear_cute,
     rmsnorm_cute,
     save_cutotune_cache,
     swiglu_cute,
@@ -61,6 +62,13 @@ for dtype in all_dtypes:
             0, weight_size[0] - 1, input_ids_size, device=torch.cuda.current_device(), dtype=torch.long
         ),
         weight=torch.randn(weight_size, device=torch.cuda.current_device(), dtype=dtype, requires_grad=True),
+    )
+
+    input_size = (4 * 4096, 4096)
+    weight_size = (4096, 4096)
+    linear_cute(
+        input=torch.randn(*input_size, device=torch.cuda.current_device(), dtype=dtype),
+        weight=torch.randn(*weight_size, device=torch.cuda.current_device(), dtype=dtype),
     )
 
 size = 104857600
