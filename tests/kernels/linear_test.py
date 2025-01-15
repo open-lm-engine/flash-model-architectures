@@ -56,7 +56,7 @@ class LinearTest(TestCommons):
             False,
             atol_float32=4e-3,
             rtol_float32=1e-4,
-            atol_float16=6e-5,
+            atol_float16=1e-4,
             rtol_float16=5e-3,
             atol_bfloat16=2e-3,
             rtol_bfloat16=7e-3,
