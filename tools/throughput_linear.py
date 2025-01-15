@@ -6,23 +6,16 @@ from cute_kernels import device_synchronize, linear_cute, linear_torch
 
 n = 100
 
-headers = ["dtype", "torch", "triton"]
-kernels = [
-    linear_torch,
-    linear_cute,
-    # partial(add_tensor_cute, kernel_backend=KernelBackend.triton, BLOCK_SIZE=1024),
-]
+headers = ["dtype", "torch TFLOPs", "triton TFLOPs"]
+kernels = [linear_torch, linear_cute]
 
 table = []
 
 for dtype in [torch.bfloat16]:
     row = [str(dtype)]
     for kernel in kernels:
-        # kernel = torch.compile(kernel)
         x = torch.randn(4 * 4096, 4096, device=torch.cuda.current_device(), dtype=dtype)
         w = torch.randn(4096, 4096, device=torch.cuda.current_device(), dtype=dtype)
-        # y = 0.42
-        # y = torch.randn(10485760, device=torch.cuda.current_device(), dtype=dtype)
 
         for i in range(n):
             z = kernel(x, w)
