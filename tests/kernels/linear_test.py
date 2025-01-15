@@ -33,17 +33,15 @@ class LinearTest(TestCommons):
         set_seed(_SEED)
 
         input_kernel, input_expected = self.get_random_duplicated_tensors(
-            (400, size[-1]), device=device, dtype=dtype, std=0.02 if dtype != torch.float32 else 1
+            (400, size[-1]), device=device, dtype=dtype, std=0.02
         )
-        weight_kernel, weight_expected = self.get_random_duplicated_tensors(
-            size, device=device, dtype=dtype, std=0.02 if dtype != torch.float32 else 1
-        )
+        weight_kernel, weight_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype, std=0.02)
 
         bias_kernel = None
         bias_expected = None
         if has_bias:
             bias_kernel, bias_expected = self.get_random_duplicated_tensors(
-                size[0], device=device, dtype=dtype, std=0.02 if dtype != torch.float32 else 1
+                size[0], device=device, dtype=dtype, std=0.02
             )
 
         z_kernel = function(input=input_kernel, weight=weight_kernel, bias=bias_kernel)
