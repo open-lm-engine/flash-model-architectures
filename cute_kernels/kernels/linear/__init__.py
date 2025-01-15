@@ -36,7 +36,7 @@ class _Linear_Cute(torch.autograd.Function):
     @staticmethod
     def backward(ctx, output_grad: torch.Tensor) -> torch.Tensor:
         input, weight, bias = ctx.saved_tensors
-        return input, weight, bias, None, None, None
+        return input, weight, bias, *[None] * 4
 
 
 def linear_cute(
