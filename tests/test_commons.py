@@ -84,7 +84,8 @@ class TestCommons(TestCase):
     def get_random_duplicated_tensors(
         self, size: tuple[int], device: torch.device, dtype: torch.dtype, std: float = 1
     ) -> tuple[torch.Tensor]:
-        x = torch.randn(size, device=device, dtype=dtype, requires_grad=True) * std
+        x = torch.randn(size, device=device, dtype=dtype, requires_grad=False) * std
+        x.requires_grad_()
         x_clone = x.clone().detach().requires_grad_()
 
         return x, x_clone
