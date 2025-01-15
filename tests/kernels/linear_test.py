@@ -17,7 +17,7 @@ class LinearTest(TestCommons):
         TestCommons.make_args_matrix(
             TestCommons.get_2d_tensor_sizes(),  # size
             [torch.device("cuda")],  # device
-            TestCommons.get_dtypes()[:1],  # dtype
+            TestCommons.get_dtypes(),  # dtype
             [False, True],  # has_bias
             [linear_cute, torch.compile(linear_cute, fullgraph=True)],  # function
         )
@@ -32,13 +32,19 @@ class LinearTest(TestCommons):
     ) -> None:
         set_seed(_SEED)
 
-        input_kernel, input_expected = self.get_random_duplicated_tensors((400, size[-1]), device=device, dtype=dtype)
-        weight_kernel, weight_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype)
+        input_kernel, input_expected = self.get_random_duplicated_tensors(
+            (400, size[-1]), device=device, dtype=dtype, std=0.02 if dtype != torch.float32 else 1
+        )
+        weight_kernel, weight_expected = self.get_random_duplicated_tensors(
+            size, device=device, dtype=dtype, std=0.02 if dtype != torch.float32 else 1
+        )
 
         bias_kernel = None
         bias_expected = None
         if has_bias:
-            bias_kernel, bias_expected = self.get_random_duplicated_tensors(size[0], device=device, dtype=dtype)
+            bias_kernel, bias_expected = self.get_random_duplicated_tensors(
+                size[0], device=device, dtype=dtype, std=0.02 if dtype != torch.float32 else 1
+            )
 
         z_kernel = function(input=input_kernel, weight=weight_kernel, bias=bias_kernel)
         z_expected = linear_torch(input=input_expected, weight=weight_expected, bias=bias_expected)
@@ -46,7 +52,17 @@ class LinearTest(TestCommons):
         z_kernel.sum().backward()
         z_expected.sum().backward()
 
-        self.assert_equal_tensors(z_kernel, z_expected, False, atol_float32=4e-3, rtol_float32=1e-4)
+        self.assert_equal_tensors(
+            z_kernel,
+            z_expected,
+            False,
+            atol_float32=4e-3,
+            rtol_float32=1e-4,
+            atol_float16=6e-5,
+            rtol_float16=5e-3,
+            atol_bfloat16=2e-3,
+            rtol_bfloat16=7e-3,
+        )
 
         # print(size, dtype)
         # assert False
