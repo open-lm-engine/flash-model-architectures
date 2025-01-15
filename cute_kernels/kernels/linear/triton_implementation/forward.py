@@ -49,15 +49,15 @@ def _linear_forward_triton_kernel(
         mask_nk = mask_n[:, None] & mask_k[None, :]
 
         input_ptrs = input_ptr + indices_m[:, None] * K + indices_k[None, :]
-        input = tl.load(input_ptrs, mask=mask_mk)
+        input = tl.load(input_ptrs, mask=mask_mk, other=0)
 
         weight_ptrs = weight_ptr + indices_n[:, None] * K + indices_k[None, :]
-        weight = tl.load(weight_ptrs, mask=mask_nk)
+        weight = tl.load(weight_ptrs, mask=mask_nk, other=0)
 
-        accumulator = tl.dot(input, weight.T, accumulator, input_precision="ieee")
+        accumulator = tl.dot(input, weight.T, accumulator, allow_tf32=True)
 
     if bias_ptr is not None:
-        bias = tl.load(bias_ptr + indices_n, mask=mask_n)
+        bias = tl.load(bias_ptr + indices_n, mask=mask_n, other=0)
         accumulator += bias[None, :]
 
     output_ptrs = output_ptr + indices_m[:, None] * N + indices_n[None, :]
@@ -66,9 +66,12 @@ def _linear_forward_triton_kernel(
 
 @cutotune(
     get_cartesian_product_cutotune_configs(
-        BLOCK_SIZE_M=[32, 64, 128, 256], BLOCK_SIZE_K=[32], BLOCK_SIZE_N=[32, 64, 128, 256]
+        BLOCK_SIZE_M=[32, 64, 128],
+        BLOCK_SIZE_K=[16, 32],
+        BLOCK_SIZE_N=[32, 64, 128],
+        num_warps=[1, 2, 4, 8],
     ),
-    default_config=CutoTuneConfig(dict(BLOCK_SIZE_M=32, BLOCK_SIZE_K=32, BLOCK_SIZE_N=32)),
+    default_config=CutoTuneConfig(dict(BLOCK_SIZE_M=128, BLOCK_SIZE_K=32, BLOCK_SIZE_N=128, num_warps=8)),
 )
 @cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"output"})
 def linear_forward_triton(
@@ -79,6 +82,7 @@ def linear_forward_triton(
     BLOCK_SIZE_M: int,
     BLOCK_SIZE_K: int,
     BLOCK_SIZE_N: int,
+    num_warps: int,
 ) -> None:
     M, K = get_num_elements_and_hidden_size(input)
     N = weight.size(0)
@@ -95,4 +99,5 @@ def linear_forward_triton(
             BLOCK_SIZE_M=BLOCK_SIZE_M,
             BLOCK_SIZE_K=BLOCK_SIZE_K,
             BLOCK_SIZE_N=BLOCK_SIZE_N,
+            num_warps=num_warps,
         )
