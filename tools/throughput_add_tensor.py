@@ -20,9 +20,7 @@ table = []
 for dtype in [torch.float16, torch.bfloat16, torch.float32]:
     row = [str(dtype)]
     for kernel in kernels:
-        # kernel = torch.compile(kernel)
         x = torch.randn(10485760, device=torch.cuda.current_device(), dtype=dtype)
-        # y = 0.42
         y = torch.randn(10485760, device=torch.cuda.current_device(), dtype=dtype)
 
         for i in range(n):
