@@ -64,6 +64,13 @@ def _linear_forward_triton_kernel(
     tl.store(output_ptrs, accumulator.to(input_ptr.dtype.element_ty), mask=mask_m[:, None] & mask_n[None, :])
 
 
+def _condition(input: torch.Tensor, BLOCK_SIZE_M: int, BLOCK_SIZE_K: int, BLOCK_SIZE_N: int, **kwargs) -> bool:
+    if input.dtype == torch.float32 and BLOCK_SIZE_M == 128 and BLOCK_SIZE_K == 128 and BLOCK_SIZE_N == 128:
+        return False
+
+    return True   
+
+
 @cutotune(
     get_cartesian_product_cutotune_configs(
         BLOCK_SIZE_M=[16, 32, 64, 128],
@@ -71,8 +78,10 @@ def _linear_forward_triton_kernel(
         BLOCK_SIZE_N=[16, 32, 64, 128],
         num_warps=[1, 2, 4, 8, 16, 32],
         num_stages=[1, 2],
+        condition=_condition,
     ),
-    default_config=CutoTuneConfig(dict(BLOCK_SIZE_M=128, BLOCK_SIZE_K=32, BLOCK_SIZE_N=128, num_warps=8)),
+    default_config=CutoTuneConfig(dict(BLOCK_SIZE_M=128, BLOCK_SIZE_K=64, BLOCK_SIZE_N=128, num_warps=8, num_stages=2)),
+    triggers={"input.dtype"},
 )
 @cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"output"})
 def linear_forward_triton(
