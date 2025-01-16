@@ -11,7 +11,7 @@ kernels = [linear_torch, torch.compile(linear_torch, mode="max-autotune"), linea
 
 table = []
 
-for dtype in [torch.bfloat16]:
+for dtype in [torch.float16, torch.bfloat16, torch.float32]:
     row = [str(dtype)]
     for kernel in kernels:
         x = torch.randn(4 * 4096, 4096, device=torch.cuda.current_device(), dtype=dtype)
