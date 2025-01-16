@@ -17,7 +17,6 @@ class _Linear_Cute(torch.autograd.Function):
         BLOCK_SIZE_M: int,
         BLOCK_SIZE_K: int,
         BLOCK_SIZE_N: int,
-        num_warps: int,
     ) -> torch.Tensor:
         ctx.save_for_backward(input, weight, bias)
         output = torch.empty(*input.size()[:-1], weight.size(0), dtype=input.dtype, device=input.device)
