@@ -66,10 +66,11 @@ def _linear_forward_triton_kernel(
 
 @cutotune(
     get_cartesian_product_cutotune_configs(
-        BLOCK_SIZE_M=[32, 64, 128],
-        BLOCK_SIZE_K=[16, 32],
-        BLOCK_SIZE_N=[32, 64, 128],
-        num_warps=[1, 2, 4, 8],
+        BLOCK_SIZE_M=[16, 32, 64, 128],
+        BLOCK_SIZE_K=[16, 32, 64, 128],
+        BLOCK_SIZE_N=[16, 32, 64, 128],
+        num_warps=[1, 2, 4, 8, 16, 32],
+        num_stages=[1, 2],
     ),
     default_config=CutoTuneConfig(dict(BLOCK_SIZE_M=128, BLOCK_SIZE_K=32, BLOCK_SIZE_N=128, num_warps=8)),
 )
@@ -83,6 +84,7 @@ def linear_forward_triton(
     BLOCK_SIZE_K: int,
     BLOCK_SIZE_N: int,
     num_warps: int,
+    num_stages: int,
 ) -> None:
     M, K = get_num_elements_and_hidden_size(input)
     N = weight.size(0)
@@ -100,4 +102,5 @@ def linear_forward_triton(
             BLOCK_SIZE_K=BLOCK_SIZE_K,
             BLOCK_SIZE_N=BLOCK_SIZE_N,
             num_warps=num_warps,
+            num_stages=num_stages,
         )

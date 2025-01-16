@@ -30,7 +30,8 @@ class _Linear_Cute(torch.autograd.Function):
             BLOCK_SIZE_M=BLOCK_SIZE_M,
             BLOCK_SIZE_K=BLOCK_SIZE_K,
             BLOCK_SIZE_N=BLOCK_SIZE_N,
-            num_warps=num_warps,
+            num_warps=CutoTuneParameter(),
+            num_stages=CutoTuneParameter(),
         )
 
         return output
@@ -49,6 +50,5 @@ def linear_cute(
     BLOCK_SIZE_M: int = CutoTuneParameter(),
     BLOCK_SIZE_K: int = CutoTuneParameter(),
     BLOCK_SIZE_N: int = CutoTuneParameter(),
-    num_warps: int = CutoTuneParameter(),
 ) -> torch.Tensor:
-    return _Linear_Cute.apply(input, weight, bias, BLOCK_SIZE_M, BLOCK_SIZE_K, BLOCK_SIZE_N, num_warps)
+    return _Linear_Cute.apply(input, weight, bias, BLOCK_SIZE_M, BLOCK_SIZE_K, BLOCK_SIZE_N)
