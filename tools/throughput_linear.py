@@ -6,8 +6,8 @@ from cute_kernels import device_synchronize, linear_cute, linear_torch
 
 n = 100
 
-headers = ["dtype", "torch TFLOPs", "triton TFLOPs"]
-kernels = [linear_torch, linear_cute]
+headers = ["dtype", "torch TFLOPs", "torch compile TFLOPs", "triton TFLOPs"]
+kernels = [linear_torch, torch.compile(linear_torch, mode="max-autotune"), linear_cute]
 
 table = []
 
