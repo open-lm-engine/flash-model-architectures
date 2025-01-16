@@ -30,8 +30,11 @@ def _linear_forward_triton_kernel(
     # bias -> N
     # output -> M x N
 
-    pid_m = tl.program_id(axis=0)
-    pid_n = tl.program_id(axis=1)
+    pid = tl.program_id(axis=0)
+    num_programs_n = tl.cdiv(N, BLOCK_SIZE_N)
+
+    pid_m = pid // num_programs_n
+    pid_n = pid % num_programs_n
 
     indices_m = pid_m * BLOCK_SIZE_M + tl.arange(0, BLOCK_SIZE_M)
     indices_n = pid_n * BLOCK_SIZE_N + tl.arange(0, BLOCK_SIZE_N)
@@ -68,7 +71,7 @@ def _condition(input: torch.Tensor, BLOCK_SIZE_M: int, BLOCK_SIZE_K: int, BLOCK_
     if input.dtype == torch.float32 and BLOCK_SIZE_M == 128 and BLOCK_SIZE_K == 128 and BLOCK_SIZE_N == 128:
         return False
 
-    return True   
+    return True
 
 
 @cutotune(
@@ -80,7 +83,9 @@ def _condition(input: torch.Tensor, BLOCK_SIZE_M: int, BLOCK_SIZE_K: int, BLOCK_
         num_stages=[1, 2],
         condition=_condition,
     ),
-    default_config=CutoTuneConfig(dict(BLOCK_SIZE_M=128, BLOCK_SIZE_K=64, BLOCK_SIZE_N=128, num_warps=8, num_stages=2)),
+    default_config=CutoTuneConfig(
+        dict(BLOCK_SIZE_M=128, BLOCK_SIZE_K=64, BLOCK_SIZE_N=128, num_warps=8, num_stages=2)
+    ),
     triggers={"input.dtype"},
 )
 @cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"output"})
@@ -99,7 +104,7 @@ def linear_forward_triton(
     N = weight.size(0)
 
     with torch.device(input.device):
-        _linear_forward_triton_kernel[(ceil_divide(M, BLOCK_SIZE_M), ceil_divide(N, BLOCK_SIZE_N))](
+        _linear_forward_triton_kernel[(ceil_divide(M, BLOCK_SIZE_M) * ceil_divide(N, BLOCK_SIZE_N),)](
             input_ptr=input,
             weight_ptr=weight,
             bias_ptr=bias,
