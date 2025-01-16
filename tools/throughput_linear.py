@@ -4,6 +4,8 @@ from tabulate import tabulate
 from cute_kernels import device_synchronize, linear_cute, linear_torch
 
 
+torch.backends.cuda.matmul.allow_tf32 = True
+
 n = 100
 
 headers = ["dtype", "torch TFLOPs", "torch compile TFLOPs", "triton TFLOPs"]
