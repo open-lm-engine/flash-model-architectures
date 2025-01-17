@@ -44,7 +44,7 @@ def _linear_backward_triton_kernel(
 
     accumulator_weight_grad = tl.zeros((BLOCK_SIZE_N, BLOCK_SIZE_K), dtype=tl.float32)
 
-    if bias_grad_ptr is not None:
+    if bias_grad_ptr is not None and pid_k == 0:
         accumulator_bias_grad = tl.zeros(BLOCK_SIZE_N, dtype=tl.float32)
 
     for m in range(tl.cdiv(M, BLOCK_SIZE_M)):
@@ -62,7 +62,7 @@ def _linear_backward_triton_kernel(
 
         accumulator_weight_grad = tl.dot(output_grad.T, input, accumulator_weight_grad, allow_tf32=use_tf32)
 
-        if bias_grad_ptr is not None:
+        if bias_grad_ptr is not None and pid_k == 0:
             accumulator_bias_grad += tl.sum(output_grad, axis=0)
 
     tl.store(
