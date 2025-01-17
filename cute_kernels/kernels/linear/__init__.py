@@ -70,7 +70,7 @@ class _Linear_Cute(torch.autograd.Function):
             num_stages=CutoTuneParameter(),
         )
 
-        return input_grad, weight_grad, bias_grad, *[None] * 4
+        return input_grad, weight_grad, bias_grad, *[None] * 7
 
 
 def linear_cute(
