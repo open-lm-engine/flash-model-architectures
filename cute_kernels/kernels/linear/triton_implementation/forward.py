@@ -78,7 +78,7 @@ def _condition(input: torch.Tensor, BLOCK_SIZE_M: int, BLOCK_SIZE_K: int, BLOCK_
 
 @cutotune(
     get_cartesian_product_cutotune_configs(
-        GROUP_SIZE_M=[1, 2, 4, 8],
+        GROUP_SIZE_M=[8],
         BLOCK_SIZE_M=[16, 32, 64, 128],
         BLOCK_SIZE_K=[16, 32, 64, 128],
         BLOCK_SIZE_N=[16, 32, 64, 128],
