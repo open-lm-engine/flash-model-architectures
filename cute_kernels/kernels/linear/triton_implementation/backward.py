@@ -67,7 +67,7 @@ def _linear_backward_triton_kernel(
             accumulator_bias_grad += tl.sum(output_grad, axis=0)
 
     tl.store(
-        weight_grad_ptr + indices_m[:, None] * N + indices_n[None, :],
+        weight_grad_ptr + indices_n[:, None] * N + indices_k[None, :],
         accumulator_weight_grad.to(input_ptr.dtype.element_ty),
         mask=mask_n[:, None] & mask_k[None, :],
     )
