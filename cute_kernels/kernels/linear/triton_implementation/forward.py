@@ -20,7 +20,7 @@ def _get_triton_autotune_configs() -> list[triton.Config]:
     return configs
 
 
-@triton.autotune(configs=_get_triton_autotune_configs())
+@triton.autotune(configs=_get_triton_autotune_configs(), key=["BLOCK_SIZE_M", "BLOCK_SIZE_K", "BLOCK_SIZE_K"])
 @triton.jit
 def _linear_forward_triton_kernel(
     input_ptr,
@@ -31,7 +31,6 @@ def _linear_forward_triton_kernel(
     M,
     K,
     N,
-    GROUP_SIZE_M: tl.constexpr,
     BLOCK_SIZE_M: tl.constexpr,
     BLOCK_SIZE_K: tl.constexpr,
     BLOCK_SIZE_N: tl.constexpr,
