@@ -9,7 +9,6 @@ $$y_{ij} = \sum_{k=1}^{K} w_{jk} x_{ik} + b_j$$
 $$\frac{\partial L}{\partial x_{ij}} = \sum_{m=1}^M \sum_{n=1}^N \frac{\partial L}{\partial y_{mn}} \frac{\partial y_{mn}}{\partial x_{ij}}$$
 $$= \sum_{m=1}^M \sum_{n=1}^N \frac{\partial L}{\partial y_{mn}} \frac{\partial}{\partial x_{ij}} \left( \sum_{k=1}^K w_{nk} x_{mk} + b_n \right)$$
 $$= \sum_{m=1}^M \sum_{n=1}^N \frac{\partial L}{\partial y_{mn}} \sum_{k=1}^K w_{nk} \frac{\partial x_{mk}}{\partial x_{ij}}$$
-$$= \sum_{m=1}^M \sum_{n=1}^N \frac{\partial L}{\partial y_{mn}} \sum_{k=1}^K w_{nk} \frac{\partial x_{mk}}{\partial x_{ij}}$$
 $$= \sum_{m=1}^M \sum_{n=1}^N \frac{\partial L}{\partial y_{mn}} w_{nj} \frac{\partial x_{mj}}{\partial x_{ij}}$$
 $$= \sum_{n=1}^N \frac{\partial L}{\partial y_{in}} w_{nj}$$
 ---
