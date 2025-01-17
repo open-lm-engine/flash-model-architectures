@@ -57,6 +57,11 @@ class _Linear_Cute(torch.autograd.Function):
         if ctx.has_bias:
             bias_grad = torch.empty(weight.size(0), device=weight.device, dtype=weight.dtype)
 
+        # input_grad = output_grad @ weight
+        # weight_grad = output_grad.T @ input
+        # if bias_grad is not None:
+        #     bias_grad = output_grad.sum(dim=0)
+
         linear_backward_triton(
             input=input,
             output_grad=output_grad,
