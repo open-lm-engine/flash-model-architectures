@@ -94,7 +94,7 @@ def gemm_triton(
     num_warps: int,
     num_stages: int,
 ) -> None:
-    M, K = get_num_elements_and_hidden_size(input)
+    M, K = get_num_elements_and_hidden_size(a)
     N = b.size(-1)
 
     with torch.device(input.device):
