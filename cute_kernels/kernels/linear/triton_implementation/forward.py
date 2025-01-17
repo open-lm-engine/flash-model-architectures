@@ -21,6 +21,7 @@ def _linear_forward_triton_kernel(
     M,
     K,
     N,
+    GROUP_SIZE_M: tl.constexpr,
     BLOCK_SIZE_M: tl.constexpr,
     BLOCK_SIZE_K: tl.constexpr,
     BLOCK_SIZE_N: tl.constexpr,
@@ -77,6 +78,7 @@ def _condition(input: torch.Tensor, BLOCK_SIZE_M: int, BLOCK_SIZE_K: int, BLOCK_
 
 @cutotune(
     get_cartesian_product_cutotune_configs(
+        GROUP_SIZE_M=[1, 2, 4, 8],
         BLOCK_SIZE_M=[16, 32, 64, 128],
         BLOCK_SIZE_K=[16, 32, 64, 128],
         BLOCK_SIZE_N=[16, 32, 64, 128],
@@ -96,6 +98,7 @@ def linear_forward_triton(
     bias: torch.Tensor | None,
     output: torch.Tensor,
     use_tf32: bool,
+    GROUP_SIZE_M: int,
     BLOCK_SIZE_M: int,
     BLOCK_SIZE_K: int,
     BLOCK_SIZE_N: int,
@@ -115,6 +118,7 @@ def linear_forward_triton(
             M=M,
             K=K,
             N=N,
+            GROUP_SIZE_M=GROUP_SIZE_M,
             BLOCK_SIZE_M=BLOCK_SIZE_M,
             BLOCK_SIZE_K=BLOCK_SIZE_K,
             BLOCK_SIZE_N=BLOCK_SIZE_N,
