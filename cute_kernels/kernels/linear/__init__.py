@@ -77,8 +77,22 @@ def linear_cute(
     weight: torch.Tensor,
     bias: torch.Tensor | None = None,
     use_tf32: bool = True,
-    BLOCK_SIZE_M: int = CutoTuneParameter(),
-    BLOCK_SIZE_K: int = CutoTuneParameter(),
-    BLOCK_SIZE_N: int = CutoTuneParameter(),
+    BLOCK_SIZE_M_forward: int = CutoTuneParameter(),
+    BLOCK_SIZE_K_forward: int = CutoTuneParameter(),
+    BLOCK_SIZE_N_forward: int = CutoTuneParameter(),
+    BLOCK_SIZE_M_backward: int = CutoTuneParameter(),
+    BLOCK_SIZE_K_backward: int = CutoTuneParameter(),
+    BLOCK_SIZE_N_backward: int = CutoTuneParameter(),
 ) -> torch.Tensor:
-    return _Linear_Cute.apply(input, weight, bias, use_tf32, BLOCK_SIZE_M, BLOCK_SIZE_K, BLOCK_SIZE_N)
+    return _Linear_Cute.apply(
+        input,
+        weight,
+        bias,
+        use_tf32,
+        BLOCK_SIZE_M_forward,
+        BLOCK_SIZE_K_forward,
+        BLOCK_SIZE_N_forward,
+        BLOCK_SIZE_M_backward,
+        BLOCK_SIZE_K_backward,
+        BLOCK_SIZE_N_backward,
+    )
