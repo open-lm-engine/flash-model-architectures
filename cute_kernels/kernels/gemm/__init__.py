@@ -15,7 +15,7 @@ def gemm_cute(
     BLOCK_SIZE_K: int = CutoTuneParameter(),
     BLOCK_SIZE_N: int = CutoTuneParameter(),
 ) -> torch.Tensor:
-    output = torch.empty(*input.size()[:-1], b.size(-1), dtype=input.dtype, device=input.device)
+    output = torch.empty(*a.size()[:-1], b.size(-1), dtype=a.dtype, device=a.device)
 
     gemm_triton(
         a=a,
