@@ -2,112 +2,112 @@ all_configs:
   '''weight.dtype = torch.bfloat16''':
   - config:
       BLOCK_SIZE_B: 128
+      BLOCK_SIZE_H: 128
+      kernel_backend: triton
+    time: 4.100815963745117
+  - config:
+      BLOCK_SIZE_B: 256
+      BLOCK_SIZE_H: 128
+      kernel_backend: triton
+    time: 4.576326370239258
+  - config:
+      BLOCK_SIZE_B: 128
+      BLOCK_SIZE_H: 256
+      kernel_backend: triton
+    time: 4.735670471191407
+  - config:
+      BLOCK_SIZE_B: 128
       BLOCK_SIZE_H: 512
       kernel_backend: triton
-    time: 10.27402572631836
+    time: 8.045680236816406
+  - config:
+      BLOCK_SIZE_B: 256
+      BLOCK_SIZE_H: 256
+      kernel_backend: triton
+    time: 8.068323516845703
   - config:
       BLOCK_SIZE_B: 512
       BLOCK_SIZE_H: 128
       kernel_backend: triton
-    time: 10.283042907714844
-  - config:
-      BLOCK_SIZE_B: 256
-      BLOCK_SIZE_H: 256
-      kernel_backend: triton
-    time: 10.319459533691406
-  - config:
-      BLOCK_SIZE_B: 128
-      BLOCK_SIZE_H: 128
-      kernel_backend: triton
-    time: 11.215084838867188
-  - config:
-      BLOCK_SIZE_B: 256
-      BLOCK_SIZE_H: 128
-      kernel_backend: triton
-    time: 11.29471664428711
-  - config:
-      BLOCK_SIZE_B: 128
-      BLOCK_SIZE_H: 256
-      kernel_backend: triton
-    time: 11.53461151123047
+    time: 8.546057891845702
   '''weight.dtype = torch.float16''':
   - config:
       BLOCK_SIZE_B: 128
       BLOCK_SIZE_H: 128
       kernel_backend: triton
-    time: 3.526998519897461
-  - config:
-      BLOCK_SIZE_B: 128
-      BLOCK_SIZE_H: 256
-      kernel_backend: triton
-    time: 5.252384185791016
+    time: 1.5177984237670898
   - config:
       BLOCK_SIZE_B: 256
       BLOCK_SIZE_H: 128
       kernel_backend: triton
-    time: 5.267305755615235
+    time: 1.7299327850341797
   - config:
-      BLOCK_SIZE_B: 256
+      BLOCK_SIZE_B: 128
       BLOCK_SIZE_H: 256
       kernel_backend: triton
-    time: 5.6211200714111325
+    time: 1.738105583190918
   - config:
       BLOCK_SIZE_B: 512
       BLOCK_SIZE_H: 128
       kernel_backend: triton
-    time: 5.637184143066406
+    time: 2.1148128509521484
+  - config:
+      BLOCK_SIZE_B: 256
+      BLOCK_SIZE_H: 256
+      kernel_backend: triton
+    time: 3.791900634765625
   - config:
       BLOCK_SIZE_B: 128
       BLOCK_SIZE_H: 512
       kernel_backend: triton
-    time: 5.814659118652344
+    time: 4.0580894470214846
   '''weight.dtype = torch.float32''':
   - config:
       BLOCK_SIZE_B: 128
-      BLOCK_SIZE_H: 512
-      kernel_backend: triton
-    time: 9.814495849609376
-  - config:
-      BLOCK_SIZE_B: 128
       BLOCK_SIZE_H: 128
       kernel_backend: triton
-    time: 9.861996459960938
+    time: 3.4139328002929688
+  - config:
+      BLOCK_SIZE_B: 256
+      BLOCK_SIZE_H: 128
+      kernel_backend: triton
+    time: 7.500035095214844
+  - config:
+      BLOCK_SIZE_B: 128
+      BLOCK_SIZE_H: 512
+      kernel_backend: triton
+    time: 8.157584381103515
+  - config:
+      BLOCK_SIZE_B: 256
+      BLOCK_SIZE_H: 256
+      kernel_backend: triton
+    time: 8.249456024169922
+  - config:
+      BLOCK_SIZE_B: 128
+      BLOCK_SIZE_H: 256
+      kernel_backend: triton
+    time: 8.257520294189453
   - config:
       BLOCK_SIZE_B: 512
       BLOCK_SIZE_H: 128
       kernel_backend: triton
-    time: 10.044889831542969
-  - config:
-      BLOCK_SIZE_B: 256
-      BLOCK_SIZE_H: 256
-      kernel_backend: triton
-    time: 10.217913818359374
-  - config:
-      BLOCK_SIZE_B: 256
-      BLOCK_SIZE_H: 128
-      kernel_backend: triton
-    time: 10.519142150878906
-  - config:
-      BLOCK_SIZE_B: 128
-      BLOCK_SIZE_H: 256
-      kernel_backend: triton
-    time: 10.886006164550782
+    time: 8.638845062255859
 best_configs:
   '''weight.dtype = torch.bfloat16''':
     config:
       BLOCK_SIZE_B: 128
-      BLOCK_SIZE_H: 512
+      BLOCK_SIZE_H: 128
       kernel_backend: triton
-    time: 10.27402572631836
+    time: 4.100815963745117
   '''weight.dtype = torch.float16''':
     config:
       BLOCK_SIZE_B: 128
       BLOCK_SIZE_H: 128
       kernel_backend: triton
-    time: 3.526998519897461
+    time: 1.5177984237670898
   '''weight.dtype = torch.float32''':
     config:
       BLOCK_SIZE_B: 128
-      BLOCK_SIZE_H: 512
+      BLOCK_SIZE_H: 128
       kernel_backend: triton
-    time: 9.814495849609376
+    time: 3.4139328002929688

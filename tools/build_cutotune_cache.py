@@ -10,6 +10,7 @@ from cute_kernels import (
     embedding_cute,
     get_all_cutotune_caches,
     get_powers_of_2,
+    linear_cute,
     rmsnorm_cute,
     save_cutotune_cache,
     swiglu_cute,
@@ -42,7 +43,6 @@ for dtype in all_dtypes:
 
     for power_of_2 in get_powers_of_2(1, 65536):
         size = (2048, power_of_2)
-        print(dtype, size)
         x = torch.randn(size, dtype=dtype, device=torch.cuda.current_device(), requires_grad=True)
 
         forward_backward(rmsnorm_cute, x, weight=None, eps=1e-5)
@@ -63,10 +63,16 @@ for dtype in all_dtypes:
         weight=torch.randn(weight_size, device=torch.cuda.current_device(), dtype=dtype, requires_grad=True),
     )
 
+    input_size = (4 * 4096, 4096)
+    weight_size = (4096, 4096)
+    linear_cute(
+        input=torch.randn(*input_size, device=torch.cuda.current_device(), dtype=dtype),
+        weight=torch.randn(*weight_size, device=torch.cuda.current_device(), dtype=dtype),
+    )
+
 size = 104857600
 for dtype in [torch.long, torch.int32]:
     for n in get_powers_of_2(1, 16384):
-        print(n)
         x = torch.randint(0, n, (size,), dtype=dtype, device=torch.cuda.current_device())
         continuous_count_cute(x, n)
 

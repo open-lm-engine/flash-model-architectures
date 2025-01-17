@@ -2,7 +2,7 @@ import torch
 import triton
 import triton.language as tl
 
-from ....constants import LIBRARY_NAME, TORCH_TO_TRITON_DTYPE
+from ....constants import LIBRARY_NAME
 from ....cutotune import cutotune
 from ....math import ceil_divide
 from ....utils import cute_op, get_num_elements_and_hidden_size, get_sm_count
@@ -16,14 +16,11 @@ _KERNEL_WEIGHTED_NAME = "rmsnorm_backward_triton"
 @triton.jit
 def _rmsnorm_backward_triton_kernel(
     x_ptr,
-    x_dtype: tl.constexpr,
-    has_weight: tl.constexpr,
     weight_ptr,
     output_grad_ptr,
     x_grad_ptr,
     weight_grad_ptr,
     eps,
-    memory_efficient: tl.constexpr,
     rmsnorm_denominator_ptr,
     B,
     H,
@@ -44,12 +41,14 @@ def _rmsnorm_backward_triton_kernel(
 
     num_loops = tl.cdiv(num_elements_in_current_program, BLOCK_SIZE_B)
 
-    if has_weight:
-        weight = tl.load(weight_ptr + indices_h, mask=mask_h)[None, :]
-        weight_grad = tl.zeros((BLOCK_SIZE_H,), dtype=tl.float32)
-    else:
+    x_dtype = x_ptr.dtype.element_ty
+
+    if weight_ptr is None:
         weight = 1
         weight_grad = 0
+    else:
+        weight = tl.load(weight_ptr + indices_h, mask=mask_h)[None, :]
+        weight_grad = tl.zeros((BLOCK_SIZE_H,), dtype=tl.float32)
 
     for i in range(num_loops):
         indices_b = program_start + i * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
@@ -60,7 +59,7 @@ def _rmsnorm_backward_triton_kernel(
         x_ptrs = x_ptr + indices_b[:, None] * H + indices_h[None, :]
         x = tl.load(x_ptrs, mask=mask_bh).to(tl.float32)
 
-        if memory_efficient:
+        if rmsnorm_denominator_ptr is None:
             squared_sum = tl.sum(x * x, axis=1)
             inverse_rms = tl.rsqrt(squared_sum / H + eps)
         else:
@@ -85,10 +84,10 @@ def _rmsnorm_backward_triton_kernel(
         x_grad_ptrs = x_grad_ptr + indices_b[:, None] * H + indices_h[None, :]
         tl.store(x_grad_ptrs, x_grad, mask=mask_bh)
 
-        if has_weight:
+        if weight_ptr is not None:
             weight_grad += tl.sum(output_grad * (x * inverse_rms[:, None]).to(x_dtype), axis=0)
 
-    if has_weight:
+    if weight_ptr is not None:
         tl.atomic_add(weight_grad_ptr + indices_h, weight_grad, mask=mask_h)
 
 
@@ -113,14 +112,11 @@ def _rmsnorm_backward_no_weight_triton(
     with torch.device(x.device):
         _rmsnorm_backward_triton_kernel[(num_programs,)](
             x_ptr=x,
-            x_dtype=TORCH_TO_TRITON_DTYPE[x.dtype],
-            has_weight=False,
             weight_ptr=None,
             output_grad_ptr=output_grad,
             x_grad_ptr=x_grad,
             weight_grad_ptr=None,
             eps=eps,
-            memory_efficient=rmsnorm_denominator is None,
             rmsnorm_denominator_ptr=rmsnorm_denominator,
             B=num_elements,
             H=hidden_size,
@@ -152,14 +148,11 @@ def _rmsnorm_backward_triton(
     with torch.device(x.device):
         _rmsnorm_backward_triton_kernel[(num_programs,)](
             x_ptr=x,
-            x_dtype=TORCH_TO_TRITON_DTYPE[x.dtype],
-            has_weight=True,
             weight_ptr=weight,
             output_grad_ptr=output_grad,
             x_grad_ptr=x_grad,
             weight_grad_ptr=weight_grad,
             eps=eps,
-            memory_efficient=rmsnorm_denominator is None,
             rmsnorm_denominator_ptr=rmsnorm_denominator,
             B=num_elements,
             H=hidden_size,

@@ -14,38 +14,8 @@ class SwigluTest(TestCommons):
             TestCommons.get_2d_tensor_sizes(),  # size
             [torch.device("cuda")],  # device
             TestCommons.get_dtypes(),  # dtype
-            [KernelBackend.cuda],  # kernel_backend_forward
-            [KernelBackend.cuda],  # kernel_backend_backward
-            [1024],  # BLOCK_SIZE_forward
-            [1024],  # BLOCK_SIZE_backward
-            [swiglu_cute, torch.compile(swiglu_cute, fullgraph=True)],  # function
-        )
-        + TestCommons.make_args_matrix(
-            TestCommons.get_2d_tensor_sizes(),  # size
-            [torch.device("cuda")],  # device
-            TestCommons.get_dtypes(),  # dtype
-            [KernelBackend.triton],  # kernel_backend_forward
-            [KernelBackend.triton],  # kernel_backend_backward
-            [1024],  # BLOCK_SIZE_forward
-            [1024],  # BLOCK_SIZE_backward
-            [swiglu_cute, torch.compile(swiglu_cute, fullgraph=True)],  # function
-        )
-        + TestCommons.make_args_matrix(
-            TestCommons.get_2d_tensor_sizes(),  # size
-            [torch.device("cuda")],  # device
-            TestCommons.get_dtypes(),  # dtype
-            [KernelBackend.cuda],  # kernel_backend_forward
-            [KernelBackend.triton],  # kernel_backend_backward
-            [1024],  # BLOCK_SIZE_forward
-            [1024],  # BLOCK_SIZE_backward
-            [swiglu_cute, torch.compile(swiglu_cute, fullgraph=True)],  # function
-        )
-        + TestCommons.make_args_matrix(
-            TestCommons.get_2d_tensor_sizes(),  # size
-            [torch.device("cuda")],  # device
-            TestCommons.get_dtypes(),  # dtype
-            [KernelBackend.triton],  # kernel_backend_forward
-            [KernelBackend.cuda],  # kernel_backend_backward
+            [KernelBackend.cuda, KernelBackend.triton],  # kernel_backend_forward
+            [KernelBackend.cuda, KernelBackend.triton],  # kernel_backend_backward
             [1024],  # BLOCK_SIZE_forward
             [1024],  # BLOCK_SIZE_backward
             [swiglu_cute, torch.compile(swiglu_cute, fullgraph=True)],  # function

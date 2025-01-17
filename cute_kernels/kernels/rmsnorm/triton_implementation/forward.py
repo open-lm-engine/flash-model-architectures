@@ -2,7 +2,7 @@ import torch
 import triton
 import triton.language as tl
 
-from ....constants import LIBRARY_NAME, TORCH_TO_TRITON_DTYPE
+from ....constants import LIBRARY_NAME
 from ....cutotune import cutotune
 from ....math import ceil_divide
 from ....utils import cute_op, get_num_elements_and_hidden_size
@@ -15,12 +15,9 @@ _KERNEL_NAME = "rmsnorm_forward_triton"
 @triton.jit
 def _rmsnorm_forward_triton_kernel(
     x_ptr,
-    x_dtype: tl.constexpr,
-    has_weight: tl.constexpr,
     weight_ptr,
     output_ptr,
     eps,
-    memory_efficient: tl.constexpr,
     rmsnorm_denominator_ptr,
     B,
     H,
@@ -43,14 +40,14 @@ def _rmsnorm_forward_triton_kernel(
     squared_sum = tl.sum(x * x, axis=1)
     inverse_rms = tl.rsqrt((squared_sum / H) + eps)
 
-    if not memory_efficient:
+    if rmsnorm_denominator_ptr is not None:
         tl.store(rmsnorm_denominator_ptr + indices_b, inverse_rms, mask=mask_b)
 
     x *= inverse_rms[:, None]
 
-    if has_weight:
+    if weight_ptr is not None:
         weight = tl.load(weight_ptr + indices_h, mask=mask_h)
-        x = x.to(x_dtype) * weight[None, :]
+        x = x.to(x_ptr.dtype.element_ty) * weight[None, :]
 
     output_ptrs = output_ptr + indices_b[:, None] * H + indices_h[None, :]
     tl.store(output_ptrs, x, mask=mask_bh)
@@ -75,12 +72,9 @@ def rmsnorm_forward_triton(
     with torch.device(x.device):
         _rmsnorm_forward_triton_kernel[(ceil_divide(num_elements, BLOCK_SIZE_B),)](
             x_ptr=x,
-            x_dtype=TORCH_TO_TRITON_DTYPE[x.dtype],
-            has_weight=weight is not None,
             weight_ptr=weight,
             output_ptr=output,
             eps=eps,
-            memory_efficient=rmsnorm_denominator is None,
             rmsnorm_denominator_ptr=rmsnorm_denominator,
             B=num_elements,
             H=hidden_size,

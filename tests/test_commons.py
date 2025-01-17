@@ -36,21 +36,16 @@ class TestCommons(TestCase):
         return sizes
 
     @staticmethod
-    def get_2d_tensor_sizes(static_batch_size: int | None = None) -> list[tuple[int]]:
+    def get_2d_tensor_sizes() -> list[tuple[int]]:
         sizes = set()
         # powers of 2
         for i in range(15):
             start = 2**i
             for j in range(10):
-                sizes.add((start + j if static_batch_size is None else static_batch_size, start + j))
+                sizes.add((start + j, start + j))
         # not powers of 2
         for _ in range(50):
-            sizes.add(
-                (
-                    3000 + random.randint(-1000, 1000) if static_batch_size is None else static_batch_size,
-                    3000 + random.randint(-1000, 1000),
-                )
-            )
+            sizes.add((3000 + random.randint(-1000, 1000), 3000 + random.randint(-1000, 1000)))
         return sizes
 
     def make_args_matrix(*args_lists) -> list[Any]:
@@ -87,9 +82,10 @@ class TestCommons(TestCase):
         return nn.GLU() if is_glu else nn.GELU(approximate="tanh")
 
     def get_random_duplicated_tensors(
-        self, size: tuple[int], device: torch.device, dtype: torch.dtype
+        self, size: tuple[int], device: torch.device, dtype: torch.dtype, std: float = 1
     ) -> tuple[torch.Tensor]:
-        x = torch.randn(size, device=device, dtype=dtype, requires_grad=True)
+        x = torch.randn(size, device=device, dtype=dtype, requires_grad=False) * std
+        x.requires_grad_()
         x_clone = x.clone().detach().requires_grad_()
 
         return x, x_clone

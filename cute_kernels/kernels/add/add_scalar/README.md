@@ -1,4 +1,3 @@
-# Add Scalar
+# Scalar add
 
-## Forward
 $$z_i = x_i + y$$
