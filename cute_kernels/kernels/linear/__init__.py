@@ -14,6 +14,7 @@ class _Linear_Cute(torch.autograd.Function):
         input: torch.Tensor,
         weight: torch.Tensor,
         bias: torch.Tensor | None,
+        use_tf32: bool,
         BLOCK_SIZE_M: int,
         BLOCK_SIZE_K: int,
         BLOCK_SIZE_N: int,
@@ -26,6 +27,7 @@ class _Linear_Cute(torch.autograd.Function):
             weight=weight,
             bias=bias,
             output=output,
+            use_tf32=use_tf32,
             BLOCK_SIZE_M=BLOCK_SIZE_M,
             BLOCK_SIZE_K=BLOCK_SIZE_K,
             BLOCK_SIZE_N=BLOCK_SIZE_N,
@@ -46,8 +48,9 @@ def linear_cute(
     input: torch.Tensor,
     weight: torch.Tensor,
     bias: torch.Tensor | None = None,
+    use_tf32: bool = True,
     BLOCK_SIZE_M: int = CutoTuneParameter(),
     BLOCK_SIZE_K: int = CutoTuneParameter(),
     BLOCK_SIZE_N: int = CutoTuneParameter(),
 ) -> torch.Tensor:
-    return _Linear_Cute.apply(input, weight, bias, BLOCK_SIZE_M, BLOCK_SIZE_K, BLOCK_SIZE_N)
+    return _Linear_Cute.apply(input, weight, bias, use_tf32, BLOCK_SIZE_M, BLOCK_SIZE_K, BLOCK_SIZE_N)

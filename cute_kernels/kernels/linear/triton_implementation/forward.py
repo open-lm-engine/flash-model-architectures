@@ -17,6 +17,7 @@ def _linear_forward_triton_kernel(
     weight_ptr,
     bias_ptr,
     output_ptr,
+    use_tf32: tl.constexpr,
     M,
     K,
     N,
@@ -57,7 +58,7 @@ def _linear_forward_triton_kernel(
         weight_ptrs = weight_ptr + indices_n[:, None] * K + indices_k[None, :]
         weight = tl.load(weight_ptrs, mask=mask_nk, other=0)
 
-        accumulator = tl.dot(input, weight.T, accumulator, allow_tf32=True)
+        accumulator = tl.dot(input, weight.T, accumulator, allow_tf32=use_tf32)
 
     if bias_ptr is not None:
         bias = tl.load(bias_ptr + indices_n, mask=mask_n, other=0)
@@ -94,6 +95,7 @@ def linear_forward_triton(
     weight: torch.Tensor,
     bias: torch.Tensor | None,
     output: torch.Tensor,
+    use_tf32: bool,
     BLOCK_SIZE_M: int,
     BLOCK_SIZE_K: int,
     BLOCK_SIZE_N: int,
@@ -109,6 +111,7 @@ def linear_forward_triton(
             weight_ptr=weight,
             bias_ptr=bias,
             output_ptr=output,
+            use_tf32=use_tf32,
             M=M,
             K=K,
             N=N,
