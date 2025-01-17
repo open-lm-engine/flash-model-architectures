@@ -15,12 +15,9 @@ class _Linear_Cute(torch.autograd.Function):
         weight: torch.Tensor,
         bias: torch.Tensor | None,
         use_tf32: bool,
-        GROUP_SIZE_M: int,
         BLOCK_SIZE_M: int,
         BLOCK_SIZE_K: int,
         BLOCK_SIZE_N: int,
-        num_warps: int,
-        num_stages: int,
     ) -> torch.Tensor:
         ctx.save_for_backward(input, weight, bias)
         output = torch.empty(*input.size()[:-1], weight.size(0), dtype=input.dtype, device=input.device)
@@ -31,12 +28,9 @@ class _Linear_Cute(torch.autograd.Function):
             bias=bias,
             output=output,
             use_tf32=use_tf32,
-            GROUP_SIZE_M=GROUP_SIZE_M,
             BLOCK_SIZE_M=BLOCK_SIZE_M,
             BLOCK_SIZE_K=BLOCK_SIZE_K,
             BLOCK_SIZE_N=BLOCK_SIZE_N,
-            num_warps=num_warps,
-            num_stages=num_stages,
         )
 
         return output
@@ -53,13 +47,8 @@ def linear_cute(
     weight: torch.Tensor,
     bias: torch.Tensor | None = None,
     use_tf32: bool = True,
-    GROUP_SIZE_M: int = CutoTuneParameter(),
     BLOCK_SIZE_M: int = CutoTuneParameter(),
     BLOCK_SIZE_K: int = CutoTuneParameter(),
     BLOCK_SIZE_N: int = CutoTuneParameter(),
-    num_warps: int = CutoTuneParameter(),
-    num_stages: int = CutoTuneParameter(),
 ) -> torch.Tensor:
-    return _Linear_Cute.apply(
-        input, weight, bias, use_tf32, GROUP_SIZE_M, BLOCK_SIZE_M, BLOCK_SIZE_K, BLOCK_SIZE_N, num_warps, num_stages
-    )
+    return _Linear_Cute.apply(input, weight, bias, use_tf32, BLOCK_SIZE_M, BLOCK_SIZE_K, BLOCK_SIZE_N)

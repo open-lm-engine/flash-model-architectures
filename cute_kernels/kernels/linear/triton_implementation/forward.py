@@ -4,13 +4,23 @@ import triton.language as tl
 
 from ....constants import LIBRARY_NAME
 from ....cutotune import CutoTuneConfig, cutotune, get_cartesian_product_cutotune_configs
-from ....math import ceil_divide
+from ....math import ceil_divide, get_powers_of_2
 from ....utils import cute_op, get_num_elements_and_hidden_size
 
 
 _KERNEL_NAME = "linear_forward_triton"
 
 
+def _get_triton_autotune_configs() -> list[triton.Config]:
+    configs = []
+    for num_stages in [1, 2]:
+        for num_warps in get_powers_of_2(1, 32):
+            configs.append(triton.Config({}, num_stages=num_stages, num_warps=num_warps))
+
+    return configs
+
+
+@triton.autotune(configs=_get_triton_autotune_configs())
 @triton.jit
 def _linear_forward_triton_kernel(
     input_ptr,
@@ -82,8 +92,6 @@ def _condition(input: torch.Tensor, BLOCK_SIZE_M: int, BLOCK_SIZE_K: int, BLOCK_
         BLOCK_SIZE_M=[16, 32, 64, 128],
         BLOCK_SIZE_K=[16, 32, 64, 128],
         BLOCK_SIZE_N=[16, 32, 64, 128],
-        num_warps=[1, 2, 4, 8, 16, 32],
-        num_stages=[1, 2],
         condition=_condition,
     ),
     default_config=CutoTuneConfig(
@@ -102,8 +110,6 @@ def linear_forward_triton(
     BLOCK_SIZE_M: int,
     BLOCK_SIZE_K: int,
     BLOCK_SIZE_N: int,
-    num_warps: int,
-    num_stages: int,
 ) -> None:
     M, K = get_num_elements_and_hidden_size(input)
     N = weight.size(0)
@@ -122,6 +128,4 @@ def linear_forward_triton(
             BLOCK_SIZE_M=BLOCK_SIZE_M,
             BLOCK_SIZE_K=BLOCK_SIZE_K,
             BLOCK_SIZE_N=BLOCK_SIZE_N,
-            num_warps=num_warps,
-            num_stages=num_stages,
         )
