@@ -97,7 +97,7 @@ def gemm_triton(
     M, K = get_num_elements_and_hidden_size(a)
     N = b.size(-1)
 
-    with torch.device(input.device):
+    with torch.device(a.device):
         _gemm_triton_kernel[(ceil_divide(M, BLOCK_SIZE_M) * ceil_divide(N, BLOCK_SIZE_N),)](
             a_ptr=a,
             b_ptr=b,
