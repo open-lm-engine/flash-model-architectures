@@ -30,9 +30,7 @@ class GEMMTest(TestCommons):
     ) -> None:
         set_seed(_SEED)
 
-        a_kernel, a_expected = self.get_random_duplicated_tensors(
-            (400, size[-1]), device=device, dtype=dtype, std=0.02
-        )
+        a_kernel, a_expected = self.get_random_duplicated_tensors((400, size[0]), device=device, dtype=dtype, std=0.02)
         b_kernel, b_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype, std=0.02)
 
         c_kernel = function(a=a_kernel, b=b_kernel)
