@@ -31,6 +31,8 @@ class _Linear_Cute(torch.autograd.Function):
             BLOCK_SIZE_M=BLOCK_SIZE_M,
             BLOCK_SIZE_K=BLOCK_SIZE_K,
             BLOCK_SIZE_N=BLOCK_SIZE_N,
+            num_warps=CutoTuneParameter(),
+            num_stages=CutoTuneParameter(),
         )
 
         return output
