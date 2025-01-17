@@ -53,6 +53,7 @@ class _Linear_Cute(torch.autograd.Function):
 
         input_grad = torch.empty_like(input)
         weight_grad = torch.empty_like(weight)
+        bias_grad = None
         if ctx.has_bias:
             bias_grad = torch.empty(weight.size(0), device=weight.device, dtype=weight.dtype)
 
