@@ -65,7 +65,8 @@ for dtype in all_dtypes:
 
     input_size = (4 * 4096, 4096)
     weight_size = (4096, 4096)
-    linear_cute(
+    forward_backward(
+        linear_cute,
         input=torch.randn(*input_size, device=torch.cuda.current_device(), dtype=dtype),
         weight=torch.randn(*weight_size, device=torch.cuda.current_device(), dtype=dtype),
     )
