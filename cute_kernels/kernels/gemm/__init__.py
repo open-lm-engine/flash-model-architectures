@@ -19,6 +19,7 @@ def gemm_cute(
 ) -> torch.Tensor:
     if is_a_transposed:
         assert a.dim() == 2, "only 2 dimensional a tensor is supported when a is transposed"
+        K, M = a.size()
     else:
         M, K = get_num_elements_and_hidden_size(a)
 
