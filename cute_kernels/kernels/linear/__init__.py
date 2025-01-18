@@ -5,7 +5,6 @@ from ...enums import KernelBackend
 from ...utils import ensure_contiguous
 from ..gemm import gemm_cute
 from .torch_implementation import linear_torch
-from .triton_implementation import linear_forward_triton
 
 
 class _Linear_Cute(torch.autograd.Function):
@@ -34,21 +33,19 @@ class _Linear_Cute(torch.autograd.Function):
         ctx.BLOCK_SIZE_K_backward = BLOCK_SIZE_K_backward
         ctx.BLOCK_SIZE_N_backward = BLOCK_SIZE_N_backward
 
-        output = torch.empty(*input.size()[:-1], weight.size(0), dtype=input.dtype, device=input.device)
-
         if kernel_backend_forward == KernelBackend.triton:
-            linear_forward_triton(
-                input=input,
-                weight=weight,
-                bias=bias,
-                output=output,
+            output = gemm_cute(
+                a=input,
+                b=weight,
+                is_a_transposed=False,
+                is_b_transposed=True,
                 use_tf32=use_tf32,
                 BLOCK_SIZE_M=BLOCK_SIZE_M_forward,
                 BLOCK_SIZE_K=BLOCK_SIZE_K_forward,
                 BLOCK_SIZE_N=BLOCK_SIZE_N_forward,
-                num_warps=CutoTuneParameter(),
-                num_stages=CutoTuneParameter(),
             )
+
+            output += bias
         else:
             raise ValueError(f"unexpected kernel_backend_forward ({kernel_backend_forward})")
 
