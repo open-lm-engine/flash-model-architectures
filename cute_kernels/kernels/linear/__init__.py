@@ -34,6 +34,7 @@ class _Linear_Cute(torch.autograd.Function):
         ctx.BLOCK_SIZE_N_backward = BLOCK_SIZE_N_backward
 
         if kernel_backend_forward == KernelBackend.triton:
+            # NOTE this can be a single kernel but I am lazy
             output = gemm_cute(
                 a=input,
                 b=weight,
@@ -63,6 +64,7 @@ class _Linear_Cute(torch.autograd.Function):
         BLOCK_SIZE_N_backward = ctx.BLOCK_SIZE_N_backward
 
         if kernel_backend_backward == KernelBackend.triton:
+            # NOTE this can be a single kernel but I am lazy
             input_grad = gemm_cute(
                 a=output_grad,
                 b=weight,
