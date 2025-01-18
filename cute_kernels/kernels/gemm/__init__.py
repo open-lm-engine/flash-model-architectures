@@ -10,6 +10,8 @@ from .triton_implementation import gemm_triton
 def gemm_cute(
     a: torch.Tensor,
     b: torch.Tensor,
+    is_a_transposed: bool = False,
+    is_b_transposed: bool = False,
     use_tf32: bool = True,
     BLOCK_SIZE_M: int = CutoTuneParameter(),
     BLOCK_SIZE_K: int = CutoTuneParameter(),
@@ -21,6 +23,8 @@ def gemm_cute(
         a=a,
         b=b,
         c=output,
+        is_a_transposed=is_a_transposed,
+        is_b_transposed=is_b_transposed,
         use_tf32=use_tf32,
         BLOCK_SIZE_M=BLOCK_SIZE_M,
         BLOCK_SIZE_K=BLOCK_SIZE_K,

@@ -16,6 +16,8 @@ def _gemm_triton_kernel(
     a_ptr,
     b_ptr,
     c_ptr,
+    is_a_transposed: tl.constexpr,
+    is_b_transposed: tl.constexpr,
     use_tf32: tl.constexpr,
     M,
     K,
@@ -24,8 +26,8 @@ def _gemm_triton_kernel(
     BLOCK_SIZE_K: tl.constexpr,
     BLOCK_SIZE_N: tl.constexpr,
 ):
-    # a -> M x K
-    # b -> K x N
+    # a -> K x M if is_a_transposed else M x K
+    # b -> N x K if is_b_transposed else K x N
     # c -> M x N
 
     pid = tl.program_id(axis=0)
@@ -46,14 +48,23 @@ def _gemm_triton_kernel(
         indices_k = k * BLOCK_SIZE_K + tl.arange(0, BLOCK_SIZE_K)
         mask_k = indices_k < K
 
-        mask_mk = mask_m[:, None] & mask_k[None, :]
-        mask_kn = mask_k[:, None] & mask_n[None, :]
+        if is_a_transposed:
+            mask_a = mask_k[:, None] & mask_m[None, :]
+            a_ptrs = a_ptr + indices_k[:, None] * M + indices_m[None, :]
+        else:
+            mask_a = mask_m[:, None] & mask_k[None, :]
+            a_ptrs = a_ptr + indices_m[:, None] * K + indices_k[None, :]
 
-        a_ptrs = a_ptr + indices_m[:, None] * K + indices_k[None, :]
-        a = tl.load(a_ptrs, mask=mask_mk, other=0)
+        a = tl.load(a_ptrs, mask=mask_a, other=0)
 
-        b_ptrs = b_ptr + indices_k[:, None] * N + indices_n[None, :]
-        b = tl.load(b_ptrs, mask=mask_kn, other=0)
+        if is_b_transposed:
+            mask_b = mask_n[:, None] & mask_k[None, :]
+            b_ptrs = b_ptr + indices_n[:, None] * K + indices_k[None, :]
+        else:
+            mask_b = mask_k[:, None] & mask_n[None, :]
+            b_ptrs = b_ptr + indices_k[:, None] * N + indices_n[None, :]
+
+        b = tl.load(b_ptrs, mask=mask_b, other=0)
 
         accumulator = tl.dot(a, b, accumulator, allow_tf32=use_tf32)
 
@@ -87,6 +98,8 @@ def gemm_triton(
     a: torch.Tensor,
     b: torch.Tensor,
     c: torch.Tensor,
+    is_a_transposed: bool,
+    is_b_transposed: bool,
     use_tf32: bool,
     BLOCK_SIZE_M: int,
     BLOCK_SIZE_K: int,
@@ -102,6 +115,8 @@ def gemm_triton(
             a_ptr=a,
             b_ptr=b,
             c_ptr=c,
+            is_a_transposed=is_a_transposed,
+            is_b_transposed=is_b_transposed,
             use_tf32=use_tf32,
             M=M,
             K=K,
