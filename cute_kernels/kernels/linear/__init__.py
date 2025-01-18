@@ -46,7 +46,8 @@ class _Linear_Cute(torch.autograd.Function):
                 BLOCK_SIZE_N=BLOCK_SIZE_N_forward,
             )
 
-            output += bias
+            if bias is not None:
+                output += bias
         else:
             raise ValueError(f"unexpected kernel_backend_forward ({kernel_backend_forward})")
 
