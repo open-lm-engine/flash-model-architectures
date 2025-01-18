@@ -5,7 +5,7 @@ import triton.language as tl
 from ...constants import LIBRARY_NAME
 from ...cutotune import CutoTuneConfig, cutotune, get_cartesian_product_cutotune_configs
 from ...math import ceil_divide, get_powers_of_2
-from ...utils import cute_op, get_num_elements_and_hidden_size
+from ...utils import cute_op
 
 
 _KERNEL_NAME = "gemm_triton"
@@ -66,6 +66,12 @@ def _gemm_triton_kernel(
 
         b = tl.load(b_ptrs, mask=mask_b, other=0)
 
+        if is_a_transposed:
+            a = a.T
+
+        if is_b_transposed:
+            b = b.T
+
         accumulator = tl.dot(a, b, accumulator, allow_tf32=use_tf32)
 
     c_ptrs = c_ptr + indices_m[:, None] * N + indices_n[None, :]
@@ -100,6 +106,9 @@ def gemm_triton(
     c: torch.Tensor,
     is_a_transposed: bool,
     is_b_transposed: bool,
+    M: int,
+    K: int,
+    N: int,
     use_tf32: bool,
     BLOCK_SIZE_M: int,
     BLOCK_SIZE_K: int,
@@ -107,9 +116,6 @@ def gemm_triton(
     num_warps: int,
     num_stages: int,
 ) -> None:
-    M, K = get_num_elements_and_hidden_size(a)
-    N = b.size(-1)
-
     with torch.device(a.device):
         _gemm_triton_kernel[(ceil_divide(M, BLOCK_SIZE_M) * ceil_divide(N, BLOCK_SIZE_N),)](
             a_ptr=a,
