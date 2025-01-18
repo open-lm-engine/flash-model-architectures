@@ -69,6 +69,8 @@ class _Linear_Cute(torch.autograd.Function):
             input_grad = gemm_cute(
                 a=output_grad,
                 b=weight,
+                is_a_transposed=False,
+                is_b_transposed=False,
                 use_tf32=use_tf32,
                 BLOCK_SIZE_M=BLOCK_SIZE_M_backward,
                 BLOCK_SIZE_K=BLOCK_SIZE_K_backward,
