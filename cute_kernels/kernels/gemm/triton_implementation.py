@@ -78,8 +78,8 @@ def _gemm_triton_kernel(
     tl.store(c_ptrs, accumulator.to(a_ptr.dtype.element_ty), mask=mask_m[:, None] & mask_n[None, :])
 
 
-def _condition(input: torch.Tensor, BLOCK_SIZE_M: int, BLOCK_SIZE_K: int, BLOCK_SIZE_N: int, **kwargs) -> bool:
-    if input.dtype == torch.float32 and BLOCK_SIZE_M == 128 and BLOCK_SIZE_K == 128 and BLOCK_SIZE_N == 128:
+def _condition(a: torch.Tensor, BLOCK_SIZE_M: int, BLOCK_SIZE_K: int, BLOCK_SIZE_N: int, **kwargs) -> bool:
+    if a.dtype == torch.float32 and BLOCK_SIZE_M == 128 and BLOCK_SIZE_K == 128 and BLOCK_SIZE_N == 128:
         return False
 
     return True
