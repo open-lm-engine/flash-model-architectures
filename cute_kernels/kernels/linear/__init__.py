@@ -102,7 +102,7 @@ class _Linear_Cute(torch.autograd.Function):
         else:
             raise ValueError(f"unexpected kernel_backend_backward ({kernel_backend_backward})")
 
-        return input_grad, weight_grad, bias_grad, *[None] * 7
+        return input_grad, weight_grad, bias_grad, *[None] * 9
 
 
 def linear_cute(
