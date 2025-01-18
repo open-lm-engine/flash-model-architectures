@@ -76,12 +76,6 @@ for dtype in all_dtypes:
                 is_b_transposed=is_b_transposed,
             )
 
-    forward_backward(
-        linear_cute,
-        input=torch.randn(*input_size, device=torch.cuda.current_device(), dtype=dtype, requires_grad=True),
-        weight=torch.randn(*weight_size, device=torch.cuda.current_device(), dtype=dtype, requires_grad=True),
-    )
-
 size = 104857600
 for dtype in [torch.long, torch.int32]:
     for n in get_powers_of_2(1, 16384):
