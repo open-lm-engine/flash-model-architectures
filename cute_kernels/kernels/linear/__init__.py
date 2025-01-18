@@ -5,7 +5,7 @@ from ...enums import KernelBackend
 from ...utils import ensure_contiguous
 from ..gemm import gemm_cute
 from .torch_implementation import linear_torch
-from .triton_implementation import linear_backward_triton, linear_forward_triton
+from .triton_implementation import linear_forward_triton
 
 
 class _Linear_Cute(torch.autograd.Function):
@@ -77,28 +77,18 @@ class _Linear_Cute(torch.autograd.Function):
                 BLOCK_SIZE_N=BLOCK_SIZE_N_backward,
             )
 
-            weight_grad = torch.empty_like(weight)
-            bias_grad = None
-            if ctx.has_bias:
-                bias_grad = torch.empty(weight.size(0), device=weight.device, dtype=weight.dtype)
-
-            # input_grad = output_grad @ weight
-            # weight_grad = output_grad.T @ input
-            # if bias_grad is not None:
-            #     bias_grad = output_grad.sum(dim=0)
-
-            linear_backward_triton(
-                input=input,
-                output_grad=output_grad,
-                weight_grad=weight_grad,
-                bias_grad=bias_grad,
-                use_tf32=ctx.use_tf32,
-                BLOCK_SIZE_M=ctx.BLOCK_SIZE_M_backward,
-                BLOCK_SIZE_K=ctx.BLOCK_SIZE_K_backward,
-                BLOCK_SIZE_N=ctx.BLOCK_SIZE_N_backward,
-                num_warps=CutoTuneParameter(),
-                num_stages=CutoTuneParameter(),
+            weight_grad = gemm_cute(
+                a=output_grad,
+                b=input,
+                is_a_transposed=True,
+                is_b_transposed=False,
+                use_tf32=use_tf32,
+                BLOCK_SIZE_M=BLOCK_SIZE_M_backward,
+                BLOCK_SIZE_K=BLOCK_SIZE_K_backward,
+                BLOCK_SIZE_N=BLOCK_SIZE_N_backward,
             )
+
+            bias_grad = output_grad.sum(dim=0) if ctx.has_bias else None
         else:
             raise ValueError(f"unexpected kernel_backend_backward ({kernel_backend_backward})")
 
