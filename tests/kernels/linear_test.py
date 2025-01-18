@@ -63,15 +63,7 @@ class LinearTest(TestCommons):
         )
 
         self.assert_equal_tensors(input_kernel.grad, input_expected.grad, False)
-        # self.assert_equal_tensors(weight_kernel.grad, weight_expected.grad, False, atol_float16=9e-2, rtol_float16=0)
+        self.assert_equal_tensors(weight_kernel.grad, weight_expected.grad, False)
 
-        # if has_bias:
-        #     self.assert_equal_tensors(
-        #         bias_kernel.grad,
-        #         bias_expected.grad,
-        #         False,
-        #         atol_float32=6.5e-5,
-        #         rtol_float32=0,
-        #         atol_float16=0.1,
-        #         rtol_float16=0.01,
-        #     )
+        if has_bias:
+            self.assert_equal_tensors(bias_kernel.grad, bias_expected.grad, False)
