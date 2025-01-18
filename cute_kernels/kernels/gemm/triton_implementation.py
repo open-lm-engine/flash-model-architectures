@@ -97,7 +97,7 @@ def _condition(input: torch.Tensor, BLOCK_SIZE_M: int, BLOCK_SIZE_K: int, BLOCK_
     default_config=CutoTuneConfig(
         dict(BLOCK_SIZE_M=128, BLOCK_SIZE_K=64, BLOCK_SIZE_N=128, num_warps=8, num_stages=2)
     ),
-    triggers={"a.dtype"},
+    triggers={"a.dtype", "is_a_transposed", "is_b_transposed"},
 )
 @cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"c"})
 def gemm_triton(
