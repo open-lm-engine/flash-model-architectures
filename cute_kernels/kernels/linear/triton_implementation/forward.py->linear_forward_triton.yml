@@ -6,7 +6,7 @@ best_configs:
       BLOCK_SIZE_N: 128
       num_stages: 2
       num_warps: 8
-    time: 1.0119647979736328
+    time: 0.25402240753173827
   '''input.dtype = torch.float16''':
     config:
       BLOCK_SIZE_K: 64
@@ -14,7 +14,7 @@ best_configs:
       BLOCK_SIZE_N: 128
       num_stages: 2
       num_warps: 8
-    time: 1.0233920097351075
+    time: 0.2574624061584473
   '''input.dtype = torch.float32''':
     config:
       BLOCK_SIZE_K: 32
@@ -22,4 +22,4 @@ best_configs:
       BLOCK_SIZE_N: 128
       num_stages: 2
       num_warps: 8
-    time: 2.029871940612793
+    time: 0.509280014038086
