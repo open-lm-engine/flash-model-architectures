@@ -1,22 +1,23 @@
 import torch
 from tabulate import tabulate
 
-from cute_kernels import device_synchronize, linear_cute, linear_torch
+from cute_kernels import device_synchronize, gemm_cute, gemm_torch
 
 
+torch._inductor.config.max_autotune_gemm_backends = "TRITON"
 torch.backends.cuda.matmul.allow_tf32 = True
 
 n = 100
 
 headers = ["dtype", "torch TFLOPs", "torch compile TFLOPs", "triton TFLOPs"]
-kernels = [linear_torch, torch.compile(linear_torch, mode="max-autotune"), linear_cute]
+kernels = [gemm_torch, torch.compile(gemm_torch, mode="max-autotune"), gemm_cute]
 
 table = []
 
 for dtype in [torch.float16, torch.bfloat16, torch.float32]:
     row = [str(dtype)]
     for kernel in kernels:
-        x = torch.randn(4 * 4096, 4096, device=torch.cuda.current_device(), dtype=dtype)
+        x = torch.randn(4096, 4096, device=torch.cuda.current_device(), dtype=dtype)
         w = torch.randn(4096, 4096, device=torch.cuda.current_device(), dtype=dtype)
 
         for i in range(n):

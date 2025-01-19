@@ -23,6 +23,8 @@ from .kernels import (
     continuous_count_torch,
     embedding_cute,
     embedding_torch,
+    gemm_cute,
+    gemm_torch,
     linear_cute,
     linear_torch,
     rmsnorm_cute,

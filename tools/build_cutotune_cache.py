@@ -8,6 +8,7 @@ from cute_kernels import (
     add_tensor_cute,
     continuous_count_cute,
     embedding_cute,
+    gemm_cute,
     get_all_cutotune_caches,
     get_powers_of_2,
     linear_cute,
@@ -63,12 +64,17 @@ for dtype in all_dtypes:
         weight=torch.randn(weight_size, device=torch.cuda.current_device(), dtype=dtype, requires_grad=True),
     )
 
-    input_size = (4 * 4096, 4096)
+    input_size = (4096, 4096)
     weight_size = (4096, 4096)
-    linear_cute(
-        input=torch.randn(*input_size, device=torch.cuda.current_device(), dtype=dtype),
-        weight=torch.randn(*weight_size, device=torch.cuda.current_device(), dtype=dtype),
-    )
+
+    for is_a_transposed in [False, True]:
+        for is_b_transposed in [False, True]:
+            gemm_cute(
+                a=torch.randn(*input_size, device=torch.cuda.current_device(), dtype=dtype, requires_grad=True),
+                b=torch.randn(*weight_size, device=torch.cuda.current_device(), dtype=dtype, requires_grad=True),
+                is_a_transposed=is_a_transposed,
+                is_b_transposed=is_b_transposed,
+            )
 
 size = 104857600
 for dtype in [torch.long, torch.int32]:
