@@ -52,7 +52,12 @@ __global__ void _add_tensor_cuda_kernel(const scalar_t *x,
 }
 
 void add_tensor_cuda(const torch::Tensor &x, const torch::Tensor &y, torch::Tensor &output, const uint32 &BLOCK_SIZE) {
-    assert(BLOCK_SIZE % WARP_SIZE == 0);
+    TORCH_CHECK(x.is_cuda());
+    TORCH_CHECK(y.is_cuda());
+    TORCH_CHECK(output.is_cuda());
+
+    TORCH_CHECK(BLOCK_SIZE % WARP_SIZE == 0);
+
     const uint64 total_elements = x.numel();
 
     AT_DISPATCH_CUSTOM_FLOAT_TYPES(
