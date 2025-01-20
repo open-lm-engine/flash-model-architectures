@@ -4,7 +4,7 @@ import torch
 from parameterized import parameterized
 from transformers import set_seed
 
-from cute_kernels import gemm_cute, gemm_torch
+from cute_kernels import KernelBackend, gemm_cute, gemm_torch
 
 from ..test_commons import TestCommons
 
@@ -18,6 +18,7 @@ class GEMMTest(TestCommons):
             TestCommons.get_2d_tensor_sizes(),  # size
             [False, True],  # is_a_transposed
             [False, True],  # is_b_transposed
+            [KernelBackend.cuda, KernelBackend.triton],  # kernel_backend
             [torch.device("cuda")],  # device
             TestCommons.get_dtypes(),  # dtype
             [gemm_cute, torch.compile(gemm_cute, fullgraph=True)],  # function
@@ -28,6 +29,7 @@ class GEMMTest(TestCommons):
         size: tuple[int],
         is_a_transposed: bool,
         is_b_transposed: bool,
+        kernel_backend: KernelBackend,
         device: torch.device,
         dtype: torch.dtype,
         function: Callable,
@@ -41,7 +43,13 @@ class GEMMTest(TestCommons):
             (size[1], size[0]) if is_b_transposed else size, device=device, dtype=dtype, std=0.02
         )
 
-        c_kernel = function(a=a_kernel, b=b_kernel, is_a_transposed=is_a_transposed, is_b_transposed=is_b_transposed)
+        c_kernel = function(
+            a=a_kernel,
+            b=b_kernel,
+            is_a_transposed=is_a_transposed,
+            is_b_transposed=is_b_transposed,
+            kernel_backend=kernel_backend,
+        )
         c_expected = gemm_torch(
             a=a_expected, b=b_expected, is_a_transposed=is_a_transposed, is_b_transposed=is_b_transposed
         )
