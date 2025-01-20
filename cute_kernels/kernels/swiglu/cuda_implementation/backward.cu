@@ -88,6 +88,14 @@ void swiglu_backward_cuda(const torch::Tensor &gate,
                           torch::Tensor &gate_grad,
                           torch::Tensor &up_grad,
                           const uint32 &BLOCK_SIZE) {
+    TORCH_CHECK(gate.is_cuda());
+    TORCH_CHECK(up.is_cuda());
+    TORCH_CHECK(output_grad.is_cuda());
+    TORCH_CHECK(gate_grad.is_cuda());
+    TORCH_CHECK(up_grad.is_cuda());
+
+    TORCH_CHECK(BLOCK_SIZE % WARP_SIZE == 0);
+
     const uint64 total_elements = gate.numel();
 
     AT_DISPATCH_CUSTOM_FLOAT_TYPES(
