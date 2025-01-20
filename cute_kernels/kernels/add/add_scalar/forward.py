@@ -7,6 +7,9 @@ from .cuda_implementation import add_scalar_cuda
 from .triton_implementation import add_scalar_triton
 
 
+_KERNEL_MAP = {KernelBackend.cuda: add_scalar_cuda, KernelBackend.triton: add_scalar_triton}
+
+
 @cutotune(**get_cutotune_parameters())
 def _forward(
     x: torch.Tensor,
@@ -15,13 +18,6 @@ def _forward(
     BLOCK_SIZE: int,
 ) -> torch.Tensor:
     output = torch.empty_like(x)
-
-    if kernel_backend == KernelBackend.cuda:
-        assert x.is_cuda, "tensor x is not on GPU"
-        add_scalar_cuda(x=x, y=y, output=output, BLOCK_SIZE=BLOCK_SIZE)
-    elif kernel_backend == KernelBackend.triton:
-        add_scalar_triton(x=x, y=y, output=output, BLOCK_SIZE=BLOCK_SIZE)
-    else:
-        raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
+    _KERNEL_MAP[kernel_backend](x=x, y=y, output=output, BLOCK_SIZE=BLOCK_SIZE)
 
     return output

@@ -53,8 +53,13 @@ void continuous_count_and_sort_cuda(const torch::Tensor &x,
                                     const uint32 &sm_count,
                                     const uint32 &C,
                                     const uint32 &BLOCK_SIZE) {
-    assert(BLOCK_SIZE % WARP_SIZE == 0);
-    assert(C <= MAX_ALLOWED_C);
+    TORCH_CHECK(x.is_cuda());
+    TORCH_CHECK(count_output.is_cuda());
+    TORCH_CHECK(sorted_output.is_cuda());
+    TORCH_CHECK(argsort_output.is_cuda());
+
+    TORCH_CHECK(BLOCK_SIZE % WARP_SIZE == 0);
+    TORCH_CHECK(C <= MAX_ALLOWED_C);
 
     const uint64 num_elements = x.numel();
     assert(num_elements <= std::numeric_limits<uint32>::max());

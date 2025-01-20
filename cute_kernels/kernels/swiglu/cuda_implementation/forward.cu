@@ -60,6 +60,12 @@ void swiglu_forward_cuda(const torch::Tensor &gate,
                          const torch::Tensor &up,
                          torch::Tensor &output,
                          const uint32 &BLOCK_SIZE) {
+    TORCH_CHECK(gate.is_cuda());
+    TORCH_CHECK(up.is_cuda());
+    TORCH_CHECK(output.is_cuda());
+
+    TORCH_CHECK(BLOCK_SIZE % WARP_SIZE == 0);
+
     const uint64 total_elements = gate.numel();
 
     AT_DISPATCH_CUSTOM_FLOAT_TYPES(gate.scalar_type(), "swiglu_forward_cuda_kernel", ([&] {
