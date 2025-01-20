@@ -13,22 +13,22 @@ __global__ void _naive_gemm_cuda_kernel(
     const uint32 i = blockDim.y * blockIdx.y + threadIdx.y;
 
     if (i < M && j < N) {
-        uint64 a_index;
-        if (is_a_tranposed) {
-            a_index = get_matrix_index(k, i, M);
-        } else {
-            a_index = get_matrix_index(i, k, K);
-        }
-
-        uint64 b_index;
-        if (is_b_tranposed) {
-            b_index = get_matrix_index(j, k, K);
-        } else {
-            b_index = get_matrix_index(k, j, N);
-        }
-
         fp32 accumulator = 0;
         for (uint32 k = 0; k < K; k++) {
+            uint64 a_index;
+            if (is_a_tranposed) {
+                a_index = get_matrix_index(k, i, M);
+            } else {
+                a_index = get_matrix_index(i, k, K);
+            }
+
+            uint64 b_index;
+            if (is_b_tranposed) {
+                b_index = get_matrix_index(j, k, K);
+            } else {
+                b_index = get_matrix_index(k, j, N);
+            }
+
             accumulator += a[a_index] * b[b_index];
         }
 
