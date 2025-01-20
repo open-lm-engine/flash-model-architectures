@@ -9,30 +9,30 @@
 template <typename scalar_t, bool is_a_transposed, bool is_b_transposed>
 __global__ void _naive_gemm_cuda_kernel(
     const scalar_t *a, const scalar_t *b, scalar_t *c, const uint32 M, const uint32 K, const uint32 N) {
-    const uint32 col = blockDim.x * blockIdx.x + threadIdx.x;
-    const uint32 row = blockDim.y * blockIdx.y + threadIdx.y;
+    const uint32 j = blockDim.x * blockIdx.x + threadIdx.x;
+    const uint32 i = blockDim.y * blockIdx.y + threadIdx.y;
 
-    if (row < M && col < N) {
+    if (i < M && j < N) {
         uint64 a_index;
         if (is_a_tranposed) {
-            a_index = get_matrix_index(k, row, M);
+            a_index = get_matrix_index(k, i, M);
         } else {
-            a_index = get_matrix_index(row, k, K);
+            a_index = get_matrix_index(i, k, K);
         }
 
         uint64 b_index;
         if (is_b_tranposed) {
-            b_index = get_matrix_index(col, k, K);
+            b_index = get_matrix_index(j, k, K);
         } else {
-            b_index = get_matrix_index(k, col, N);
+            b_index = get_matrix_index(k, j, N);
         }
 
         fp32 accumulator = 0;
         for (uint32 k = 0; k < K; k++) {
-            accumulator += a[a_index] + b[b_index];
+            accumulator += a[a_index] * b[b_index];
         }
 
-        c[get_matrix_index(row, col, N)] = accumulator;
+        c[get_matrix_index(i, j, N)] = accumulator;
     }
 }
 
