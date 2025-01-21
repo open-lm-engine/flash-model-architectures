@@ -24,7 +24,7 @@ _KERNEL_NAME = "naive_gemm_cuda"
 def naive_gemm_cuda(
     a: torch.Tensor,
     b: torch.Tensor,
-    c: torch.Tensor,
+    c: torch.Tensor | None,
     output: torch.Tensor,
     is_a_transposed: bool,
     is_b_transposed: bool,
