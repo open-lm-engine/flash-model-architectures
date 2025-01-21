@@ -42,8 +42,14 @@ __global__ void _naive_gemm_cuda_kernel(const scalar_t *a,
             accumulator += a[a_index] * b[b_index];
         }
 
+        accumulator *= alpha;
         const uint32 index = get_matrix_index(i, j, N);
-        output[index] = alpha * accumulator + beta * c[index];
+
+        if (beta != 0) {
+            accumulator += beta * c[index];
+        }
+
+        output[index] = accumulator;
     }
 }
 
