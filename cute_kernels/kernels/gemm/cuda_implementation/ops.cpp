@@ -1,7 +1,5 @@
 #include <torch/extension.h>
 
-#include "../../../include/dtypes/alias.h"
-
 void naive_gemm_cuda(const torch::Tensor &a,
                      const torch::Tensor &b,
                      torch::Tensor &c,
