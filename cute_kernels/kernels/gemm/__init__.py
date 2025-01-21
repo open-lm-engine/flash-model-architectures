@@ -37,7 +37,7 @@ def gemm_cute(
 
     output = torch.empty(M, N, dtype=a.dtype, device=a.device)
 
-    if kernel_backend == KernelBackend.triton:
+    if kernel_backend == KernelBackend.cuda:
         naive_gemm_cuda(
             a=a,
             b=b,
