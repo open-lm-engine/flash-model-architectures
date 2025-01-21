@@ -34,3 +34,10 @@
     - kernels/swiglu/cuda_implementation/forward.cu
     - kernels/swiglu/cuda_implementation/backward.cu
   build_path: swiglu
+
+- functions:
+    - naive_gemm_cuda
+  sources:
+    - kernels/gemm/cuda_implementation/ops.cpp
+    - kernels/gemm/cuda_implementation/naive.cu
+  build_path: gemm
