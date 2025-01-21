@@ -18,6 +18,7 @@ class GEMMTest(TestCommons):
             TestCommons.get_2d_tensor_sizes(),  # size
             [False, True],  # is_a_transposed
             [False, True],  # is_b_transposed
+            [False, True],  # has_c
             [KernelBackend.cuda, KernelBackend.triton],  # kernel_backend
             [torch.device("cuda")],  # device
             TestCommons.get_dtypes(),  # dtype
@@ -29,6 +30,7 @@ class GEMMTest(TestCommons):
         size: tuple[int],
         is_a_transposed: bool,
         is_b_transposed: bool,
+        has_c: bool,
         kernel_backend: KernelBackend,
         device: torch.device,
         dtype: torch.dtype,
@@ -49,10 +51,10 @@ class GEMMTest(TestCommons):
             )
             * std
         )
-        c = torch.randn(400, size[1], device=device, dtype=dtype, requires_grad=False) * std
+        c = torch.randn(400, size[1], device=device, dtype=dtype, requires_grad=False) * std if has_c else None
 
         alpha = 0.3
-        beta = 0.7
+        beta = 0.7 if has_c else 0
 
         output_kernel = function(
             a=a,

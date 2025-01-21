@@ -83,7 +83,7 @@ def _gemm_triton_kernel(
     indices_mn = indices_m[:, None] * N + indices_n[None, :]
     mask_mn = mask_m[:, None] & mask_n[None, :]
 
-    if beta != 0:
+    if c_ptr is not None:
         c = tl.load(c_ptr + indices_mn, mask=mask_mn)
         accumulator += beta * c
 

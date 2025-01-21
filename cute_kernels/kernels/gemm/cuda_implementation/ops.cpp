@@ -2,7 +2,7 @@
 
 void naive_gemm_cuda(const torch::Tensor &a,
                      const torch::Tensor &b,
-                     torch::Tensor &c,
+                     std::optional<torch::Tensor> &c,
                      torch::Tensor &output,
                      const bool &is_a_transposed,
                      const bool &is_b_transposed,

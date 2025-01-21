@@ -43,7 +43,9 @@ def gemm_cute(
 
     output = torch.empty(M, N, dtype=a.dtype, device=a.device)
 
-    if beta != 0:
+    if beta == 0:
+        assert c is None
+    else:
         assert c is not None
 
     if kernel_backend == KernelBackend.cuda:
