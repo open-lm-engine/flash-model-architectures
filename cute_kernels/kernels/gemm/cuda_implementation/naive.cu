@@ -16,8 +16,8 @@ __global__ void _naive_gemm_cuda_kernel(const scalar_t *a,
                                         const uint32 M,
                                         const uint32 K,
                                         const uint32 N) {
-    const uint32 i = blockDim.y * blockIdx.y + threadIdx.y;
-    const uint32 j = blockDim.x * blockIdx.x + threadIdx.x;
+    const uint32 i = get_thread_id_along_axis(blockDim.y, blockIdx.y, threadIdx.y);
+    const uint32 j = get_thread_id_along_axis(blockDim.x, blockIdx.x, threadIdx.x);
 
     if (i < M && j < N) {
         fp32 accumulator = 0;
