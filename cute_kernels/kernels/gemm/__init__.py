@@ -18,7 +18,7 @@ from .triton_implementation import gemm_triton
 def gemm_cute(
     a: torch.Tensor,
     b: torch.Tensor,
-    c: torch.Tensor,
+    c: torch.Tensor | None,
     is_a_transposed: bool = False,
     is_b_transposed: bool = False,
     alpha: float = 1,
@@ -46,6 +46,9 @@ def gemm_cute(
         assert b.size(0) == K
 
     output = torch.empty(M, N, dtype=a.dtype, device=a.device)
+
+    if beta != 0:
+        assert c is not None
 
     if kernel_backend == KernelBackend.cuda:
         if cuda_kernel_algorithm == CUDAKenelAlgorithm.naive:

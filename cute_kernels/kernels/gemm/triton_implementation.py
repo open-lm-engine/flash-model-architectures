@@ -115,7 +115,7 @@ def _condition(a: torch.Tensor, BLOCK_SIZE_M: int, BLOCK_SIZE_K: int, BLOCK_SIZE
 def gemm_triton(
     a: torch.Tensor,
     b: torch.Tensor,
-    c: torch.Tensor,
+    c: torch.Tensor | None,
     output: torch.Tensor,
     is_a_transposed: bool,
     is_b_transposed: bool,
