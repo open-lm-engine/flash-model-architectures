@@ -49,7 +49,7 @@ class GEMMTest(TestCommons):
             )
             * std
         )
-        c = torch.randn(size, device=device, dtype=dtype, requires_grad=False) * std
+        c = torch.randn(400, size[1], device=device, dtype=dtype, requires_grad=False) * std
 
         alpha = 0.3
         beta = 0.7
