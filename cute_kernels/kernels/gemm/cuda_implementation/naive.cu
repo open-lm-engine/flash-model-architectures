@@ -58,15 +58,15 @@ void naive_gemm_cuda(const torch::Tensor &a,
     dim3 NUM_BLOCKS = dim3(ceil_divide<uint32>(N, BLOCK_SIZE_N), ceil_divide<uint32>(M, BLOCK_SIZE_M), 1);
     dim3 BLOCK_SIZE = dim3(BLOCK_SIZE_N, BLOCK_SIZE_M, 1);
 
-    AT_DISPATCH_CUSTOM_FLOAT_TYPES(
-        a.scalar_type(), "naive_gemm_cuda_kernel", ([&] {
-            _naive_gemm_cuda_kernel<scalar_t><<<NUM_BLOCKS, BLOCK_SIZE>>>(a.data_ptr<scalar_t>(),
-                                                                          b.data_ptr<scalar_t>(),
-                                                                          c.data_ptr<scalar_t>(),
-                                                                          is_a_transposed,
-                                                                          is_b_transposed,
-                                                                          M,
-                                                                          K,
-                                                                          N);
-        }));
+    AT_DISPATCH_CUSTOM_FLOAT_TYPES(a.scalar_type(), "naive_gemm_cuda_kernel", ([&] {
+                                       _naive_gemm_cuda_kernel<scalar_t>
+                                           <<<NUM_BLOCKS, BLOCK_SIZE>>>(a.data_ptr<scalar_t>(),
+                                                                        b.data_ptr<scalar_t>(),
+                                                                        c.data_ptr<scalar_t>(),
+                                                                        is_a_transposed,
+                                                                        is_b_transposed,
+                                                                        M,
+                                                                        K,
+                                                                        N);
+                                   }));
 }

@@ -1,6 +1,6 @@
 import torch
 
-from ...cutotune import CutoTuneParameter
+from ...cutotune import CutoTuneConfig, CutoTuneParameter, cutotune, get_cartesian_product_cutotune_configs
 from ...enums import KernelBackend
 from ...utils import ensure_contiguous, get_num_elements_and_hidden_size
 from .cuda_implementation import naive_gemm_cuda
@@ -9,6 +9,11 @@ from .triton_implementation import gemm_triton
 
 
 @ensure_contiguous
+@cutotune(
+    get_cartesian_product_cutotune_configs(kernel_backend=[KernelBackend.cuda, KernelBackend.triton]),
+    default_config=CutoTuneConfig(dict(kernel_backend=KernelBackend.triton)),
+    triggers={"a.dtype", "is_a_transposed", "is_b_transposed"},
+)
 def gemm_cute(
     a: torch.Tensor,
     b: torch.Tensor,
