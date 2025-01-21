@@ -11,7 +11,6 @@ from cute_kernels import (
     gemm_cute,
     get_all_cutotune_caches,
     get_powers_of_2,
-    linear_cute,
     rmsnorm_cute,
     save_cutotune_cache,
     swiglu_cute,
@@ -72,8 +71,10 @@ for dtype in all_dtypes:
             gemm_cute(
                 a=torch.randn(*input_size, device=torch.cuda.current_device(), dtype=dtype, requires_grad=True),
                 b=torch.randn(*weight_size, device=torch.cuda.current_device(), dtype=dtype, requires_grad=True),
+                c=None,
                 is_a_transposed=is_a_transposed,
                 is_b_transposed=is_b_transposed,
+                beta=0,
             )
 
 size = 104857600

@@ -1,0 +1,61 @@
+best_configs:
+  '''a.dtype = torch.bfloat16'', ''is_a_transposed = False'', ''is_b_transposed = False''':
+    config:
+      BLOCK_SIZE_M: 4
+      BLOCK_SIZE_N: 16
+    time: 37.77469177246094
+  '''a.dtype = torch.bfloat16'', ''is_a_transposed = False'', ''is_b_transposed = True''':
+    config:
+      BLOCK_SIZE_M: 8
+      BLOCK_SIZE_N: 4
+    time: 97.9844970703125
+  '''a.dtype = torch.bfloat16'', ''is_a_transposed = True'', ''is_b_transposed = False''':
+    config:
+      BLOCK_SIZE_M: 16
+      BLOCK_SIZE_N: 4
+    time: 49.69623718261719
+  '''a.dtype = torch.bfloat16'', ''is_a_transposed = True'', ''is_b_transposed = True''':
+    config:
+      BLOCK_SIZE_M: 32
+      BLOCK_SIZE_N: 4
+    time: 43.19706420898437
+  '''a.dtype = torch.float16'', ''is_a_transposed = False'', ''is_b_transposed = False''':
+    config:
+      BLOCK_SIZE_M: 16
+      BLOCK_SIZE_N: 32
+    time: 39.082705688476565
+  '''a.dtype = torch.float16'', ''is_a_transposed = False'', ''is_b_transposed = True''':
+    config:
+      BLOCK_SIZE_M: 8
+      BLOCK_SIZE_N: 4
+    time: 98.004248046875
+  '''a.dtype = torch.float16'', ''is_a_transposed = True'', ''is_b_transposed = False''':
+    config:
+      BLOCK_SIZE_M: 16
+      BLOCK_SIZE_N: 8
+    time: 50.28819885253906
+  '''a.dtype = torch.float16'', ''is_a_transposed = True'', ''is_b_transposed = True''':
+    config:
+      BLOCK_SIZE_M: 32
+      BLOCK_SIZE_N: 4
+    time: 43.46170654296875
+  '''a.dtype = torch.float32'', ''is_a_transposed = False'', ''is_b_transposed = False''':
+    config:
+      BLOCK_SIZE_M: 4
+      BLOCK_SIZE_N: 16
+    time: 40.77068176269531
+  '''a.dtype = torch.float32'', ''is_a_transposed = False'', ''is_b_transposed = True''':
+    config:
+      BLOCK_SIZE_M: 8
+      BLOCK_SIZE_N: 4
+    time: 98.00864868164062
+  '''a.dtype = torch.float32'', ''is_a_transposed = True'', ''is_b_transposed = False''':
+    config:
+      BLOCK_SIZE_M: 8
+      BLOCK_SIZE_N: 8
+    time: 41.30425109863281
+  '''a.dtype = torch.float32'', ''is_a_transposed = True'', ''is_b_transposed = True''':
+    config:
+      BLOCK_SIZE_M: 16
+      BLOCK_SIZE_N: 4
+    time: 41.35244140625

@@ -1,0 +1,49 @@
+best_configs:
+  '''a.dtype = torch.bfloat16'', ''is_a_transposed = False'', ''is_b_transposed = False''':
+    config:
+      kernel_backend: triton
+    time: 0.3148191928863525
+  '''a.dtype = torch.bfloat16'', ''is_a_transposed = False'', ''is_b_transposed = True''':
+    config:
+      kernel_backend: triton
+    time: 0.25180160999298096
+  '''a.dtype = torch.bfloat16'', ''is_a_transposed = True'', ''is_b_transposed = False''':
+    config:
+      kernel_backend: triton
+    time: 0.3131455898284912
+  '''a.dtype = torch.bfloat16'', ''is_a_transposed = True'', ''is_b_transposed = True''':
+    config:
+      kernel_backend: triton
+    time: 0.28222079277038575
+  '''a.dtype = torch.float16'', ''is_a_transposed = False'', ''is_b_transposed = False''':
+    config:
+      kernel_backend: triton
+    time: 0.3175071954727173
+  '''a.dtype = torch.float16'', ''is_a_transposed = False'', ''is_b_transposed = True''':
+    config:
+      kernel_backend: triton
+    time: 0.2552031993865967
+  '''a.dtype = torch.float16'', ''is_a_transposed = True'', ''is_b_transposed = False''':
+    config:
+      kernel_backend: triton
+    time: 0.315500807762146
+  '''a.dtype = torch.float16'', ''is_a_transposed = True'', ''is_b_transposed = True''':
+    config:
+      kernel_backend: triton
+    time: 0.2862112045288086
+  '''a.dtype = torch.float32'', ''is_a_transposed = False'', ''is_b_transposed = False''':
+    config:
+      kernel_backend: triton
+    time: 0.9323455810546875
+  '''a.dtype = torch.float32'', ''is_a_transposed = False'', ''is_b_transposed = True''':
+    config:
+      kernel_backend: triton
+    time: 0.505731201171875
+  '''a.dtype = torch.float32'', ''is_a_transposed = True'', ''is_b_transposed = False''':
+    config:
+      kernel_backend: triton
+    time: 0.7986271858215332
+  '''a.dtype = torch.float32'', ''is_a_transposed = True'', ''is_b_transposed = True''':
+    config:
+      kernel_backend: triton
+    time: 0.8550687789916992
