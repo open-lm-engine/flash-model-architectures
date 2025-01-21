@@ -4,6 +4,7 @@ from ...cutotune import CutoTuneConfig, CutoTuneParameter, cutotune, get_cartesi
 from ...enums import KernelBackend
 from ...utils import ensure_contiguous, get_num_elements_and_hidden_size
 from .cuda_implementation import naive_gemm_cuda
+from .enums import CUDAKenelAlgorithm
 from .torch_implementation import gemm_torch
 from .triton_implementation import gemm_triton
 
@@ -21,6 +22,7 @@ def gemm_cute(
     is_b_transposed: bool = False,
     use_tf32: bool = True,
     kernel_backend: KernelBackend = CutoTuneParameter(),
+    cuda_kernel_algorithm: CUDAKenelAlgorithm = CUDAKenelAlgorithm.naive,
     BLOCK_SIZE_M: int = CutoTuneParameter(),
     BLOCK_SIZE_K: int = CutoTuneParameter(),
     BLOCK_SIZE_N: int = CutoTuneParameter(),
@@ -43,18 +45,19 @@ def gemm_cute(
     output = torch.empty(M, N, dtype=a.dtype, device=a.device)
 
     if kernel_backend == KernelBackend.cuda:
-        naive_gemm_cuda(
-            a=a,
-            b=b,
-            c=output,
-            is_a_transposed=is_a_transposed,
-            is_b_transposed=is_b_transposed,
-            M=M,
-            K=K,
-            N=N,
-            BLOCK_SIZE_M=BLOCK_SIZE_M,
-            BLOCK_SIZE_N=BLOCK_SIZE_N,
-        )
+        if cuda_kernel_algorithm == CUDAKenelAlgorithm.naive:
+            naive_gemm_cuda(
+                a=a,
+                b=b,
+                c=output,
+                is_a_transposed=is_a_transposed,
+                is_b_transposed=is_b_transposed,
+                M=M,
+                K=K,
+                N=N,
+                BLOCK_SIZE_M=BLOCK_SIZE_M,
+                BLOCK_SIZE_N=BLOCK_SIZE_N,
+            )
     elif kernel_backend == KernelBackend.triton:
         gemm_triton(
             a=a,
