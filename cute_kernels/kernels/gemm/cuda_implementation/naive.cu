@@ -13,6 +13,8 @@ __global__ void _naive_gemm_cuda_kernel(const scalar_t *a,
                                         scalar_t *c,
                                         const bool is_a_transposed,
                                         const bool is_b_transposed,
+                                        const fp32 alpha,
+                                        const fp32 beta,
                                         const uint32 M,
                                         const uint32 K,
                                         const uint32 N) {
@@ -39,7 +41,8 @@ __global__ void _naive_gemm_cuda_kernel(const scalar_t *a,
             accumulator += a[a_index] * b[b_index];
         }
 
-        c[get_matrix_index(i, j, N)] = accumulator;
+        const uint32 index = get_matrix_index(i, j, N);
+        output[index] = alpha * accumulator + beta * c[index];
     }
 }
 
@@ -48,6 +51,8 @@ void naive_gemm_cuda(const torch::Tensor &a,
                      torch::Tensor &c,
                      const bool &is_a_transposed,
                      const bool &is_b_transposed,
+                     const fp32 alpha,
+                     const fp32 beta,
                      const uint32 &M,
                      const uint32 &K,
                      const uint32 &N,
@@ -65,6 +70,8 @@ void naive_gemm_cuda(const torch::Tensor &a,
                                                                         c.data_ptr<scalar_t>(),
                                                                         is_a_transposed,
                                                                         is_b_transposed,
+                                                                        alpha,
+                                                                        beta,
                                                                         M,
                                                                         K,
                                                                         N);

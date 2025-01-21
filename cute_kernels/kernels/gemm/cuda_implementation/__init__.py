@@ -19,14 +19,17 @@ _KERNEL_NAME = "naive_gemm_cuda"
     default_config=CutoTuneConfig(dict(BLOCK_SIZE_M=16, BLOCK_SIZE_N=16)),
     triggers={"a.dtype", "is_a_transposed", "is_b_transposed"},
 )
-@cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"c"})
+@cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"output"})
 @cpp_jit(_KERNEL_NAME)
 def naive_gemm_cuda(
     a: torch.Tensor,
     b: torch.Tensor,
     c: torch.Tensor,
+    output: torch.Tensor,
     is_a_transposed: bool,
     is_b_transposed: bool,
+    alpha: float,
+    beta: float,
     M: int,
     K: int,
     N: int,
