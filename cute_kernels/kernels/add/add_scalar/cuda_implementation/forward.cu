@@ -16,7 +16,7 @@ __global__ void _add_scalar_cuda_kernel(const scalar_t *x, const fp32 y, scalar_
     using T = typename dtype::nv_dtype;
     using T2 = typename dtype::nv_dtype2;
 
-    const uint32 thread_id = blockIdx.x * blockDim.x + threadIdx.x;
+    const uint32 thread_id = get_global_thread_id();
     const uint32 num_elements4 = num_elements / num_elements_per_thread;
 
     if (thread_id < num_elements4) {
