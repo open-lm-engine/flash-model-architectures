@@ -1,5 +1,5 @@
 from enum import Enum
 
 
-class CUDAKenelAlgorithm(Enum):
+class CUDAKernelAlgorithm(Enum):
     naive = "naive"

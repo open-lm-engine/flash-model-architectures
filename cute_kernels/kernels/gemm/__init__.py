@@ -4,7 +4,7 @@ from ...cutotune import CutoTuneConfig, CutoTuneParameter, cutotune, get_cartesi
 from ...enums import KernelBackend
 from ...utils import ensure_contiguous, get_num_elements_and_hidden_size
 from .cuda_implementation import naive_gemm_cuda
-from .enums import CUDAKenelAlgorithm
+from .enums import CUDAKernelAlgorithm
 from .torch_implementation import gemm_torch
 from .triton_implementation import gemm_triton
 
@@ -25,7 +25,7 @@ def gemm_cute(
     beta: float = 1,
     use_tf32: bool = True,
     kernel_backend: KernelBackend = CutoTuneParameter(),
-    cuda_kernel_algorithm: CUDAKenelAlgorithm = CUDAKenelAlgorithm.naive,
+    cuda_kernel_algorithm: CUDAKernelAlgorithm = CUDAKernelAlgorithm.naive,
     BLOCK_SIZE_M: int = CutoTuneParameter(),
     BLOCK_SIZE_K: int = CutoTuneParameter(),
     BLOCK_SIZE_N: int = CutoTuneParameter(),
@@ -49,7 +49,7 @@ def gemm_cute(
         assert c is not None
 
     if kernel_backend == KernelBackend.cuda:
-        if cuda_kernel_algorithm == CUDAKenelAlgorithm.naive:
+        if cuda_kernel_algorithm == CUDAKernelAlgorithm.naive:
             naive_gemm_cuda(
                 a=a,
                 b=b,
