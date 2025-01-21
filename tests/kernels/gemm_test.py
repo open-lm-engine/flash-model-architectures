@@ -18,7 +18,17 @@ class GEMMTest(TestCommons):
             TestCommons.get_2d_tensor_sizes(),  # size
             [False, True],  # is_a_transposed
             [False, True],  # is_b_transposed
-            [False, True],  # has_c
+            [False],  # has_c
+            [KernelBackend.cuda, KernelBackend.triton],  # kernel_backend
+            [torch.device("cuda")],  # device
+            TestCommons.get_dtypes(),  # dtype
+            [gemm_cute, torch.compile(gemm_cute, fullgraph=True)],  # function
+        )
+        + TestCommons.make_args_matrix(
+            list(TestCommons.get_2d_tensor_sizes())[:8],  # size
+            [False, True],  # is_a_transposed
+            [False, True],  # is_b_transposed
+            [True],  # has_c
             [KernelBackend.cuda, KernelBackend.triton],  # kernel_backend
             [torch.device("cuda")],  # device
             TestCommons.get_dtypes(),  # dtype
