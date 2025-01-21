@@ -9,8 +9,8 @@
 template <typename scalar_t, bool is_a_transposed, bool is_b_transposed>
 __global__ void _naive_gemm_cuda_kernel(
     const scalar_t *a, const scalar_t *b, scalar_t *c, const uint32 M, const uint32 K, const uint32 N) {
-    const uint32 i = blockDim.x * blockIdx.x + threadIdx.x;
-    const uint32 j = blockDim.y * blockIdx.y + threadIdx.y;
+    const uint32 i = blockDim.y * blockIdx.y + threadIdx.y;
+    const uint32 j = blockDim.x * blockIdx.x + threadIdx.x;
 
     if (i < M && j < N) {
         fp32 accumulator = 0;
