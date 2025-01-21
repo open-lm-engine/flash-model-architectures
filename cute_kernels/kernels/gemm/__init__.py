@@ -37,13 +37,9 @@ def gemm_cute(
         M, K = get_num_elements_and_hidden_size(a)
 
     assert b.dim() == 2, "only 2 dimensional b tensor is supported"
+    assert b.size(1 if is_b_transposed else 0) == K
 
-    if is_b_transposed:
-        N = b.size(0)
-        assert b.size(1) == K
-    else:
-        N = b.size(1)
-        assert b.size(0) == K
+    N = b.size(0 if is_b_transposed else 1)
 
     output = torch.empty(M, N, dtype=a.dtype, device=a.device)
 
