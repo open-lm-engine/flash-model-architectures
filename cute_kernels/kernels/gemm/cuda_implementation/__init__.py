@@ -16,6 +16,9 @@ def naive_gemm_cuda(
     c: torch.Tensor,
     is_a_transposed: bool,
     is_b_transposed: bool,
+    M: int,
+    K: int,
+    N: int,
     BLOCK_SIZE_M: int,
     BLOCK_SIZE_N: int,
 ) -> None: ...

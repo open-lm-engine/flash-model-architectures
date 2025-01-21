@@ -44,6 +44,9 @@ def gemm_cute(
             c=output,
             is_a_transposed=is_a_transposed,
             is_b_transposed=is_b_transposed,
+            M=M,
+            K=K,
+            N=N,
             BLOCK_SIZE_M=BLOCK_SIZE_M,
             BLOCK_SIZE_N=BLOCK_SIZE_N,
         )
