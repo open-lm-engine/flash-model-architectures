@@ -4,6 +4,7 @@
 
 #include "../../../include/dtypes/all.h"
 #include "../../../include/math.h"
+#include "../../../include/threads.h"
 #include "index.h"
 
 template <typename scalar_t, bool is_a_transposed, bool is_b_transposed>
