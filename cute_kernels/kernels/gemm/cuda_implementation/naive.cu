@@ -54,7 +54,6 @@ void naive_gemm_cuda(const torch::Tensor &a,
                      const uint32 &BLOCK_SIZE_M,
                      const uint32 &BLOCK_SIZE_N) {
     TORCH_CHECK((BLOCK_SIZE_M * BLOCK_SIZE_N) % WARP_SIZE == 0);
-    TORCH_CHECK(BLOCK_SIZE_N % WARP_SIZE == 0);
 
     AT_DISPATCH_CUSTOM_FLOAT_TYPES(
         a.scalar_type(), "naive_gemm_cuda_kernel", ([&] {
