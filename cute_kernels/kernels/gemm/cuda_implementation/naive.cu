@@ -8,19 +8,19 @@
 #include "index.h"
 
 template <typename scalar_t>
-inline __device__ _run_matmul(const scalar_t *a,
-                              const scalar_t *b,
-                              const scalar_t *c,
-                              scalar_t *output,
-                              const bool &is_a_transposed,
-                              const bool &is_b_transposed,
-                              const fp32 &alpha,
-                              const fp32 &beta,
-                              const uint32 &i,
-                              const uint32 &j,
-                              const uint32 &M,
-                              const uint32 &K,
-                              const uint32 &N) {
+inline __device__ void _run_matmul(const scalar_t *a,
+                                   const scalar_t *b,
+                                   const scalar_t *c,
+                                   scalar_t *output,
+                                   const bool &is_a_transposed,
+                                   const bool &is_b_transposed,
+                                   const fp32 &alpha,
+                                   const fp32 &beta,
+                                   const uint32 &i,
+                                   const uint32 &j,
+                                   const uint32 &M,
+                                   const uint32 &K,
+                                   const uint32 &N) {
     if (i < M && j < N) {
         fp32 accumulator = 0;
         for (uint32 k = 0; k < K; k++) {
