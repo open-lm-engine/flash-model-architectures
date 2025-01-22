@@ -6,6 +6,7 @@
 #include "../../../include/math.h"
 #include "../../../include/threads.h"
 #include "index.h"
+#include "naive.cuh"
 
 template <typename scalar_t>
 __global__ void _no_tile_quantization_cuda_kernel(const scalar_t *a,
