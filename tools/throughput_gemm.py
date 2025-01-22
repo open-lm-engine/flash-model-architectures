@@ -4,6 +4,7 @@ import torch
 from tabulate import tabulate
 
 from cute_kernels import KernelBackend, device_synchronize, gemm_cute, gemm_torch
+from cute_kernels.kernels.gemm import CUDAKernelAlgorithm
 
 
 torch._inductor.config.max_autotune_gemm_backends = "TRITON"
@@ -11,11 +12,12 @@ torch.backends.cuda.matmul.allow_tf32 = True
 
 n = 100
 
-headers = ["dtype", "torch TFLOPs", "torch compile TFLOPs", "CUDA TFLOPs", "triton TFLOPs"]
+headers = ["dtype", "torch TFLOPs", "torch compile TFLOPs", "naive CUDA TFLOPs", "no tile quantization CUDA TFLOPs", "triton TFLOPs"]
 kernels = [
     gemm_torch,
     torch.compile(gemm_torch, mode="max-autotune"),
-    partial(gemm_cute, kernel_backend=KernelBackend.cuda),
+    partial(gemm_cute, kernel_backend=KernelBackend.cuda, cuda_kernel_algorithm=CUDAKernelAlgorithm.naive),
+    partial(gemm_cute, kernel_backend=KernelBackend.cuda, cuda_kernel_algorithm=CUDAKernelAlgorithm.no_tile_quantization),
     partial(gemm_cute, kernel_backend=KernelBackend.triton),
 ]
 
