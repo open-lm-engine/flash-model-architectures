@@ -8,20 +8,19 @@
 #include "index.h"
 
 template <typename scalar_t>
-__global__ void _naive_gemm_cuda_kernel(const scalar_t *a,
-                                        const scalar_t *b,
-                                        const scalar_t *c,
-                                        scalar_t *output,
-                                        const bool is_a_transposed,
-                                        const bool is_b_transposed,
-                                        const fp32 alpha,
-                                        const fp32 beta,
-                                        const uint32 M,
-                                        const uint32 K,
-                                        const uint32 N) {
-    const uint32 i = get_thread_id_along_axis(blockDim.y, blockIdx.y, threadIdx.y);
-    const uint32 j = get_thread_id_along_axis(blockDim.x, blockIdx.x, threadIdx.x);
-
+inline __device__ _run_matmul(const scalar_t *a,
+                              const scalar_t *b,
+                              const scalar_t *c,
+                              scalar_t *output,
+                              const bool &is_a_transposed,
+                              const bool &is_b_transposed,
+                              const fp32 &alpha,
+                              const fp32 &beta,
+                              const uint32 &i,
+                              const uint32 &j,
+                              const uint32 &M,
+                              const uint32 &K,
+                              const uint32 &N) {
     if (i < M && j < N) {
         fp32 accumulator = 0;
         for (uint32 k = 0; k < K; k++) {
@@ -51,6 +50,24 @@ __global__ void _naive_gemm_cuda_kernel(const scalar_t *a,
 
         output[index] = accumulator;
     }
+}
+
+template <typename scalar_t>
+__global__ void _naive_gemm_cuda_kernel(const scalar_t *a,
+                                        const scalar_t *b,
+                                        const scalar_t *c,
+                                        scalar_t *output,
+                                        const bool is_a_transposed,
+                                        const bool is_b_transposed,
+                                        const fp32 alpha,
+                                        const fp32 beta,
+                                        const uint32 M,
+                                        const uint32 K,
+                                        const uint32 N) {
+    const uint32 i = get_thread_id_along_axis(blockDim.y, blockIdx.y, threadIdx.y);
+    const uint32 j = get_thread_id_along_axis(blockDim.x, blockIdx.x, threadIdx.x);
+
+    _run_matmul<scalar_t>(a, b, c, output, is_a_transposed, is_b_transposed, alpha, beta, i, j, M, K, N);
 }
 
 void naive_gemm_cuda(const torch::Tensor &a,
