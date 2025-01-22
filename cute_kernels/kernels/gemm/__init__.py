@@ -49,7 +49,7 @@ def gemm_cute(
         assert c is not None
 
     if kernel_backend == KernelBackend.cuda:
-        if cuda_kernel_algorithm == CUDAKernelAlgorithm.naive:
+        if cuda_kernel_algorithm == CUDAKernelAlgorithm.no_tile_quantization:
             no_tile_quantization_cuda(
                 a=a,
                 b=b,
