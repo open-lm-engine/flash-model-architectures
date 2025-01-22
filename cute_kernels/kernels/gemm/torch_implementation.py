@@ -16,4 +16,11 @@ def gemm_torch(
     if is_b_transposed:
         b = b.T
 
-    return alpha * (a @ b) if beta == 0 else torch.addmm(c, a, b, alpha=alpha, beta=beta)
+    if beta == 0:
+        output = a @ b
+        if alpha != 1:
+            output *= alpha
+    else:
+        output = torch.addmm(c, a, b, alpha=alpha, beta=beta)
+
+    return output
