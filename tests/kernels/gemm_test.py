@@ -4,7 +4,7 @@ import torch
 from parameterized import parameterized
 from transformers import set_seed
 
-from cute_kernels import gemm_cute, gemm_torch
+from cute_kernels import KernelBackend, gemm_cute, gemm_torch
 
 from ..test_commons import TestCommons
 
@@ -18,37 +18,71 @@ class GEMMTest(TestCommons):
             TestCommons.get_2d_tensor_sizes(),  # size
             [False, True],  # is_a_transposed
             [False, True],  # is_b_transposed
+            [False],  # has_c
+            [KernelBackend.cuda, KernelBackend.triton],  # kernel_backend
+            [torch.device("cuda")],  # device
+            TestCommons.get_dtypes(),  # dtype
+            [gemm_cute, torch.compile(gemm_cute, fullgraph=True)],  # function
+        )
+        + TestCommons.make_args_matrix(
+            list(TestCommons.get_2d_tensor_sizes())[:8],  # size
+            [False, True],  # is_a_transposed
+            [False, True],  # is_b_transposed
+            [True],  # has_c
+            [KernelBackend.cuda, KernelBackend.triton],  # kernel_backend
             [torch.device("cuda")],  # device
             TestCommons.get_dtypes(),  # dtype
             [gemm_cute, torch.compile(gemm_cute, fullgraph=True)],  # function
         )
     )
-    def test_linear(
+    def test_gemm(
         self,
         size: tuple[int],
         is_a_transposed: bool,
         is_b_transposed: bool,
+        has_c: bool,
+        kernel_backend: KernelBackend,
         device: torch.device,
         dtype: torch.dtype,
         function: Callable,
     ) -> None:
         set_seed(_SEED)
 
-        a_kernel, a_expected = self.get_random_duplicated_tensors(
-            (size[0], 400) if is_a_transposed else (400, size[0]), device=device, dtype=dtype, std=0.02
+        std = 0.02
+        a = (
+            torch.randn(
+                (size[0], 400) if is_a_transposed else (400, size[0]), device=device, dtype=dtype, requires_grad=False
+            )
+            * std
         )
-        b_kernel, b_expected = self.get_random_duplicated_tensors(
-            (size[1], size[0]) if is_b_transposed else size, device=device, dtype=dtype, std=0.02
+        b = (
+            torch.randn(
+                (size[1], size[0]) if is_b_transposed else size, device=device, dtype=dtype, requires_grad=False
+            )
+            * std
         )
+        c = torch.randn(400, size[1], device=device, dtype=dtype, requires_grad=False) * std if has_c else None
 
-        c_kernel = function(a=a_kernel, b=b_kernel, is_a_transposed=is_a_transposed, is_b_transposed=is_b_transposed)
-        c_expected = gemm_torch(
-            a=a_expected, b=b_expected, is_a_transposed=is_a_transposed, is_b_transposed=is_b_transposed
+        alpha = 0.3
+        beta = 0.7 if has_c else 0
+
+        output_kernel = function(
+            a=a,
+            b=b,
+            c=c,
+            is_a_transposed=is_a_transposed,
+            is_b_transposed=is_b_transposed,
+            alpha=alpha,
+            beta=beta,
+            kernel_backend=kernel_backend,
+        )
+        output_expected = gemm_torch(
+            a=a, b=b, c=c, alpha=alpha, beta=beta, is_a_transposed=is_a_transposed, is_b_transposed=is_b_transposed
         )
 
         self.assert_equal_tensors(
-            c_kernel,
-            c_expected,
+            output_kernel,
+            output_expected,
             False,
             atol_float32=4e-3,
             rtol_float32=1e-4,

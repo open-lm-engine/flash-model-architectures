@@ -5,6 +5,7 @@
 #include <cuda_runtime.h>
 #include <torch/extension.h>
 
+#include "alias.h"
 #include "common.h"
 
 template <>

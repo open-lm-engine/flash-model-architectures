@@ -16,6 +16,9 @@ def _gemm_triton_kernel(
     a_ptr,
     b_ptr,
     c_ptr,
+    output_ptr,
+    alpha,
+    beta,
     is_a_transposed: tl.constexpr,
     is_b_transposed: tl.constexpr,
     use_tf32: tl.constexpr,
@@ -74,8 +77,17 @@ def _gemm_triton_kernel(
 
         accumulator = tl.dot(a, b, accumulator, allow_tf32=use_tf32)
 
-    c_ptrs = c_ptr + indices_m[:, None] * N + indices_n[None, :]
-    tl.store(c_ptrs, accumulator.to(a_ptr.dtype.element_ty), mask=mask_m[:, None] & mask_n[None, :])
+    accumulator = accumulator.to(a_ptr.dtype.element_ty)
+    accumulator *= alpha
+
+    indices_mn = indices_m[:, None] * N + indices_n[None, :]
+    mask_mn = mask_m[:, None] & mask_n[None, :]
+
+    if c_ptr is not None:
+        c = tl.load(c_ptr + indices_mn, mask=mask_mn)
+        accumulator += beta * c
+
+    tl.store(output_ptr + indices_mn, accumulator, mask=mask_mn)
 
 
 def _condition(a: torch.Tensor, BLOCK_SIZE_M: int, BLOCK_SIZE_K: int, BLOCK_SIZE_N: int, **kwargs) -> bool:
@@ -99,13 +111,16 @@ def _condition(a: torch.Tensor, BLOCK_SIZE_M: int, BLOCK_SIZE_K: int, BLOCK_SIZE
     ),
     triggers={"a.dtype", "is_a_transposed", "is_b_transposed"},
 )
-@cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"c"})
+@cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"output"})
 def gemm_triton(
     a: torch.Tensor,
     b: torch.Tensor,
-    c: torch.Tensor,
+    c: torch.Tensor | None,
+    output: torch.Tensor,
     is_a_transposed: bool,
     is_b_transposed: bool,
+    alpha: float,
+    beta: float,
     M: int,
     K: int,
     N: int,
@@ -121,6 +136,9 @@ def gemm_triton(
             a_ptr=a,
             b_ptr=b,
             c_ptr=c,
+            output_ptr=output,
+            alpha=alpha,
+            beta=beta,
             is_a_transposed=is_a_transposed,
             is_b_transposed=is_b_transposed,
             use_tf32=use_tf32,
