@@ -35,7 +35,7 @@ class GEMMTest(TestCommons):
             [gemm_cute, torch.compile(gemm_cute, fullgraph=True)],  # function
         )
     )
-    def test_linear(
+    def test_gemm(
         self,
         size: tuple[int],
         is_a_transposed: bool,
