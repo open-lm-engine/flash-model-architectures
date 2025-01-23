@@ -17,13 +17,11 @@ headers = [
     "torch TFLOPs",
     "torch compile TFLOPs",
     "naive CUDA TFLOPs",
-    "no tile quantization CUDA TFLOPs",
     "triton TFLOPs",
 ]
 kernels = [
     gemm_torch,
     torch.compile(gemm_torch, mode="max-autotune"),
-    partial(gemm_cute, kernel_backend=KernelBackend.cuda, cuda_kernel_algorithm=CUDAKernelAlgorithm.naive),
     partial(gemm_cute, kernel_backend=KernelBackend.cuda, cuda_kernel_algorithm=CUDAKernelAlgorithm.naive),
     partial(gemm_cute, kernel_backend=KernelBackend.triton),
 ]

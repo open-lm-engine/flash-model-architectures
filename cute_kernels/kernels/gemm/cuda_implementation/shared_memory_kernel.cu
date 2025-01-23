@@ -18,13 +18,21 @@ __global__ void _naive_gemm_cuda_kernel(const scalar_t *a,
                                         const fp32 beta,
                                         const uint32 M,
                                         const uint32 K,
-                                        const uint32 N) {
-    const uint32 i = get_thread_id_along_axis(blockDim.y, blockIdx.y, threadIdx.y);
-    const uint32 j = get_thread_id_along_axis(blockDim.x, blockIdx.x, threadIdx.x);
+                                        const uint32 N,
+                                        const uint32 BLOCK_SIZE_K) {
+    const uint32 block_start_row = blockDim.y * blockIdx.y;
+    const uint32 block_start_col = blockDim.x * blockIdx.x;
+
+    extern __shared__ scalar_t shared_memory[];
+    scalar_t *a_shared = shared_memory;
+    scalar_t *b_shared = &shared_memory[blockDim.x * blockDim.y];
+
+    const uint32 i = block_start_row + threadIdx.y;
+    const uint32 j = block_start_col + threadIdx.x;
 
     if (i < M && j < N) {
         fp32 accumulator = 0;
-        for (uint32 k = 0; k < K; k++) {
+        for (uint32 k = 0; k < K; k += BLOCK_SIZE_K) {
             const uint64 a_index = get_matrix_index(i, k, M, K, is_a_transposed);
             const uint64 b_index = get_matrix_index(k, j, K, N, is_b_transposed);
 
