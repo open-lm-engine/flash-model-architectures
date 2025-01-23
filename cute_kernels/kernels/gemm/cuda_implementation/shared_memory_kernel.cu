@@ -41,8 +41,8 @@ __global__ void _shared_memory_gemm_cuda_kernel(const scalar_t *a,
 
             const uint32 max_q = min(K - k, blockDim.x);
             for (uint32 q = 0; q < max_q; q++) {
-                accumulator += a_shared[get_matrix_index(i, q, blockDim.x, blockDim.x, false)] *
-                               b_shared[get_matrix_index(q, j, blockDim.x, blockDim.x, false)];
+                accumulator += a_shared[get_matrix_index(threadIdx.y, q, blockDim.x, blockDim.x, false)] *
+                               b_shared[get_matrix_index(q, threadIdx.x, blockDim.x, blockDim.x, false)];
             }
 
             __syncthreads();
