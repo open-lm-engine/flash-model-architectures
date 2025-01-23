@@ -27,4 +27,7 @@ void shared_memory_gemm_cuda(const torch::Tensor &a,
                              const uint32 &N,
                              const uint32 &BLOCK_SIZE);
 
-PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) { m.def("naive_gemm_cuda", &naive_gemm_cuda, "naive GEMM (CUDA)"); }
+PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
+    m.def("naive_gemm_cuda", &naive_gemm_cuda, "naive GEMM (CUDA)");
+    m.def("shared_memory_gemm_cuda", &shared_memory_gemm_cuda, "shared memory GEMM (CUDA)");
+}

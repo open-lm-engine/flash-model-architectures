@@ -8,6 +8,7 @@ from ....utils import cute_op
 
 
 _NAIVE_KERNEL_NAME = "naive_gemm_cuda"
+_SHARED_MEMORY_KERNEL_NAME = "shared_memory_gemm_cuda"
 
 
 @cutotune(
@@ -43,8 +44,8 @@ def naive_gemm_cuda(
     default_config=CutoTuneConfig(dict(BLOCK_SIZE=32)),
     triggers={"a.dtype", "is_a_transposed", "is_b_transposed"},
 )
-@cute_op(f"{LIBRARY_NAME}::{_NAIVE_KERNEL_NAME}", mutates_args={"output"})
-@cpp_jit(_NAIVE_KERNEL_NAME)
+@cute_op(f"{LIBRARY_NAME}::{_SHARED_MEMORY_KERNEL_NAME}", mutates_args={"output"})
+@cpp_jit(_SHARED_MEMORY_KERNEL_NAME)
 def shared_memory_gemm_cuda(
     a: torch.Tensor,
     b: torch.Tensor,
