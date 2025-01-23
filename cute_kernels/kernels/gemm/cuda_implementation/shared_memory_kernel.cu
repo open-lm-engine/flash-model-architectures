@@ -20,9 +20,11 @@ __global__ void _shared_memory_gemm_cuda_kernel(const scalar_t *a,
     const uint32 i = get_thread_id_along_axis(blockDim.x, blockIdx.y, threadIdx.y);
     const uint32 j = get_thread_id_along_axis(blockDim.x, blockIdx.x, threadIdx.x);
 
-    extern __shared__ scalar_t shared_memory1[];
-    scalar_t *a_shared = shared_memory1;
-    scalar_t *b_shared = &shared_memory1[blockDim.x * blockDim.x];
+    extern __shared__ char shared_memory_raw[];
+    alignas(scalar_t) scalar_t *shared_memory = reinterpret_cast<scalar_t *>(shared_memory_raw);
+
+    scalar_t *a_shared = shared_memory;
+    scalar_t *b_shared = &shared_memory[blockDim.x * blockDim.x];
 
     if (i < M && j < N) {
         fp32 accumulator = 0;
