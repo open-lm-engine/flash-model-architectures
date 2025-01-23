@@ -31,7 +31,7 @@ inline __device__ void _run_matmul(const scalar_t *a,
         }
 
         accumulator *= alpha;
-        const uint64 index = get_matrix_index(i, j, N);
+        const uint64 index = get_matrix_index(i, j, M, N, false);
 
         if (beta != 0) {
             accumulator += beta * c[index];
