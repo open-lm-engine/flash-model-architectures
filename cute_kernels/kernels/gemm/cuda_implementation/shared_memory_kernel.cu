@@ -76,12 +76,13 @@ void shared_memory_gemm_cuda(const torch::Tensor &a,
     TORCH_CHECK(!is_a_transposed);
     TORCH_CHECK(!is_b_transposed);
 
+    dim3 BLOCK_SIZE_dim = dim3(BLOCK_SIZE, BLOCK_SIZE, 1);
     dim3 NUM_BLOCKS = dim3(ceil_divide<uint32>(N, BLOCK_SIZE), ceil_divide<uint32>(M, BLOCK_SIZE), 1);
 
     AT_DISPATCH_CUSTOM_FLOAT_TYPES(
         a.scalar_type(), "shared_memory_gemm_cuda_kernel", ([&] {
             _shared_memory_gemm_cuda_kernel<scalar_t>
-                <<<NUM_BLOCKS, BLOCK_SIZE, 2 * BLOCK_SIZE * BLOCK_SIZE * sizeof(scalar_t)>>>(
+                <<<NUM_BLOCKS, BLOCK_SIZE_dim, 2 * BLOCK_SIZE * BLOCK_SIZE * sizeof(scalar_t)>>>(
                     a.data_ptr<scalar_t>(),
                     b.data_ptr<scalar_t>(),
                     c.has_value() ? c.value().data_ptr<scalar_t>() : nullptr,
