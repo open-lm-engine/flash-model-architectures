@@ -25,7 +25,7 @@ def gemm_cute(
     beta: float = 1,
     use_tf32: bool = True,
     kernel_backend: KernelBackend = CutoTuneParameter(),
-    cuda_kernel_algorithm: CUDAKernelAlgorithm = CUDAKernelAlgorithm.naive,
+    cuda_kernel_algorithm: CUDAKernelAlgorithm = CUDAKernelAlgorithm.shared_memory,
     BLOCK_SIZE_M: int = CutoTuneParameter(),
     BLOCK_SIZE_K: int = CutoTuneParameter(),
     BLOCK_SIZE_N: int = CutoTuneParameter(),
