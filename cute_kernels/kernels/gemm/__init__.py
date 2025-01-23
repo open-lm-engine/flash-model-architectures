@@ -50,7 +50,8 @@ def gemm_cute(
 
     if kernel_backend == KernelBackend.cuda:
         if cuda_kernel_algorithm == CUDAKernelAlgorithm.shared_memory:
-            assert BLOCK_SIZE_M == BLOCK_SIZE_K == BLOCK_SIZE_N
+            if not isinstance(BLOCK_SIZE_M, CutoTuneParameter):
+                assert BLOCK_SIZE_M == BLOCK_SIZE_K == BLOCK_SIZE_N
 
             shared_memory_gemm_cuda(
                 a=a,
