@@ -37,9 +37,7 @@
 
 - functions:
     - naive_gemm_cuda
-    - no_tile_quantization_cuda
   sources:
     - kernels/gemm/cuda_implementation/ops.cpp
     - kernels/gemm/cuda_implementation/naive.cu
-    - kernels/gemm/cuda_implementation/no_tile_quantization.cu
   build_path: gemm
