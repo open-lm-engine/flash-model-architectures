@@ -33,12 +33,14 @@ __global__ void _shared_memory_gemm_cuda_kernel(const scalar_t *a,
         for (k = 0; k < K; k += blockDim.x) {
             const uint32 index = get_matrix_index(threadIdx.y, threadIdx.x, blockDim.x, blockDim.x, false);
 
-            if (k + threadIdx.x < K) {
-                a_shared[index] = a[get_matrix_index(i, k + threadIdx.x, M, K, false)];
+            uint32 k_offset = k + threadIdx.x;
+            if (k_offset < K) {
+                a_shared[index] = a[get_matrix_index(i, k_offset, M, K, false)];
             }
 
-            if (k + threadIdx.y < K) {
-                b_shared[index] = b[get_matrix_index(k + threadIdx.y, j, K, N, false)];
+            k_offset = k + threadIdx.y;
+            if (k_offset < K) {
+                b_shared[index] = b[get_matrix_index(k_offset, j, K, N, false)];
             }
 
             __syncthreads();
