@@ -3,7 +3,7 @@ import torch
 from ...cutotune import CutoTuneConfig, CutoTuneParameter, cutotune, get_cartesian_product_cutotune_configs
 from ...enums import KernelBackend
 from ...utils import ensure_contiguous, get_num_elements_and_hidden_size
-from .cuda_implementation import naive_gemm_cuda
+from .cuda_implementation import naive_gemm_cuda, shared_memory_gemm_cuda
 from .enums import CUDAKernelAlgorithm
 from .torch_implementation import gemm_torch
 from .triton_implementation import gemm_triton
@@ -49,7 +49,24 @@ def gemm_cute(
         assert c is not None
 
     if kernel_backend == KernelBackend.cuda:
-        if cuda_kernel_algorithm == CUDAKernelAlgorithm.naive:
+        if cuda_kernel_algorithm == CUDAKernelAlgorithm.shared_memory:
+            assert BLOCK_SIZE_M == BLOCK_SIZE_K == BLOCK_SIZE_N
+
+            shared_memory_gemm_cuda(
+                a=a,
+                b=b,
+                c=c,
+                output=output,
+                is_a_transposed=is_a_transposed,
+                is_b_transposed=is_b_transposed,
+                alpha=alpha,
+                beta=beta,
+                M=M,
+                K=K,
+                N=N,
+                BLOCK_SIZE=BLOCK_SIZE_M,
+            )
+        elif cuda_kernel_algorithm == CUDAKernelAlgorithm.naive:
             naive_gemm_cuda(
                 a=a,
                 b=b,
