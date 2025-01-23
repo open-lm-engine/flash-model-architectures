@@ -39,5 +39,5 @@
     - naive_gemm_cuda
   sources:
     - kernels/gemm/cuda_implementation/ops.cpp
-    - kernels/gemm/cuda_implementation/naive.cu
+    - kernels/gemm/cuda_implementation/naive_kernel.cu
   build_path: gemm
