@@ -30,6 +30,9 @@ __global__ void _shared_memory_gemm_cuda_kernel(const scalar_t *a,
         fp32 accumulator = 0;
         uint32 k;
 
+        // clang-format off
+        #pragma unroll 128
+        // clang-format on
         for (k = 0; k < K; k += blockDim.x) {
             const uint32 index = get_matrix_index(threadIdx.y, threadIdx.x, blockDim.x, blockDim.x, false);
 
@@ -82,8 +85,8 @@ void shared_memory_gemm_cuda(const torch::Tensor &a,
     TORCH_CHECK(!is_a_transposed);
     TORCH_CHECK(!is_b_transposed);
 
-    dim3 BLOCK_SIZE_dim = dim3(BLOCK_SIZE, BLOCK_SIZE, 1);
     dim3 NUM_BLOCKS = dim3(ceil_divide<uint32>(N, BLOCK_SIZE), ceil_divide<uint32>(M, BLOCK_SIZE), 1);
+    dim3 BLOCK_SIZE_dim = dim3(BLOCK_SIZE, BLOCK_SIZE, 1);
 
     AT_DISPATCH_CUSTOM_FLOAT_TYPES(
         a.scalar_type(), "shared_memory_gemm_cuda_kernel", ([&] {
