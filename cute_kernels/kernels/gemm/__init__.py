@@ -11,7 +11,15 @@ from .triton_implementation import gemm_triton
 
 @ensure_contiguous
 @cutotune(
-    get_cartesian_product_cutotune_configs(kernel_backend=[KernelBackend.cuda, KernelBackend.triton]),
+    get_cartesian_product_cutotune_configs(kernel_backend=[KernelBackend.triton], cuda_kernel_algorithm=[None])
+    + get_cartesian_product_cutotune_configs(
+        kernel_backend=[KernelBackend.cuda], cuda_kernel_algorithm=[CUDAKernelAlgorithm.naive]
+    )
+    + get_cartesian_product_cutotune_configs(
+        kernel_backend=[KernelBackend.cuda],
+        cuda_kernel_algorithm=[CUDAKernelAlgorithm.shared_memory],
+        condition=lambda **kwargs: not kwargs["is_a_transposed"] and not kwargs["is_b_transposed"],
+    ),
     default_config=CutoTuneConfig(dict(kernel_backend=KernelBackend.triton)),
     triggers={"a.dtype", "is_a_transposed", "is_b_transposed"},
 )
@@ -25,7 +33,7 @@ def gemm_cute(
     beta: float = 1,
     use_tf32: bool = True,
     kernel_backend: KernelBackend = CutoTuneParameter(),
-    cuda_kernel_algorithm: CUDAKernelAlgorithm = CUDAKernelAlgorithm.shared_memory,
+    cuda_kernel_algorithm: CUDAKernelAlgorithm = CutoTuneParameter(),
     BLOCK_SIZE_M: int = CutoTuneParameter(),
     BLOCK_SIZE_K: int = CutoTuneParameter(),
     BLOCK_SIZE_N: int = CutoTuneParameter(),
@@ -68,6 +76,8 @@ def gemm_cute(
                 BLOCK_SIZE=BLOCK_SIZE_M,
             )
         elif cuda_kernel_algorithm == CUDAKernelAlgorithm.naive:
+            assert cuda_kernel_algorithm is None
+
             naive_gemm_cuda(
                 a=a,
                 b=b,
