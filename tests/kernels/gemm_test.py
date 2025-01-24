@@ -17,8 +17,8 @@ class GEMMTest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(
             TestCommons.get_2d_tensor_sizes(),  # size
-            [False],  # is_a_transposed
-            [False],  # is_b_transposed
+            [False, True],  # is_a_transposed
+            [False, True],  # is_b_transposed
             [False, True],  # has_c
             [KernelBackend.cuda, KernelBackend.triton],  # kernel_backend
             [CUDAKernelAlgorithm.naive],  # cuda_kernel_algorithm
@@ -28,8 +28,8 @@ class GEMMTest(TestCommons):
         )
         + TestCommons.make_args_matrix(
             TestCommons.get_2d_tensor_sizes(),  # size
-            [False, True],  # is_a_transposed
-            [False, True],  # is_b_transposed
+            [False],  # is_a_transposed
+            [False],  # is_b_transposed
             [False, True],  # has_c
             [KernelBackend.cuda],  # kernel_backend
             [CUDAKernelAlgorithm.shared_memory],  # cuda_kernel_algorithm
