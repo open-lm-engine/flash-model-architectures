@@ -26,46 +26,44 @@ __global__ void _shared_memory_gemm_cuda_kernel(const scalar_t *a,
     scalar_t *a_shared = shared_memory;
     scalar_t *b_shared = &shared_memory[blockDim.x * blockDim.x];
 
-    if (i < M && j < N) {
-        fp32 accumulator = 0;
-        uint32 k;
+    fp32 accumulator = 0;
+    uint32 k;
 
-        // clang-format off
-        #pragma unroll 128
-        // clang-format on
-        for (k = 0; k < K; k += blockDim.x) {
-            const uint32 index = get_matrix_index(threadIdx.y, threadIdx.x, blockDim.x, blockDim.x, false);
+    // clang-format off
+    #pragma unroll 128
+    // clang-format on
+    for (k = 0; k < K; k += blockDim.x) {
+        const uint32 index = get_matrix_index(threadIdx.y, threadIdx.x, blockDim.x, blockDim.x, false);
 
-            uint32 k_offset = k + threadIdx.x;
-            if (k_offset < K) {
-                a_shared[index] = a[get_matrix_index(i, k_offset, M, K, false)];
-            }
-
-            k_offset = k + threadIdx.y;
-            if (k_offset < K) {
-                b_shared[index] = b[get_matrix_index(k_offset, j, K, N, false)];
-            }
-
-            __syncthreads();
-
-            const uint32 max_q = min(K - k, blockDim.x);
-            for (uint32 q = 0; q < max_q; q++) {
-                accumulator += a_shared[get_matrix_index(threadIdx.y, q, blockDim.x, blockDim.x, false)] *
-                               b_shared[get_matrix_index(q, threadIdx.x, blockDim.x, blockDim.x, false)];
-            }
-
-            __syncthreads();
+        uint32 k_offset = k + threadIdx.x;
+        if (k_offset < K) {
+            a_shared[index] = a[get_matrix_index(i, k_offset, M, K, false)];
         }
 
-        accumulator *= alpha;
-        const uint64 index = get_matrix_index(i, j, M, N, false);
-
-        if (beta != 0) {
-            accumulator += beta * c[index];
+        k_offset = k + threadIdx.y;
+        if (k_offset < K) {
+            b_shared[index] = b[get_matrix_index(k_offset, j, K, N, false)];
         }
 
-        output[index] = accumulator;
+        __syncthreads();
+
+        const uint32 max_q = min(K - k, blockDim.x);
+        for (uint32 q = 0; q < max_q; q++) {
+            accumulator += a_shared[get_matrix_index(threadIdx.y, q, blockDim.x, blockDim.x, false)] *
+                           b_shared[get_matrix_index(q, threadIdx.x, blockDim.x, blockDim.x, false)];
+        }
+
+        __syncthreads();
     }
+
+    accumulator *= alpha;
+    const uint64 index = get_matrix_index(i, j, M, N, false);
+
+    if (beta != 0) {
+        accumulator += beta * c[index];
+    }
+
+    output[index] = accumulator;
 }
 
 void shared_memory_gemm_cuda(const torch::Tensor &a,
