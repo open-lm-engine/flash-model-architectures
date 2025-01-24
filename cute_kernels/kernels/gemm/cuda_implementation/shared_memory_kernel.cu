@@ -36,21 +36,23 @@ __global__ void _shared_memory_gemm_cuda_kernel(const scalar_t *a,
         const uint32 index = get_matrix_index(threadIdx.y, threadIdx.x, blockDim.x, blockDim.x, false);
 
         uint32 k_offset = k + threadIdx.x;
-        if (k_offset < K) {
+        if (i < M && k_offset < K) {
             a_shared[index] = a[get_matrix_index(i, k_offset, M, K, false)];
         }
 
         k_offset = k + threadIdx.y;
-        if (k_offset < K) {
+        if (j < N && k_offset < K) {
             b_shared[index] = b[get_matrix_index(k_offset, j, K, N, false)];
         }
 
         __syncthreads();
 
-        const uint32 max_q = min(K - k, blockDim.x);
-        for (uint32 q = 0; q < max_q; q++) {
-            accumulator += a_shared[get_matrix_index(threadIdx.y, q, blockDim.x, blockDim.x, false)] *
-                           b_shared[get_matrix_index(q, threadIdx.x, blockDim.x, blockDim.x, false)];
+        if (i < M && j < N) {
+            const uint32 max_q = min(K - k, blockDim.x);
+            for (uint32 q = 0; q < max_q; q++) {
+                accumulator += a_shared[get_matrix_index(threadIdx.y, q, blockDim.x, blockDim.x, false)] *
+                               b_shared[get_matrix_index(q, threadIdx.x, blockDim.x, blockDim.x, false)];
+            }
         }
 
         __syncthreads();
