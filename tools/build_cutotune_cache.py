@@ -4,6 +4,7 @@ import torch
 from transformers import set_seed
 
 from cute_kernels import (
+    KernelBackend,
     add_scalar_cute,
     add_tensor_cute,
     continuous_count_cute,
@@ -14,7 +15,6 @@ from cute_kernels import (
     rmsnorm_cute,
     save_cutotune_cache,
     swiglu_cute,
-    KernelBackend,
     swiglu_unchunked_cute,
 )
 from cute_kernels.kernels.gemm import CUDAKernelAlgorithm
