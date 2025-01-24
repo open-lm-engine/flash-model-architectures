@@ -5,7 +5,7 @@
 #include "../../../include/dtypes/all.h"
 #include "../../../include/math.h"
 #include "../../../include/threads.h"
-#include "naive.cuh"
+#include "index.h"
 
 template <typename scalar_t>
 __global__ void _naive_gemm_cuda_kernel(const scalar_t *a,
@@ -22,7 +22,28 @@ __global__ void _naive_gemm_cuda_kernel(const scalar_t *a,
     const uint32 i = get_thread_id_along_axis(blockDim.y, blockIdx.y, threadIdx.y);
     const uint32 j = get_thread_id_along_axis(blockDim.x, blockIdx.x, threadIdx.x);
 
-    _run_matmul<scalar_t>(a, b, c, output, is_a_transposed, is_b_transposed, alpha, beta, i, j, M, K, N);
+    if (i < M && j < N) {
+        fp32 accumulator = 0;
+
+        // clang-format off
+        #pragma unroll 128
+        // clang-format on
+        for (uint32 k = 0; k < K; k++) {
+            const uint64 a_index = get_matrix_index(i, k, M, K, is_a_transposed);
+            const uint64 b_index = get_matrix_index(k, j, K, N, is_b_transposed);
+
+            accumulator += a[a_index] * b[b_index];
+        }
+
+        accumulator *= alpha;
+        const uint64 index = get_matrix_index(i, j, M, N, false);
+
+        if (beta != 0) {
+            accumulator += beta * c[index];
+        }
+
+        output[index] = accumulator;
+    }
 }
 
 void naive_gemm_cuda(const torch::Tensor &a,

@@ -8,7 +8,7 @@ from ....utils import cute_op
 
 
 _NAIVE_KERNEL_NAME = "naive_gemm_cuda"
-_NO_TILE_QUANTIZATION_KERNEL_NAME = "no_tile_quantization_cuda"
+_SHARED_MEMORY_KERNEL_NAME = "shared_memory_gemm_cuda"
 
 
 @cutotune(
@@ -40,17 +40,13 @@ def naive_gemm_cuda(
 
 
 @cutotune(
-    get_cartesian_product_cutotune_configs(
-        BLOCK_SIZE_M=get_powers_of_2(4, 32),
-        BLOCK_SIZE_N=get_powers_of_2(4, 32),
-        condition=lambda **kwargs: kwargs["BLOCK_SIZE_M"] * kwargs["BLOCK_SIZE_N"] >= 32,
-    ),
-    default_config=CutoTuneConfig(dict(BLOCK_SIZE_M=16, BLOCK_SIZE_N=16)),
-    triggers={"a.dtype", "is_a_transposed", "is_b_transposed"},
+    get_cartesian_product_cutotune_configs(BLOCK_SIZE=get_powers_of_2(8, 32)),
+    default_config=CutoTuneConfig(dict(BLOCK_SIZE=32)),
+    triggers={"a.dtype"},
 )
-@cute_op(f"{LIBRARY_NAME}::{_NO_TILE_QUANTIZATION_KERNEL_NAME}", mutates_args={"output"})
-@cpp_jit(_NO_TILE_QUANTIZATION_KERNEL_NAME)
-def no_tile_quantization_cuda(
+@cute_op(f"{LIBRARY_NAME}::{_SHARED_MEMORY_KERNEL_NAME}", mutates_args={"output"})
+@cpp_jit(_SHARED_MEMORY_KERNEL_NAME)
+def shared_memory_gemm_cuda(
     a: torch.Tensor,
     b: torch.Tensor,
     c: torch.Tensor | None,
@@ -62,6 +58,5 @@ def no_tile_quantization_cuda(
     M: int,
     K: int,
     N: int,
-    BLOCK_SIZE_M: int,
-    BLOCK_SIZE_N: int,
+    BLOCK_SIZE: int,
 ) -> None: ...
