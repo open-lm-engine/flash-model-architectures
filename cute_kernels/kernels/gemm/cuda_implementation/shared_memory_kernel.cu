@@ -21,7 +21,7 @@ __global__ void _shared_memory_gemm_cuda_kernel(const scalar_t *a,
     const uint32 i = get_thread_id_along_axis(blockDim.x, blockIdx.y, threadIdx.y);
     const uint32 j = get_thread_id_along_axis(blockDim.x, blockIdx.x, threadIdx.x);
 
-    scalar_t *shared_memory = get_dynamic_shared_memory();
+    scalar_t *shared_memory = get_dynamic_shared_memory<scalar_t>();
 
     scalar_t *a_shared = shared_memory;
     scalar_t *b_shared = &shared_memory[blockDim.x * blockDim.x];
