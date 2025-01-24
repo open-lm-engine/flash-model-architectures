@@ -75,8 +75,6 @@ def gemm_cute(
                 BLOCK_SIZE=BLOCK_SIZE_M,
             )
         elif cuda_kernel_algorithm == CUDAKernelAlgorithm.naive:
-            assert cuda_kernel_algorithm is None
-
             naive_gemm_cuda(
                 a=a,
                 b=b,
@@ -93,6 +91,8 @@ def gemm_cute(
                 BLOCK_SIZE_N=BLOCK_SIZE_N,
             )
     elif kernel_backend == KernelBackend.triton:
+        assert cuda_kernel_algorithm is None
+
         gemm_triton(
             a=a,
             b=b,
