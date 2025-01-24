@@ -32,8 +32,9 @@ class LinearTest(TestCommons):
     ) -> None:
         set_seed(_SEED)
 
+        M = 417
         input_kernel, input_expected = self.get_random_duplicated_tensors(
-            (400, size[-1]), device=device, dtype=dtype, std=0.02
+            (M, size[-1]), device=device, dtype=dtype, std=0.02
         )
         weight_kernel, weight_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype, std=0.02)
 
