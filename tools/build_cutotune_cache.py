@@ -14,6 +14,7 @@ from cute_kernels import (
     rmsnorm_cute,
     save_cutotune_cache,
     swiglu_cute,
+    KernelBackend,
     swiglu_unchunked_cute,
 )
 from cute_kernels.kernels.gemm import CUDAKernelAlgorithm
@@ -85,7 +86,8 @@ for dtype in all_dtypes:
         c=None,
         is_a_transposed=False,
         is_b_transposed=False,
-        cuda_kernel_algorithm=CUDAKernelAlgorithm.naive,
+        kernel_backend=KernelBackend.cuda,
+        cuda_kernel_algorithm=CUDAKernelAlgorithm.shared_memory,
         beta=0,
     )
 

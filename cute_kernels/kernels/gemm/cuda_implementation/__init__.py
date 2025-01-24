@@ -42,7 +42,7 @@ def naive_gemm_cuda(
 @cutotune(
     get_cartesian_product_cutotune_configs(BLOCK_SIZE=get_powers_of_2(8, 32)),
     default_config=CutoTuneConfig(dict(BLOCK_SIZE=32)),
-    triggers={"a.dtype", "is_a_transposed", "is_b_transposed"},
+    triggers={"a.dtype"},
 )
 @cute_op(f"{LIBRARY_NAME}::{_SHARED_MEMORY_KERNEL_NAME}", mutates_args={"output"})
 @cpp_jit(_SHARED_MEMORY_KERNEL_NAME)
