@@ -16,6 +16,7 @@ from cute_kernels import (
     swiglu_cute,
     swiglu_unchunked_cute,
 )
+from cute_kernels.kernels.gemm import CUDAKernelAlgorithm
 
 
 def forward_backward(kernel: Callable, *args, **kwargs) -> None:
@@ -74,8 +75,19 @@ for dtype in all_dtypes:
                 c=None,
                 is_a_transposed=is_a_transposed,
                 is_b_transposed=is_b_transposed,
+                cuda_kernel_algorithm=CUDAKernelAlgorithm.naive,
                 beta=0,
             )
+
+    gemm_cute(
+        a=torch.randn(*input_size, device=torch.cuda.current_device(), dtype=dtype, requires_grad=True),
+        b=torch.randn(*weight_size, device=torch.cuda.current_device(), dtype=dtype, requires_grad=True),
+        c=None,
+        is_a_transposed=False,
+        is_b_transposed=False,
+        cuda_kernel_algorithm=CUDAKernelAlgorithm.naive,
+        beta=0,
+    )
 
 size = 104857600
 for dtype in [torch.long, torch.int32]:
