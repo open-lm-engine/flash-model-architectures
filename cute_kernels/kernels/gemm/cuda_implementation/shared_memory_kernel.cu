@@ -58,14 +58,16 @@ __global__ void _shared_memory_gemm_cuda_kernel(const scalar_t *a,
         __syncthreads();
     }
 
-    accumulator *= alpha;
-    const uint64 index = get_matrix_index(i, j, M, N, false);
+    if (i < M && j < N) {
+        accumulator *= alpha;
+        const uint64 index = get_matrix_index(i, j, M, N, false);
 
-    if (beta != 0) {
-        accumulator += beta * c[index];
+        if (beta != 0) {
+            accumulator += beta * c[index];
+        }
+
+        output[index] = accumulator;
     }
-
-    output[index] = accumulator;
 }
 
 void shared_memory_gemm_cuda(const torch::Tensor &a,
