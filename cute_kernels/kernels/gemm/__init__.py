@@ -16,7 +16,8 @@ from .triton_implementation import gemm_triton
         CutoTuneConfig(dict(kernel_backend=KernelBackend.cuda, cuda_kernel_algorithm=CUDAKernelAlgorithm.naive)),
         CutoTuneConfig(
             dict(kernel_backend=KernelBackend.cuda, cuda_kernel_algorithm=CUDAKernelAlgorithm.shared_memory),
-            condition=lambda **kwargs: not kwargs["is_a_transposed"] and not kwargs["is_b_transposed"],
+            condition=lambda **kwargs: not kwargs.get("is_a_transposed", False)
+            and not kwargs.get("is_b_transposed", False),
         ),
     ],
     default_config=CutoTuneConfig(dict(kernel_backend=KernelBackend.triton)),
