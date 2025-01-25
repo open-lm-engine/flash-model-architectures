@@ -27,12 +27,11 @@ __global__ void _shared_memory_gemm_cuda_kernel(const scalar_t *a,
     scalar_t *b_shared = &shared_memory[blockDim.x * blockDim.x];
 
     fp32 accumulator = 0;
-    uint32 k;
 
     // clang-format off
     #pragma unroll 128
     // clang-format on
-    for (k = 0; k < K; k += blockDim.x) {
+    for (uint32 k = 0; k < K; k += blockDim.x) {
         const uint32 index = get_matrix_index(threadIdx.y, threadIdx.x, blockDim.x, blockDim.x, false);
 
         // instead of looping over k dimension, we use the threads in the block to load the data to shared memory
