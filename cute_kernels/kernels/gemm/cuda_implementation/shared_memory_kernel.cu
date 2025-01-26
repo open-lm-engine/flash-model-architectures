@@ -32,18 +32,18 @@ __global__ void _shared_memory_gemm_cuda_kernel(const scalar_t *a,
     #pragma unroll 128
     // clang-format on
     for (uint32 k = 0; k < K; k += blockDim.x) {
-        const uint32 index = get_matrix_index(threadIdx.y, threadIdx.x, blockDim.x, blockDim.x, false);
+        const uint32 index = get_matrix_index<uint32>(threadIdx.y, threadIdx.x, blockDim.x, blockDim.x, false);
 
         // instead of looping over k dimension, we use the threads in the block to load the data to shared memory
         uint32 k_offset = k + threadIdx.x;
         if (i < M && k_offset < K) {
-            a_shared[index] = a[get_matrix_index(i, k_offset, M, K, false)];
+            a_shared[index] = a[get_matrix_index<uint32>(i, k_offset, M, K, false)];
         }
 
         // instead of looping over k dimension, we use the threads in the block to load the data to shared memory
         k_offset = k + threadIdx.y;
         if (j < N && k_offset < K) {
-            b_shared[index] = b[get_matrix_index(k_offset, j, K, N, false)];
+            b_shared[index] = b[get_matrix_index<uint32>(k_offset, j, K, N, false)];
         }
 
         __syncthreads();
@@ -51,8 +51,8 @@ __global__ void _shared_memory_gemm_cuda_kernel(const scalar_t *a,
         if (i < M && j < N) {
             const uint32 max_q = min(K - k, blockDim.x);
             for (uint32 q = 0; q < max_q; q++) {
-                accumulator += a_shared[get_matrix_index(threadIdx.y, q, blockDim.x, blockDim.x, false)] *
-                               b_shared[get_matrix_index(q, threadIdx.x, blockDim.x, blockDim.x, false)];
+                accumulator += a_shared[get_matrix_index<uint32>(threadIdx.y, q, blockDim.x, blockDim.x, false)] *
+                               b_shared[get_matrix_index<uint32>(q, threadIdx.x, blockDim.x, blockDim.x, false)];
             }
         }
 
@@ -62,7 +62,7 @@ __global__ void _shared_memory_gemm_cuda_kernel(const scalar_t *a,
 
     if (i < M && j < N) {
         accumulator *= alpha;
-        const uint64 index = get_matrix_index(i, j, M, N, false);
+        const uint32 index = get_matrix_index<uint32>(i, j, M, N, false);
 
         if (beta != 0) {
             accumulator += beta * c[index];

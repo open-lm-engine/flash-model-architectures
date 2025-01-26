@@ -29,14 +29,14 @@ __global__ void _naive_gemm_cuda_kernel(const scalar_t *a,
         #pragma unroll 128
         // clang-format on
         for (uint32 k = 0; k < K; k++) {
-            const uint64 a_index = get_matrix_index(i, k, M, K, is_a_transposed);
-            const uint64 b_index = get_matrix_index(k, j, K, N, is_b_transposed);
+            const uint32 a_index = get_matrix_index<uint32>(i, k, M, K, is_a_transposed);
+            const uint32 b_index = get_matrix_index<uint32>(k, j, K, N, is_b_transposed);
 
             accumulator += a[a_index] * b[b_index];
         }
 
         accumulator *= alpha;
-        const uint64 index = get_matrix_index(i, j, M, N, false);
+        const uint32 index = get_matrix_index<uint32>(i, j, M, N, false);
 
         if (beta != 0) {
             accumulator += beta * c[index];
