@@ -62,7 +62,7 @@ def gemm_cute(
             assert isinstance(BLOCK_SIZE_K, CutoTuneParameter)
             assert isinstance(BLOCK_SIZE_N, CutoTuneParameter)
 
-            shared_memory_gemm_cuda(
+            cutlass_gemm_cuda(
                 a=a,
                 b=b,
                 c=c,
