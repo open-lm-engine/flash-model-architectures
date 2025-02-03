@@ -15,6 +15,7 @@ void _cutlass_gemm_cuda(const scalar_t *a,
                         const uint32 M,
                         const uint32 K,
                         const uint32 N) {
+    // PyTorch tensors are row major
     using RowMajor = cutlass::layout::RowMajor;
     using CutlassGemm = cutlass::gemm::device::Gemm<fp32, RowMajor, fp32, RowMajor, fp32, RowMajor>;
 
