@@ -2,11 +2,11 @@
 #include <cuda_runtime.h>
 #include <torch/extension.h>
 
-#include "../../../include/activations.h"
-#include "../../../include/dtypes/all.h"
-#include "../../../include/launch.h"
-#include "../../../include/math.h"
-#include "../../../include/threads.h"
+#include "include/activations.h"
+#include "include/dtypes/all.h"
+#include "include/launch.h"
+#include "include/math.h"
+#include "include/threads.h"
 
 template <typename scalar_t>
 __global__ void _swiglu_backward_cuda_kernel(const scalar_t *gate,
