@@ -38,9 +38,15 @@ def compile_cpp(name: str) -> None:
     module = load_cpp_extension(
         f"{CPP_MODULE_PREFIX}_{build_directory}",
         sources=source_map[index],
-        extra_include_paths=[os.path.join(os.path.dirname(__file__), "include")],
         with_cuda=True,
-        extra_cflags=["-O3", "-Wall", "-shared", "-fPIC", "-fdiagnostics-color"],
+        extra_cflags=[
+            "-O3",
+            "-Wall",
+            "-shared",
+            "-fPIC",
+            "-fdiagnostics-color",
+            f"-I{os.path.join(os.path.dirname(__file__), 'include')}",
+        ],
         build_directory=full_build_path,
         verbose=True,
     )
