@@ -2,10 +2,10 @@
 #include <cuda_runtime.h>
 #include <torch/extension.h>
 
-#include "../../../../include/dtypes/all.h"
-#include "../../../../include/launch.h"
-#include "../../../../include/math.h"
-#include "../../../../include/threads.h"
+#include "include/dtypes/all.h"
+#include "include/launch.h"
+#include "include/math.h"
+#include "include/threads.h"
 
 template <typename scalar_t>
 __global__ void _add_tensor_cuda_kernel(const scalar_t *x,
