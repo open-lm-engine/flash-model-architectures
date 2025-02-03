@@ -43,5 +43,5 @@ void cutlass_gemm_cuda(const torch::Tensor &a,
     TORCH_CHECK(!is_b_transposed);
 
     AT_DISPATCH_CUSTOM_FLOAT_TYPES(
-        a.scalar_type(), "gemm_fp32", ([&] { _cutlass_gemm_cuda(a, b, c, output, alpha, beta, M, K, N); }));
+        a.scalar_type(), "gemm_fp32", ([&] { _cutlass_gemm_cuda<scalar_t>(a, b, c, output, alpha, beta, M, K, N); }));
 }
