@@ -6,15 +6,15 @@
 #include "dtypes/all.h"
 
 template <typename scalar_t>
-void _cutlass_gemm_cuda(const scalar_t *a,
-                        const scalar_t *b,
-                        const scalar_t *c,
-                        scalar_t *output,
-                        const fp32 alpha,
-                        const fp32 beta,
-                        const uint32 M,
-                        const uint32 K,
-                        const uint32 N) {
+inline void _cutlass_gemm_cuda(const scalar_t *a,
+                               const scalar_t *b,
+                               const scalar_t *c,
+                               scalar_t *output,
+                               const fp32 &alpha,
+                               const fp32 &beta,
+                               const uint32 &M,
+                               const uint32 &K,
+                               const uint32 &N) {
     // PyTorch tensors are row major
     using RowMajor = cutlass::layout::RowMajor;
     using CutlassGemm = cutlass::gemm::device::Gemm<fp32, RowMajor, fp32, RowMajor, fp32, RowMajor>;
