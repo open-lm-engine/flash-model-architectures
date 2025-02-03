@@ -39,7 +39,7 @@ def compile_cpp(name: str) -> None:
         f"{CPP_MODULE_PREFIX}_{build_directory}",
         sources=source_map[index],
         with_cuda=True,
-        extra_include_paths=[os.path.dirname(__file__)],
+        extra_include_paths=[os.path.dirname(__file__), os.path.dirname(os.path.dirname(__file__))],
         extra_cflags=[
             "-O3",
             "-Wall",
