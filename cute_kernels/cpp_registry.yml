@@ -42,4 +42,5 @@
     - kernels/gemm/cuda_implementation/ops.cpp
     - kernels/gemm/cuda_implementation/naive_kernel.cu
     - kernels/gemm/cuda_implementation/shared_memory_kernel.cu
+    - kernels/gemm/cuda_implementation/cutlass_gemm.cu
   build_path: gemm
