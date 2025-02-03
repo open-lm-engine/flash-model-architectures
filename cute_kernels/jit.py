@@ -45,7 +45,7 @@ def compile_cpp(name: str) -> None:
             "-shared",
             "-fPIC",
             "-fdiagnostics-color",
-            f"-I{os.path.join(os.path.dirname(__file__), 'include')}",
+            f"-I{os.path.dirname(__file__)}",
         ],
         build_directory=full_build_path,
         verbose=True,
