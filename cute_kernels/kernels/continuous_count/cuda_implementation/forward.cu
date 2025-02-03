@@ -3,10 +3,10 @@
 #include <cuda_runtime.h>
 #include <torch/extension.h>
 
-#include "../../../include/dtypes/all.h"
-#include "../../../include/launch.h"
-#include "../../../include/math.h"
-#include "../../../include/threads.h"
+#include "include/dtypes/all.h"
+#include "include/launch.h"
+#include "include/math.h"
+#include "include/threads.h"
 
 #define MAX_ALLOWED_C 16384
 
