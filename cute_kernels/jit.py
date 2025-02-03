@@ -38,6 +38,7 @@ def compile_cpp(name: str) -> None:
     module = load_cpp_extension(
         f"{CPP_MODULE_PREFIX}_{build_directory}",
         sources=source_map[index],
+        extra_include_paths=["include"],
         with_cuda=True,
         extra_cflags=["-O3", "-Wall", "-shared", "-fPIC", "-fdiagnostics-color"],
         build_directory=full_build_path,
