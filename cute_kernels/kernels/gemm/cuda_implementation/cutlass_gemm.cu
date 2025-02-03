@@ -36,8 +36,7 @@ void cutlass_gemm_cuda(const torch::Tensor &a,
                        const fp32 beta,
                        const uint32 &M,
                        const uint32 &K,
-                       const uint32 &N,
-                       const uint32 &BLOCK_SIZE) {
+                       const uint32 &N) {
     TORCH_CHECK((BLOCK_SIZE * BLOCK_SIZE) % WARP_SIZE == 0);
 
     TORCH_CHECK(!is_a_transposed);

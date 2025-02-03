@@ -37,8 +37,7 @@ void cutlass_gemm_cuda(const torch::Tensor &a,
                        const float beta,
                        const uint &M,
                        const uint &K,
-                       const uint &N,
-                       const uint &BLOCK_SIZE);
+                       const uint &N);
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
     m.def("naive_gemm_cuda", &naive_gemm_cuda, "naive GEMM (CUDA)");

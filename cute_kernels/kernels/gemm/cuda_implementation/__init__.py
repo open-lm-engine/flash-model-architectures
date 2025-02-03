@@ -9,6 +9,7 @@ from ....utils import cute_op
 
 _NAIVE_KERNEL_NAME = "naive_gemm_cuda"
 _SHARED_MEMORY_KERNEL_NAME = "shared_memory_gemm_cuda"
+_CUTLASS_KERNEL_NAME = "cutlass_gemm_cuda"
 
 
 @cutotune(
@@ -59,4 +60,21 @@ def shared_memory_gemm_cuda(
     K: int,
     N: int,
     BLOCK_SIZE: int,
+) -> None: ...
+
+
+@cute_op(f"{LIBRARY_NAME}::{_CUTLASS_KERNEL_NAME}", mutates_args={"output"})
+@cpp_jit(_SHARED_MEMORY_KERNEL_NAME)
+def cutlass_gemm_cuda(
+    a: torch.Tensor,
+    b: torch.Tensor,
+    c: torch.Tensor | None,
+    output: torch.Tensor,
+    is_a_transposed: bool,
+    is_b_transposed: bool,
+    alpha: float,
+    beta: float,
+    M: int,
+    K: int,
+    N: int,
 ) -> None: ...
