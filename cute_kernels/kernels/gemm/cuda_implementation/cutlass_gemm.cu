@@ -2,8 +2,8 @@
 #include <sstream>
 #include <vector>
 
-#include "cutlass/gemm/device/gemm.h"
-#include "dtypes/all.h"
+#include "cutlass/include/cutlass/gemm/device/gemm.h"
+#include "include/dtypes/all.h"
 
 template <typename scalar_t>
 inline void _cutlass_gemm_cuda(const scalar_t *a,
