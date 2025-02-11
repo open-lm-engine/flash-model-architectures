@@ -2,7 +2,7 @@
 #include <sstream>
 #include <vector>
 
-#include "cutlass/include/cutlass/gemm/device/gemm.h"
+#include "cutlass/gemm/device/gemm.h"
 #include "include/dtypes/all.h"
 
 template <typename scalar_t>
@@ -37,8 +37,6 @@ void cutlass_gemm_cuda(const torch::Tensor &a,
                        const uint32 &M,
                        const uint32 &K,
                        const uint32 &N) {
-    TORCH_CHECK((BLOCK_SIZE * BLOCK_SIZE) % WARP_SIZE == 0);
-
     TORCH_CHECK(!is_a_transposed);
     TORCH_CHECK(!is_b_transposed);
 
