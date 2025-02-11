@@ -64,7 +64,7 @@ def shared_memory_gemm_cuda(
 
 
 @cute_op(f"{LIBRARY_NAME}::{_CUTLASS_KERNEL_NAME}", mutates_args={"output"})
-@cpp_jit(_SHARED_MEMORY_KERNEL_NAME)
+@cpp_jit(_CUTLASS_KERNEL_NAME)
 def cutlass_gemm_cuda(
     a: torch.Tensor,
     b: torch.Tensor,
