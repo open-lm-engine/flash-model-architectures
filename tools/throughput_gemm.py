@@ -18,7 +18,7 @@ headers = [
     "torch compile TFLOPs",
     "naive CUDA TFLOPs",
     "shared memory CUDA TFLOPs",
-    "triton TFLOPs",
+    "CUTLASS GEMM CUDA TFLOPs" "triton TFLOPs",
 ]
 kernels = [
     gemm_torch,
