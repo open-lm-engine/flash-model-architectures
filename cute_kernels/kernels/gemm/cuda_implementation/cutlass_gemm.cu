@@ -20,7 +20,7 @@ inline void _cutlass_gemm_cuda(const scalar_t *a,
     using CutlassGemm = cutlass::gemm::device::Gemm<fp32, RowMajor, fp32, RowMajor, fp32, RowMajor>;
 
     CutlassGemm gemm_operator;
-    CutlassGemm::Arguments args({M, N, K}, {a, M}, {b, K}, {nullptr, M}, {output, M}, {alpha, beta});
+    CutlassGemm::Arguments args({M, N, K}, {a, K}, {b, N}, {nullptr, M}, {output, N}, {alpha, beta});
 
     // call the kernel
     cutlass::Status status = gemm_operator(args);
