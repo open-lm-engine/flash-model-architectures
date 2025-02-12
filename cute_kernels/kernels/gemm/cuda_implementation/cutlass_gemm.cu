@@ -31,10 +31,10 @@ void cutlass_gemm_cuda(const torch::Tensor &a,
 
             CutlassGemm gemm_operator;
             typename CutlassGemm::Arguments args({M, N, K},
-                                                 {reinterpret_cast<const input_dtype *>(a), K},
-                                                 {reinterpret_cast<const input_dtype *>(b), N},
-                                                 {reinterpret_cast<const input_dtype *>(c), N},
-                                                 {reinterpret_cast<input_dtype *>(output), N},
+                                                 {reinterpret_cast<const input_dtype *>(a.data_ptr<scalar_t>()), K},
+                                                 {reinterpret_cast<const input_dtype *>(b.data_ptr<scalar_t>()), N},
+                                                 {reinterpret_cast<const input_dtype *>(c.data_ptr<scalar_t>()), N},
+                                                 {reinterpret_cast<input_dtype *>(output.data_ptr<scalar_t>()), N},
                                                  {alpha, beta});
 
             // call the kernel
