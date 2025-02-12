@@ -24,7 +24,7 @@ class GEMMTest(TestCommons):
             [CUDAKernelAlgorithm.cutlass_gemm_cuda],  # cuda_kernel_algorithm
             [torch.device("cuda")],  # device
             [torch.float32],  # dtype
-            [gemm_cute, torch.compile(gemm_cute, fullgraph=True)][:1],  # function
+            [gemm_cute, torch.compile(gemm_cute, fullgraph=True)],  # function
         )
     )
     def test_gemm(
