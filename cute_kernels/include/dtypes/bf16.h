@@ -13,6 +13,7 @@ struct DType<c10::BFloat16> {
     using c10_dtype = c10::BFloat16;
     using nv_dtype = bf16;
     using nv_dtype2 = bf16_2;
+    using cutlass_dtype = cutlass::bfloat16_t;
 
     // fp32 -> bf16_2
     inline __device__ static nv_dtype2 reinterpret_32_bits_as_2x16(const fp32 &value) {
