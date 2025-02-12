@@ -42,7 +42,7 @@ class GEMMTest(TestCommons):
         set_seed(_SEED)
 
         std = 0.02
-        M = size[0]
+        M = 417
         a = (
             torch.randn(
                 (size[0], M) if is_a_transposed else (M, size[0]), device=device, dtype=dtype, requires_grad=False
