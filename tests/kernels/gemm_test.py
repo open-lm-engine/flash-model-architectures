@@ -19,7 +19,7 @@ class GEMMTest(TestCommons):
             TestCommons.get_2d_tensor_sizes(),  # size
             [False],  # is_a_transposed
             [False],  # is_b_transposed
-            [False],  # has_c
+            [False, True],  # has_c
             [KernelBackend.cuda],  # kernel_backend
             [CUDAKernelAlgorithm.cutlass_gemm_cuda],  # cuda_kernel_algorithm
             [torch.device("cuda")],  # device
