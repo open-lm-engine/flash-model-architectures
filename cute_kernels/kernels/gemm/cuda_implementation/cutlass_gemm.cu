@@ -17,19 +17,19 @@ inline void _cutlass_gemm_cuda(const scalar_t *a,
                                const int &N) {
     // PyTorch tensors are row major
     using RowMajor = cutlass::layout::RowMajor;
-    // using element_A = cutlass::half_t;
-    using element_A = fp32;
+    using input_dtype = typename DType<scalar_t>::cutlass_dtype;
+    using accumulator_dtype = fp32;
 
-    using CutlassGemm =
-        cutlass::gemm::device::Gemm<element_A, RowMajor, element_A, RowMajor, element_A, RowMajor, fp32>;
+    using CutlassGemm = cutlass::gemm::device::
+        Gemm<input_dtype, RowMajor, input_dtype, RowMajor, input_dtype, RowMajor, accumulator_dtype>;
 
     CutlassGemm gemm_operator;
-    CutlassGemm::Arguments args({M, N, K},
-                                {reinterpret_cast<const element_A *>(a), K},
-                                {reinterpret_cast<const element_A *>(b), N},
-                                {reinterpret_cast<const element_A *>(c), N},
-                                {reinterpret_cast<element_A *>(output), N},
-                                {alpha, beta});
+    typename CutlassGemm::Arguments args({M, N, K},
+                                         {reinterpret_cast<const input_dtype *>(a), K},
+                                         {reinterpret_cast<const input_dtype *>(b), N},
+                                         {reinterpret_cast<const input_dtype *>(c), N},
+                                         {reinterpret_cast<input_dtype *>(output), N},
+                                         {alpha, beta});
 
     // call the kernel
     cutlass::Status status = gemm_operator(args);
