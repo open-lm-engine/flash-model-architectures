@@ -16,8 +16,7 @@ _SEED = 42
 class GEMMTest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(
-            [(4, 4), (8, 8), (16, 16), (32, 32), (55, 55), (3179, 3179)],
-            # TestCommons.get_2d_tensor_sizes(),  # size
+            TestCommons.get_2d_tensor_sizes(),  # size
             [False],  # is_a_transposed
             [False],  # is_b_transposed
             [False],  # has_c
