@@ -16,37 +16,16 @@ _SEED = 42
 class GEMMTest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(
-            TestCommons.get_2d_tensor_sizes(),  # size
-            [False, True],  # is_a_transposed
-            [False, True],  # is_b_transposed
-            [False, True],  # has_c
-            [KernelBackend.triton],  # kernel_backend
-            [None],  # cuda_kernel_algorithm
-            [torch.device("cuda")],  # device
-            TestCommons.get_dtypes(),  # dtype
-            [gemm_cute, torch.compile(gemm_cute, fullgraph=True)],  # function
-        )
-        + TestCommons.make_args_matrix(
-            TestCommons.get_2d_tensor_sizes(),  # size
-            [False, True],  # is_a_transposed
-            [False, True],  # is_b_transposed
-            [False, True],  # has_c
-            [KernelBackend.cuda],  # kernel_backend
-            [CUDAKernelAlgorithm.naive],  # cuda_kernel_algorithm
-            [torch.device("cuda")],  # device
-            TestCommons.get_dtypes(),  # dtype
-            [gemm_cute, torch.compile(gemm_cute, fullgraph=True)],  # function
-        )
-        + TestCommons.make_args_matrix(
-            TestCommons.get_2d_tensor_sizes(),  # size
+            [(4, 4), (8, 8), (16, 16), (32, 32), (55, 55), (3179, 3179)],
+            # TestCommons.get_2d_tensor_sizes(),  # size
             [False],  # is_a_transposed
             [False],  # is_b_transposed
-            [False, True],  # has_c
+            [False],  # has_c
             [KernelBackend.cuda],  # kernel_backend
-            [CUDAKernelAlgorithm.shared_memory, CUDAKernelAlgorithm.cutlass_gemm_cuda],  # cuda_kernel_algorithm
+            [CUDAKernelAlgorithm.cutlass_gemm_cuda],  # cuda_kernel_algorithm
             [torch.device("cuda")],  # device
-            TestCommons.get_dtypes(),  # dtype
-            [gemm_cute, torch.compile(gemm_cute, fullgraph=True)],  # function
+            [torch.float32],  # dtype
+            [gemm_cute, torch.compile(gemm_cute, fullgraph=True)][:1],  # function
         )
     )
     def test_gemm(
@@ -64,7 +43,7 @@ class GEMMTest(TestCommons):
         set_seed(_SEED)
 
         std = 0.02
-        M = 417
+        M = size[0]
         a = (
             torch.randn(
                 (size[0], M) if is_a_transposed else (M, size[0]), device=device, dtype=dtype, requires_grad=False

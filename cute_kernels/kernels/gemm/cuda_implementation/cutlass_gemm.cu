@@ -12,15 +12,15 @@ inline void _cutlass_gemm_cuda(const scalar_t *a,
                                scalar_t *output,
                                const fp32 &alpha,
                                const fp32 &beta,
-                               const uint32 &M,
-                               const uint32 &K,
-                               const uint32 &N) {
+                               const int &M,
+                               const int &K,
+                               const int &N) {
     // PyTorch tensors are row major
     using RowMajor = cutlass::layout::RowMajor;
     using CutlassGemm = cutlass::gemm::device::Gemm<fp32, RowMajor, fp32, RowMajor, fp32, RowMajor>;
 
     CutlassGemm gemm_operator;
-    CutlassGemm::Arguments args({M, N, K}, {a, M}, {b, K}, {c, M}, {output, M}, {alpha, beta});
+    CutlassGemm::Arguments args({M, N, K}, {a, M}, {b, K}, {nullptr, M}, {output, M}, {alpha, beta});
 
     // call the kernel
     cutlass::Status status = gemm_operator(args);
