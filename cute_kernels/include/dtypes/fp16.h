@@ -7,7 +7,7 @@
 
 #include "alias.h"
 #include "common.h"
-#include "cutlass"
+#include "cutlass/half.h"
 
 template <>
 struct DType<c10::Half> {

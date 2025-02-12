@@ -7,7 +7,7 @@
 
 #include "alias.h"
 #include "common.h"
-#include "cutlass"
+#include "cutlass/bfloat16.h"
 
 template <>
 struct DType<c10::BFloat16> {
