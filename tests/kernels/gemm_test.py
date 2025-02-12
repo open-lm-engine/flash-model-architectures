@@ -23,7 +23,7 @@ class GEMMTest(TestCommons):
             [KernelBackend.cuda],  # kernel_backend
             [CUDAKernelAlgorithm.cutlass_gemm_cuda],  # cuda_kernel_algorithm
             [torch.device("cuda")],  # device
-            [torch.float32],  # dtype
+            TestCommons.get_dtypes(),  # dtype
             [gemm_cute, torch.compile(gemm_cute, fullgraph=True)],  # function
         )
     )
