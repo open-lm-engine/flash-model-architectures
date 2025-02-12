@@ -18,6 +18,7 @@ headers = [
     "torch compile TFLOPs",
     "naive CUDA TFLOPs",
     "shared memory CUDA TFLOPs",
+    "CUTLASS GEMM CUDA TFLOPs",
     "triton TFLOPs",
 ]
 kernels = [
@@ -25,6 +26,7 @@ kernels = [
     torch.compile(gemm_torch, mode="max-autotune"),
     partial(gemm_cute, kernel_backend=KernelBackend.cuda, cuda_kernel_algorithm=CUDAKernelAlgorithm.naive),
     partial(gemm_cute, kernel_backend=KernelBackend.cuda, cuda_kernel_algorithm=CUDAKernelAlgorithm.shared_memory),
+    partial(gemm_cute, kernel_backend=KernelBackend.cuda, cuda_kernel_algorithm=CUDAKernelAlgorithm.cutlass_gemm_cuda),
     partial(gemm_cute, kernel_backend=KernelBackend.triton),
 ]
 
