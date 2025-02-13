@@ -32,7 +32,7 @@ class GEMMTest(TestCommons):
             [False, True],  # is_b_transposed
             [False, True],  # has_c
             [KernelBackend.cuda],  # kernel_backend
-            [CUDAKernelAlgorithm.naive],  # cuda_kernel_algorithm
+            [CUDAKernelAlgorithm.naive, CUDAKernelAlgorithm.cutlass_gemm_cuda],  # cuda_kernel_algorithm
             [torch.device("cuda")],  # device
             TestCommons.get_dtypes(),  # dtype
             [gemm_cute, torch.compile(gemm_cute, fullgraph=True)],  # function
@@ -43,7 +43,7 @@ class GEMMTest(TestCommons):
             [False],  # is_b_transposed
             [False, True],  # has_c
             [KernelBackend.cuda],  # kernel_backend
-            [CUDAKernelAlgorithm.shared_memory, CUDAKernelAlgorithm.cutlass_gemm_cuda],  # cuda_kernel_algorithm
+            [CUDAKernelAlgorithm.shared_memory],  # cuda_kernel_algorithm
             [torch.device("cuda")],  # device
             TestCommons.get_dtypes(),  # dtype
             [gemm_cute, torch.compile(gemm_cute, fullgraph=True)],  # function
