@@ -1,6 +1,6 @@
 import torch
 
-from ...cutotune import CutoTuneConfig, CutoTuneParameter, cutotune
+from ...cutotune import CutoTuneConfig, CutoTuneParameter, cutotune, get_cartesian_product_cutotune_configs
 from ...enums import KernelBackend
 from ...utils import ensure_contiguous, get_num_elements_and_hidden_size
 from .cuda_implementation import cutlass_gemm_cuda, naive_gemm_cuda, shared_memory_gemm_cuda
@@ -13,13 +13,16 @@ from .triton_implementation import gemm_triton
 @cutotune(
     configs=[
         CutoTuneConfig(dict(kernel_backend=KernelBackend.triton, cuda_kernel_algorithm=None)),
-        CutoTuneConfig(dict(kernel_backend=KernelBackend.cuda, cuda_kernel_algorithm=CUDAKernelAlgorithm.naive)),
         CutoTuneConfig(
             dict(kernel_backend=KernelBackend.cuda, cuda_kernel_algorithm=CUDAKernelAlgorithm.shared_memory),
             condition=lambda **kwargs: not kwargs.get("is_a_transposed", False)
             and not kwargs.get("is_b_transposed", False),
         ),
-    ],
+    ]
+    + get_cartesian_product_cutotune_configs(
+        kernel_backend=[KernelBackend.cuda],
+        cuda_kernel_algorithm=[CUDAKernelAlgorithm.naive, CUDAKernelAlgorithm.cutlass_gemm_cuda],
+    ),
     default_config=CutoTuneConfig(dict(kernel_backend=KernelBackend.triton)),
     triggers={"a.dtype", "is_a_transposed", "is_b_transposed"},
 )
