@@ -66,9 +66,9 @@ void cutlass_gemm_cuda(const torch::Tensor &a,
                                                       : nullptr;
             input_dtype *output_data = reinterpret_cast<input_dtype *>(output.data_ptr<scalar_t>());
 
-            const int32 _M = M;
-            const int32 _K = K;
-            const int32 _N = N;
+            const int32 _M = reinterpret_cast<int32>(M);
+            const int32 _K = reinterpret_cast<int32>(K);
+            const int32 _N = reinterpret_cast<int32>(N);
 
             if (is_a_transposed) {
                 if (is_b_transposed) {
