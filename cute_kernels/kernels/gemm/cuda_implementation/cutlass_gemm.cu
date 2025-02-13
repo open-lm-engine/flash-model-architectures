@@ -12,9 +12,9 @@ inline void _cutlass_gemm_templated_layout(const input_dtype *a,
                                            input_dtype *output,
                                            const fp32 &alpha,
                                            const fp32 &beta,
-                                           const int32 M,
-                                           const int32 K,
-                                           const int32 N) {
+                                           const int32 &M,
+                                           const int32 &K,
+                                           const int32 &N) {
     // PyTorch tensors are row major
     using RowMajor = cutlass::layout::RowMajor;
     using ColumnMajor = cutlass::layout::ColumnMajor;
