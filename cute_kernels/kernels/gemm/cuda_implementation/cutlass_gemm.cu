@@ -16,13 +16,12 @@ void cutlass_gemm_cuda(const torch::Tensor &a,
                        const uint32 &M,
                        const uint32 &K,
                        const uint32 &N) {
-    TORCH_CHECK(!is_a_transposed);
-    TORCH_CHECK(!is_b_transposed);
-
     AT_DISPATCH_CUSTOM_FLOAT_TYPES(
         a.scalar_type(), "cutlass_gemm_cuda", ([&] {
             // PyTorch tensors are row major
             using RowMajor = cutlass::layout::RowMajor;
+            using ColumnMajor = cutlass::layout::ColumnMajor;
+
             using input_dtype = typename DType<scalar_t>::cutlass_dtype;
             using accumulator_dtype = fp32;
 
