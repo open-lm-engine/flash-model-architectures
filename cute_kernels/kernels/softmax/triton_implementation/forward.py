@@ -34,7 +34,7 @@ def _softmax_forward_triton_kernel_full_row(
     indices = indices_b[:, None] * H + indices_h[None, :]
 
     x_ptrs = x_ptr + indices
-    x = tl.load(x_ptrs, mask=mask_bh)
+    x = tl.load(x_ptrs, mask=mask_bh, other=-float("inf"))
 
     max = tl.max(x, axis=1).to(tl.float32)
     x = x.to(tl.float32)
