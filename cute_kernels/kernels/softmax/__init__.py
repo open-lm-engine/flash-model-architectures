@@ -77,6 +77,9 @@ def softmax_cute(
     BLOCK_SIZE_B_backward: int = CutoTuneParameter(),
     BLOCK_SIZE_H_backward: int = CutoTuneParameter(),
 ) -> torch.Tensor:
+    if x.size(-1) == 1:
+        return torch.ones_like(x)
+
     return _Softmax_Cute.apply(
         x,
         kernel_backend_forward,
