@@ -13,6 +13,7 @@ from cute_kernels import (
     get_powers_of_2,
     rmsnorm_cute,
     save_cutotune_cache,
+    softmax_cute,
     swiglu_cute,
     swiglu_unchunked_cute,
 )
@@ -48,6 +49,18 @@ for dtype in all_dtypes:
         forward_backward(rmsnorm_cute, x, weight=None, eps=1e-5)
         forward_backward(
             rmsnorm_cute,
+            x,
+            weight=torch.randn(x.size(-1), dtype=dtype, device=torch.cuda.current_device(), requires_grad=True),
+            eps=1e-5,
+        )
+
+    for power_of_2 in get_powers_of_2(1, 65536):
+        size = (2048, power_of_2)
+        x = torch.randn(size, dtype=dtype, device=torch.cuda.current_device(), requires_grad=True)
+
+        forward_backward(softmax_cute, x, weight=None, eps=1e-5)
+        forward_backward(
+            softmax_cute,
             x,
             weight=torch.randn(x.size(-1), dtype=dtype, device=torch.cuda.current_device(), requires_grad=True),
             eps=1e-5,
