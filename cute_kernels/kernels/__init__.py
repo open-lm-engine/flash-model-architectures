@@ -6,5 +6,6 @@ from .gemm import gemm_cute, gemm_torch
 from .linear import linear_cute, linear_torch
 from .rmsnorm import rmsnorm_cute, rmsnorm_torch
 from .scattermoe import MoE_Torch, MoE_Triton
+from .softmax import softmax_cute, softmax_torch
 from .swiglu import swiglu_cute, swiglu_torch
 from .swiglu_unchunked import swiglu_unchunked_cute, swiglu_unchunked_torch

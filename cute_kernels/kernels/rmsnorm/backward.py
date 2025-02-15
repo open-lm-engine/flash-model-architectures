@@ -23,7 +23,6 @@ def _backward(
     x_grad = torch.empty_like(x)
 
     if kernel_backend == KernelBackend.triton:
-        # NOTE we ignore the BLOCK_SIZE_H passed by user
         BLOCK_SIZE_H = get_next_power_of_2(hidden_size)
         assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
 
