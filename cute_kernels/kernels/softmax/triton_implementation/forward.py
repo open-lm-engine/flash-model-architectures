@@ -67,12 +67,11 @@ def softmax_forward_full_row_triton(
     num_elements, hidden_size = get_num_elements_and_hidden_size(x)
 
     with torch.device(x.device):
-        if BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE:
-            _softmax_forward_triton_kernel_full_row[(ceil_divide(num_elements, BLOCK_SIZE_B),)](
-                x_ptr=x,
-                output_ptr=output,
-                B=num_elements,
-                H=hidden_size,
-                BLOCK_SIZE_B=BLOCK_SIZE_B,
-                BLOCK_SIZE_H=BLOCK_SIZE_H,
-            )
+        _softmax_forward_triton_kernel_full_row[(ceil_divide(num_elements, BLOCK_SIZE_B),)](
+            x_ptr=x,
+            output_ptr=output,
+            B=num_elements,
+            H=hidden_size,
+            BLOCK_SIZE_B=BLOCK_SIZE_B,
+            BLOCK_SIZE_H=BLOCK_SIZE_H,
+        )

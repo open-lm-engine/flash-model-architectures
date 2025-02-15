@@ -60,13 +60,12 @@ def softmax_backward_full_row_triton(
     num_elements, hidden_size = get_num_elements_and_hidden_size(x_grad)
 
     with torch.device(x_grad.device):
-        if BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE:
-            _softmax_backward_triton_kernel_full_row[(ceil_divide(num_elements, BLOCK_SIZE_B),)](
-                output_ptr=output,
-                output_grad_ptr=output_grad,
-                x_grad_ptr=x_grad,
-                B=num_elements,
-                H=hidden_size,
-                BLOCK_SIZE_B=BLOCK_SIZE_B,
-                BLOCK_SIZE_H=BLOCK_SIZE_H,
-            )
+        _softmax_backward_triton_kernel_full_row[(ceil_divide(num_elements, BLOCK_SIZE_B),)](
+            output_ptr=output,
+            output_grad_ptr=output_grad,
+            x_grad_ptr=x_grad,
+            B=num_elements,
+            H=hidden_size,
+            BLOCK_SIZE_B=BLOCK_SIZE_B,
+            BLOCK_SIZE_H=BLOCK_SIZE_H,
+        )
