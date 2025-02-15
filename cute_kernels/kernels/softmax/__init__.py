@@ -2,6 +2,7 @@ import torch
 
 from ...cutotune import CutoTuneParameter
 from ...enums import KernelBackend
+from ...utils import ensure_contiguous
 from .backward import _backward
 from .enums import TritonKernelAlgorithm
 from .forward import _forward
@@ -10,6 +11,7 @@ from .torch_implementation import softmax_torch
 
 class _Softmax_Cute(torch.autograd.Function):
     @staticmethod
+    @ensure_contiguous
     def forward(
         ctx,
         x: torch.Tensor,
@@ -48,6 +50,7 @@ class _Softmax_Cute(torch.autograd.Function):
         return output
 
     @staticmethod
+    @ensure_contiguous
     def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
         output = ctx.saved_tensors[0]
 
