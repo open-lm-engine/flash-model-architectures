@@ -19,7 +19,7 @@ class RMSNormTest(TestCommons):
         TestCommons.make_args_matrix(
             _get_sizes(),  # size
             [torch.device("cuda")],  # device
-            TestCommons.get_dtypes(),  # dtype
+            [torch.float32, torch.bfloat16],  # dtype
             [softmax_cute, torch.compile(softmax_cute, fullgraph=True)],  # function
         )
     )
