@@ -4,10 +4,8 @@ import triton.language as tl
 
 from ....constants import COMMON_TRITON_BLOCK_SIZES_POWERS_OF_2, LIBRARY_NAME, MAX_TRITON_BLOCK_SIZE
 from ....cutotune import CutoTuneConfig, cutotune, get_cartesian_product_cutotune_configs
-from ....enums import KernelBackend
-from ....math import ceil_divide, get_next_power_of_2, get_powers_of_2
+from ....math import ceil_divide, get_powers_of_2
 from ....utils import cute_op, get_num_elements_and_hidden_size
-from ..enums import TritonKernelAlgorithm
 
 
 _KERNEL_NAME = "softmax_forward_triton"

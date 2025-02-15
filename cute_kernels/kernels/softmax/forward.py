@@ -1,7 +1,7 @@
 import torch
 
 from ...constants import MAX_TRITON_BLOCK_SIZE
-from ...cutotune import CutoTuneConfig, CutoTuneParameter, cutotune, get_cartesian_product_cutotune_configs
+from ...cutotune import CutoTuneConfig, cutotune, get_cartesian_product_cutotune_configs
 from ...enums import KernelBackend
 from ...math import get_next_power_of_2
 from ...utils import get_num_elements_and_hidden_size
