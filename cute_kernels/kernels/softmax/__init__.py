@@ -19,6 +19,8 @@ class _Softmax_Cute(torch.autograd.Function):
         BLOCK_SIZE_B_backward: int,
         BLOCK_SIZE_H_backward: int,
     ) -> torch.Tensor:
+        ctx.save_for_backward(x)
+
         is_x_1d = x.dim() == 1
         if is_x_1d:
             x = x.unsqueeze(0)
@@ -38,7 +40,7 @@ class _Softmax_Cute(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
-        return 1, *[None] * 4
+        return ctx.saved_tensors[0], *[None] * 6
 
 
 def softmax_cute(
