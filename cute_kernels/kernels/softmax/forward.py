@@ -34,7 +34,7 @@ def _forward(
             BLOCK_SIZE_H = get_next_power_of_2(hidden_size)
             assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
 
-            softmax_forward_full_row_triton(x=x, output=output, BLOCK_SIZE_B=BLOCK_SIZE_B)
+            softmax_forward_full_row_triton(x=x, output=output, BLOCK_SIZE_B=BLOCK_SIZE_B, BLOCK_SIZE_H=BLOCK_SIZE_H)
         elif triton_kernel_algorithm == TritonKernelAlgorithm.online_softmax:
             pass
         else:
