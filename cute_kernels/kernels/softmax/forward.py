@@ -11,11 +11,10 @@ from .triton_implementation import softmax_forward_full_row_triton
 
 @cutotune(
     configs=get_cartesian_product_cutotune_configs(
-        kernel_backend=[KernelBackend.triton],
-        triton_kernel_algorithm=[TritonKernelAlgorithm.full_row_softmax, TritonKernelAlgorithm.online_softmax],
+        kernel_backend=[KernelBackend.triton], triton_kernel_algorithm=[TritonKernelAlgorithm.full_row_softmax]
     ),
     default_config=CutoTuneConfig(
-        dict(kernel_backend=KernelBackend.triton, triton_kernel_algorithm=TritonKernelAlgorithm.online_softmax)
+        dict(kernel_backend=KernelBackend.triton, triton_kernel_algorithm=TritonKernelAlgorithm.full_row_softmax)
     ),
     triggers={"x.dtype"},
     functional_triggers={"next_power_of_2(hidden_size)": lambda **kwargs: get_next_power_of_2(kwargs["x"].size(-1))},
