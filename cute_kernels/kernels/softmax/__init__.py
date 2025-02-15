@@ -56,18 +56,18 @@ class _Softmax_Cute(torch.autograd.Function):
     @ensure_contiguous
     def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
         if output_grad.size(-1) == 1:
-            return torch.zeros_like(output_grad), *[None] * 8
+            x_grad = torch.zeros_like(output_grad)
+        else:
+            output = ctx.saved_tensors[0]
 
-        output = ctx.saved_tensors[0]
-
-        x_grad = _backward(
-            output=output,
-            output_grad=output_grad,
-            kernel_backend=ctx.kernel_backend_backward,
-            triton_kernel_algorithm=ctx.triton_kernel_algorithm_backward,
-            BLOCK_SIZE_B=ctx.BLOCK_SIZE_B_backward,
-            BLOCK_SIZE_H=ctx.BLOCK_SIZE_H_backward,
-        )
+            x_grad = _backward(
+                output=output,
+                output_grad=output_grad,
+                kernel_backend=ctx.kernel_backend_backward,
+                triton_kernel_algorithm=ctx.triton_kernel_algorithm_backward,
+                BLOCK_SIZE_B=ctx.BLOCK_SIZE_B_backward,
+                BLOCK_SIZE_H=ctx.BLOCK_SIZE_H_backward,
+            )
 
         return x_grad, *[None] * 8
 
