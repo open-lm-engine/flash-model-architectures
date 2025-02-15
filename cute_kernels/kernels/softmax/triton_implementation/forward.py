@@ -22,11 +22,10 @@ def _softmax_forward_triton_kernel_full_row(
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
-    pid_b = tl.program_id(axis=0)
-    pid_h = tl.program_id(axis=1)
+    pid = tl.program_id(axis=0)
 
-    indices_b = pid_b * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
-    indices_h = pid_h * BLOCK_SIZE_H + tl.arange(0, BLOCK_SIZE_H)
+    indices_b = pid * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
+    indices_h = tl.arange(0, BLOCK_SIZE_H)
 
     mask_b = indices_b < B
     mask_h = indices_h < H
@@ -37,9 +36,10 @@ def _softmax_forward_triton_kernel_full_row(
     x_ptrs = x_ptr + indices
     x = tl.load(x_ptrs, mask=mask_bh)
 
-    max = tl.max(x, axis=1)
-    x -= max
+    max = tl.max(x, axis=1).to(tl.float32)
+    x = x.to(tl.float32)
 
+    x -= max
     x = tl.exp(x)
     x /= tl.sum(x, axis=1)
 
