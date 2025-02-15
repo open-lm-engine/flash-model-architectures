@@ -10,11 +10,10 @@ from ..test_commons import TestCommons
 from .rmsnorm_test import _get_sizes
 
 
-_EPSILON = 1e-5
 _SEED = 42
 
 
-class RMSNormTest(TestCommons):
+class SoftmaxTest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(
             _get_sizes(),  # size
