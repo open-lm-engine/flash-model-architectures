@@ -38,7 +38,7 @@ def _softmax_backward_triton_kernel_full_row(
     output_grad_ptrs = output_grad_ptr + indices
     output_grad = tl.load(output_grad_ptrs, mask=mask_bh)
 
-    reference = tl.sum(output_grad * output, axis=1)
+    reference = tl.sum(output_grad * output, axis=1, keep_dims=True)
     output *= output_grad - reference
 
     x_grad_ptrs = x_grad_ptr + indices
