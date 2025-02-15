@@ -20,7 +20,7 @@ class RMSNormTest(TestCommons):
             _get_sizes(),  # size
             [torch.device("cuda")],  # device
             [torch.float32, torch.bfloat16],  # dtype
-            [softmax_cute, torch.compile(softmax_cute, fullgraph=True)][:1],  # function
+            [softmax_cute, torch.compile(softmax_cute, fullgraph=True)],  # function
         )
     )
     def test_softmax(
