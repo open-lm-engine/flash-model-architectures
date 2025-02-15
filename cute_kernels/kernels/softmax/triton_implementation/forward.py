@@ -12,21 +12,6 @@ _KERNEL_NAME = "softmax_forward_triton"
 
 
 @triton.jit
-def _softmax(x_ptr, indices, mask_bh):
-    x_ptrs = x_ptr + indices
-    x = tl.load(x_ptrs, mask=mask_bh, other=-float("inf"))
-
-    max = tl.max(x, axis=1).to(tl.float32)
-    x = x.to(tl.float32)
-
-    x -= max
-    x = tl.exp(x)
-    x /= tl.sum(x, axis=1)
-
-    return x
-
-
-@triton.jit
 def _softmax_forward_triton_kernel_full_row(
     x_ptr,
     output_ptr,
@@ -46,7 +31,15 @@ def _softmax_forward_triton_kernel_full_row(
 
     indices = indices_b[:, None] * H + indices_h[None, :]
 
-    x = _softmax(x_ptr=x_ptr, indices=indices, mask_bh=mask_bh)
+    x_ptrs = x_ptr + indices
+    x = tl.load(x_ptrs, mask=mask_bh, other=-float("inf"))
+
+    max = tl.max(x, axis=1).to(tl.float32)
+    x = x.to(tl.float32)
+
+    x -= max
+    x = tl.exp(x)
+    x /= tl.sum(x, axis=1)
 
     output_ptrs = output_ptr + indices
     tl.store(output_ptrs, x, mask=mask_bh)
