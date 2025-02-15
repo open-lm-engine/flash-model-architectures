@@ -1,0 +1,193 @@
+best_configs:
+  '''output.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 1024''':
+    config:
+      BLOCK_SIZE_B: 2
+    time: 0.038227200508117676
+  '''output.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 128''':
+    config:
+      BLOCK_SIZE_B: 16
+    time: 0.03854399919509888
+  '''output.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 16''':
+    config:
+      BLOCK_SIZE_B: 512
+    time: 0.03868159949779511
+  '''output.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 16384''':
+    config:
+      BLOCK_SIZE_B: 1
+    time: 0.06917120218276977
+  '''output.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 2''':
+    config:
+      BLOCK_SIZE_B: 2048
+    time: 0.037513598799705505
+  '''output.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 2048''':
+    config:
+      BLOCK_SIZE_B: 4
+    time: 0.03781760036945343
+  '''output.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 256''':
+    config:
+      BLOCK_SIZE_B: 32
+    time: 0.03807680010795593
+  '''output.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 32''':
+    config:
+      BLOCK_SIZE_B: 32
+    time: 0.03839040100574494
+  '''output.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 32768''':
+    config:
+      BLOCK_SIZE_B: 1
+    time: 0.17683520317077636
+  '''output.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 4''':
+    config:
+      BLOCK_SIZE_B: 1024
+    time: 0.03858560025691986
+  '''output.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 4096''':
+    config:
+      BLOCK_SIZE_B: 2
+    time: 0.0394463986158371
+  '''output.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 512''':
+    config:
+      BLOCK_SIZE_B: 32
+    time: 0.03953920006752014
+  '''output.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 64''':
+    config:
+      BLOCK_SIZE_B: 128
+    time: 0.0390751987695694
+  '''output.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 65536''':
+    config:
+      BLOCK_SIZE_B: 1
+    time: 1.3344672203063965
+  '''output.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 8''':
+    config:
+      BLOCK_SIZE_B: 1024
+    time: 0.039043200016021726
+  '''output.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 8192''':
+    config:
+      BLOCK_SIZE_B: 2
+    time: 0.041484799981117246
+  '''output.dtype = torch.float16'', ''BLOCK_SIZE_H = 1024''':
+    config:
+      BLOCK_SIZE_B: 2
+    time: 0.03840959966182709
+  '''output.dtype = torch.float16'', ''BLOCK_SIZE_H = 128''':
+    config:
+      BLOCK_SIZE_B: 128
+    time: 0.037484800815582274
+  '''output.dtype = torch.float16'', ''BLOCK_SIZE_H = 16''':
+    config:
+      BLOCK_SIZE_B: 256
+    time: 0.038764798641204835
+  '''output.dtype = torch.float16'', ''BLOCK_SIZE_H = 16384''':
+    config:
+      BLOCK_SIZE_B: 1
+    time: 0.06887680292129517
+  '''output.dtype = torch.float16'', ''BLOCK_SIZE_H = 2''':
+    config:
+      BLOCK_SIZE_B: 1024
+    time: 0.03901120126247406
+  '''output.dtype = torch.float16'', ''BLOCK_SIZE_H = 2048''':
+    config:
+      BLOCK_SIZE_B: 4
+    time: 0.03845120072364807
+  '''output.dtype = torch.float16'', ''BLOCK_SIZE_H = 256''':
+    config:
+      BLOCK_SIZE_B: 8
+    time: 0.0382752001285553
+  '''output.dtype = torch.float16'', ''BLOCK_SIZE_H = 32''':
+    config:
+      BLOCK_SIZE_B: 1024
+    time: 0.03815360069274902
+  '''output.dtype = torch.float16'', ''BLOCK_SIZE_H = 32768''':
+    config:
+      BLOCK_SIZE_B: 1
+    time: 0.15567679405212403
+  '''output.dtype = torch.float16'', ''BLOCK_SIZE_H = 4''':
+    config:
+      BLOCK_SIZE_B: 2048
+    time: 0.03901439905166626
+  '''output.dtype = torch.float16'', ''BLOCK_SIZE_H = 4096''':
+    config:
+      BLOCK_SIZE_B: 2
+    time: 0.039529600739479066
+  '''output.dtype = torch.float16'', ''BLOCK_SIZE_H = 512''':
+    config:
+      BLOCK_SIZE_B: 8
+    time: 0.03813759982585907
+  '''output.dtype = torch.float16'', ''BLOCK_SIZE_H = 64''':
+    config:
+      BLOCK_SIZE_B: 256
+    time: 0.038166400790214536
+  '''output.dtype = torch.float16'', ''BLOCK_SIZE_H = 65536''':
+    config:
+      BLOCK_SIZE_B: 1
+    time: 1.340931224822998
+  '''output.dtype = torch.float16'', ''BLOCK_SIZE_H = 8''':
+    config:
+      BLOCK_SIZE_B: 512
+    time: 0.03934719860553741
+  '''output.dtype = torch.float16'', ''BLOCK_SIZE_H = 8192''':
+    config:
+      BLOCK_SIZE_B: 2
+    time: 0.04163520038127899
+  '''output.dtype = torch.float32'', ''BLOCK_SIZE_H = 1024''':
+    config:
+      BLOCK_SIZE_B: 16
+    time: 0.03861440122127533
+  '''output.dtype = torch.float32'', ''BLOCK_SIZE_H = 128''':
+    config:
+      BLOCK_SIZE_B: 8
+    time: 0.03888640105724335
+  '''output.dtype = torch.float32'', ''BLOCK_SIZE_H = 16''':
+    config:
+      BLOCK_SIZE_B: 512
+    time: 0.038252800703048706
+  '''output.dtype = torch.float32'', ''BLOCK_SIZE_H = 16384''':
+    config:
+      BLOCK_SIZE_B: 1
+    time: 0.15375360250473022
+  '''output.dtype = torch.float32'', ''BLOCK_SIZE_H = 2''':
+    config:
+      BLOCK_SIZE_B: 4096
+    time: 0.0381632000207901
+  '''output.dtype = torch.float32'', ''BLOCK_SIZE_H = 2048''':
+    config:
+      BLOCK_SIZE_B: 1
+    time: 0.03848640024662018
+  '''output.dtype = torch.float32'', ''BLOCK_SIZE_H = 256''':
+    config:
+      BLOCK_SIZE_B: 32
+    time: 0.038159999251365664
+  '''output.dtype = torch.float32'', ''BLOCK_SIZE_H = 32''':
+    config:
+      BLOCK_SIZE_B: 512
+    time: 0.03859840035438537
+  '''output.dtype = torch.float32'', ''BLOCK_SIZE_H = 32768''':
+    config:
+      BLOCK_SIZE_B: 2
+    time: 1.4876864433288575
+  '''output.dtype = torch.float32'', ''BLOCK_SIZE_H = 4''':
+    config:
+      BLOCK_SIZE_B: 256
+    time: 0.03824639916419983
+  '''output.dtype = torch.float32'', ''BLOCK_SIZE_H = 4096''':
+    config:
+      BLOCK_SIZE_B: 2
+    time: 0.041065600514411923
+  '''output.dtype = torch.float32'', ''BLOCK_SIZE_H = 512''':
+    config:
+      BLOCK_SIZE_B: 32
+    time: 0.03937920033931732
+  '''output.dtype = torch.float32'', ''BLOCK_SIZE_H = 64''':
+    config:
+      BLOCK_SIZE_B: 16
+    time: 0.03909119963645935
+  '''output.dtype = torch.float32'', ''BLOCK_SIZE_H = 65536''':
+    config:
+      BLOCK_SIZE_B: 1
+    time: 3.0093536376953125
+  '''output.dtype = torch.float32'', ''BLOCK_SIZE_H = 8''':
+    config:
+      BLOCK_SIZE_B: 512
+    time: 0.037887999415397645
+  '''output.dtype = torch.float32'', ''BLOCK_SIZE_H = 8192''':
+    config:
+      BLOCK_SIZE_B: 1
+    time: 0.06896640062332153
