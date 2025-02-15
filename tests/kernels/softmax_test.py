@@ -40,8 +40,8 @@ class RMSNormTest(TestCommons):
         z_kernel = function(x_kernel)
         z_expected = softmax_torch(x_expected)
 
-        # z_kernel.sum().backward()
-        # z_expected.sum().backward()
+        z_kernel.sum().backward()
+        z_expected.sum().backward()
 
         self.assert_equal_tensors(z_kernel, z_expected, False, atol_float16=8e-3, rtol_float16=0)
-        # self.assert_equal_tensors(x_kernel.grad, x_expected.grad, False, atol_float16=9e-2, rtol_float16=0)
+        self.assert_equal_tensors(x_kernel.grad, x_expected.grad, False, atol_float16=9e-2, rtol_float16=0)
