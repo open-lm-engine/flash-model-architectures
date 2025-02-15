@@ -47,20 +47,14 @@ def _softmax_forward_triton_kernel_full_row(
     tl.store(output_ptrs, x, mask=mask_bh)
 
 
-def get_cutotune_parameters() -> dict:
-    return dict(
-        configs=get_cartesian_product_cutotune_configs(
-            BLOCK_SIZE_B=get_powers_of_2(1, 32) + COMMON_TRITON_BLOCK_SIZES_POWERS_OF_2,
-            condition=lambda **kwargs: 1024
-            <= kwargs["BLOCK_SIZE_B"] * kwargs["BLOCK_SIZE_H"]
-            <= MAX_TRITON_BLOCK_SIZE,
-        ),
-        default_config=CutoTuneConfig({"BLOCK_SIZE_B": 1}),
-        triggers={"x.dtype", "BLOCK_SIZE_H"},
-        functional_triggers={"has_weight": lambda **kwargs: kwargs["weight"] is not None},
-    )
-
-
+@cutotune(
+    configs=get_cartesian_product_cutotune_configs(
+        BLOCK_SIZE_B=get_powers_of_2(1, 32) + COMMON_TRITON_BLOCK_SIZES_POWERS_OF_2,
+        condition=lambda **kwargs: 1024 <= kwargs["BLOCK_SIZE_B"] * kwargs["BLOCK_SIZE_H"] <= MAX_TRITON_BLOCK_SIZE,
+    ),
+    default_config=CutoTuneConfig({"BLOCK_SIZE_B": 1}),
+    triggers={"x.dtype", "BLOCK_SIZE_H"},
+)
 @cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"output"})
 def softmax_forward_full_row_triton(
     x: torch.Tensor, output: torch.Tensor, BLOCK_SIZE_B: int, BLOCK_SIZE_H: int
