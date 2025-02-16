@@ -1,15 +1,17 @@
 import torch
 
 from ...constants import MAX_TRITON_BLOCK_SIZE
-from ...cutotune import CutoTuneConfig, cutotune
+from ...cutotune import CutoTuneConfig, cutotune, get_cartesian_product_cutotune_configs
 from ...math import get_next_power_of_2
 from ...utils import get_num_elements_and_hidden_size
 from .triton_implementation import full_row_softmax_forward_triton, online_softmax_forward_triton
 
 
 @cutotune(
-    configs=[CutoTuneConfig(dict(kernel_backend="full_row_softmax_triton"))],
-    default_config=CutoTuneConfig(dict(kernel_backend="full_row_softmax_triton")),
+    configs=get_cartesian_product_cutotune_configs(
+        kernel_backend=["full_row_softmax_triton", "online_softmax_triton"]
+    ),
+    default_config=CutoTuneConfig(dict(kernel_backend="online_softmax_triton")),
     triggers={"x.dtype"},
     functional_triggers={"next_power_of_2(hidden_size)": lambda **kwargs: get_next_power_of_2(kwargs["x"].size(-1))},
 )

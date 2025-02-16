@@ -69,7 +69,7 @@ def _online_softmax_forward_triton_kernel(
         BLOCK_SIZE_H=get_powers_of_2(1, 32) + COMMON_TRITON_BLOCK_SIZES_POWERS_OF_2,
         condition=lambda **kwargs: 1024 <= kwargs["BLOCK_SIZE_B"] * kwargs["BLOCK_SIZE_H"] <= MAX_TRITON_BLOCK_SIZE,
     ),
-    default_config=CutoTuneConfig({"BLOCK_SIZE_B": 1, "BLOCK_SIZE_H": 64}),
+    default_config=CutoTuneConfig({"BLOCK_SIZE_B": 64, "BLOCK_SIZE_H": 64}),
     triggers={"x.dtype"},
 )
 @cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"output"})
