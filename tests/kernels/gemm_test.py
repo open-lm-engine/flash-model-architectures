@@ -20,7 +20,6 @@ class GEMMTest(TestCommons):
             [False, True],  # is_B_transposed
             [False, True],  # has_C
             ["triton"],  # kernel_backend
-            [None],  # cuda_kernel_algorithm
             [torch.device("cuda")],  # device
             TestCommons.get_dtypes(),  # dtype
             [gemm_cute, torch.compile(gemm_cute, fullgraph=True)],  # function
@@ -30,8 +29,7 @@ class GEMMTest(TestCommons):
             [False, True],  # is_A_transposed
             [False, True],  # is_B_transposed
             [False, True],  # has_C
-            ["cuda"],  # kernel_backend
-            ["naive", "cutlass_gemm_cuda"],  # cuda_kernel_algorithm
+            ["naive_cuda", "cutlass"],  # kernel_backend
             [torch.device("cuda")],  # device
             TestCommons.get_dtypes(),  # dtype
             [gemm_cute, torch.compile(gemm_cute, fullgraph=True)],  # function
@@ -41,8 +39,7 @@ class GEMMTest(TestCommons):
             [False],  # is_A_transposed
             [False],  # is_B_transposed
             [False, True],  # has_C
-            ["cuda"],  # kernel_backend
-            ["shared_memory"],  # cuda_kernel_algorithm
+            ["shared_memory_cuda"],  # kernel_backend
             [torch.device("cuda")],  # device
             TestCommons.get_dtypes(),  # dtype
             [gemm_cute, torch.compile(gemm_cute, fullgraph=True)],  # function
@@ -55,7 +52,6 @@ class GEMMTest(TestCommons):
         is_B_transposed: bool,
         has_C: bool,
         kernel_backend: str,
-        cuda_kernel_algorithm: str,
         device: torch.device,
         dtype: torch.dtype,
         function: Callable,
@@ -89,7 +85,6 @@ class GEMMTest(TestCommons):
             is_B_transposed=is_B_transposed,
             alpha=alpha,
             beta=beta,
-            cuda_kernel_algorithm=cuda_kernel_algorithm,
             kernel_backend=kernel_backend,
         )
         output_expected = gemm_torch(

@@ -10,10 +10,10 @@ from .triton_implementation import gemm_triton
 @ensure_contiguous
 @cutotune(
     configs=[
-        CutoTuneConfig(dict(kernel_backend="triton", cuda_kernel_algorithm=None)),
-        CutoTuneConfig(dict(kernel_backend="cuda", cuda_kernel_algorithm="naive")),
+        CutoTuneConfig(dict(kernel_backend="triton")),
+        CutoTuneConfig(dict(kernel_backend="naive_cuda")),
         CutoTuneConfig(
-            dict(kernel_backend="cuda", cuda_kernel_algorithm="shared_memory"),
+            dict(kernel_backend="shared_memory_cuda"),
             condition=lambda **kwargs: not kwargs.get("is_A_transposed", False)
             and not kwargs.get("is_B_transposed", False),
         ),

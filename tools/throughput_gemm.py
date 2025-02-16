@@ -23,9 +23,9 @@ headers = [
 kernels = [
     gemm_torch,
     torch.compile(gemm_torch, mode="max-autotune"),
-    partial(gemm_cute, kernel_backend="cuda", cuda_kernel_algorithm="naive"),
-    partial(gemm_cute, kernel_backend="cuda", cuda_kernel_algorithm="shared_memory"),
-    partial(gemm_cute, kernel_backend="cuda", cuda_kernel_algorithm="cutlass_gemm_cuda"),
+    partial(gemm_cute, kernel_backend="naive_cuda"),
+    partial(gemm_cute, kernel_backend="shared_memory_cuda"),
+    partial(gemm_cute, kernel_backend="cutlass"),
     partial(gemm_cute, kernel_backend="triton"),
 ]
 
