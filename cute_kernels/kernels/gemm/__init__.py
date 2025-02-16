@@ -14,19 +14,19 @@ from .triton_implementation import gemm_triton
         CutoTuneConfig(dict(kernel_backend="cuda", cuda_kernel_algorithm="naive")),
         CutoTuneConfig(
             dict(kernel_backend="cuda", cuda_kernel_algorithm="shared_memory"),
-            condition=lambda **kwargs: not kwargs.get("is_a_transposed", False)
-            and not kwargs.get("is_b_transposed", False),
+            condition=lambda **kwargs: not kwargs.get("is_A_transposed", False)
+            and not kwargs.get("is_B_transposed", False),
         ),
     ],
     default_config=CutoTuneConfig(dict(kernel_backend="triton")),
-    triggers={"a.dtype", "is_a_transposed", "is_b_transposed"},
+    triggers={"A.dtype", "is_A_transposed", "is_B_transposed"},
 )
 def gemm_cute(
-    a: torch.Tensor,
-    b: torch.Tensor,
-    c: torch.Tensor | None,
-    is_a_transposed: bool = False,
-    is_b_transposed: bool = False,
+    A: torch.Tensor,
+    B: torch.Tensor,
+    C: torch.Tensor | None,
+    is_A_transposed: bool = False,
+    is_B_transposed: bool = False,
     alpha: float = 1,
     beta: float = 1,
     use_tf32: bool = True,
@@ -36,23 +36,23 @@ def gemm_cute(
     BLOCK_SIZE_K: int = CutoTuneParameter(),
     BLOCK_SIZE_N: int = CutoTuneParameter(),
 ) -> torch.Tensor:
-    if is_a_transposed:
-        assert a.dim() == 2, "only 2 dimensional a tensor is supported when a is transposed"
-        K, M = a.size()
+    if is_A_transposed:
+        assert A.dim() == 2, "only 2 dimensional a tensor is supported when a is transposed"
+        K, M = A.size()
     else:
-        M, K = get_num_elements_and_hidden_size(a)
+        M, K = get_num_elements_and_hidden_size(A)
 
-    assert b.dim() == 2, "only 2 dimensional b tensor is supported"
-    assert b.size(1 if is_b_transposed else 0) == K
+    assert B.dim() == 2, "only 2 dimensional B tensor is supported"
+    assert B.size(1 if is_B_transposed else 0) == K
 
-    N = b.size(0 if is_b_transposed else 1)
+    N = B.size(0 if is_B_transposed else 1)
 
-    output = torch.empty(M, N, dtype=a.dtype, device=a.device)
+    output = torch.empty(M, N, dtype=A.dtype, device=A.device)
 
     if beta == 0:
-        assert c is None
+        assert C is None
     else:
-        assert c is not None
+        assert C is not None
 
     if kernel_backend == "cuda":
         if cuda_kernel_algorithm == "cutlass_gemm_cuda":
@@ -61,12 +61,12 @@ def gemm_cute(
             assert isinstance(BLOCK_SIZE_N, CutoTuneParameter)
 
             cutlass_gemm_cuda(
-                a=a,
-                b=b,
-                c=c,
+                A=A,
+                B=B,
+                C=C,
                 output=output,
-                is_a_transposed=is_a_transposed,
-                is_b_transposed=is_b_transposed,
+                is_A_transposed=is_A_transposed,
+                is_B_transposed=is_B_transposed,
                 alpha=alpha,
                 beta=beta,
                 M=M,
@@ -82,12 +82,12 @@ def gemm_cute(
                 assert BLOCK_SIZE_M == BLOCK_SIZE_K == BLOCK_SIZE_N
 
             shared_memory_gemm_cuda(
-                a=a,
-                b=b,
-                c=c,
+                A=A,
+                B=B,
+                C=C,
                 output=output,
-                is_a_transposed=is_a_transposed,
-                is_b_transposed=is_b_transposed,
+                is_A_transposed=is_A_transposed,
+                is_B_transposed=is_B_transposed,
                 alpha=alpha,
                 beta=beta,
                 M=M,
@@ -97,12 +97,12 @@ def gemm_cute(
             )
         elif cuda_kernel_algorithm == "naive":
             naive_gemm_cuda(
-                a=a,
-                b=b,
-                c=c,
+                A=A,
+                B=B,
+                C=C,
                 output=output,
-                is_a_transposed=is_a_transposed,
-                is_b_transposed=is_b_transposed,
+                is_A_transposed=is_A_transposed,
+                is_B_transposed=is_B_transposed,
                 alpha=alpha,
                 beta=beta,
                 M=M,
@@ -117,12 +117,12 @@ def gemm_cute(
         assert cuda_kernel_algorithm is None
 
         gemm_triton(
-            a=a,
-            b=b,
-            c=c,
+            A=A,
+            B=B,
+            C=C,
             output=output,
-            is_a_transposed=is_a_transposed,
-            is_b_transposed=is_b_transposed,
+            is_A_transposed=is_A_transposed,
+            is_B_transposed=is_B_transposed,
             alpha=alpha,
             beta=beta,
             M=M,

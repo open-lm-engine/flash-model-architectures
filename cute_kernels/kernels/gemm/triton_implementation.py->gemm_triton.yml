@@ -1,5 +1,5 @@
 best_configs:
-  '''a.dtype = torch.bfloat16'', ''is_a_transposed = False'', ''is_b_transposed = False''':
+  '''A.dtype = torch.bfloat16'', ''is_A_transposed = False'', ''is_B_transposed = False''':
     config:
       BLOCK_SIZE_K: 64
       BLOCK_SIZE_M: 128
@@ -7,7 +7,7 @@ best_configs:
       num_stages: 2
       num_warps: 8
     time: 0.3136768102645874
-  '''a.dtype = torch.bfloat16'', ''is_a_transposed = False'', ''is_b_transposed = True''':
+  '''A.dtype = torch.bfloat16'', ''is_A_transposed = False'', ''is_B_transposed = True''':
     config:
       BLOCK_SIZE_K: 64
       BLOCK_SIZE_M: 128
@@ -15,7 +15,7 @@ best_configs:
       num_stages: 2
       num_warps: 8
     time: 0.2532959938049316
-  '''a.dtype = torch.bfloat16'', ''is_a_transposed = True'', ''is_b_transposed = False''':
+  '''A.dtype = torch.bfloat16'', ''is_A_transposed = True'', ''is_B_transposed = False''':
     config:
       BLOCK_SIZE_K: 64
       BLOCK_SIZE_M: 128
@@ -23,7 +23,7 @@ best_configs:
       num_stages: 2
       num_warps: 4
     time: 0.31133759021759033
-  '''a.dtype = torch.bfloat16'', ''is_a_transposed = True'', ''is_b_transposed = True''':
+  '''A.dtype = torch.bfloat16'', ''is_A_transposed = True'', ''is_B_transposed = True''':
     config:
       BLOCK_SIZE_K: 64
       BLOCK_SIZE_M: 128
@@ -31,7 +31,7 @@ best_configs:
       num_stages: 2
       num_warps: 8
     time: 0.2825023889541626
-  '''a.dtype = torch.float16'', ''is_a_transposed = False'', ''is_b_transposed = False''':
+  '''A.dtype = torch.float16'', ''is_A_transposed = False'', ''is_B_transposed = False''':
     config:
       BLOCK_SIZE_K: 64
       BLOCK_SIZE_M: 128
@@ -39,7 +39,7 @@ best_configs:
       num_stages: 2
       num_warps: 8
     time: 0.3160320043563843
-  '''a.dtype = torch.float16'', ''is_a_transposed = False'', ''is_b_transposed = True''':
+  '''A.dtype = torch.float16'', ''is_A_transposed = False'', ''is_B_transposed = True''':
     config:
       BLOCK_SIZE_K: 64
       BLOCK_SIZE_M: 128
@@ -47,7 +47,7 @@ best_configs:
       num_stages: 2
       num_warps: 8
     time: 0.25717759132385254
-  '''a.dtype = torch.float16'', ''is_a_transposed = True'', ''is_b_transposed = False''':
+  '''A.dtype = torch.float16'', ''is_A_transposed = True'', ''is_B_transposed = False''':
     config:
       BLOCK_SIZE_K: 64
       BLOCK_SIZE_M: 128
@@ -55,7 +55,7 @@ best_configs:
       num_stages: 2
       num_warps: 4
     time: 0.3138943910598755
-  '''a.dtype = torch.float16'', ''is_a_transposed = True'', ''is_b_transposed = True''':
+  '''A.dtype = torch.float16'', ''is_A_transposed = True'', ''is_B_transposed = True''':
     config:
       BLOCK_SIZE_K: 64
       BLOCK_SIZE_M: 128
@@ -63,7 +63,7 @@ best_configs:
       num_stages: 2
       num_warps: 8
     time: 0.288921594619751
-  '''a.dtype = torch.float32'', ''is_a_transposed = False'', ''is_b_transposed = False''':
+  '''A.dtype = torch.float32'', ''is_A_transposed = False'', ''is_B_transposed = False''':
     config:
       BLOCK_SIZE_K: 32
       BLOCK_SIZE_M: 64
@@ -71,7 +71,7 @@ best_configs:
       num_stages: 2
       num_warps: 2
     time: 0.9252799987792969
-  '''a.dtype = torch.float32'', ''is_a_transposed = False'', ''is_b_transposed = True''':
+  '''A.dtype = torch.float32'', ''is_A_transposed = False'', ''is_B_transposed = True''':
     config:
       BLOCK_SIZE_K: 32
       BLOCK_SIZE_M: 128
@@ -79,7 +79,7 @@ best_configs:
       num_stages: 2
       num_warps: 8
     time: 0.5071584224700928
-  '''a.dtype = torch.float32'', ''is_a_transposed = True'', ''is_b_transposed = False''':
+  '''A.dtype = torch.float32'', ''is_A_transposed = True'', ''is_B_transposed = False''':
     config:
       BLOCK_SIZE_K: 32
       BLOCK_SIZE_M: 64
@@ -87,7 +87,7 @@ best_configs:
       num_stages: 2
       num_warps: 2
     time: 0.8041407585144043
-  '''a.dtype = torch.float32'', ''is_a_transposed = True'', ''is_b_transposed = True''':
+  '''A.dtype = torch.float32'', ''is_A_transposed = True'', ''is_B_transposed = True''':
     config:
       BLOCK_SIZE_K: 64
       BLOCK_SIZE_M: 64
