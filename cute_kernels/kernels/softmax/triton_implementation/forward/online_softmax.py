@@ -26,7 +26,7 @@ def _online_softmax_forward_triton_kernel(
     mask_b = indices_b < B
 
     Z = tl.zeros((BLOCK_SIZE_B, 1), dtype=tl.float32)
-    M = tl.zeros((BLOCK_SIZE_B, 1), dtype=tl.float32) - float("inf")
+    M = tl.full((BLOCK_SIZE_B, 1), -float("inf"), dtype=tl.float32)
 
     for h in range(tl.cdiv(H, BLOCK_SIZE_H)):
         indices_h = h * BLOCK_SIZE_H + tl.arange(0, BLOCK_SIZE_H)
