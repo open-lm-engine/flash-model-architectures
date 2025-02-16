@@ -35,11 +35,11 @@ class _Linear_Cute(torch.autograd.Function):
         if kernel_backend_forward == "triton":
             # NOTE this can be a single kernel but I am lazy
             output = gemm_cute(
-                a=input,
-                b=weight,
-                c=None,
-                is_a_transposed=False,
-                is_b_transposed=True,
+                A=input,
+                B=weight,
+                C=None,
+                is_A_transposed=False,
+                is_B_transposed=True,
                 alpha=1,
                 beta=0,
                 use_tf32=use_tf32,
@@ -70,11 +70,11 @@ class _Linear_Cute(torch.autograd.Function):
         if kernel_backend_backward == "triton":
             # NOTE this can be a single kernel but I am lazy
             input_grad = gemm_cute(
-                a=output_grad,
-                b=weight,
-                c=None,
-                is_a_transposed=False,
-                is_b_transposed=False,
+                A=output_grad,
+                B=weight,
+                C=None,
+                is_A_transposed=False,
+                is_B_transposed=False,
                 alpha=1,
                 beta=0,
                 use_tf32=use_tf32,
@@ -85,11 +85,11 @@ class _Linear_Cute(torch.autograd.Function):
             )
 
             weight_grad = gemm_cute(
-                a=output_grad,
-                b=input,
-                c=None,
-                is_a_transposed=True,
-                is_b_transposed=False,
+                A=output_grad,
+                B=input,
+                C=None,
+                is_A_transposed=True,
+                is_B_transposed=False,
                 alpha=1,
                 beta=0,
                 use_tf32=use_tf32,
