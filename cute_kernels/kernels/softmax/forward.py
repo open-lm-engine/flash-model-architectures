@@ -4,7 +4,7 @@ from ...constants import MAX_TRITON_BLOCK_SIZE
 from ...cutotune import CutoTuneConfig, cutotune, get_cartesian_product_cutotune_configs
 from ...math import get_next_power_of_2
 from ...utils import get_num_elements_and_hidden_size
-from .triton_implementation import softmax_forward_full_row_triton
+from .triton_implementation import full_row_softmax_forward_triton, online_softmax_forward_triton
 
 
 @cutotune(
@@ -30,9 +30,9 @@ def _forward(
             BLOCK_SIZE_H = get_next_power_of_2(hidden_size)
             assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
 
-            softmax_forward_full_row_triton(x=x, output=output, BLOCK_SIZE_B=BLOCK_SIZE_B, BLOCK_SIZE_H=BLOCK_SIZE_H)
+            full_row_softmax_forward_triton(x=x, output=output, BLOCK_SIZE_B=BLOCK_SIZE_B, BLOCK_SIZE_H=BLOCK_SIZE_H)
         elif triton_kernel_algorithm == "online_softmax":
-            pass
+            online_softmax_forward_triton(x=x, output=output, BLOCK_SIZE_B=BLOCK_SIZE_B, BLOCK_SIZE_H=BLOCK_SIZE_H)
         else:
             raise ValueError(f"unexpected triton_kernel_algorithm ({triton_kernel_algorithm})")
     else:

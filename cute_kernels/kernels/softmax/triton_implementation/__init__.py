@@ -1,2 +1,2 @@
 from .backward import softmax_backward_full_row_triton
-from .forward import softmax_forward_full_row_triton
+from .forward import full_row_softmax_forward_triton, online_softmax_forward_triton

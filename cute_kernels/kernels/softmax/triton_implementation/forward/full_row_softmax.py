@@ -2,17 +2,17 @@ import torch
 import triton
 import triton.language as tl
 
-from ....constants import COMMON_TRITON_BLOCK_SIZES_POWERS_OF_2, LIBRARY_NAME, MAX_TRITON_BLOCK_SIZE
-from ....cutotune import CutoTuneConfig, cutotune, get_cartesian_product_cutotune_configs
-from ....math import ceil_divide, get_powers_of_2
-from ....utils import cute_op, get_num_elements_and_hidden_size
+from .....constants import COMMON_TRITON_BLOCK_SIZES_POWERS_OF_2, LIBRARY_NAME, MAX_TRITON_BLOCK_SIZE
+from .....cutotune import CutoTuneConfig, cutotune, get_cartesian_product_cutotune_configs
+from .....math import ceil_divide, get_powers_of_2
+from .....utils import cute_op, get_num_elements_and_hidden_size
 
 
-_KERNEL_NAME = "softmax_forward_triton"
+_KERNEL_NAME = "full_row_softmax_forward_triton"
 
 
 @triton.jit
-def _softmax_forward_triton_kernel_full_row(
+def _full_row_softmax_forward_triton_kernel(
     x_ptr,
     output_ptr,
     B,
@@ -54,13 +54,13 @@ def _softmax_forward_triton_kernel_full_row(
     triggers={"x.dtype", "BLOCK_SIZE_H"},
 )
 @cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"output"})
-def softmax_forward_full_row_triton(
+def full_row_softmax_forward_triton(
     x: torch.Tensor, output: torch.Tensor, BLOCK_SIZE_B: int, BLOCK_SIZE_H: int
 ) -> None:
     num_elements, hidden_size = get_num_elements_and_hidden_size(x)
 
     with torch.device(x.device):
-        _softmax_forward_triton_kernel_full_row[(ceil_divide(num_elements, BLOCK_SIZE_B),)](
+        _full_row_softmax_forward_triton_kernel[(ceil_divide(num_elements, BLOCK_SIZE_B),)](
             x_ptr=x,
             output_ptr=output,
             B=num_elements,
