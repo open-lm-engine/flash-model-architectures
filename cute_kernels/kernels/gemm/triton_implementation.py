@@ -29,9 +29,9 @@ def _gemm_triton_kernel(
     BLOCK_SIZE_K: tl.constexpr,
     BLOCK_SIZE_N: tl.constexpr,
 ):
-    # a -> K x M if is_a_transposed else M x K
-    # b -> N x K if is_b_transposed else K x N
-    # c -> M x N
+    # A -> K x M if is_A_transposed else M x K
+    # B -> N x K if is_B_transposed else K x N
+    # C -> M x N
 
     pid = tl.program_id(axis=0)
     num_programs_n = tl.cdiv(N, BLOCK_SIZE_N)
