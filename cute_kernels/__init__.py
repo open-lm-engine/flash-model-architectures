@@ -29,6 +29,8 @@ from .kernels import (
     linear_torch,
     rmsnorm_cute,
     rmsnorm_torch,
+    softmax_cute,
+    softmax_torch,
     swiglu_cute,
     swiglu_torch,
     swiglu_unchunked_cute,

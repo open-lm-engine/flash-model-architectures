@@ -4,7 +4,6 @@ from ...cutotune import CutoTuneConfig, CutoTuneParameter, cutotune
 from ...enums import KernelBackend
 from ...utils import ensure_contiguous, get_num_elements_and_hidden_size
 from .cuda_implementation import cutlass_gemm_cuda, naive_gemm_cuda, shared_memory_gemm_cuda
-from .enums import CUDAKernelAlgorithm
 from .torch_implementation import gemm_torch
 from .triton_implementation import gemm_triton
 
@@ -13,9 +12,9 @@ from .triton_implementation import gemm_triton
 @cutotune(
     configs=[
         CutoTuneConfig(dict(kernel_backend=KernelBackend.triton, cuda_kernel_algorithm=None)),
-        CutoTuneConfig(dict(kernel_backend=KernelBackend.cuda, cuda_kernel_algorithm=CUDAKernelAlgorithm.naive)),
+        CutoTuneConfig(dict(kernel_backend=KernelBackend.cuda, cuda_kernel_algorithm="naive")),
         CutoTuneConfig(
-            dict(kernel_backend=KernelBackend.cuda, cuda_kernel_algorithm=CUDAKernelAlgorithm.shared_memory),
+            dict(kernel_backend=KernelBackend.cuda, cuda_kernel_algorithm="shared_memory"),
             condition=lambda **kwargs: not kwargs.get("is_a_transposed", False)
             and not kwargs.get("is_b_transposed", False),
         ),
@@ -33,7 +32,7 @@ def gemm_cute(
     beta: float = 1,
     use_tf32: bool = True,
     kernel_backend: KernelBackend = CutoTuneParameter(),
-    cuda_kernel_algorithm: CUDAKernelAlgorithm = CutoTuneParameter(),
+    cuda_kernel_algorithm: str = CutoTuneParameter(),
     BLOCK_SIZE_M: int = CutoTuneParameter(),
     BLOCK_SIZE_K: int = CutoTuneParameter(),
     BLOCK_SIZE_N: int = CutoTuneParameter(),
@@ -57,7 +56,7 @@ def gemm_cute(
         assert c is not None
 
     if kernel_backend == KernelBackend.cuda:
-        if cuda_kernel_algorithm == CUDAKernelAlgorithm.cutlass_gemm_cuda:
+        if cuda_kernel_algorithm == "cutlass_gemm_cuda":
             assert isinstance(BLOCK_SIZE_M, CutoTuneParameter)
             assert isinstance(BLOCK_SIZE_K, CutoTuneParameter)
             assert isinstance(BLOCK_SIZE_N, CutoTuneParameter)
@@ -75,7 +74,7 @@ def gemm_cute(
                 K=K,
                 N=N,
             )
-        elif cuda_kernel_algorithm == CUDAKernelAlgorithm.shared_memory:
+        elif cuda_kernel_algorithm == "shared_memory":
             if (
                 not isinstance(BLOCK_SIZE_M, CutoTuneParameter)
                 or not isinstance(BLOCK_SIZE_K, CutoTuneParameter)
@@ -97,7 +96,7 @@ def gemm_cute(
                 N=N,
                 BLOCK_SIZE=BLOCK_SIZE_M,
             )
-        elif cuda_kernel_algorithm == CUDAKernelAlgorithm.naive:
+        elif cuda_kernel_algorithm == "naive":
             naive_gemm_cuda(
                 a=a,
                 b=b,
@@ -113,6 +112,8 @@ def gemm_cute(
                 BLOCK_SIZE_M=BLOCK_SIZE_M,
                 BLOCK_SIZE_N=BLOCK_SIZE_N,
             )
+        else:
+            raise ValueError(f"unexpected cuda_kernel_algorithm ({cuda_kernel_algorithm})")
     elif kernel_backend == KernelBackend.triton:
         assert cuda_kernel_algorithm is None
 
@@ -135,5 +136,7 @@ def gemm_cute(
             num_warps=CutoTuneParameter(),
             num_stages=CutoTuneParameter(),
         )
+    else:
+        raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
     return output
