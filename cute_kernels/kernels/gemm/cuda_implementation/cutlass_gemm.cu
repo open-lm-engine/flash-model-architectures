@@ -57,7 +57,7 @@ void cutlass_gemm_cuda(const torch::Tensor &A,
                        const uint32 &K,
                        const uint32 &N) {
     AT_DISPATCH_CUSTOM_FLOAT_TYPES(
-        a.scalar_type(), "cutlass_gemm_cuda", ([&] {
+        A.scalar_type(), "cutlass_gemm_cuda", ([&] {
             using input_dtype = typename DType<scalar_t>::cutlass_dtype;
 
             const input_dtype *A_data = reinterpret_cast<input_dtype *>(A.data_ptr<scalar_t>());
