@@ -2,192 +2,192 @@ best_configs:
   '''output.dtype = torch.bfloat16'', ''next_power_of_2(hidden_size) = 1024''':
     config:
       kernel_backend: full_row_softmax_triton
-    time: 0.05480960011482239
+    time: 0.05448639988899231
   '''output.dtype = torch.bfloat16'', ''next_power_of_2(hidden_size) = 128''':
     config:
       kernel_backend: full_row_softmax_triton
-    time: 0.05700160264968872
+    time: 0.053452801704406736
   '''output.dtype = torch.bfloat16'', ''next_power_of_2(hidden_size) = 16''':
     config:
       kernel_backend: full_row_softmax_triton
-    time: 0.056032001972198486
+    time: 0.05399680137634277
   '''output.dtype = torch.bfloat16'', ''next_power_of_2(hidden_size) = 16384''':
     config:
       kernel_backend: full_row_softmax_triton
-    time: 0.0692799985408783
+    time: 0.06926720142364502
   '''output.dtype = torch.bfloat16'', ''next_power_of_2(hidden_size) = 2''':
     config:
       kernel_backend: full_row_softmax_triton
-    time: 0.05381760001182556
+    time: 0.0549888014793396
   '''output.dtype = torch.bfloat16'', ''next_power_of_2(hidden_size) = 2048''':
     config:
       kernel_backend: full_row_softmax_triton
-    time: 0.05522239804267883
+    time: 0.056627202033996585
   '''output.dtype = torch.bfloat16'', ''next_power_of_2(hidden_size) = 256''':
     config:
       kernel_backend: full_row_softmax_triton
-    time: 0.05661119818687439
+    time: 0.05609599947929382
   '''output.dtype = torch.bfloat16'', ''next_power_of_2(hidden_size) = 32''':
     config:
       kernel_backend: full_row_softmax_triton
-    time: 0.05640000104904175
+    time: 0.053865599632263186
   '''output.dtype = torch.bfloat16'', ''next_power_of_2(hidden_size) = 32768''':
     config:
       kernel_backend: full_row_softmax_triton
-    time: 0.1773568034172058
+    time: 0.17692480087280274
   '''output.dtype = torch.bfloat16'', ''next_power_of_2(hidden_size) = 4''':
     config:
       kernel_backend: full_row_softmax_triton
-    time: 0.056643199920654294
+    time: 0.05489919781684875
   '''output.dtype = torch.bfloat16'', ''next_power_of_2(hidden_size) = 4096''':
     config:
       kernel_backend: full_row_softmax_triton
-    time: 0.056652802228927615
+    time: 0.055043202638626096
   '''output.dtype = torch.bfloat16'', ''next_power_of_2(hidden_size) = 512''':
     config:
       kernel_backend: full_row_softmax_triton
-    time: 0.055206400156021115
+    time: 0.055776000022888184
   '''output.dtype = torch.bfloat16'', ''next_power_of_2(hidden_size) = 64''':
     config:
       kernel_backend: full_row_softmax_triton
-    time: 0.056918400526046756
+    time: 0.055238401889801024
   '''output.dtype = torch.bfloat16'', ''next_power_of_2(hidden_size) = 65536''':
     config:
       kernel_backend: full_row_softmax_triton
-    time: 1.3349760055541993
+    time: 1.3372063636779785
   '''output.dtype = torch.bfloat16'', ''next_power_of_2(hidden_size) = 8''':
     config:
       kernel_backend: full_row_softmax_triton
-    time: 0.057171201705932616
+    time: 0.05867840051651001
   '''output.dtype = torch.bfloat16'', ''next_power_of_2(hidden_size) = 8192''':
     config:
       kernel_backend: full_row_softmax_triton
-    time: 0.05486720204353333
+    time: 0.05564799904823303
   '''output.dtype = torch.float16'', ''next_power_of_2(hidden_size) = 1024''':
     config:
       kernel_backend: full_row_softmax_triton
-    time: 0.055225598812103274
+    time: 0.05466880202293396
   '''output.dtype = torch.float16'', ''next_power_of_2(hidden_size) = 128''':
     config:
       kernel_backend: full_row_softmax_triton
-    time: 0.05707200169563294
+    time: 0.055471998453140256
   '''output.dtype = torch.float16'', ''next_power_of_2(hidden_size) = 16''':
     config:
       kernel_backend: full_row_softmax_triton
-    time: 0.05578879714012146
+    time: 0.05448960065841675
   '''output.dtype = torch.float16'', ''next_power_of_2(hidden_size) = 16384''':
     config:
       kernel_backend: full_row_softmax_triton
-    time: 0.06904000043869019
+    time: 0.06874240040779114
   '''output.dtype = torch.float16'', ''next_power_of_2(hidden_size) = 2''':
     config:
       kernel_backend: full_row_softmax_triton
-    time: 0.054764801263809205
+    time: 0.055302399396896365
   '''output.dtype = torch.float16'', ''next_power_of_2(hidden_size) = 2048''':
     config:
       kernel_backend: full_row_softmax_triton
-    time: 0.05537279844284058
+    time: 0.05597760081291199
   '''output.dtype = torch.float16'', ''next_power_of_2(hidden_size) = 256''':
     config:
       kernel_backend: full_row_softmax_triton
-    time: 0.05588799715042114
+    time: 0.055017602443695066
   '''output.dtype = torch.float16'', ''next_power_of_2(hidden_size) = 32''':
     config:
       kernel_backend: full_row_softmax_triton
-    time: 0.05418559908866882
+    time: 0.05546240210533142
   '''output.dtype = torch.float16'', ''next_power_of_2(hidden_size) = 32768''':
     config:
       kernel_backend: full_row_softmax_triton
-    time: 0.15560319423675537
+    time: 0.15697280168533326
   '''output.dtype = torch.float16'', ''next_power_of_2(hidden_size) = 4''':
     config:
       kernel_backend: full_row_softmax_triton
-    time: 0.05760959982872009
+    time: 0.05470719933509827
   '''output.dtype = torch.float16'', ''next_power_of_2(hidden_size) = 4096''':
     config:
       kernel_backend: full_row_softmax_triton
-    time: 0.05566080212593079
+    time: 0.05405120253562927
   '''output.dtype = torch.float16'', ''next_power_of_2(hidden_size) = 512''':
     config:
       kernel_backend: full_row_softmax_triton
-    time: 0.0566976010799408
+    time: 0.053465598821640016
   '''output.dtype = torch.float16'', ''next_power_of_2(hidden_size) = 64''':
     config:
       kernel_backend: full_row_softmax_triton
-    time: 0.0554144024848938
+    time: 0.05487359762191772
   '''output.dtype = torch.float16'', ''next_power_of_2(hidden_size) = 65536''':
     config:
       kernel_backend: full_row_softmax_triton
-    time: 1.342073631286621
+    time: 1.3411487579345702
   '''output.dtype = torch.float16'', ''next_power_of_2(hidden_size) = 8''':
     config:
       kernel_backend: full_row_softmax_triton
-    time: 0.05575680136680603
+    time: 0.05555840134620667
   '''output.dtype = torch.float16'', ''next_power_of_2(hidden_size) = 8192''':
     config:
       kernel_backend: full_row_softmax_triton
-    time: 0.056678402423858645
+    time: 0.05560320019721985
   '''output.dtype = torch.float32'', ''next_power_of_2(hidden_size) = 1024''':
     config:
       kernel_backend: full_row_softmax_triton
-    time: 0.056415998935699464
+    time: 0.05446400046348572
   '''output.dtype = torch.float32'', ''next_power_of_2(hidden_size) = 128''':
     config:
       kernel_backend: full_row_softmax_triton
-    time: 0.057011198997497556
+    time: 0.05510720014572144
   '''output.dtype = torch.float32'', ''next_power_of_2(hidden_size) = 16''':
     config:
       kernel_backend: full_row_softmax_triton
-    time: 0.053827202320098876
+    time: 0.054179197549819945
   '''output.dtype = torch.float32'', ''next_power_of_2(hidden_size) = 16384''':
     config:
       kernel_backend: full_row_softmax_triton
-    time: 0.1531872034072876
+    time: 0.15528639554977416
   '''output.dtype = torch.float32'', ''next_power_of_2(hidden_size) = 2''':
     config:
       kernel_backend: full_row_softmax_triton
-    time: 0.05671039819717407
+    time: 0.05589439868927002
   '''output.dtype = torch.float32'', ''next_power_of_2(hidden_size) = 2048''':
     config:
       kernel_backend: full_row_softmax_triton
-    time: 0.054579198360443115
+    time: 0.055068802833557126
   '''output.dtype = torch.float32'', ''next_power_of_2(hidden_size) = 256''':
     config:
       kernel_backend: full_row_softmax_triton
-    time: 0.0546239972114563
+    time: 0.0549344003200531
   '''output.dtype = torch.float32'', ''next_power_of_2(hidden_size) = 32''':
     config:
       kernel_backend: full_row_softmax_triton
-    time: 0.05584319829940796
+    time: 0.05339840054512024
   '''output.dtype = torch.float32'', ''next_power_of_2(hidden_size) = 32768''':
     config:
       kernel_backend: full_row_softmax_triton
-    time: 1.4872672080993652
+    time: 1.4908512115478516
   '''output.dtype = torch.float32'', ''next_power_of_2(hidden_size) = 4''':
     config:
       kernel_backend: full_row_softmax_triton
-    time: 0.05523520112037659
+    time: 0.05485759973526001
   '''output.dtype = torch.float32'', ''next_power_of_2(hidden_size) = 4096''':
     config:
       kernel_backend: full_row_softmax_triton
-    time: 0.05454080104827881
+    time: 0.055936002731323244
   '''output.dtype = torch.float32'', ''next_power_of_2(hidden_size) = 512''':
     config:
       kernel_backend: full_row_softmax_triton
-    time: 0.05739520192146301
+    time: 0.054022401571273804
   '''output.dtype = torch.float32'', ''next_power_of_2(hidden_size) = 64''':
     config:
       kernel_backend: full_row_softmax_triton
-    time: 0.055276799201965335
+    time: 0.0541375994682312
   '''output.dtype = torch.float32'', ''next_power_of_2(hidden_size) = 65536''':
     config:
       kernel_backend: full_row_softmax_triton
-    time: 3.0124799728393556
+    time: 3.023232078552246
   '''output.dtype = torch.float32'', ''next_power_of_2(hidden_size) = 8''':
     config:
       kernel_backend: full_row_softmax_triton
-    time: 0.05375999808311462
+    time: 0.05730239748954773
   '''output.dtype = torch.float32'', ''next_power_of_2(hidden_size) = 8192''':
     config:
       kernel_backend: full_row_softmax_triton
-    time: 0.06908479928970337
+    time: 0.06903679966926575

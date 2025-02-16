@@ -1,0 +1,193 @@
+best_configs:
+  '''x.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 1024''':
+    config:
+      BLOCK_SIZE_B: 32
+    time: 0.0329120010137558
+  '''x.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 128''':
+    config:
+      BLOCK_SIZE_B: 32
+    time: 0.032902398705482484
+  '''x.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 16''':
+    config:
+      BLOCK_SIZE_B: 1024
+    time: 0.032076799869537355
+  '''x.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 16384''':
+    config:
+      BLOCK_SIZE_B: 1
+    time: 0.054739201068878175
+  '''x.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 2''':
+    config:
+      BLOCK_SIZE_B: 8192
+    time: 0.033276799321174624
+  '''x.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 2048''':
+    config:
+      BLOCK_SIZE_B: 2
+    time: 0.033744001388549806
+  '''x.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 256''':
+    config:
+      BLOCK_SIZE_B: 16
+    time: 0.03468799889087677
+  '''x.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 32''':
+    config:
+      BLOCK_SIZE_B: 256
+    time: 0.03294079899787903
+  '''x.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 32768''':
+    config:
+      BLOCK_SIZE_B: 1
+    time: 0.2008512020111084
+  '''x.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 4''':
+    config:
+      BLOCK_SIZE_B: 256
+    time: 0.035257598757743834
+  '''x.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 4096''':
+    config:
+      BLOCK_SIZE_B: 1
+    time: 0.03374080061912536
+  '''x.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 512''':
+    config:
+      BLOCK_SIZE_B: 2
+    time: 0.032476800680160525
+  '''x.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 64''':
+    config:
+      BLOCK_SIZE_B: 16
+    time: 0.03278400003910065
+  '''x.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 65536''':
+    config:
+      BLOCK_SIZE_B: 1
+    time: 1.626755142211914
+  '''x.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 8''':
+    config:
+      BLOCK_SIZE_B: 256
+    time: 0.032979199290275575
+  '''x.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 8192''':
+    config:
+      BLOCK_SIZE_B: 1
+    time: 0.03506560027599335
+  '''x.dtype = torch.float16'', ''BLOCK_SIZE_H = 1024''':
+    config:
+      BLOCK_SIZE_B: 4
+    time: 0.03293440043926239
+  '''x.dtype = torch.float16'', ''BLOCK_SIZE_H = 128''':
+    config:
+      BLOCK_SIZE_B: 256
+    time: 0.03453119993209839
+  '''x.dtype = torch.float16'', ''BLOCK_SIZE_H = 16''':
+    config:
+      BLOCK_SIZE_B: 128
+    time: 0.03323839902877808
+  '''x.dtype = torch.float16'', ''BLOCK_SIZE_H = 16384''':
+    config:
+      BLOCK_SIZE_B: 1
+    time: 0.05453760027885437
+  '''x.dtype = torch.float16'', ''BLOCK_SIZE_H = 2''':
+    config:
+      BLOCK_SIZE_B: 512
+    time: 0.03324800133705139
+  '''x.dtype = torch.float16'', ''BLOCK_SIZE_H = 2048''':
+    config:
+      BLOCK_SIZE_B: 2
+    time: 0.032688000798225404
+  '''x.dtype = torch.float16'', ''BLOCK_SIZE_H = 256''':
+    config:
+      BLOCK_SIZE_B: 8
+    time: 0.03246400058269501
+  '''x.dtype = torch.float16'', ''BLOCK_SIZE_H = 32''':
+    config:
+      BLOCK_SIZE_B: 64
+    time: 0.03391039967536926
+  '''x.dtype = torch.float16'', ''BLOCK_SIZE_H = 32768''':
+    config:
+      BLOCK_SIZE_B: 1
+    time: 0.2030400037765503
+  '''x.dtype = torch.float16'', ''BLOCK_SIZE_H = 4''':
+    config:
+      BLOCK_SIZE_B: 1024
+    time: 0.033024001121521
+  '''x.dtype = torch.float16'', ''BLOCK_SIZE_H = 4096''':
+    config:
+      BLOCK_SIZE_B: 2
+    time: 0.034041601419448855
+  '''x.dtype = torch.float16'', ''BLOCK_SIZE_H = 512''':
+    config:
+      BLOCK_SIZE_B: 32
+    time: 0.033257600665092465
+  '''x.dtype = torch.float16'', ''BLOCK_SIZE_H = 64''':
+    config:
+      BLOCK_SIZE_B: 512
+    time: 0.03343999981880188
+  '''x.dtype = torch.float16'', ''BLOCK_SIZE_H = 65536''':
+    config:
+      BLOCK_SIZE_B: 1
+    time: 1.4948127746582032
+  '''x.dtype = torch.float16'', ''BLOCK_SIZE_H = 8''':
+    config:
+      BLOCK_SIZE_B: 2048
+    time: 0.03517760038375854
+  '''x.dtype = torch.float16'', ''BLOCK_SIZE_H = 8192''':
+    config:
+      BLOCK_SIZE_B: 1
+    time: 0.0365664005279541
+  '''x.dtype = torch.float32'', ''BLOCK_SIZE_H = 1024''':
+    config:
+      BLOCK_SIZE_B: 1
+    time: 0.03358719944953918
+  '''x.dtype = torch.float32'', ''BLOCK_SIZE_H = 128''':
+    config:
+      BLOCK_SIZE_B: 32
+    time: 0.03342080116271973
+  '''x.dtype = torch.float32'', ''BLOCK_SIZE_H = 16''':
+    config:
+      BLOCK_SIZE_B: 1024
+    time: 0.03242239952087402
+  '''x.dtype = torch.float32'', ''BLOCK_SIZE_H = 16384''':
+    config:
+      BLOCK_SIZE_B: 1
+    time: 0.10414079427719117
+  '''x.dtype = torch.float32'', ''BLOCK_SIZE_H = 2''':
+    config:
+      BLOCK_SIZE_B: 2048
+    time: 0.034016001224517825
+  '''x.dtype = torch.float32'', ''BLOCK_SIZE_H = 2048''':
+    config:
+      BLOCK_SIZE_B: 1
+    time: 0.033964800834655764
+  '''x.dtype = torch.float32'', ''BLOCK_SIZE_H = 256''':
+    config:
+      BLOCK_SIZE_B: 8
+    time: 0.034806400537490845
+  '''x.dtype = torch.float32'', ''BLOCK_SIZE_H = 32''':
+    config:
+      BLOCK_SIZE_B: 128
+    time: 0.033852800726890564
+  '''x.dtype = torch.float32'', ''BLOCK_SIZE_H = 32768''':
+    config:
+      BLOCK_SIZE_B: 1
+    time: 0.340447998046875
+  '''x.dtype = torch.float32'', ''BLOCK_SIZE_H = 4''':
+    config:
+      BLOCK_SIZE_B: 4096
+    time: 0.03362880051136017
+  '''x.dtype = torch.float32'', ''BLOCK_SIZE_H = 4096''':
+    config:
+      BLOCK_SIZE_B: 2
+    time: 0.03543039858341217
+  '''x.dtype = torch.float32'', ''BLOCK_SIZE_H = 512''':
+    config:
+      BLOCK_SIZE_B: 2
+    time: 0.033062401413917544
+  '''x.dtype = torch.float32'', ''BLOCK_SIZE_H = 64''':
+    config:
+      BLOCK_SIZE_B: 16
+    time: 0.032153600454330446
+  '''x.dtype = torch.float32'', ''BLOCK_SIZE_H = 65536''':
+    config:
+      BLOCK_SIZE_B: 1
+    time: 1.8878528594970703
+  '''x.dtype = torch.float32'', ''BLOCK_SIZE_H = 8''':
+    config:
+      BLOCK_SIZE_B: 256
+    time: 0.033792001008987424
+  '''x.dtype = torch.float32'', ''BLOCK_SIZE_H = 8192''':
+    config:
+      BLOCK_SIZE_B: 1
+    time: 0.04925439953804016
