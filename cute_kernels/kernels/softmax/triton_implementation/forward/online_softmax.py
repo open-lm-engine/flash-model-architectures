@@ -42,7 +42,8 @@ def _online_softmax_forward_triton_kernel(
         m = tl.max(x, axis=1)
 
         M = max(M, m)
-        Z = Z * tl.exp(prev_m - M) + tl.exp(x - M)
+        e = tl.exp(x - M)
+        Z = Z * tl.exp(prev_m - M) + tl.sum(e, axis=1)
 
     for h in range(tl.cdiv(H, BLOCK_SIZE_H)):
         indices_h = h * BLOCK_SIZE_H + tl.arange(0, BLOCK_SIZE_H)
