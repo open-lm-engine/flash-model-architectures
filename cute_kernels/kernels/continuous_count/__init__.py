@@ -2,7 +2,6 @@ import torch
 
 from ...constants import COMMON_CUDA_BLOCK_SIZES_POWERS_OF_2, DTYPE_TO_SIZE, THREAD_BLOCK_CLUSTER_SIZES
 from ...cutotune import CutoTuneConfig, CutoTuneParameter, cutotune, get_cartesian_product_cutotune_configs
-from ...enums import KernelBackend
 from ...math import get_next_power_of_2
 from ...utils import get_sm_count
 from .cuda_implementation import continuous_count_cuda
@@ -12,19 +11,17 @@ from .triton_implementation import continuous_count_triton
 
 @cutotune(
     get_cartesian_product_cutotune_configs(
-        kernel_backend=[KernelBackend.triton],
+        kernel_backend=["triton"],
         thread_block_cluster_size=[None],
         BLOCK_SIZE=COMMON_CUDA_BLOCK_SIZES_POWERS_OF_2,
         condition=lambda **kwargs: kwargs["size"] <= 256,
     )
     + get_cartesian_product_cutotune_configs(
-        kernel_backend=[KernelBackend.cuda],
+        kernel_backend=["cuda"],
         thread_block_cluster_size=THREAD_BLOCK_CLUSTER_SIZES,
         BLOCK_SIZE=COMMON_CUDA_BLOCK_SIZES_POWERS_OF_2,
     ),
-    default_config=CutoTuneConfig(
-        dict(kernel_backend=KernelBackend.cuda, thread_block_cluster_size=8, BLOCK_SIZE=1024)
-    ),
+    default_config=CutoTuneConfig(dict(kernel_backend="cuda", thread_block_cluster_size=8, BLOCK_SIZE=1024)),
     functional_triggers={
         "next_power_of_2(size)": lambda **kwargs: get_next_power_of_2(kwargs["size"]),
         "sizeof(dtype)": lambda **kwargs: DTYPE_TO_SIZE[kwargs["x"].dtype],
@@ -34,13 +31,13 @@ def _continuous_count_cute(
     x: torch.Tensor,
     size: int,
     thread_block_cluster_size: int,
-    kernel_backend: KernelBackend,
+    kernel_backend: str,
     BLOCK_SIZE: int,
 ) -> torch.Tensor:
     assert x.dim() == 1, "x should be 1-dimensional"
     assert x.dtype in [torch.int32, torch.long]
 
-    if kernel_backend == KernelBackend.cuda:
+    if kernel_backend == "cuda":
         output = torch.empty(size, dtype=torch.uint32, device=x.device)
         continuous_count_cuda(
             x=x,
@@ -50,7 +47,7 @@ def _continuous_count_cute(
             size=size,
             BLOCK_SIZE=BLOCK_SIZE,
         )
-    elif kernel_backend == KernelBackend.triton:
+    elif kernel_backend == "triton":
         assert thread_block_cluster_size is None
         output = torch.zeros(size, dtype=torch.uint32, device=x.device)
 
@@ -68,7 +65,7 @@ def continuous_count_cute(
     x: torch.Tensor,
     size: int,
     thread_block_cluster_size: int = CutoTuneParameter(),
-    kernel_backend: KernelBackend = CutoTuneParameter(),
+    kernel_backend: str = CutoTuneParameter(),
     BLOCK_SIZE: int = CutoTuneParameter(),
 ) -> torch.Tensor:
     if size == 1:

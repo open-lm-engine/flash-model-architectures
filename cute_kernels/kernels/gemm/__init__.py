@@ -1,7 +1,6 @@
 import torch
 
 from ...cutotune import CutoTuneConfig, CutoTuneParameter, cutotune
-from ...enums import KernelBackend
 from ...utils import ensure_contiguous, get_num_elements_and_hidden_size
 from .cuda_implementation import cutlass_gemm_cuda, naive_gemm_cuda, shared_memory_gemm_cuda
 from .torch_implementation import gemm_torch
@@ -11,15 +10,15 @@ from .triton_implementation import gemm_triton
 @ensure_contiguous
 @cutotune(
     configs=[
-        CutoTuneConfig(dict(kernel_backend=KernelBackend.triton, cuda_kernel_algorithm=None)),
-        CutoTuneConfig(dict(kernel_backend=KernelBackend.cuda, cuda_kernel_algorithm="naive")),
+        CutoTuneConfig(dict(kernel_backend="triton", cuda_kernel_algorithm=None)),
+        CutoTuneConfig(dict(kernel_backend="cuda", cuda_kernel_algorithm="naive")),
         CutoTuneConfig(
-            dict(kernel_backend=KernelBackend.cuda, cuda_kernel_algorithm="shared_memory"),
+            dict(kernel_backend="cuda", cuda_kernel_algorithm="shared_memory"),
             condition=lambda **kwargs: not kwargs.get("is_a_transposed", False)
             and not kwargs.get("is_b_transposed", False),
         ),
     ],
-    default_config=CutoTuneConfig(dict(kernel_backend=KernelBackend.triton)),
+    default_config=CutoTuneConfig(dict(kernel_backend="triton")),
     triggers={"a.dtype", "is_a_transposed", "is_b_transposed"},
 )
 def gemm_cute(
@@ -31,7 +30,7 @@ def gemm_cute(
     alpha: float = 1,
     beta: float = 1,
     use_tf32: bool = True,
-    kernel_backend: KernelBackend = CutoTuneParameter(),
+    kernel_backend: str = CutoTuneParameter(),
     cuda_kernel_algorithm: str = CutoTuneParameter(),
     BLOCK_SIZE_M: int = CutoTuneParameter(),
     BLOCK_SIZE_K: int = CutoTuneParameter(),
@@ -55,7 +54,7 @@ def gemm_cute(
     else:
         assert c is not None
 
-    if kernel_backend == KernelBackend.cuda:
+    if kernel_backend == "cuda":
         if cuda_kernel_algorithm == "cutlass_gemm_cuda":
             assert isinstance(BLOCK_SIZE_M, CutoTuneParameter)
             assert isinstance(BLOCK_SIZE_K, CutoTuneParameter)
@@ -114,7 +113,7 @@ def gemm_cute(
             )
         else:
             raise ValueError(f"unexpected cuda_kernel_algorithm ({cuda_kernel_algorithm})")
-    elif kernel_backend == KernelBackend.triton:
+    elif kernel_backend == "triton":
         assert cuda_kernel_algorithm is None
 
         gemm_triton(

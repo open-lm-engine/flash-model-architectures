@@ -4,7 +4,7 @@ import torch
 from parameterized import parameterized
 from transformers import set_seed
 
-from cute_kernels import KernelBackend, continuous_count_cute, continuous_count_torch
+from cute_kernels import continuous_count_cute, continuous_count_torch
 
 from ..test_commons import TestCommons
 
@@ -19,7 +19,7 @@ class ContiguousCountTest(TestCommons):
             TestCommons.get_1d_tensor_sizes(),  # size
             [torch.device("cuda")],  # device
             [1, 2, 4, 8],  # thread_block_cluster_size
-            [KernelBackend.cuda],  # kernel_backend
+            ["cuda"],  # kernel_backend
             [64],  # BLOCK_SIZE_B
             [torch.long, torch.int],  # dtype
             [continuous_count_cute, torch.compile(continuous_count_cute, fullgraph=True)],  # function
@@ -28,7 +28,7 @@ class ContiguousCountTest(TestCommons):
             TestCommons.get_1d_tensor_sizes(),  # size
             [torch.device("cuda")],  # device
             [None],  # thread_block_cluster_size
-            [KernelBackend.triton],  # kernel_backend
+            ["triton"],  # kernel_backend
             [64],  # BLOCK_SIZE_B
             [torch.long, torch.int],  # dtype
             [continuous_count_cute, torch.compile(continuous_count_cute, fullgraph=True)],  # function
@@ -39,7 +39,7 @@ class ContiguousCountTest(TestCommons):
         size: int,
         device: torch.device,
         thread_block_cluster_size: int,
-        kernel_backend: KernelBackend,
+        kernel_backend: str,
         BLOCK_SIZE: int,
         dtype: torch.dtype,
         function: Callable,

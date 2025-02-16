@@ -1,7 +1,6 @@
 import torch
 
 from ...cutotune import cutotune
-from ...enums import KernelBackend
 from .parameters import get_cutotune_parameters
 from .triton_implementation import embedding_forward_triton
 
@@ -10,7 +9,7 @@ from .triton_implementation import embedding_forward_triton
 def _forward(
     input_ids: torch.Tensor,
     weight: torch.Tensor,
-    kernel_backend: KernelBackend,
+    kernel_backend: str,
     BLOCK_SIZE_B: int,
     BLOCK_SIZE_H: int,
 ) -> torch.Tensor:
@@ -19,7 +18,7 @@ def _forward(
 
     output = torch.empty(num_elements, hidden_size, dtype=weight.dtype, device=input_ids.device)
 
-    if kernel_backend == KernelBackend.triton:
+    if kernel_backend == "triton":
         embedding_forward_triton(
             input_ids=input_ids, weight=weight, output=output, BLOCK_SIZE_B=BLOCK_SIZE_B, BLOCK_SIZE_H=BLOCK_SIZE_H
         )

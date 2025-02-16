@@ -3,7 +3,6 @@ from enum import Enum
 
 import yaml
 
-from ..enums import KernelBackend
 from ..utils import get_boolean_env_variable
 from .config import CutoTuneConfig
 
@@ -74,15 +73,10 @@ class _CutoTuneCache:
             if not has_config_time_list:
                 config_time_list = [config_time_list]
 
-            def _deserialize(k, v):
-                if k.startswith("kernel_backend"):
-                    v = KernelBackend(v)
-                return v
-
             for i, config_time in enumerate(config_time_list):
                 config = config_time["config"]
                 time = config_time["time"]
-                config = CutoTuneConfig({key: _deserialize(key, value) for key, value in config.items()})
+                config = CutoTuneConfig({key: value for key, value in config.items()})
 
                 config_time_list[i] = [config, time]
 

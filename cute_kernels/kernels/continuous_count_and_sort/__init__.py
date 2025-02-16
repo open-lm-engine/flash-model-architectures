@@ -1,6 +1,5 @@
 import torch
 
-from ...enums import KernelBackend
 from ...utils import get_sm_count
 from .cuda_implementation import continuous_count_and_sort_cuda
 from .torch_implementation import continuous_count_and_sort_torch
@@ -10,7 +9,7 @@ from .torch_implementation import continuous_count_and_sort_torch
 def continuous_count_and_sort_cute(
     x: torch.Tensor,
     size: int,
-    kernel_backend: KernelBackend,
+    kernel_backend: str,
     BLOCK_SIZE: int,
 ) -> tuple[torch.Tensor]:
     assert x.dim() == 1, "x should be 1-dimensional"
@@ -20,7 +19,7 @@ def continuous_count_and_sort_cute(
     sorted_output = torch.empty_like(x, dtype=torch.uint32)
     argsort_output = torch.empty_like(x, dtype=torch.uint32)
 
-    if kernel_backend == KernelBackend.cuda:
+    if kernel_backend == "cuda":
         continuous_count_and_sort_cuda(
             x=x,
             count_output=count_output,

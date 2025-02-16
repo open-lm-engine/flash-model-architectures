@@ -4,7 +4,7 @@ import torch
 from parameterized import parameterized
 from transformers import set_seed
 
-from cute_kernels import KernelBackend, gemm_cute, gemm_torch
+from cute_kernels import gemm_cute, gemm_torch
 
 from ..test_commons import TestCommons
 
@@ -19,7 +19,7 @@ class GEMMTest(TestCommons):
             [False, True],  # is_a_transposed
             [False, True],  # is_b_transposed
             [False, True],  # has_c
-            [KernelBackend.triton],  # kernel_backend
+            ["triton"],  # kernel_backend
             [None],  # cuda_kernel_algorithm
             [torch.device("cuda")],  # device
             TestCommons.get_dtypes(),  # dtype
@@ -30,7 +30,7 @@ class GEMMTest(TestCommons):
             [False, True],  # is_a_transposed
             [False, True],  # is_b_transposed
             [False, True],  # has_c
-            [KernelBackend.cuda],  # kernel_backend
+            ["cuda"],  # kernel_backend
             ["naive", "cutlass_gemm_cuda"],  # cuda_kernel_algorithm
             [torch.device("cuda")],  # device
             TestCommons.get_dtypes(),  # dtype
@@ -41,7 +41,7 @@ class GEMMTest(TestCommons):
             [False],  # is_a_transposed
             [False],  # is_b_transposed
             [False, True],  # has_c
-            [KernelBackend.cuda],  # kernel_backend
+            ["cuda"],  # kernel_backend
             ["shared_memory"],  # cuda_kernel_algorithm
             [torch.device("cuda")],  # device
             TestCommons.get_dtypes(),  # dtype
@@ -54,7 +54,7 @@ class GEMMTest(TestCommons):
         is_a_transposed: bool,
         is_b_transposed: bool,
         has_c: bool,
-        kernel_backend: KernelBackend,
+        kernel_backend: str,
         cuda_kernel_algorithm: str,
         device: torch.device,
         dtype: torch.dtype,

@@ -3,7 +3,7 @@ from typing import Callable
 import torch
 from parameterized import parameterized
 
-from cute_kernels import KernelBackend, swiglu_cute, swiglu_torch
+from cute_kernels import swiglu_cute, swiglu_torch
 
 from ..test_commons import TestCommons
 
@@ -14,8 +14,8 @@ class SwigluTest(TestCommons):
             TestCommons.get_2d_tensor_sizes(),  # size
             [torch.device("cuda")],  # device
             TestCommons.get_dtypes(),  # dtype
-            [KernelBackend.cuda, KernelBackend.triton],  # kernel_backend_forward
-            [KernelBackend.cuda, KernelBackend.triton],  # kernel_backend_backward
+            ["cuda", "triton"],  # kernel_backend_forward
+            ["cuda", "triton"],  # kernel_backend_backward
             [1024],  # BLOCK_SIZE_forward
             [1024],  # BLOCK_SIZE_backward
             [swiglu_cute, torch.compile(swiglu_cute, fullgraph=True)],  # function
@@ -26,8 +26,8 @@ class SwigluTest(TestCommons):
         size: tuple[int],
         device: torch.device,
         dtype: torch.dtype,
-        kernel_backend_forward: KernelBackend,
-        kernel_backend_backward: KernelBackend,
+        kernel_backend_forward: str,
+        kernel_backend_backward: str,
         BLOCK_SIZE_forward: int,
         BLOCK_SIZE_backward: int,
         function: Callable,

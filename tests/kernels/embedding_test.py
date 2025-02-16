@@ -3,7 +3,7 @@ from typing import Callable
 import torch
 from parameterized import parameterized
 
-from cute_kernels import KernelBackend, embedding_cute, embedding_torch
+from cute_kernels import embedding_cute, embedding_torch
 
 from ..test_commons import TestCommons
 
@@ -15,8 +15,8 @@ class EmbeddingTest(TestCommons):
             [(7153, 937), (27153, 1937), (97153, 2937), (17153, 31937)],  # weight_size
             [torch.device("cuda")],  # device
             TestCommons.get_dtypes(),  # dtype
-            [KernelBackend.triton],  # kernel_backend_forward
-            [KernelBackend.triton],  # kernel_backend_backward
+            ["triton"],  # kernel_backend_forward
+            ["triton"],  # kernel_backend_backward
             [64],  # BLOCK_SIZE_B_forward
             [64],  # BLOCK_SIZE_B_backward
             [64],  # BLOCK_SIZE_H_forward
@@ -30,8 +30,8 @@ class EmbeddingTest(TestCommons):
         weight_size: tuple[int],
         device: torch.device,
         dtype: torch.dtype,
-        kernel_backend_forward: KernelBackend,
-        kernel_backend_backward: KernelBackend,
+        kernel_backend_forward: str,
+        kernel_backend_backward: str,
         BLOCK_SIZE_B_forward: int,
         BLOCK_SIZE_B_backward: int,
         BLOCK_SIZE_H_forward: int,

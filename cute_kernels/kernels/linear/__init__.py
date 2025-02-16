@@ -1,7 +1,6 @@
 import torch
 
 from ...cutotune import CutoTuneParameter
-from ...enums import KernelBackend
 from ...utils import ensure_contiguous
 from ..gemm import gemm_cute
 from .torch_implementation import linear_torch
@@ -16,11 +15,11 @@ class _Linear_Cute(torch.autograd.Function):
         weight: torch.Tensor,
         bias: torch.Tensor | None,
         use_tf32: bool,
-        kernel_backend_forward: KernelBackend,
+        kernel_backend_forward: str,
         BLOCK_SIZE_M_forward: int,
         BLOCK_SIZE_K_forward: int,
         BLOCK_SIZE_N_forward: int,
-        kernel_backend_backward: KernelBackend,
+        kernel_backend_backward: str,
         BLOCK_SIZE_M_backward: int,
         BLOCK_SIZE_K_backward: int,
         BLOCK_SIZE_N_backward: int,
@@ -33,7 +32,7 @@ class _Linear_Cute(torch.autograd.Function):
         ctx.BLOCK_SIZE_K_backward = BLOCK_SIZE_K_backward
         ctx.BLOCK_SIZE_N_backward = BLOCK_SIZE_N_backward
 
-        if kernel_backend_forward == KernelBackend.triton:
+        if kernel_backend_forward == "triton":
             # NOTE this can be a single kernel but I am lazy
             output = gemm_cute(
                 a=input,
@@ -68,7 +67,7 @@ class _Linear_Cute(torch.autograd.Function):
         BLOCK_SIZE_K_backward = ctx.BLOCK_SIZE_K_backward
         BLOCK_SIZE_N_backward = ctx.BLOCK_SIZE_N_backward
 
-        if kernel_backend_backward == KernelBackend.triton:
+        if kernel_backend_backward == "triton":
             # NOTE this can be a single kernel but I am lazy
             input_grad = gemm_cute(
                 a=output_grad,
@@ -112,11 +111,11 @@ def linear_cute(
     weight: torch.Tensor,
     bias: torch.Tensor | None = None,
     use_tf32: bool = True,
-    kernel_backend_forward: KernelBackend = KernelBackend.triton,
+    kernel_backend_forward: str = "triton",
     BLOCK_SIZE_M_forward: int = CutoTuneParameter(),
     BLOCK_SIZE_K_forward: int = CutoTuneParameter(),
     BLOCK_SIZE_N_forward: int = CutoTuneParameter(),
-    kernel_backend_backward: KernelBackend = KernelBackend.triton,
+    kernel_backend_backward: str = "triton",
     BLOCK_SIZE_M_backward: int = CutoTuneParameter(),
     BLOCK_SIZE_K_backward: int = CutoTuneParameter(),
     BLOCK_SIZE_N_backward: int = CutoTuneParameter(),

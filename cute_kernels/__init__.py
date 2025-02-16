@@ -8,7 +8,6 @@ from .cutotune import (
     get_cutotune_cache,
     save_cutotune_cache,
 )
-from .enums import KernelBackend
 from .inductor import init_inductor
 from .kernels import (
     MoE_Torch,

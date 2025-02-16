@@ -1,7 +1,6 @@
 import torch
 
 from ....cutotune import CutoTuneParameter
-from ....enums import KernelBackend
 from ....utils import ensure_same_strides
 from .forward import _forward
 from .torch_implementation import add_tensor_torch
@@ -13,7 +12,7 @@ class _AddTensor_Cute(torch.autograd.Function):
         ctx,
         x: torch.Tensor,
         y: torch.Tensor,
-        kernel_backend: KernelBackend,
+        kernel_backend: str,
         BLOCK_SIZE: int,
     ) -> torch.Tensor:
         assert x.size() == y.size(), "tensors x and y should have same shape"
@@ -36,7 +35,7 @@ class _AddTensor_Cute(torch.autograd.Function):
 def add_tensor_cute(
     x: torch.Tensor,
     y: torch.Tensor,
-    kernel_backend: KernelBackend = CutoTuneParameter(),
+    kernel_backend: str = CutoTuneParameter(),
     BLOCK_SIZE: int = CutoTuneParameter(),
 ) -> torch.Tensor:
     return _AddTensor_Cute.apply(x, y, kernel_backend, BLOCK_SIZE)

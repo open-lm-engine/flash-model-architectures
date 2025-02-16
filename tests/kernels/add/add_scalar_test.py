@@ -3,7 +3,7 @@ from typing import Callable
 import torch
 from parameterized import parameterized
 
-from cute_kernels import KernelBackend, add_scalar_cute, add_scalar_torch
+from cute_kernels import add_scalar_cute, add_scalar_torch
 
 from ...test_commons import TestCommons
 
@@ -14,7 +14,7 @@ class AddTensorTest(TestCommons):
             TestCommons.get_2d_tensor_sizes(),  # size
             [torch.device("cuda")],  # device
             TestCommons.get_dtypes(),  # dtype
-            [KernelBackend.cuda, KernelBackend.triton],  # kernel_backend
+            ["cuda", "triton"],  # kernel_backend
             [1024],  # BLOCK_SIZE
             [add_scalar_cute, torch.compile(add_scalar_cute, fullgraph=True)],  # function
         )
@@ -24,7 +24,7 @@ class AddTensorTest(TestCommons):
         size: tuple[int],
         device: torch.device,
         dtype: torch.dtype,
-        kernel_backend: KernelBackend,
+        kernel_backend: str,
         BLOCK_SIZE: int,
         function: Callable,
     ) -> None:
