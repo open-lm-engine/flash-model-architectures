@@ -13,14 +13,14 @@ _KERNEL_NAME = "gemm_triton"
 
 @triton.jit
 def _gemm_triton_kernel(
-    a_ptr,
-    b_ptr,
-    c_ptr,
+    A_ptr,
+    B_ptr,
+    C_ptr,
     output_ptr,
     alpha,
     beta,
-    is_a_transposed: tl.constexpr,
-    is_b_transposed: tl.constexpr,
+    is_A_transposed: tl.constexpr,
+    is_B_transposed: tl.constexpr,
     use_tf32: tl.constexpr,
     M,
     K,
@@ -29,9 +29,9 @@ def _gemm_triton_kernel(
     BLOCK_SIZE_K: tl.constexpr,
     BLOCK_SIZE_N: tl.constexpr,
 ):
-    # a -> K x M if is_a_transposed else M x K
-    # b -> N x K if is_b_transposed else K x N
-    # c -> M x N
+    # A -> K x M if is_A_transposed else M x K
+    # B -> N x K if is_B_transposed else K x N
+    # C -> M x N
 
     pid = tl.program_id(axis=0)
     num_programs_n = tl.cdiv(N, BLOCK_SIZE_N)
@@ -51,41 +51,41 @@ def _gemm_triton_kernel(
         indices_k = k * BLOCK_SIZE_K + tl.arange(0, BLOCK_SIZE_K)
         mask_k = indices_k < K
 
-        if is_a_transposed:
-            mask_a = mask_k[:, None] & mask_m[None, :]
-            a_ptrs = a_ptr + indices_k[:, None] * M + indices_m[None, :]
+        if is_A_transposed:
+            mask_A = mask_k[:, None] & mask_m[None, :]
+            A_ptrs = A_ptr + indices_k[:, None] * M + indices_m[None, :]
         else:
-            mask_a = mask_m[:, None] & mask_k[None, :]
-            a_ptrs = a_ptr + indices_m[:, None] * K + indices_k[None, :]
+            mask_A = mask_m[:, None] & mask_k[None, :]
+            A_ptrs = A_ptr + indices_m[:, None] * K + indices_k[None, :]
 
-        a = tl.load(a_ptrs, mask=mask_a, other=0)
+        A = tl.load(A_ptrs, mask=mask_A, other=0)
 
-        if is_b_transposed:
-            mask_b = mask_n[:, None] & mask_k[None, :]
-            b_ptrs = b_ptr + indices_n[:, None] * K + indices_k[None, :]
+        if is_A_transposed:
+            A = A.T
+
+        if is_B_transposed:
+            mask_B = mask_n[:, None] & mask_k[None, :]
+            B_ptrs = B_ptr + indices_n[:, None] * K + indices_k[None, :]
         else:
-            mask_b = mask_k[:, None] & mask_n[None, :]
-            b_ptrs = b_ptr + indices_k[:, None] * N + indices_n[None, :]
+            mask_B = mask_k[:, None] & mask_n[None, :]
+            B_ptrs = B_ptr + indices_k[:, None] * N + indices_n[None, :]
 
-        b = tl.load(b_ptrs, mask=mask_b, other=0)
+        B = tl.load(B_ptrs, mask=mask_B, other=0)
 
-        if is_a_transposed:
-            a = a.T
+        if is_B_transposed:
+            B = B.T
 
-        if is_b_transposed:
-            b = b.T
+        accumulator = tl.dot(A, B, accumulator, allow_tf32=use_tf32)
 
-        accumulator = tl.dot(a, b, accumulator, allow_tf32=use_tf32)
-
-    accumulator = accumulator.to(a_ptr.dtype.element_ty)
+    accumulator = accumulator.to(A_ptr.dtype.element_ty)
     accumulator *= alpha
 
     indices_mn = indices_m[:, None] * N + indices_n[None, :]
     mask_mn = mask_m[:, None] & mask_n[None, :]
 
-    if c_ptr is not None:
-        c = tl.load(c_ptr + indices_mn, mask=mask_mn)
-        accumulator += beta * c
+    if C_ptr is not None:
+        C = tl.load(C_ptr + indices_mn, mask=mask_mn)
+        accumulator += beta * C
 
     tl.store(output_ptr + indices_mn, accumulator, mask=mask_mn)
 
@@ -109,16 +109,16 @@ def _condition(a: torch.Tensor, BLOCK_SIZE_M: int, BLOCK_SIZE_K: int, BLOCK_SIZE
     default_config=CutoTuneConfig(
         dict(BLOCK_SIZE_M=128, BLOCK_SIZE_K=64, BLOCK_SIZE_N=128, num_warps=8, num_stages=2)
     ),
-    triggers={"a.dtype", "is_a_transposed", "is_b_transposed"},
+    triggers={"A.dtype", "is_A_transposed", "is_B_transposed"},
 )
 @cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"output"})
 def gemm_triton(
-    a: torch.Tensor,
-    b: torch.Tensor,
-    c: torch.Tensor | None,
+    A: torch.Tensor,
+    B: torch.Tensor,
+    C: torch.Tensor | None,
     output: torch.Tensor,
-    is_a_transposed: bool,
-    is_b_transposed: bool,
+    is_A_transposed: bool,
+    is_B_transposed: bool,
     alpha: float,
     beta: float,
     M: int,
@@ -131,16 +131,16 @@ def gemm_triton(
     num_warps: int,
     num_stages: int,
 ) -> None:
-    with torch.device(a.device):
+    with torch.device(A.device):
         _gemm_triton_kernel[(ceil_divide(M, BLOCK_SIZE_M) * ceil_divide(N, BLOCK_SIZE_N),)](
-            a_ptr=a,
-            b_ptr=b,
-            c_ptr=c,
+            A_ptr=A,
+            B_ptr=B,
+            C_ptr=C,
             output_ptr=output,
             alpha=alpha,
             beta=beta,
-            is_a_transposed=is_a_transposed,
-            is_b_transposed=is_b_transposed,
+            is_A_transposed=is_A_transposed,
+            is_B_transposed=is_B_transposed,
             use_tf32=use_tf32,
             M=M,
             K=K,
