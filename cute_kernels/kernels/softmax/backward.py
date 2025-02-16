@@ -2,7 +2,6 @@ import torch
 
 from ...constants import MAX_TRITON_BLOCK_SIZE
 from ...cutotune import CutoTuneConfig, cutotune, get_cartesian_product_cutotune_configs
-from ...enums import KernelBackend
 from ...math import get_next_power_of_2
 from ...utils import get_num_elements_and_hidden_size
 from .triton_implementation import softmax_backward_full_row_triton
@@ -10,11 +9,9 @@ from .triton_implementation import softmax_backward_full_row_triton
 
 @cutotune(
     configs=get_cartesian_product_cutotune_configs(
-        kernel_backend=[KernelBackend.triton], triton_kernel_algorithm=["full_row_softmax"]
+        kernel_backend=["triton"], triton_kernel_algorithm=["full_row_softmax"]
     ),
-    default_config=CutoTuneConfig(
-        dict(kernel_backend=KernelBackend.triton, triton_kernel_algorithm="full_row_softmax")
-    ),
+    default_config=CutoTuneConfig(dict(kernel_backend="triton", triton_kernel_algorithm="full_row_softmax")),
     triggers={"output.dtype"},
     functional_triggers={
         "next_power_of_2(hidden_size)": lambda **kwargs: get_next_power_of_2(kwargs["output"].size(-1))
@@ -23,7 +20,7 @@ from .triton_implementation import softmax_backward_full_row_triton
 def _backward(
     output: torch.Tensor,
     output_grad: torch.Tensor,
-    kernel_backend: KernelBackend,
+    kernel_backend: str,
     triton_kernel_algorithm: str,
     BLOCK_SIZE_B: int,
     BLOCK_SIZE_H: int,
@@ -31,7 +28,7 @@ def _backward(
     x_grad = torch.empty_like(output)
     _, hidden_size = get_num_elements_and_hidden_size(x_grad)
 
-    if kernel_backend == KernelBackend.triton:
+    if kernel_backend == "triton":
         if triton_kernel_algorithm == "full_row_softmax":
             BLOCK_SIZE_H = get_next_power_of_2(hidden_size)
             assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE

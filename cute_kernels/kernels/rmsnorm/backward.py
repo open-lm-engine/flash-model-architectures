@@ -2,7 +2,6 @@ import torch
 
 from ...constants import MAX_TRITON_BLOCK_SIZE
 from ...cutotune import cutotune
-from ...enums import KernelBackend
 from ...math import get_next_power_of_2
 from .parameters import get_cutotune_parameters
 from .triton_implementation import rmsnorm_backward_triton
@@ -15,14 +14,14 @@ def _backward(
     eps: float,
     rmsnorm_denominator: torch.Tensor,
     output_grad: torch.Tensor,
-    kernel_backend: KernelBackend,
+    kernel_backend: str,
     BLOCK_SIZE_B: int,
     BLOCK_SIZE_H: int,
 ) -> tuple[torch.Tensor | None]:
     hidden_size = x.size(-1)
     x_grad = torch.empty_like(x)
 
-    if kernel_backend == KernelBackend.triton:
+    if kernel_backend == "triton":
         BLOCK_SIZE_H = get_next_power_of_2(hidden_size)
         assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
 
