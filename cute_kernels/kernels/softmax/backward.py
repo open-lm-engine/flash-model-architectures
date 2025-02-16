@@ -8,8 +8,8 @@ from .triton_implementation import softmax_backward_full_row_triton
 
 
 @cutotune(
-    configs=[CutoTuneConfig(dict(kernel_backend="triton", triton_kernel_algorithm="full_row_softmax"))],
-    default_config=CutoTuneConfig(dict(kernel_backend="triton", triton_kernel_algorithm="full_row_softmax")),
+    configs=[CutoTuneConfig(dict(kernel_backend="full_row_softmax_triton"))],
+    default_config=CutoTuneConfig(dict(kernel_backend="full_row_softmax_triton")),
     triggers={"output.dtype"},
     functional_triggers={
         "next_power_of_2(hidden_size)": lambda **kwargs: get_next_power_of_2(kwargs["output"].size(-1))
