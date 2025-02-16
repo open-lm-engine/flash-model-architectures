@@ -19,8 +19,8 @@ class SoftmaxTest(TestCommons):
             _get_sizes(),  # size
             [torch.device("cuda")],  # device
             [torch.float32, torch.bfloat16],  # dtype
-            ["full_row_softmax_triton", "online_softmax_triton"],  # kernel_backend_forward
-            ["full_row_softmax_triton", "online_softmax_triton"],  # kernel_backend_backward
+            ["triton"],  # kernel_backend_forward
+            ["triton"],  # kernel_backend_backward
             [softmax_cute, torch.compile(softmax_cute, fullgraph=True)],  # function
         )
     )

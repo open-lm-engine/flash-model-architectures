@@ -8,8 +8,8 @@ from .triton_implementation import softmax_backward_full_row_triton
 
 
 @cutotune(
-    configs=[CutoTuneConfig(dict(kernel_backend="full_row_softmax_triton"))],
-    default_config=CutoTuneConfig(dict(kernel_backend="full_row_softmax_triton")),
+    configs=[CutoTuneConfig(dict(kernel_backend="triton"))],
+    default_config=CutoTuneConfig(dict(kernel_backend="triton")),
     triggers={"output.dtype"},
     functional_triggers={
         "next_power_of_2(hidden_size)": lambda **kwargs: get_next_power_of_2(kwargs["output"].size(-1))
@@ -25,7 +25,7 @@ def _backward(
     x_grad = torch.empty_like(output)
     _, hidden_size = get_num_elements_and_hidden_size(x_grad)
 
-    if kernel_backend == "full_row_softmax_triton":
+    if kernel_backend == "triton":
         BLOCK_SIZE_H = get_next_power_of_2(hidden_size)
         assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
 
@@ -36,8 +36,6 @@ def _backward(
             BLOCK_SIZE_B=BLOCK_SIZE_B,
             BLOCK_SIZE_H=BLOCK_SIZE_H,
         )
-    elif kernel_backend == "online_softmax_triton":
-        pass
     else:
         raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
