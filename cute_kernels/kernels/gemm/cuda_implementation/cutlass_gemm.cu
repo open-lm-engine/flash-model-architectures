@@ -28,8 +28,8 @@ inline void _cutlass_gemm_templated_layout(const input_dtype *A,
     using CutlassGemm = cutlass::gemm::device::
         Gemm<input_dtype, layout_A, input_dtype, layout_B, input_dtype, layout_C, accumulator_dtype>;
 
-    const int32 leading_dimension_A = is_a_transposed ? M : K;
-    const int32 leading_dimension_B = is_b_transposed ? K : N;
+    const int32 leading_dimension_A = is_A_transposed ? M : K;
+    const int32 leading_dimension_B = is_B_transposed ? K : N;
     const int32 leading_dimension_C = N;
     const int32 leading_dimension_output = N;
 
