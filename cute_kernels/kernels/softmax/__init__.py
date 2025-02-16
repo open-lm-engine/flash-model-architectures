@@ -4,7 +4,6 @@ from ...cutotune import CutoTuneParameter
 from ...enums import KernelBackend
 from ...utils import ensure_contiguous
 from .backward import _backward
-from .enums import TritonKernelAlgorithm
 from .forward import _forward
 from .torch_implementation import softmax_torch
 
@@ -16,11 +15,11 @@ class _Softmax_Cute(torch.autograd.Function):
         ctx,
         x: torch.Tensor,
         kernel_backend_forward: KernelBackend,
-        triton_kernel_algorithm_forward: TritonKernelAlgorithm,
+        triton_kernel_algorithm_forward: str,
         BLOCK_SIZE_B_forward: int,
         BLOCK_SIZE_H_forward: int,
         kernel_backend_backward: KernelBackend,
-        triton_kernel_algorithm_backward: TritonKernelAlgorithm,
+        triton_kernel_algorithm_backward: str,
         BLOCK_SIZE_B_backward: int,
         BLOCK_SIZE_H_backward: int,
     ) -> torch.Tensor:
@@ -75,11 +74,11 @@ class _Softmax_Cute(torch.autograd.Function):
 def softmax_cute(
     x: torch.Tensor,
     kernel_backend_forward: KernelBackend = CutoTuneParameter(),
-    triton_kernel_algorithm_forward: TritonKernelAlgorithm = CutoTuneParameter(),
+    triton_kernel_algorithm_forward: str = CutoTuneParameter(),
     BLOCK_SIZE_B_forward: int = CutoTuneParameter(),
     BLOCK_SIZE_H_forward: int = CutoTuneParameter(),
     kernel_backend_backward: KernelBackend = CutoTuneParameter(),
-    triton_kernel_algorithm_backward: TritonKernelAlgorithm = CutoTuneParameter(),
+    triton_kernel_algorithm_backward: str = CutoTuneParameter(),
     BLOCK_SIZE_B_backward: int = CutoTuneParameter(),
     BLOCK_SIZE_H_backward: int = CutoTuneParameter(),
 ) -> torch.Tensor:

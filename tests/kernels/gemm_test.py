@@ -5,7 +5,6 @@ from parameterized import parameterized
 from transformers import set_seed
 
 from cute_kernels import KernelBackend, gemm_cute, gemm_torch
-from cute_kernels.kernels.gemm import CUDAKernelAlgorithm
 
 from ..test_commons import TestCommons
 
@@ -32,7 +31,7 @@ class GEMMTest(TestCommons):
             [False, True],  # is_b_transposed
             [False, True],  # has_c
             [KernelBackend.cuda],  # kernel_backend
-            [CUDAKernelAlgorithm.naive, CUDAKernelAlgorithm.cutlass_gemm_cuda],  # cuda_kernel_algorithm
+            ["naive", "cutlass_gemm_cuda"],  # cuda_kernel_algorithm
             [torch.device("cuda")],  # device
             TestCommons.get_dtypes(),  # dtype
             [gemm_cute, torch.compile(gemm_cute, fullgraph=True)],  # function
@@ -43,7 +42,7 @@ class GEMMTest(TestCommons):
             [False],  # is_b_transposed
             [False, True],  # has_c
             [KernelBackend.cuda],  # kernel_backend
-            [CUDAKernelAlgorithm.shared_memory],  # cuda_kernel_algorithm
+            ["shared_memory"],  # cuda_kernel_algorithm
             [torch.device("cuda")],  # device
             TestCommons.get_dtypes(),  # dtype
             [gemm_cute, torch.compile(gemm_cute, fullgraph=True)],  # function
@@ -56,7 +55,7 @@ class GEMMTest(TestCommons):
         is_b_transposed: bool,
         has_c: bool,
         kernel_backend: KernelBackend,
-        cuda_kernel_algorithm: CUDAKernelAlgorithm,
+        cuda_kernel_algorithm: str,
         device: torch.device,
         dtype: torch.dtype,
         function: Callable,
