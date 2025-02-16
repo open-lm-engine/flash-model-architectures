@@ -10,10 +10,10 @@ from .triton_implementation import gemm_triton
 @ensure_contiguous
 @cutotune(
     configs=[
-        CutoTuneConfig(dict(kernel_backend="triton", cuda_kernel_algorithm=None)),
-        CutoTuneConfig(dict(kernel_backend="cuda", cuda_kernel_algorithm="naive")),
+        CutoTuneConfig(dict(kernel_backend="triton")),
+        CutoTuneConfig(dict(kernel_backend="naive_cuda")),
         CutoTuneConfig(
-            dict(kernel_backend="cuda", cuda_kernel_algorithm="shared_memory"),
+            dict(kernel_backend="shared_memory_cuda"),
             condition=lambda **kwargs: not kwargs.get("is_A_transposed", False)
             and not kwargs.get("is_B_transposed", False),
         ),
@@ -31,7 +31,6 @@ def gemm_cute(
     beta: float = 1,
     use_tf32: bool = True,
     kernel_backend: str = CutoTuneParameter(),
-    cuda_kernel_algorithm: str = CutoTuneParameter(),
     BLOCK_SIZE_M: int = CutoTuneParameter(),
     BLOCK_SIZE_K: int = CutoTuneParameter(),
     BLOCK_SIZE_N: int = CutoTuneParameter(),
@@ -54,68 +53,63 @@ def gemm_cute(
     else:
         assert C is not None
 
-    if kernel_backend == "cuda":
-        if cuda_kernel_algorithm == "cutlass_gemm_cuda":
-            assert isinstance(BLOCK_SIZE_M, CutoTuneParameter)
-            assert isinstance(BLOCK_SIZE_K, CutoTuneParameter)
-            assert isinstance(BLOCK_SIZE_N, CutoTuneParameter)
+    if kernel_backend == "cutlass":
+        assert isinstance(BLOCK_SIZE_M, CutoTuneParameter)
+        assert isinstance(BLOCK_SIZE_K, CutoTuneParameter)
+        assert isinstance(BLOCK_SIZE_N, CutoTuneParameter)
 
-            cutlass_gemm_cuda(
-                A=A,
-                B=B,
-                C=C,
-                output=output,
-                is_A_transposed=is_A_transposed,
-                is_B_transposed=is_B_transposed,
-                alpha=alpha,
-                beta=beta,
-                M=M,
-                K=K,
-                N=N,
-            )
-        elif cuda_kernel_algorithm == "shared_memory":
-            if (
-                not isinstance(BLOCK_SIZE_M, CutoTuneParameter)
-                or not isinstance(BLOCK_SIZE_K, CutoTuneParameter)
-                or not isinstance(BLOCK_SIZE_N, CutoTuneParameter)
-            ):
-                assert BLOCK_SIZE_M == BLOCK_SIZE_K == BLOCK_SIZE_N
+        cutlass_gemm_cuda(
+            A=A,
+            B=B,
+            C=C,
+            output=output,
+            is_A_transposed=is_A_transposed,
+            is_B_transposed=is_B_transposed,
+            alpha=alpha,
+            beta=beta,
+            M=M,
+            K=K,
+            N=N,
+        )
+    elif kernel_backend == "shared_memory_cuda":
+        if (
+            not isinstance(BLOCK_SIZE_M, CutoTuneParameter)
+            or not isinstance(BLOCK_SIZE_K, CutoTuneParameter)
+            or not isinstance(BLOCK_SIZE_N, CutoTuneParameter)
+        ):
+            assert BLOCK_SIZE_M == BLOCK_SIZE_K == BLOCK_SIZE_N
 
-            shared_memory_gemm_cuda(
-                A=A,
-                B=B,
-                C=C,
-                output=output,
-                is_A_transposed=is_A_transposed,
-                is_B_transposed=is_B_transposed,
-                alpha=alpha,
-                beta=beta,
-                M=M,
-                K=K,
-                N=N,
-                BLOCK_SIZE=BLOCK_SIZE_M,
-            )
-        elif cuda_kernel_algorithm == "naive":
-            naive_gemm_cuda(
-                A=A,
-                B=B,
-                C=C,
-                output=output,
-                is_A_transposed=is_A_transposed,
-                is_B_transposed=is_B_transposed,
-                alpha=alpha,
-                beta=beta,
-                M=M,
-                K=K,
-                N=N,
-                BLOCK_SIZE_M=BLOCK_SIZE_M,
-                BLOCK_SIZE_N=BLOCK_SIZE_N,
-            )
-        else:
-            raise ValueError(f"unexpected cuda_kernel_algorithm ({cuda_kernel_algorithm})")
+        shared_memory_gemm_cuda(
+            A=A,
+            B=B,
+            C=C,
+            output=output,
+            is_A_transposed=is_A_transposed,
+            is_B_transposed=is_B_transposed,
+            alpha=alpha,
+            beta=beta,
+            M=M,
+            K=K,
+            N=N,
+            BLOCK_SIZE=BLOCK_SIZE_M,
+        )
+    elif kernel_backend == "naive_cuda":
+        naive_gemm_cuda(
+            A=A,
+            B=B,
+            C=C,
+            output=output,
+            is_A_transposed=is_A_transposed,
+            is_B_transposed=is_B_transposed,
+            alpha=alpha,
+            beta=beta,
+            M=M,
+            K=K,
+            N=N,
+            BLOCK_SIZE_M=BLOCK_SIZE_M,
+            BLOCK_SIZE_N=BLOCK_SIZE_N,
+        )
     elif kernel_backend == "triton":
-        assert cuda_kernel_algorithm is None
-
         gemm_triton(
             A=A,
             B=B,

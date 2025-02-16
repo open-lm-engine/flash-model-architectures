@@ -14,11 +14,9 @@ class _Softmax_Cute(torch.autograd.Function):
         ctx,
         x: torch.Tensor,
         kernel_backend_forward: str,
-        triton_kernel_algorithm_forward: str,
         BLOCK_SIZE_B_forward: int,
         BLOCK_SIZE_H_forward: int,
         kernel_backend_backward: str,
-        triton_kernel_algorithm_backward: str,
         BLOCK_SIZE_B_backward: int,
         BLOCK_SIZE_H_backward: int,
     ) -> torch.Tensor:
@@ -34,7 +32,6 @@ class _Softmax_Cute(torch.autograd.Function):
         output = _forward(
             x=x,
             kernel_backend=kernel_backend_forward,
-            triton_kernel_algorithm=triton_kernel_algorithm_forward,
             BLOCK_SIZE_B=BLOCK_SIZE_B_forward,
             BLOCK_SIZE_H=BLOCK_SIZE_H_forward,
         )
@@ -44,7 +41,6 @@ class _Softmax_Cute(torch.autograd.Function):
 
         ctx.save_for_backward(output)
         ctx.kernel_backend_backward = kernel_backend_backward
-        ctx.triton_kernel_algorithm_backward = triton_kernel_algorithm_backward
         ctx.BLOCK_SIZE_B_backward = BLOCK_SIZE_B_backward
         ctx.BLOCK_SIZE_H_backward = BLOCK_SIZE_H_backward
 
@@ -62,7 +58,6 @@ class _Softmax_Cute(torch.autograd.Function):
                 output=output,
                 output_grad=output_grad,
                 kernel_backend=ctx.kernel_backend_backward,
-                triton_kernel_algorithm=ctx.triton_kernel_algorithm_backward,
                 BLOCK_SIZE_B=ctx.BLOCK_SIZE_B_backward,
                 BLOCK_SIZE_H=ctx.BLOCK_SIZE_H_backward,
             )
@@ -73,22 +68,18 @@ class _Softmax_Cute(torch.autograd.Function):
 def softmax_cute(
     x: torch.Tensor,
     kernel_backend_forward: str = CutoTuneParameter(),
-    triton_kernel_algorithm_forward: str = CutoTuneParameter(),
     BLOCK_SIZE_B_forward: int = CutoTuneParameter(),
     BLOCK_SIZE_H_forward: int = CutoTuneParameter(),
     kernel_backend_backward: str = CutoTuneParameter(),
-    triton_kernel_algorithm_backward: str = CutoTuneParameter(),
     BLOCK_SIZE_B_backward: int = CutoTuneParameter(),
     BLOCK_SIZE_H_backward: int = CutoTuneParameter(),
 ) -> torch.Tensor:
     return _Softmax_Cute.apply(
         x,
         kernel_backend_forward,
-        triton_kernel_algorithm_forward,
         BLOCK_SIZE_B_forward,
         BLOCK_SIZE_H_forward,
         kernel_backend_backward,
-        triton_kernel_algorithm_backward,
         BLOCK_SIZE_B_backward,
         BLOCK_SIZE_H_backward,
     )
