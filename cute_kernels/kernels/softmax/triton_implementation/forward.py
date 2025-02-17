@@ -57,7 +57,6 @@ def _softmax_forward_triton_kernel(
 
         prev_m = M
         m = tl.max(x, axis=1, keep_dims=True)
-
         M = max(M, m)
 
         x = _exp_with_offset(x, -M)
