@@ -50,7 +50,9 @@ def _softmax_forward_triton_kernel(
     Z = tl.zeros((BLOCK_SIZE_B, 1), dtype=tl.float32)
     M = tl.full((BLOCK_SIZE_B, 1), -float("inf"), dtype=tl.float32)
 
-    for h in range(tl.cdiv(H, BLOCK_SIZE_H)):
+    num_blocks_h = tl.cdiv(H, BLOCK_SIZE_H)
+
+    for h in range(num_blocks_h):
         x, indices, mask_bh = _load_x(
             x_ptr=x_ptr, h=h, H=H, BLOCK_SIZE_H=BLOCK_SIZE_H, indices_b=indices_b, mask_b=mask_b, other=-float("inf")
         )
@@ -62,7 +64,7 @@ def _softmax_forward_triton_kernel(
         x = _exp_with_offset(x, -M)
         Z = Z * tl.exp(prev_m - M) + tl.sum(x, axis=1, keep_dims=True)
 
-    for h in range(tl.cdiv(H, BLOCK_SIZE_H)):
+    for h in range(num_blocks_h):
         x, indices, mask_bh = _load_x(
             x_ptr=x_ptr, h=h, H=H, BLOCK_SIZE_H=BLOCK_SIZE_H, indices_b=indices_b, mask_b=mask_b
         )

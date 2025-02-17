@@ -27,8 +27,9 @@ def _softmax_backward_triton_kernel(
     mask_b = indices_b < B
 
     accumulator = tl.zeros((BLOCK_SIZE_B, 1), dtype=tl.float32)
+    num_blocks_h = tl.cdiv(H, BLOCK_SIZE_H)
 
-    for h in range(tl.cdiv(H, BLOCK_SIZE_H)):
+    for h in range(num_blocks_h):
         indices_h = h * BLOCK_SIZE_H + tl.arange(0, BLOCK_SIZE_H)
         mask_h = indices_h < H
 
@@ -45,7 +46,7 @@ def _softmax_backward_triton_kernel(
         acc = acc.to(tl.float32)
         accumulator += tl.sum(acc, axis=1, keep_dims=True)
 
-    for h in range(tl.cdiv(H, BLOCK_SIZE_H)):
+    for h in range(num_blocks_h):
         indices_h = h * BLOCK_SIZE_H + tl.arange(0, BLOCK_SIZE_H)
         mask_h = indices_h < H
 
