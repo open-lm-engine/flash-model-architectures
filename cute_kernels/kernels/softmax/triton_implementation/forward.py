@@ -11,6 +11,7 @@ from ....utils import cute_op, get_num_elements_and_hidden_size
 _KERNEL_NAME = "online_softmax_forward_triton"
 
 
+@triton.jit
 def _exp_with_offset(x, offset):
     x += offset
     x = x.to(tl.float32)
