@@ -1,7 +1,6 @@
 import torch
 
 from ...cutotune import CutoTuneConfig, cutotune
-from ...utils import get_num_elements_and_hidden_size
 from .triton_implementation import softmax_backward_triton
 
 
@@ -18,7 +17,6 @@ def _backward(
     BLOCK_SIZE_H: int,
 ) -> torch.Tensor:
     x_grad = torch.empty_like(output)
-    _, hidden_size = get_num_elements_and_hidden_size(x_grad)
 
     if kernel_backend == "triton":
         softmax_backward_triton(
