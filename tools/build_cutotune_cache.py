@@ -54,11 +54,10 @@ for dtype in all_dtypes:
             eps=1e-5,
         )
 
-    for power_of_2 in get_powers_of_2(1, 65536):
-        size = (2048, power_of_2)
-        x = torch.randn(size, dtype=dtype, device=torch.cuda.current_device(), requires_grad=True)
+    size = (81920, 8192)
+    x = torch.randn(size, dtype=dtype, device=torch.cuda.current_device(), requires_grad=True)
 
-        forward_backward(softmax_cute, x)
+    forward_backward(softmax_cute, x)
 
     input_ids_size = (32, 4096)
     weight_size = (131072, 4096)
