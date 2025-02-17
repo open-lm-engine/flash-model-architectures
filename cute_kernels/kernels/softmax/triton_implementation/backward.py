@@ -12,6 +12,23 @@ _KERNEL_NAME = "softmax_backward_triton"
 
 
 @triton.jit
+def _load_output_output_grad(output_ptr, output_grad_ptr, h, H, BLOCK_SIZE_H, indices_b, mask_b):
+    indices_h = h * BLOCK_SIZE_H + tl.arange(0, BLOCK_SIZE_H)
+    mask_h = indices_h < H
+
+    indices = indices_b[:, None] * H + indices_h[None, :]
+    mask_bh = mask_b[:, None] & mask_h[None, :]
+
+    output_ptrs = output_ptr + indices
+    output = tl.load(output_ptrs, mask=mask_bh)
+
+    output_grad_ptrs = output_grad_ptr + indices
+    output_grad = tl.load(output_grad_ptrs, mask=mask_bh)
+
+    return output, output_grad, indices, mask_bh
+
+
+@triton.jit
 def _softmax_backward_triton_kernel(
     output_ptr,
     output_grad_ptr,
@@ -30,34 +47,30 @@ def _softmax_backward_triton_kernel(
     num_blocks_h = tl.cdiv(H, BLOCK_SIZE_H)
 
     for h in range(num_blocks_h):
-        indices_h = h * BLOCK_SIZE_H + tl.arange(0, BLOCK_SIZE_H)
-        mask_h = indices_h < H
-
-        indices = indices_b[:, None] * H + indices_h[None, :]
-        mask_bh = mask_b[:, None] & mask_h[None, :]
-
-        output_ptrs = output_ptr + indices
-        output = tl.load(output_ptrs, mask=mask_bh)
-
-        output_grad_ptrs = output_grad_ptr + indices
-        output_grad = tl.load(output_grad_ptrs, mask=mask_bh)
+        output, output_grad, indices, mask_bh = _load_output_output_grad(
+            output_ptr=output_ptr,
+            output_grad_ptr=output_grad_ptr,
+            h=h,
+            H=H,
+            BLOCK_SIZE_H=BLOCK_SIZE_H,
+            indices_b=indices_b,
+            mask_b=mask_b,
+        )
 
         acc = output_grad * output
         acc = acc.to(tl.float32)
         accumulator += tl.sum(acc, axis=1, keep_dims=True)
 
     for h in range(num_blocks_h):
-        indices_h = h * BLOCK_SIZE_H + tl.arange(0, BLOCK_SIZE_H)
-        mask_h = indices_h < H
-
-        indices = indices_b[:, None] * H + indices_h[None, :]
-        mask_bh = mask_b[:, None] & mask_h[None, :]
-
-        output_ptrs = output_ptr + indices
-        output = tl.load(output_ptrs, mask=mask_bh)
-
-        output_grad_ptrs = output_grad_ptr + indices
-        output_grad = tl.load(output_grad_ptrs, mask=mask_bh)
+        output, output_grad, indices, mask_bh = _load_output_output_grad(
+            output_ptr=output_ptr,
+            output_grad_ptr=output_grad_ptr,
+            h=h,
+            H=H,
+            BLOCK_SIZE_H=BLOCK_SIZE_H,
+            indices_b=indices_b,
+            mask_b=mask_b,
+        )
 
         output_grad -= accumulator
         output *= output_grad
