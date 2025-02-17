@@ -11,6 +11,13 @@ from ....utils import cute_op, get_num_elements_and_hidden_size
 _KERNEL_NAME = "online_softmax_forward_triton"
 
 
+def _exp_with_offset(x, offset):
+    x += offset
+    x = x.to(tl.float32)
+    x = tl.exp(x)
+    return x
+
+
 @triton.jit
 def _softmax_forward_triton_kernel(
     x_ptr,
@@ -43,10 +50,7 @@ def _softmax_forward_triton_kernel(
 
         M = max(M, m)
 
-        x -= M
-        x = x.to(tl.float32)
-        x = tl.exp(x)
-
+        x = _exp_with_offset(x, -M)
         Z = Z * tl.exp(prev_m - M) + tl.sum(x, axis=1, keep_dims=True)
 
     for h in range(tl.cdiv(H, BLOCK_SIZE_H)):
@@ -59,9 +63,7 @@ def _softmax_forward_triton_kernel(
         x_ptrs = x_ptr + indices
         x = tl.load(x_ptrs, mask=mask_bh)
 
-        x -= M
-        x = x.to(tl.float32)
-        x = tl.exp(x)
+        x = _exp_with_offset(x, -M)
         x /= Z
 
         output_ptrs = output_ptr + indices
