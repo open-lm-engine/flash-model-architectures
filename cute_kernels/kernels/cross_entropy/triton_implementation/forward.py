@@ -64,16 +64,19 @@ def _cross_entropy_forward_triton_kernel(
     default_config=CutoTuneConfig({"BLOCK_SIZE_B": 64, "BLOCK_SIZE_H": 64}),
     triggers={"x.dtype"},
 )
-@cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"output"})
-def cross_entropy_forward_triton(x: torch.Tensor, output: torch.Tensor, BLOCK_SIZE_B: int, BLOCK_SIZE_H: int) -> None:
-    num_elements, hidden_size = get_num_elements_and_hidden_size(x)
+@cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"loss"})
+def cross_entropy_forward_triton(
+    x: torch.Tensor, labels: torch.Tensor, loss: torch.Tensor, V: int, BLOCK_SIZE_B: int, BLOCK_SIZE_V: int
+) -> None:
+    num_elements, _ = get_num_elements_and_hidden_size(x)
 
     with torch.device(x.device):
         _cross_entropy_forward_triton_kernel[(ceil_divide(num_elements, BLOCK_SIZE_B),)](
             x_ptr=x,
-            output_ptr=output,
+            labels_ptr=labels,
+            loss_ptr=loss,
             B=num_elements,
-            H=hidden_size,
+            V=V,
             BLOCK_SIZE_B=BLOCK_SIZE_B,
-            BLOCK_SIZE_H=BLOCK_SIZE_H,
+            BLOCK_SIZE_V=BLOCK_SIZE_V,
         )

@@ -20,6 +20,8 @@ from .kernels import (
     continuous_count_and_sort_torch,
     continuous_count_cute,
     continuous_count_torch,
+    cross_entropy_cute,
+    cross_entropy_torch,
     embedding_cute,
     embedding_torch,
     gemm_cute,
