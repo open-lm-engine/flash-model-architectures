@@ -20,7 +20,7 @@ def _exp_with_offset(x, offset):
 
 
 @triton.jit
-def _load_x(x_ptr, h, H, BLOCK_SIZE_H, indices_b, mask_b, other):
+def _load_x(x_ptr, h, H, BLOCK_SIZE_H, indices_b, mask_b, other=None):
     indices_h = h * BLOCK_SIZE_H + tl.arange(0, BLOCK_SIZE_H)
     mask_h = indices_h < H
 
