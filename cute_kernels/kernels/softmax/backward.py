@@ -11,9 +11,6 @@ from .triton_implementation import softmax_backward_full_row_triton
     configs=[CutoTuneConfig(dict(kernel_backend="triton"))],
     default_config=CutoTuneConfig(dict(kernel_backend="triton")),
     triggers={"output.dtype"},
-    functional_triggers={
-        "next_power_of_2(hidden_size)": lambda **kwargs: get_next_power_of_2(kwargs["output"].size(-1))
-    },
 )
 def _backward(
     output: torch.Tensor,
