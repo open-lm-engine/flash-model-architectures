@@ -80,7 +80,7 @@ def _softmax_forward_triton_kernel(
     configs=get_cartesian_product_cutotune_configs(
         BLOCK_SIZE_B=get_powers_of_2(1, MAX_TRITON_BLOCK_SIZE),
         BLOCK_SIZE_H=get_powers_of_2(1, MAX_TRITON_BLOCK_SIZE),
-        condition=lambda **kwargs: 1024 <= kwargs["BLOCK_SIZE_B"] * kwargs["BLOCK_SIZE_H"] <= MAX_TRITON_BLOCK_SIZE,
+        condition=lambda **kwargs: 1024 <= kwargs["BLOCK_SIZE_B"] * kwargs["BLOCK_SIZE_H"] <= 8192,
     ),
     default_config=CutoTuneConfig({"BLOCK_SIZE_B": 64, "BLOCK_SIZE_H": 64}),
     triggers={"x.dtype"},
