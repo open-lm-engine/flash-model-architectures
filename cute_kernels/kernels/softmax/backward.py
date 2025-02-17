@@ -26,9 +26,6 @@ def _backward(
     _, hidden_size = get_num_elements_and_hidden_size(x_grad)
 
     if kernel_backend == "triton":
-        BLOCK_SIZE_H = get_next_power_of_2(hidden_size)
-        assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
-
         softmax_backward_full_row_triton(
             output=output,
             output_grad=output_grad,
