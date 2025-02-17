@@ -26,7 +26,7 @@ def _softmax_backward_triton_kernel_full_row(
     indices_b = pid * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
     mask_b = indices_b < B
 
-    accumulator = tl.zeros((BLOCK_SIZE_B,), dtype=tl.float32)
+    accumulator = tl.zeros((BLOCK_SIZE_B, 1), dtype=tl.float32)
 
     for h in range(tl.cdiv(H, BLOCK_SIZE_H)):
         indices_h = h * BLOCK_SIZE_H + tl.arange(0, BLOCK_SIZE_H)
@@ -68,10 +68,11 @@ def _softmax_backward_triton_kernel_full_row(
 @cutotune(
     configs=get_cartesian_product_cutotune_configs(
         BLOCK_SIZE_B=get_powers_of_2(1, 32) + COMMON_TRITON_BLOCK_SIZES_POWERS_OF_2,
+        BLOCK_SIZE_H=get_powers_of_2(1, 32) + COMMON_TRITON_BLOCK_SIZES_POWERS_OF_2,
         condition=lambda **kwargs: 1024 <= kwargs["BLOCK_SIZE_B"] * kwargs["BLOCK_SIZE_H"] <= MAX_TRITON_BLOCK_SIZE,
     ),
-    default_config=CutoTuneConfig({"BLOCK_SIZE_B": 1}),
-    triggers={"output.dtype", "BLOCK_SIZE_H"},
+    default_config=CutoTuneConfig({"BLOCK_SIZE_B": 64, "BLOCK_SIZE_H": 64}),
+    triggers={"output.dtype"},
 )
 @cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"x_grad"})
 def softmax_backward_full_row_triton(
