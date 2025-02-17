@@ -19,6 +19,19 @@ def _exp_with_offset(x, offset):
     return x
 
 
+def _load_x(x_ptr, h, H, BLOCK_SIZE_H, indices_b, mask_b, other):
+    indices_h = h * BLOCK_SIZE_H + tl.arange(0, BLOCK_SIZE_H)
+    mask_h = indices_h < H
+
+    indices = indices_b[:, None] * H + indices_h[None, :]
+    mask_bh = mask_b[:, None] & mask_h[None, :]
+
+    x_ptrs = x_ptr + indices
+    x = tl.load(x_ptrs, mask=mask_bh, other=other)
+
+    return x, indices, mask_bh
+
+
 @triton.jit
 def _softmax_forward_triton_kernel(
     x_ptr,
@@ -37,14 +50,9 @@ def _softmax_forward_triton_kernel(
     M = tl.full((BLOCK_SIZE_B, 1), -float("inf"), dtype=tl.float32)
 
     for h in range(tl.cdiv(H, BLOCK_SIZE_H)):
-        indices_h = h * BLOCK_SIZE_H + tl.arange(0, BLOCK_SIZE_H)
-        mask_h = indices_h < H
-
-        indices = indices_b[:, None] * H + indices_h[None, :]
-        mask_bh = mask_b[:, None] & mask_h[None, :]
-
-        x_ptrs = x_ptr + indices
-        x = tl.load(x_ptrs, mask=mask_bh, other=-float("inf"))
+        x, indices, mask_bh = _load_x(
+            x_ptr=x_ptr, h=h, H=H, BLOCK_SIZE_H=BLOCK_SIZE_H, indices_b=indices_b, mask_b=mask_b, other=-float("inf")
+        )
 
         prev_m = M
         m = tl.max(x, axis=1, keep_dims=True)
@@ -55,14 +63,9 @@ def _softmax_forward_triton_kernel(
         Z = Z * tl.exp(prev_m - M) + tl.sum(x, axis=1, keep_dims=True)
 
     for h in range(tl.cdiv(H, BLOCK_SIZE_H)):
-        indices_h = h * BLOCK_SIZE_H + tl.arange(0, BLOCK_SIZE_H)
-        mask_h = indices_h < H
-
-        indices = indices_b[:, None] * H + indices_h[None, :]
-        mask_bh = mask_b[:, None] & mask_h[None, :]
-
-        x_ptrs = x_ptr + indices
-        x = tl.load(x_ptrs, mask=mask_bh)
+        x, indices, mask_bh = _load_x(
+            x_ptr=x_ptr, h=h, H=H, BLOCK_SIZE_H=BLOCK_SIZE_H, indices_b=indices_b, mask_b=mask_b
+        )
 
         x = _exp_with_offset(x, -M)
         x /= Z
