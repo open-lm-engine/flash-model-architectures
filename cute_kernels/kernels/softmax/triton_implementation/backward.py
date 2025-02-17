@@ -2,7 +2,7 @@ import torch
 import triton
 import triton.language as tl
 
-from ....constants import COMMON_TRITON_BLOCK_SIZES_POWERS_OF_2, LIBRARY_NAME, MAX_TRITON_BLOCK_SIZE
+from ....constants import LIBRARY_NAME, MAX_TRITON_BLOCK_SIZE
 from ....cutotune import CutoTuneConfig, cutotune, get_cartesian_product_cutotune_configs
 from ....math import ceil_divide, get_powers_of_2
 from ....utils import cute_op, get_num_elements_and_hidden_size
@@ -81,8 +81,8 @@ def _softmax_backward_triton_kernel(
 
 @cutotune(
     configs=get_cartesian_product_cutotune_configs(
-        BLOCK_SIZE_B=get_powers_of_2(1, 32) + COMMON_TRITON_BLOCK_SIZES_POWERS_OF_2,
-        BLOCK_SIZE_H=get_powers_of_2(1, 32) + COMMON_TRITON_BLOCK_SIZES_POWERS_OF_2,
+        BLOCK_SIZE_B=get_powers_of_2(1, MAX_TRITON_BLOCK_SIZE),
+        BLOCK_SIZE_H=get_powers_of_2(1, MAX_TRITON_BLOCK_SIZE),
         condition=lambda **kwargs: 1024 <= kwargs["BLOCK_SIZE_B"] * kwargs["BLOCK_SIZE_H"] <= MAX_TRITON_BLOCK_SIZE,
     ),
     default_config=CutoTuneConfig({"BLOCK_SIZE_B": 64, "BLOCK_SIZE_H": 64}),
