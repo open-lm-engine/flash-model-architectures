@@ -24,25 +24,45 @@ def _softmax_backward_triton_kernel_full_row(
     pid = tl.program_id(axis=0)
 
     indices_b = pid * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
-    indices_h = tl.arange(0, BLOCK_SIZE_H)
-
     mask_b = indices_b < B
-    mask_h = indices_h < H
-    mask_bh = mask_b[:, None] & mask_h[None, :]
 
-    indices = indices_b[:, None] * H + indices_h[None, :]
+    accumulator = tl.zeros((BLOCK_SIZE_B,), dtype=tl.float32)
 
-    output_ptrs = output_ptr + indices
-    output = tl.load(output_ptrs, mask=mask_bh)
+    for h in range(tl.cdiv(H, BLOCK_SIZE_H)):
+        indices_h = h * BLOCK_SIZE_H + tl.arange(0, BLOCK_SIZE_H)
+        mask_h = indices_h < H
 
-    output_grad_ptrs = output_grad_ptr + indices
-    output_grad = tl.load(output_grad_ptrs, mask=mask_bh)
+        indices = indices_b[:, None] * H + indices_h[None, :]
+        mask_bh = mask_b[:, None] & mask_h[None, :]
 
-    reference = tl.sum(output_grad * output, axis=1, keep_dims=True)
-    output *= output_grad - reference
+        output_ptrs = output_ptr + indices
+        output = tl.load(output_ptrs, mask=mask_bh)
 
-    x_grad_ptrs = x_grad_ptr + indices
-    tl.store(x_grad_ptrs, output, mask=mask_bh)
+        output_grad_ptrs = output_grad_ptr + indices
+        output_grad = tl.load(output_grad_ptrs, mask=mask_bh)
+
+        acc = output_grad * output
+        acc = acc.to(tl.float32)
+        accumulator += tl.sum(acc, axis=1, keep_dims=True)
+
+    for h in range(tl.cdiv(H, BLOCK_SIZE_H)):
+        indices_h = h * BLOCK_SIZE_H + tl.arange(0, BLOCK_SIZE_H)
+        mask_h = indices_h < H
+
+        indices = indices_b[:, None] * H + indices_h[None, :]
+        mask_bh = mask_b[:, None] & mask_h[None, :]
+
+        output_ptrs = output_ptr + indices
+        output = tl.load(output_ptrs, mask=mask_bh)
+
+        output_grad_ptrs = output_grad_ptr + indices
+        output_grad = tl.load(output_grad_ptrs, mask=mask_bh)
+
+        output_grad -= accumulator
+        output *= output_grad
+
+        x_grad_ptrs = x_grad_ptr + indices
+        tl.store(x_grad_ptrs, output, mask=mask_bh)
 
 
 @cutotune(
