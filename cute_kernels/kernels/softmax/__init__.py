@@ -9,7 +9,6 @@ from .torch_implementation import softmax_torch
 
 class _Softmax_Cute(torch.autograd.Function):
     @staticmethod
-    @ensure_contiguous
     def forward(
         ctx,
         x: torch.Tensor,
@@ -23,6 +22,7 @@ class _Softmax_Cute(torch.autograd.Function):
         if x.size(-1) == 1:
             return torch.ones_like(x)
 
+        x = x.contiguous()
         ctx.save_for_backward(x)
 
         is_x_1d = x.dim() == 1
@@ -47,11 +47,11 @@ class _Softmax_Cute(torch.autograd.Function):
         return output
 
     @staticmethod
-    @ensure_contiguous
     def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
         if output_grad.size(-1) == 1:
             x_grad = torch.zeros_like(output_grad)
         else:
+            output_grad = output_grad.contiguous()
             output = ctx.saved_tensors[0]
 
             x_grad = _backward(
