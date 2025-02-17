@@ -2,7 +2,7 @@ import torch
 
 from ...cutotune import CutoTuneConfig, cutotune
 from ...utils import get_num_elements_and_hidden_size
-from .triton_implementation import softmax_backward_full_row_triton
+from .triton_implementation import softmax_backward_triton
 
 
 @cutotune(
@@ -21,7 +21,7 @@ def _backward(
     _, hidden_size = get_num_elements_and_hidden_size(x_grad)
 
     if kernel_backend == "triton":
-        softmax_backward_full_row_triton(
+        softmax_backward_triton(
             output=output,
             output_grad=output_grad,
             x_grad=x_grad,

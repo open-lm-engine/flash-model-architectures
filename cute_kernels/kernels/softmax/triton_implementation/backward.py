@@ -12,7 +12,7 @@ _KERNEL_NAME = "softmax_backward_triton"
 
 
 @triton.jit
-def _softmax_backward_triton_kernel_full_row(
+def _softmax_backward_triton_kernel(
     output_ptr,
     output_grad_ptr,
     x_grad_ptr,
@@ -75,13 +75,13 @@ def _softmax_backward_triton_kernel_full_row(
     triggers={"output.dtype"},
 )
 @cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"x_grad"})
-def softmax_backward_full_row_triton(
+def softmax_backward_triton(
     output: torch.Tensor, output_grad: torch.Tensor, x_grad: torch.Tensor, BLOCK_SIZE_B: int, BLOCK_SIZE_H: int
 ) -> None:
     num_elements, hidden_size = get_num_elements_and_hidden_size(x_grad)
 
     with torch.device(x_grad.device):
-        _softmax_backward_triton_kernel_full_row[(ceil_divide(num_elements, BLOCK_SIZE_B),)](
+        _softmax_backward_triton_kernel[(ceil_divide(num_elements, BLOCK_SIZE_B),)](
             output_ptr=output,
             output_grad_ptr=output_grad,
             x_grad_ptr=x_grad,
