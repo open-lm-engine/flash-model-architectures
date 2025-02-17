@@ -1,8 +1,6 @@
 import torch
 
-from ...constants import MAX_TRITON_BLOCK_SIZE
 from ...cutotune import CutoTuneConfig, cutotune
-from ...math import get_next_power_of_2
 from ...utils import get_num_elements_and_hidden_size
 from .triton_implementation import softmax_backward_full_row_triton
 
