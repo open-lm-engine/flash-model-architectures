@@ -46,7 +46,7 @@ class _CrossEntropy_Cute(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
     def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
-        x, _ = ctx.saved_tensors
+        x, labels = ctx.saved_tensors
 
         x_grad = _softmax_forward(
             x=x,
@@ -54,6 +54,10 @@ class _CrossEntropy_Cute(torch.autograd.Function):
             BLOCK_SIZE_B=ctx.BLOCK_SIZE_B_backward,
             BLOCK_SIZE_H=ctx.BLOCK_SIZE_V_backward,
         )
+
+        # I am lazy :)
+        # but this can be fused inside the above kernel
+        x_grad[:, labels] -= 1
 
         return x_grad, *[None] * 7
 
