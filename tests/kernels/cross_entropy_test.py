@@ -7,7 +7,6 @@ from transformers import set_seed
 from cute_kernels import cross_entropy_cute, cross_entropy_torch
 
 from ..test_commons import TestCommons
-from .rmsnorm_test import _get_sizes
 
 
 _SEED = 42
@@ -44,8 +43,8 @@ class CrossEntropyTest(TestCommons):
         loss_kernel = cross_entropy_cute(x=x_kernel, labels=labels)
         loss_expected = cross_entropy_torch(x=x_kernel, labels=labels, reduction="sum")
 
-        # z_kernel.sum().backward()
-        # z_expected.sum().backward()
+        loss_kernel.backward()
+        loss_expected.backward()
 
         self.assert_equal_tensors(loss_kernel, loss_expected, False)
-        # self.assert_equal_tensors(x_kernel.grad, x_expected.grad, False, atol_bfloat16=2e-5, rtol_bfloat16=0)
+        self.assert_equal_tensors(x_kernel.grad, x_expected.grad, False)
