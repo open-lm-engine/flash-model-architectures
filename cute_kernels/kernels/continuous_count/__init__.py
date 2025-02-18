@@ -47,7 +47,6 @@ def continuous_count_cute(
     x: torch.Tensor,
     size: int,
     thread_block_cluster_size: int = CutoTuneParameter(),
-    kernel_backend: str = CutoTuneParameter(),
     BLOCK_SIZE: int = CutoTuneParameter(),
 ) -> torch.Tensor:
     if size == 1:
