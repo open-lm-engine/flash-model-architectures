@@ -51,9 +51,7 @@ def _cross_entropy_forward_triton_kernel(
     x = tl.load(x_ptrs, mask=mask_b)
 
     loss = M + tl.log(Z) - x[:, None]
-    loss = tl.where(mask_b[:, None], loss, 0)
-
-    tl.atomic_add(loss_ptr + indices_b[:, None], loss)
+    tl.atomic_add(loss_ptr + indices_b[:, None], loss, mask=mask_b[:, None])
 
 
 @cutotune(
