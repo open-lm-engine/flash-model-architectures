@@ -1,0 +1,16 @@
+best_configs:
+  '''x.dtype = torch.bfloat16''':
+    config:
+      BLOCK_SIZE_B: 4
+      BLOCK_SIZE_V: 256
+    time: 0.08835839927196502
+  '''x.dtype = torch.float16''':
+    config:
+      BLOCK_SIZE_B: 2
+      BLOCK_SIZE_V: 1024
+    time: 0.08987839967012405
+  '''x.dtype = torch.float32''':
+    config:
+      BLOCK_SIZE_B: 2
+      BLOCK_SIZE_V: 1024
+    time: 0.12709759995341302
