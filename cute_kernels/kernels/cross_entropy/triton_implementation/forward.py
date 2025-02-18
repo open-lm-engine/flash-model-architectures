@@ -60,7 +60,7 @@ def _cross_entropy_forward_triton_kernel(
         BLOCK_SIZE_V=get_powers_of_2(1, MAX_TRITON_BLOCK_SIZE),
         condition=lambda **kwargs: 1024 <= kwargs["BLOCK_SIZE_B"] * kwargs["BLOCK_SIZE_V"] <= 8192,
     ),
-    default_config=CutoTuneConfig({"BLOCK_SIZE_B": 4, "BLOCK_SIZE_V": 4}),
+    default_config=CutoTuneConfig({"BLOCK_SIZE_B": 64, "BLOCK_SIZE_V": 64}),
     triggers={"x.dtype"},
 )
 @cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"loss"})
