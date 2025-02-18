@@ -51,8 +51,9 @@ def _cross_entropy_forward_triton_kernel(
     x = tl.load(x_ptrs, mask=mask_b)
 
     loss = M + tl.log(Z) - x[:, None]
-    loss = tl.sum(loss, axis=0)
-    tl.atomic_add(loss_ptr, loss, mask=mask_b)
+    loss = tl.where(mask_b[:, None], loss, 0)
+
+    tl.atomic_add(loss_ptr + indices_b[:, None], loss)
 
 
 @cutotune(
@@ -61,7 +62,7 @@ def _cross_entropy_forward_triton_kernel(
         BLOCK_SIZE_V=get_powers_of_2(1, MAX_TRITON_BLOCK_SIZE),
         condition=lambda **kwargs: 1024 <= kwargs["BLOCK_SIZE_B"] * kwargs["BLOCK_SIZE_V"] <= 8192,
     ),
-    default_config=CutoTuneConfig({"BLOCK_SIZE_B": 64, "BLOCK_SIZE_V": 64}),
+    default_config=CutoTuneConfig({"BLOCK_SIZE_B": 4, "BLOCK_SIZE_V": 4}),
     triggers={"x.dtype"},
 )
 @cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"loss"})
