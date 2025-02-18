@@ -12,13 +12,13 @@ class _CrossEntropy_Cute(torch.autograd.Function):
         assert labels.dim() == 1, "labels should be 1 dimensional"
         assert x.size(0) == labels.size(0), "x and labels have different number of elements along dim 0"
 
-        loss = torch.zeros(x.size(0), device=x.device, dtype=torch.float32)
+        loss = torch.zeros(1, device=x.device, dtype=torch.float32)
 
         cross_entropy_forward_triton(
             x=x, labels=labels, loss=loss, V=x.size(-1), BLOCK_SIZE_B=BLOCK_SIZE_B, BLOCK_SIZE_V=BLOCK_SIZE_V
         )
 
-        return loss.sum()
+        return loss.squeeze()
 
     @staticmethod
     def backward(ctx, grad_output: torch.Tensor) -> tuple[torch.Tensor | None]:
