@@ -7,6 +7,7 @@ from cute_kernels import (
     add_scalar_cute,
     add_tensor_cute,
     continuous_count_cute,
+    cross_entropy_cute,
     embedding_cute,
     gemm_cute,
     get_all_cutotune_caches,
@@ -82,6 +83,11 @@ for dtype in all_dtypes:
                 is_b_transposed=is_b_transposed,
                 beta=0,
             )
+
+    size = (16384, 4096)
+    x = torch.randn(size, dtype=dtype, device=torch.cuda.current_device(), requires_grad=True)
+    labels = torch.randint(0, size[1], (x.size(0),), device=torch.cuda.current_device())
+    forward_backward(cross_entropy_cute, x=x, labels=labels)
 
 size = 104857600
 for dtype in [torch.long, torch.int32]:
