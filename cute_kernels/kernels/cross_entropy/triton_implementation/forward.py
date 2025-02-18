@@ -98,4 +98,5 @@ def cross_entropy_forward_triton(
             V=V,
             BLOCK_SIZE_B=BLOCK_SIZE_B,
             BLOCK_SIZE_V=BLOCK_SIZE_V,
+            reduction=reduction,
         )
