@@ -25,7 +25,7 @@ class _CrossEntropy_Cute(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
     def backward(ctx, grad_output: torch.Tensor) -> tuple[torch.Tensor | None]:
-        pass
+        return grad_output, *[None] * 3
 
 
 def cross_entropy_cute(
