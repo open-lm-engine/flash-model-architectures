@@ -57,7 +57,7 @@ class _CrossEntropy_Cute(torch.autograd.Function):
 
         # I am lazy :)
         # but this can be fused inside the above kernel
-        x_grad[:, labels] -= 1
+        x_grad[torch.arange(labels.size(0), device=labels.device), labels] -= 1
 
         return x_grad, *[None] * 7
 
