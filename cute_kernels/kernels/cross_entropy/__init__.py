@@ -55,7 +55,7 @@ class _CrossEntropy_Cute(torch.autograd.Function):
             BLOCK_SIZE_H=ctx.BLOCK_SIZE_V_backward,
         )
 
-        return x_grad
+        return x_grad, *[None] * 7
 
 
 def cross_entropy_cute(
