@@ -29,7 +29,7 @@ class _CutoTune:
         benchmark_iterations: int,
         functional_triggers: dict[str, Callable] = {},
         in_place_op: bool = False,
-        reset_to_zero: set[str] = set(),
+        reset_to_zero: dict = {},
     ) -> None:
         assert len(configs) > 0, "no cutotune config is passed"
 
@@ -138,6 +138,7 @@ class _CutoTune:
 
         return result
 
+    @torch._dynamo.disable
     @torch.inference_mode()
     def _cutotune(self, *args, **kwargs) -> tuple[CutoTuneConfig, float, list[tuple[CutoTuneConfig, float]]]:
         best_config = None
@@ -232,8 +233,12 @@ class _CutoTune:
                 device_synchronize()
                 elapsed_time += start.elapsed_time(end)
 
-                for variable_name in self.reset_to_zero:
-                    kwargs[variable_name].zero_()
+                for variable_name, function in self.reset_to_zero.items():
+                    if function(**kwargs):
+                        variable = kwargs[variable_name]
+                        assert isinstance(variable, torch.Tensor)
+
+                        variable.zero_()
         else:
             start.record()
             for _ in range(self.benchmark_iterations):
@@ -319,7 +324,7 @@ def cutotune(
     warmup_iterations: int = _DEFAULT_WARMUP_ITERATIONS,
     benchmark_iterations: int = _BENCHMARK_ITERATIONS,
     in_place_op: bool = False,
-    reset_to_zero: set[str] = set(),
+    reset_to_zero: dict = {},
 ) -> _CutoTune:
     def inner(function: Callable) -> Callable:
         return _CutoTune(
