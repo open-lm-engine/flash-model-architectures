@@ -1,12 +1,14 @@
 import torch
 
 from ...cutotune import CutoTuneParameter
+from ...utils import ensure_contiguous
 from .torch_implementation import cross_entropy_torch
 from .triton_implementation import cross_entropy_forward_triton
 
 
 class _CrossEntropy_Cute(torch.autograd.Function):
     @staticmethod
+    @ensure_contiguous
     def forward(ctx, x: torch.Tensor, labels: torch.Tensor, BLOCK_SIZE_B: int, BLOCK_SIZE_V: int) -> torch.Tensor:
         assert x.dim() == 2, "x should be 2 dimensional"
         assert labels.dim() == 1, "labels should be 1 dimensional"
