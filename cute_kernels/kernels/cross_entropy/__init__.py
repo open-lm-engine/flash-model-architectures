@@ -28,6 +28,7 @@ class _CrossEntropy_Cute(torch.autograd.Function):
 
         ctx.save_for_backward(x, labels)
 
+        ctx.reduction = reduction
         ctx.kernel_backend_backward = kernel_backend_backward
         ctx.BLOCK_SIZE_B_backward = BLOCK_SIZE_B_backward
         ctx.BLOCK_SIZE_V_backward = BLOCK_SIZE_V_backward
@@ -60,6 +61,9 @@ class _CrossEntropy_Cute(torch.autograd.Function):
         # I am lazy :)
         # but this can be fused inside the above kernel
         x_grad[torch.arange(labels.size(0), device=labels.device), labels] -= 1
+
+        if ctx.reduction == "mean":
+            x_grad /= x.size(0)
 
         return x_grad, *[None] * 8
 
