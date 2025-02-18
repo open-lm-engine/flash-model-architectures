@@ -13,7 +13,14 @@ _KERNEL_NAME = "cross_entropy_forward_triton"
 
 @triton.jit
 def _cross_entropy_forward_triton_kernel(
-    x_ptr, labels_ptr, loss_ptr, B, V, BLOCK_SIZE_B: tl.constexpr, BLOCK_SIZE_V: tl.constexpr
+    x_ptr,
+    labels_ptr,
+    loss_ptr,
+    B,
+    V,
+    BLOCK_SIZE_B: tl.constexpr,
+    BLOCK_SIZE_V: tl.constexpr,
+    reduction: tl.constexpr,
 ):
     pid = tl.program_id(axis=0)
 
@@ -54,6 +61,9 @@ def _cross_entropy_forward_triton_kernel(
     loss = tl.where(mask_b[:, None], loss, 0)
     loss = tl.sum(loss, axis=0)
 
+    if reduction == "mean":
+        loss /= B
+
     tl.atomic_add(loss_ptr + tl.arange(0, 1), loss)
 
 
@@ -69,7 +79,13 @@ def _cross_entropy_forward_triton_kernel(
 )
 @cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"loss"})
 def cross_entropy_forward_triton(
-    x: torch.Tensor, labels: torch.Tensor, loss: torch.Tensor, V: int, BLOCK_SIZE_B: int, BLOCK_SIZE_V: int
+    x: torch.Tensor,
+    labels: torch.Tensor,
+    loss: torch.Tensor,
+    V: int,
+    BLOCK_SIZE_B: int,
+    BLOCK_SIZE_V: int,
+    reduction: str,
 ) -> None:
     num_elements, _ = get_num_elements_and_hidden_size(x)
 
