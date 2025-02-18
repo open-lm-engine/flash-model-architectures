@@ -41,7 +41,7 @@ class CrossEntropyTest(TestCommons):
         labels = torch.randint(0, x_kernel.size(-1), (x_kernel.size(0),), device=x_kernel.device)
 
         loss_kernel = cross_entropy_cute(x=x_kernel, labels=labels)
-        loss_expected = cross_entropy_torch(x=x_kernel, labels=labels, reduction="sum")
+        loss_expected = cross_entropy_torch(x=x_expected, labels=labels, reduction="sum")
 
         loss_kernel.backward()
         loss_expected.backward()
