@@ -90,8 +90,9 @@ def _rmsnorm_backward_triton_kernel(
         tl.atomic_add(weight_grad_ptr + indices_h, weight_grad, mask=mask_h)
 
 
+@cutotune(**get_cutotune_parameters())
 @cute_op(f"{LIBRARY_NAME}::{_KERNEL_WEIGHTED_NAME}", mutates_args={"x_grad", "weight_grad"})
-def _rmsnorm_backward_triton(
+def rmsnorm_backward_triton(
     x: torch.Tensor,
     weight: torch.Tensor,
     output_grad: torch.Tensor,
@@ -124,31 +125,3 @@ def _rmsnorm_backward_triton(
             BLOCK_SIZE_B=BLOCK_SIZE_B,
             BLOCK_SIZE_H=BLOCK_SIZE_H,
         )
-
-
-@cutotune(**get_cutotune_parameters())
-def rmsnorm_backward_triton(
-    x: torch.Tensor,
-    weight: torch.Tensor | None,
-    output_grad: torch.Tensor,
-    rmsnorm_denominator: torch.Tensor,
-    x_grad: torch.Tensor,
-    eps: float,
-    BLOCK_SIZE_B: int,
-    BLOCK_SIZE_H: int,
-) -> torch.Tensor | None:
-    weight_grad = None if weight is None else torch.zeros_like(weight, dtype=torch.float32)
-
-    _rmsnorm_backward_triton(
-        x=x,
-        weight=weight,
-        output_grad=output_grad,
-        rmsnorm_denominator=rmsnorm_denominator,
-        x_grad=x_grad,
-        weight_grad=weight_grad,
-        eps=eps,
-        BLOCK_SIZE_B=BLOCK_SIZE_B,
-        BLOCK_SIZE_H=BLOCK_SIZE_H,
-    )
-
-    return weight_grad.type_as(weight)

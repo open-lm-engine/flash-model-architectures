@@ -20,6 +20,7 @@ def _backward(
 ) -> tuple[torch.Tensor | None]:
     hidden_size = x.size(-1)
     x_grad = torch.empty_like(x)
+    weight_grad = None if weight is None else torch.zeros_like(weight, dtype=torch.float32)
 
     if kernel_backend == "triton":
         BLOCK_SIZE_H = get_next_power_of_2(hidden_size)
@@ -37,5 +38,7 @@ def _backward(
         )
     else:
         raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
+
+    weight_grad = weight_grad.type_as(weight)
 
     return x_grad, weight_grad
