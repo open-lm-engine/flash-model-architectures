@@ -69,7 +69,10 @@ class _CutoTune:
 
         if best_config is None:
             best_config, best_time, timed_configs = self._cutotune(*args, **kwargs)
-            self._update_cutotune_cache(lookup_key=lookup_key, timed_configs=timed_configs)
+            cutotune_cache = get_cutotune_cache(self.function_hash)
+
+            for config, time in timed_configs:
+                cutotune_cache.add_config(lookup_key=lookup_key, config=config, time=time)
 
             self.best_configs[lookup_key] = (best_config, best_time)
 
@@ -88,12 +91,6 @@ class _CutoTune:
         )
 
         return output
-
-    def _update_cutotune_cache(self, lookup_key: str, timed_configs: list[tuple[CutoTuneConfig, float]]) -> None:
-        cutotune_cache = get_cutotune_cache(self.function_hash)
-
-        for config, time in timed_configs:
-            cutotune_cache.add_config(lookup_key=lookup_key, config=config, time=time)
 
     def _check_all_or_no_args_are_cutotune_parameters(self, *args, **kwargs) -> bool:
         num_cutotune_overrideables = 0
