@@ -32,7 +32,7 @@ class _CutoTuneCache:
         return default
 
     def save(self) -> None:
-        yaml.dump(self._serialize(self.cache, False), open(_CUTOTUNE_CACHE_FILENAME, "w"))
+        yaml.dump(self._serialize(self.cache), open(_CUTOTUNE_CACHE_FILENAME, "w"))
 
     def _serialize(self, x: dict) -> dict:
         result = {}
