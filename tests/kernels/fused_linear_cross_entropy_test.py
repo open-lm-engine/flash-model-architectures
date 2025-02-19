@@ -53,3 +53,4 @@ class FusedLinearCrossEntropyTest(TestCommons):
 
         self.assert_equal_tensors(loss_kernel, loss_expected, False, atol_float32=4e-5, rtol_float32=0)
         self.assert_equal_tensors(x_kernel.grad, x_expected.grad, False)
+        self.assert_equal_tensors(weight_kernel.grad, weight_expected.grad, False)
