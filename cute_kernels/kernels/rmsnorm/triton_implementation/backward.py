@@ -97,7 +97,7 @@ def _rmsnorm_backward_triton(
     output_grad: torch.Tensor,
     rmsnorm_denominator: torch.Tensor,
     x_grad: torch.Tensor,
-    weight_grad: torch.Tensor,
+    weight_grad: torch.Tensor | None,
     eps: float,
     BLOCK_SIZE_B: int,
     BLOCK_SIZE_H: int,
