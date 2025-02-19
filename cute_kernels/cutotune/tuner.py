@@ -54,7 +54,9 @@ class _CutoTune:
         if self.in_place_op:
             raise NotImplementedError()
 
-        self.function_hash = f"{inspect.stack()[2].filename.split('cute_kernels')[1][1:]}->{function.__name__}"
+        self.filename = inspect.stack()[2].filename.split("cute_kernels")[1][1:]
+        self.function_hash = f"{self.filename}->{function.__name__}"
+
         self.best_configs = get_cutotune_cache(self.function_hash).get_best_configs()
 
     def __call__(self, *args, **kwargs) -> Any:
