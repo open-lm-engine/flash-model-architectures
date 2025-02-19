@@ -27,7 +27,7 @@ def _backward(
         BLOCK_SIZE_H = get_next_power_of_2(hidden_size)
         assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
 
-        weight_grad = rmsnorm_backward_triton(
+        rmsnorm_backward_triton(
             x=x,
             weight=weight,
             output_grad=output_grad,
