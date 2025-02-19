@@ -1,5 +1,4 @@
 import os
-from typing import overload
 
 import yaml
 
@@ -25,12 +24,7 @@ class _CutoTuneCache:
 
         self.cache[function_hash][lookup_key] = config
 
-    @overload
-    def get_config(self, function_hash: str, lookup_key: str) -> CutoTuneConfig:
-        return self.cache[function_hash][lookup_key]
-
-    @overload
-    def get_config(self, function_hash: str, lookup_key: str, default: CutoTuneConfig) -> CutoTuneConfig:
+    def get_config(self, function_hash: str, lookup_key: str, default: CutoTuneConfig = None) -> CutoTuneConfig:
         if function_hash in self.cache:
             function_cache = self.cache[function_hash]
             return function_cache.get(lookup_key, default)

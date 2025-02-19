@@ -66,7 +66,7 @@ class _CutoTune:
         if _DISABLE_CUTOTUNE or torch.compiler.is_compiling():
             best_config = self.default_config
         else:
-            best_config = self.cache.get_config(function_hash=self.function_hash, lookup_key=lookup_key, default=None)
+            best_config = self.cache.get_config(function_hash=self.function_hash, lookup_key=lookup_key)
 
         if best_config is None:
             best_config, best_time, _ = self._cutotune(*args, **kwargs)
