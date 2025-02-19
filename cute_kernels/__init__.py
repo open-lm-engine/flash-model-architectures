@@ -3,10 +3,8 @@ from .cutotune import (
     CutoTuneConfig,
     CutoTuneParameter,
     cutotune,
-    get_all_cutotune_caches,
     get_cartesian_product_cutotune_configs,
     get_cutotune_cache,
-    save_cutotune_cache,
 )
 from .inductor import init_inductor
 from .kernels import (
