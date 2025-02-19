@@ -303,12 +303,6 @@ class _CutoTune:
 
         return variable_name, func_name, func
 
-    def __enter__(self) -> Any:
-        return
-
-    def __exit__(self, exception_type, exception_value, exception_traceback) -> Any:
-        return
-
 
 def cutotune(
     configs: list[CutoTuneConfig],
