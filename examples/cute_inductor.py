@@ -3,6 +3,15 @@ import torch.nn as nn
 
 from cute_kernels import CuteInductor
 from cute_kernels.cute_inductor.rmsnorm import replace_rmsnorm
+from cute_kernels.cute_inductor.swiglu_unchunked import replace_swiglu_unchunked
+
+
+# NOTE swiglu unchunked computes:
+# ------------------------------------------------------------------------------
+# def swiglu_unchunked_torch(x: torch.Tensor) -> torch.Tensor:
+#     x = x.chunk(2, dim=-1)
+#     return x[0] * F.silu(x[1])
+# ------------------------------------------------------------------------------
 
 
 class Model(nn.Module):
