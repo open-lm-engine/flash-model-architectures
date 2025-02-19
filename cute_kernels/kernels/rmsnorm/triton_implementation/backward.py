@@ -90,7 +90,9 @@ def _rmsnorm_backward_triton_kernel(
         tl.atomic_add(weight_grad_ptr + indices_h, weight_grad, mask=mask_h)
 
 
-@cutotune(**get_cutotune_parameters())
+@cutotune(
+    **get_cutotune_parameters(), reset_to_zero={"weight_grad": lambda **kwargs: kwargs["weight_grad"] is not None}
+)
 @cute_op(f"{LIBRARY_NAME}::{_KERNEL_WEIGHTED_NAME}", mutates_args={"x_grad", "weight_grad"})
 def rmsnorm_backward_triton(
     x: torch.Tensor,
