@@ -7,7 +7,7 @@ from .config import CutoTuneConfig
 
 
 _LOAD_CUTOTUNE_CACHE = get_boolean_env_variable("LOAD_CUTOTUNE_CACHE", True)
-_CUTOTUNE_CACHE_FILENAME = os.path.dirname(os.path.dirname(__file__), "cache.yml")
+_CUTOTUNE_CACHE_FILENAME = os.path.join(os.path.dirname(os.path.dirname(__file__)), "cache.yml")
 
 
 class _CutoTuneCache:
