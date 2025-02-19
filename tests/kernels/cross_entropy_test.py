@@ -22,7 +22,7 @@ class CrossEntropyTest(TestCommons):
             [cross_entropy_cute, torch.compile(cross_entropy_cute, fullgraph=True)],  # function
         )
     )
-    def test_softmax(
+    def test_cross_entropy(
         self,
         size: tuple[int],
         device: torch.device,

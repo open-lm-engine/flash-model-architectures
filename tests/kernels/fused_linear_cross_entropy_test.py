@@ -25,7 +25,7 @@ class FusedLinearCrossEntropyTest(TestCommons):
             ],  # function
         )
     )
-    def test_softmax(
+    def test_fused_linear_cross_entropy(
         self,
         size: tuple[int],
         device: torch.device,
