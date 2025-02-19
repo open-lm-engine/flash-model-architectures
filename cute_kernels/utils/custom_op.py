@@ -7,9 +7,8 @@ import torch
 
 _IS_CUTE_TRACING = False
 
-contextmanager
 
-
+@contextmanager
 def enable_cute_tracing():
     global _IS_CUTE_TRACING
     _IS_CUTE_TRACING = True
