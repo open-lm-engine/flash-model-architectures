@@ -21,6 +21,7 @@ class _CrossEntropy_Cute(torch.autograd.Function):
         BLOCK_SIZE_B_backward: int,
         BLOCK_SIZE_V_backward: int,
     ) -> torch.Tensor:
+        assert reduction in ["sum", "mean"]
         assert x.dim() == 2, "x should be 2 dimensional"
         assert labels.dim() == 1, "labels should be 1 dimensional"
         assert x.size(0) == labels.size(0), "x and labels have different number of elements along dim 0"
