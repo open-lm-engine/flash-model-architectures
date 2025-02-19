@@ -34,6 +34,8 @@ model = Model()
 use_torch_inductor_after_cute_inductor = True  # to use torch's compiler optimizations as well
 replace_functions = [replace_rmsnorm]  # add other replacing functions
 
-compiled_model = CuteInductor(
+cute_inductor = CuteInductor(
     use_torch_inductor_after_cute_inductor=use_torch_inductor_after_cute_inductor, replace_functions=replace_functions
 )
+
+compiled_model = torch.compile(model, backend=cute_inductor.compiler)
