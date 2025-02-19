@@ -10,11 +10,9 @@ from .torch_implementation import continuous_count_torch
 
 @cutotune(
     get_cartesian_product_cutotune_configs(
-        kernel_backend=["cuda"],
-        thread_block_cluster_size=THREAD_BLOCK_CLUSTER_SIZES,
-        BLOCK_SIZE=COMMON_CUDA_BLOCK_SIZES_POWERS_OF_2,
+        thread_block_cluster_size=THREAD_BLOCK_CLUSTER_SIZES, BLOCK_SIZE=COMMON_CUDA_BLOCK_SIZES_POWERS_OF_2
     ),
-    default_config=CutoTuneConfig(dict(kernel_backend="cuda", thread_block_cluster_size=8, BLOCK_SIZE=1024)),
+    default_config=CutoTuneConfig(dict(thread_block_cluster_size=8, BLOCK_SIZE=1024)),
     functional_triggers={
         "next_power_of_2(size)": lambda **kwargs: get_next_power_of_2(kwargs["size"]),
         "sizeof(dtype)": lambda **kwargs: DTYPE_TO_SIZE[kwargs["x"].dtype],

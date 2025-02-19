@@ -54,31 +54,28 @@ class _CutoTune:
         if self.in_place_op:
             raise NotImplementedError()
 
-        self.function_hash = f"{inspect.stack()[2].filename.split('cute_kernels')[1][1:]}->{function.__name__}"
-        self.best_configs = get_cutotune_cache(self.function_hash).get_best_configs()
+        self.filename = inspect.stack()[2].filename.split("cute_kernels")[1][1:]
+        self.function_hash = f"{self.filename}->{function.__name__}"
+
+        self.cache = get_cutotune_cache()
 
     def __call__(self, *args, **kwargs) -> Any:
         override_cutotune_parameters = self._check_all_or_no_args_are_cutotune_parameters(*args, **kwargs)
         lookup_key = self._get_lookup_key(*args, **kwargs)
 
-        disable_cutotune = _DISABLE_CUTOTUNE or torch.compiler.is_compiling()
-
-        best_config = self.best_configs.get(
-            lookup_key, (self.default_config, None) if disable_cutotune else (None, None)
-        )[0]
+        if _DISABLE_CUTOTUNE or torch.compiler.is_compiling():
+            best_config = self.default_config
+        else:
+            best_config = self.cache.get_config(function_hash=self.function_hash, lookup_key=lookup_key)
 
         if best_config is None:
-            best_config, best_time, timed_configs = self._cutotune(*args, **kwargs)
-            cutotune_cache = get_cutotune_cache(self.function_hash)
-
-            for config, time in timed_configs:
-                cutotune_cache.add_config(lookup_key=lookup_key, config=config, time=time)
-
-            self.best_configs[lookup_key] = (best_config, best_time)
+            best_config, best_time, _ = self._cutotune(*args, **kwargs)
+            self.cache.add_config(function_hash=self.function_hash, lookup_key=lookup_key, config=best_config)
 
             if _DEBUG_CUTOTUNE and (not torch.distributed.is_initialized() or torch.distributed.get_rank() == 0):
                 print(
-                    f"config {best_config} achieved the best time ({best_time} sec) for {lookup_key} for function {self.function.__name__}"
+                    f"config {best_config} achieved the best time ({best_time} sec) for {lookup_key} for "
+                    "function {self.function.__name__}"
                 )
 
         output = self.function(
@@ -305,12 +302,6 @@ class _CutoTune:
                 raise ValueError(f"unexpected triggeer found ({trigger})")
 
         return variable_name, func_name, func
-
-    def __enter__(self) -> Any:
-        return
-
-    def __exit__(self, exception_type, exception_value, exception_traceback) -> Any:
-        return
 
 
 def cutotune(
