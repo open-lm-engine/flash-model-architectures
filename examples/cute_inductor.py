@@ -1,0 +1,30 @@
+import torch
+import torch.nn as nn
+
+from cute_kernels import CuteInductor
+from cute_kernels.cute_inductor.rmsnorm import replace_rmsnorm
+
+
+class Model(nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+
+        self.norm1 = nn.RMSNorm(4)
+        self.linear = nn.Linear(4, 4)
+        self.norm2 = nn.RMSNorm(4)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.norm1(x)
+        x = self.linear(x)
+        x = self.norm2(x)
+        return x
+
+
+model = Model()
+
+use_torch_inductor_after_cute_inductor = True  # to use torch's compiler optimizations as well
+replace_functions = [replace_rmsnorm]  # add other replacing functions
+
+compiled_model = CuteInductor(
+    use_torch_inductor_after_cute_inductor=use_torch_inductor_after_cute_inductor, replace_functions=replace_functions
+)
