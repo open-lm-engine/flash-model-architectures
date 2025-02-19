@@ -72,14 +72,14 @@ for dtype in all_dtypes:
     input_size = (4096, 4096)
     weight_size = (4096, 4096)
 
-    for is_a_transposed in [False, True]:
-        for is_b_transposed in [False, True]:
+    for is_A_transposed in [False, True]:
+        for is_B_transposed in [False, True]:
             gemm_cute(
-                a=torch.randn(*input_size, device=torch.cuda.current_device(), dtype=dtype, requires_grad=True),
-                b=torch.randn(*weight_size, device=torch.cuda.current_device(), dtype=dtype, requires_grad=True),
-                c=None,
-                is_a_transposed=is_a_transposed,
-                is_b_transposed=is_b_transposed,
+                A=torch.randn(*input_size, device=torch.cuda.current_device(), dtype=dtype, requires_grad=True),
+                B=torch.randn(*weight_size, device=torch.cuda.current_device(), dtype=dtype, requires_grad=True),
+                C=None,
+                is_A_transposed=is_A_transposed,
+                is_B_transposed=is_B_transposed,
                 beta=0,
             )
 
