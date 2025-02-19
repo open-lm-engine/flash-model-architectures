@@ -84,7 +84,7 @@ class _FusedLinearCrossEntropy_Cute(torch.autograd.Function):
                 _logits_grad /= batch_size
 
             x_grad[start:end] = _logits_grad @ weight
-            torch.addmm(weight_grad, _logits_grad.T @ _x, alpha=1, beta=1, out=weight_grad)
+            torch.addmm(weight_grad, _logits_grad.T, _x, alpha=1, beta=1, out=weight_grad)
 
             start = end
 
