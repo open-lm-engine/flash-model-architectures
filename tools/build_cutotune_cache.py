@@ -10,7 +10,6 @@ from cute_kernels import (
     cross_entropy_cute,
     embedding_cute,
     gemm_cute,
-    get_all_cutotune_caches,
     get_powers_of_2,
     rmsnorm_cute,
     save_cutotune_cache,
@@ -96,5 +95,4 @@ for dtype in [torch.long, torch.int32]:
         continuous_count_cute(x, n)
 
 
-for function_hash in get_all_cutotune_caches():
-    save_cutotune_cache(function_hash)
+save_cutotune_cache()
