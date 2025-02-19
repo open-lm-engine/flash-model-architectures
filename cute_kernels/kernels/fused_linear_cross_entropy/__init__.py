@@ -6,10 +6,10 @@ from ...math import ceil_divide, get_next_power_of_2
 from ...utils import ensure_contiguous
 from ..cross_entropy import cross_entropy_forward_triton
 from ..softmax import _forward as _softmax_forward
-from .torch_implementation import cross_entropy_torch
+from .torch_implementation import fused_linear_cross_entropy_torch
 
 
-class _CrossEntropy_Cute(torch.autograd.Function):
+class _FusedLinearCrossEntropy_Cute(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
     def forward(
@@ -103,7 +103,7 @@ class _CrossEntropy_Cute(torch.autograd.Function):
         return x_grad, weight_grad, *[None] * 7
 
 
-def cross_entropy_cute(
+def fused_linear_cross_entropy_cute(
     x: torch.Tensor,
     weight: torch.Tensor,
     labels: torch.Tensor,
@@ -114,7 +114,7 @@ def cross_entropy_cute(
     BLOCK_SIZE_B_backward: int = CutoTuneParameter(),
     BLOCK_SIZE_V_backward: int = CutoTuneParameter(),
 ) -> torch.Tensor:
-    return _CrossEntropy_Cute.apply(
+    return _FusedLinearCrossEntropy_Cute.apply(
         x,
         weight,
         labels,
