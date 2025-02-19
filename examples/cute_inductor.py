@@ -39,3 +39,7 @@ cute_inductor = CuteInductor(
 )
 
 compiled_model = torch.compile(model, backend=cute_inductor.compiler)
+
+# trigger JIT compilation
+x = torch.randn(4, 4, device=torch.cuda.current_device())
+y = compiled_model(x)
