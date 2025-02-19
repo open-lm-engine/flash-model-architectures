@@ -47,7 +47,7 @@ class _FusedLinearCrossEntropy_Cute(torch.autograd.Function):
         ctx.num_chunks = num_chunks
 
         loss = torch.tensor(0, device=x.device, dtype=torch.float32)
-        x_grad = torch.empty(x)
+        x_grad = torch.empty_like(x)
         weight_grad = torch.zeros_like(weight)
         start = 0
 
