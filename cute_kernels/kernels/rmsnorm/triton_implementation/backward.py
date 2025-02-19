@@ -9,7 +9,6 @@ from ....utils import cute_op, get_num_elements_and_hidden_size, get_sm_count
 from .parameters import get_cutotune_parameters
 
 
-_KERNEL_NO_WEIGHT_NAME = "rmsnorm_backward_no_weight_triton"
 _KERNEL_WEIGHTED_NAME = "rmsnorm_backward_triton"
 
 
@@ -91,40 +90,6 @@ def _rmsnorm_backward_triton_kernel(
         tl.atomic_add(weight_grad_ptr + indices_h, weight_grad, mask=mask_h)
 
 
-@cute_op(f"{LIBRARY_NAME}::{_KERNEL_NO_WEIGHT_NAME}", mutates_args={"x_grad"})
-def _rmsnorm_backward_no_weight_triton(
-    x: torch.Tensor,
-    output_grad: torch.Tensor,
-    rmsnorm_denominator: torch.Tensor | None,
-    x_grad: torch.Tensor,
-    eps: float,
-    BLOCK_SIZE_B: int,
-    BLOCK_SIZE_H: int,
-) -> None:
-    num_elements, hidden_size = get_num_elements_and_hidden_size(x)
-
-    if BLOCK_SIZE_H < hidden_size:
-        raise ValueError(f"hidden_size should be more than the BLOCK_SIZE_H")
-
-    sm_count = get_sm_count(x.device)
-    num_programs = min(sm_count, ceil_divide(num_elements, BLOCK_SIZE_B))
-
-    with torch.device(x.device):
-        _rmsnorm_backward_triton_kernel[(num_programs,)](
-            x_ptr=x,
-            weight_ptr=None,
-            output_grad_ptr=output_grad,
-            x_grad_ptr=x_grad,
-            weight_grad_ptr=None,
-            eps=eps,
-            rmsnorm_denominator_ptr=rmsnorm_denominator,
-            B=num_elements,
-            H=hidden_size,
-            BLOCK_SIZE_B=BLOCK_SIZE_B,
-            BLOCK_SIZE_H=BLOCK_SIZE_H,
-        )
-
-
 @cute_op(f"{LIBRARY_NAME}::{_KERNEL_WEIGHTED_NAME}", mutates_args={"x_grad", "weight_grad"})
 def _rmsnorm_backward_triton(
     x: torch.Tensor,
@@ -172,31 +137,18 @@ def rmsnorm_backward_triton(
     BLOCK_SIZE_B: int,
     BLOCK_SIZE_H: int,
 ) -> torch.Tensor | None:
-    if weight is None:
-        weight_grad = None
-        _rmsnorm_backward_no_weight_triton(
-            x=x,
-            output_grad=output_grad,
-            rmsnorm_denominator=rmsnorm_denominator,
-            x_grad=x_grad,
-            eps=eps,
-            BLOCK_SIZE_B=BLOCK_SIZE_B,
-            BLOCK_SIZE_H=BLOCK_SIZE_H,
-        )
-    else:
-        weight_grad = torch.zeros_like(weight, dtype=torch.float32)
-        _rmsnorm_backward_triton(
-            x=x,
-            weight=weight,
-            output_grad=output_grad,
-            rmsnorm_denominator=rmsnorm_denominator,
-            x_grad=x_grad,
-            weight_grad=weight_grad,
-            eps=eps,
-            BLOCK_SIZE_B=BLOCK_SIZE_B,
-            BLOCK_SIZE_H=BLOCK_SIZE_H,
-        )
+    weight_grad = None if weight is None else torch.zeros_like(weight, dtype=torch.float32)
 
-        weight_grad = weight_grad.type_as(weight)
+    _rmsnorm_backward_triton(
+        x=x,
+        weight=weight,
+        output_grad=output_grad,
+        rmsnorm_denominator=rmsnorm_denominator,
+        x_grad=x_grad,
+        weight_grad=weight_grad,
+        eps=eps,
+        BLOCK_SIZE_B=BLOCK_SIZE_B,
+        BLOCK_SIZE_H=BLOCK_SIZE_H,
+    )
 
-    return weight_grad
+    return weight_grad.type_as(weight)
