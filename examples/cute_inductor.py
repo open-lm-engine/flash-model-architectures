@@ -29,7 +29,7 @@ class Model(nn.Module):
         return x
 
 
-model = Model()
+model = Model().to(torch.cuda.current_device())
 
 use_torch_inductor_after_cute_inductor = True  # to use torch's compiler optimizations as well
 replace_functions = [replace_rmsnorm]  # add other replacing functions
