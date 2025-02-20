@@ -5,7 +5,7 @@ import triton.language as tl
 from ....constants import LIBRARY_NAME, MAX_TRITON_BLOCK_SIZE
 from ....cutotune import CutoTuneConfig, cutotune, get_cartesian_product_cutotune_configs
 from ....math import ceil_divide, get_powers_of_2
-from ....utils import cute_op, get_num_elements_and_hidden_size
+from ....utils import cute_op
 
 
 _KERNEL_NAME = "cross_entropy_forward_triton"
@@ -86,7 +86,7 @@ def cross_entropy_forward_triton(
     BLOCK_SIZE_V: int,
     reduction: str,
 ) -> None:
-    num_elements, vocab_size = get_num_elements_and_hidden_size(x)
+    num_elements, vocab_size = x.size()
 
     with torch.device(x.device):
         _cross_entropy_forward_triton_kernel[(ceil_divide(num_elements, BLOCK_SIZE_B),)](
