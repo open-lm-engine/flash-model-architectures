@@ -69,22 +69,22 @@ class _FusedLinearCrossEntropy_Cute(torch.autograd.Function):
                 reduction="sum",
             )
 
-            # _logits_grad = _softmax_forward(
-            #     x=_logits,
-            #     kernel_backend=ctx.kernel_backend_backward,
-            #     BLOCK_SIZE_B=ctx.BLOCK_SIZE_B_backward,
-            #     BLOCK_SIZE_H=ctx.BLOCK_SIZE_V_backward,
-            # )
+            _logits_grad = _softmax_forward(
+                x=_logits,
+                kernel_backend=ctx.kernel_backend_backward,
+                BLOCK_SIZE_B=ctx.BLOCK_SIZE_B_backward,
+                BLOCK_SIZE_H=ctx.BLOCK_SIZE_V_backward,
+            )
 
-            # # I am lazy :)
-            # # but this can be fused inside the above kernel
-            # _logits_grad[torch.arange(_labels.size(0), device=_labels.device), _labels] -= 1
+            # I am lazy :)
+            # but this can be fused inside the above kernel
+            _logits_grad[torch.arange(_labels.size(0), device=_labels.device), _labels] -= 1
 
-            # if reduction == "mean":
-            #     _logits_grad /= batch_size
+            if reduction == "mean":
+                _logits_grad /= batch_size
 
-            # x_grad[start:end] = _logits_grad @ weight
-            # torch.addmm(weight_grad, _logits_grad.T, _x, alpha=1, beta=1, out=weight_grad)
+            x_grad[start:end] = _logits_grad @ weight
+            torch.addmm(weight_grad, _logits_grad.T, _x, alpha=1, beta=1, out=weight_grad)
 
         if reduction == "mean":
             loss /= batch_size
