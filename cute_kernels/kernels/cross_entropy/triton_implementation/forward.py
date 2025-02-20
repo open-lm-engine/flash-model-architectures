@@ -82,12 +82,11 @@ def cross_entropy_forward_triton(
     x: torch.Tensor,
     labels: torch.Tensor,
     loss: torch.Tensor,
-    V: int,
     BLOCK_SIZE_B: int,
     BLOCK_SIZE_V: int,
     reduction: str,
 ) -> None:
-    num_elements, _ = get_num_elements_and_hidden_size(x)
+    num_elements, vocab_size = get_num_elements_and_hidden_size(x)
 
     with torch.device(x.device):
         _cross_entropy_forward_triton_kernel[(ceil_divide(num_elements, BLOCK_SIZE_B),)](
@@ -95,7 +94,7 @@ def cross_entropy_forward_triton(
             labels_ptr=labels,
             loss_ptr=loss,
             B=num_elements,
-            V=V,
+            V=vocab_size,
             BLOCK_SIZE_B=BLOCK_SIZE_B,
             BLOCK_SIZE_V=BLOCK_SIZE_V,
             reduction=reduction,

@@ -64,7 +64,6 @@ class _FusedLinearCrossEntropy_Cute(torch.autograd.Function):
                 x=_logits,
                 labels=_labels,
                 loss=loss,
-                V=vocab_size,
                 BLOCK_SIZE_B=BLOCK_SIZE_B_forward,
                 BLOCK_SIZE_V=BLOCK_SIZE_V_forward,
                 reduction="sum",
