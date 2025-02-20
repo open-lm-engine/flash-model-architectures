@@ -1,5 +1,4 @@
 import torch
-import torch.nn.functional as F
 
 from ...cutotune import CutoTuneParameter
 from ...math import ceil_divide, get_next_power_of_2
@@ -49,7 +48,7 @@ class _FusedLinearCrossEntropy_Cute(torch.autograd.Function):
             end = min(end, batch_size)
 
             _x = x[start:end]
-            _logits = F.linear(_x, weight).contiguous()
+            _logits = (_x @ weight.T).contiguous()
 
             _labels = labels[start:end].contiguous()
 
