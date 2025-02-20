@@ -23,8 +23,6 @@ class FusedLinearCrossEntropyTest(TestCommons):
             [
                 fused_linear_cross_entropy_cute,
                 torch.compile(fused_linear_cross_entropy_cute, fullgraph=True),
-            ][
-                :1
             ],  # function
         )
     )
@@ -43,7 +41,7 @@ class FusedLinearCrossEntropyTest(TestCommons):
 
         x_kernel, x_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype, std=0.02)
 
-        vocab_size = random.randint(size[0] - 100, size[0] + 100)
+        vocab_size = random.randint(max(100, size[0] - 100), size[0] + 100)
         weight_kernel, weight_expected = self.get_random_duplicated_tensors(
             (vocab_size, size[1]), device=device, dtype=dtype, std=2e-3
         )
