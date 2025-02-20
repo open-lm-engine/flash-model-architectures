@@ -95,15 +95,12 @@ class _FusedLinearCrossEntropy_Cute(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
-        # x_grad, weight_grad = ctx.saved_tensors
-        # print(output_grad)
+        x_grad, weight_grad = ctx.saved_tensors
 
-        # if output_grad != 1:
-        #     x_grad *= output_grad
-        #     weight_grad *= output_grad
+        x_grad *= output_grad
+        weight_grad *= output_grad
 
-        return [None] * 9
-        # return output_grad, output_grad, *[None] * 7
+        return x_grad, weight_grad, *[None] * 7
 
 
 def fused_linear_cross_entropy_cute(
