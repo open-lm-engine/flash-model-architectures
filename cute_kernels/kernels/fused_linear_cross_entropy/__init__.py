@@ -49,10 +49,11 @@ class _FusedLinearCrossEntropy_Cute(torch.autograd.Function):
         loss = torch.tensor(0, device=x.device, dtype=torch.float32)
         x_grad = torch.empty_like(x)
         weight_grad = torch.zeros_like(weight)
-        start = 0
 
-        for _ in range(num_chunks):
-            end = start + chunk_size
+        for i in range(num_chunks):
+            start = i * chunk_size
+            end = (i + 1) * chunk_size
+            end = min(end, batch_size)
 
             _x = x[start:end]
             _logits = F.linear(_x, weight).contiguous()
@@ -85,8 +86,6 @@ class _FusedLinearCrossEntropy_Cute(torch.autograd.Function):
 
             # x_grad[start:end] = _logits_grad @ weight
             # torch.addmm(weight_grad, _logits_grad.T, _x, alpha=1, beta=1, out=weight_grad)
-
-            start = end
 
         if reduction == "mean":
             loss /= batch_size
