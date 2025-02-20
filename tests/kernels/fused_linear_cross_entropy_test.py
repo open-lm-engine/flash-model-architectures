@@ -1,3 +1,4 @@
+import random
 from typing import Callable
 
 import torch
@@ -39,9 +40,13 @@ class FusedLinearCrossEntropyTest(TestCommons):
             size = (size,)
 
         x_kernel, x_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype, std=0.02)
-        weight_kernel, weight_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype, std=0.02)
 
-        labels = torch.randint(0, x_kernel.size(-1), (x_kernel.size(0),), device=x_kernel.device)
+        vocab_size = random.randint(size[0] - 100, size[0] + 100)
+        weight_kernel, weight_expected = self.get_random_duplicated_tensors(
+            (vocab_size, size[1]), device=device, dtype=dtype, std=0.02
+        )
+
+        labels = torch.randint(0, vocab_size, (x_kernel.size(0),), device=x_kernel.device)
 
         loss_kernel = function(
             x=x_kernel, weight=weight_kernel, labels=labels, kernel_backend_backward=kernel_backend_backward
