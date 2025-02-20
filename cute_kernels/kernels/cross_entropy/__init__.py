@@ -38,7 +38,6 @@ class _CrossEntropy_Cute(torch.autograd.Function):
             x=x,
             labels=labels,
             loss=loss,
-            V=x.size(-1),
             BLOCK_SIZE_B=BLOCK_SIZE_B_forward,
             BLOCK_SIZE_V=BLOCK_SIZE_V_forward,
             reduction=reduction,
