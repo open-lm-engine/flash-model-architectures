@@ -39,13 +39,6 @@ class _FusedLinearCrossEntropy_Cute(torch.autograd.Function):
         chunk_size = get_next_power_of_2(ceil_divide(batch_size, memory_increase_factor))
         num_chunks = ceil_divide(batch_size, chunk_size)
 
-        ctx.reduction = reduction
-        ctx.kernel_backend_backward = kernel_backend_backward
-        ctx.BLOCK_SIZE_B_backward = BLOCK_SIZE_B_backward
-        ctx.BLOCK_SIZE_V_backward = BLOCK_SIZE_V_backward
-        ctx.chunk_size = chunk_size
-        ctx.num_chunks = num_chunks
-
         loss = torch.tensor(0, device=x.device, dtype=torch.float32)
         x_grad = torch.empty_like(x)
         weight_grad = torch.zeros_like(weight)
@@ -71,9 +64,9 @@ class _FusedLinearCrossEntropy_Cute(torch.autograd.Function):
 
             _logits_grad = _softmax_forward(
                 x=_logits,
-                kernel_backend=ctx.kernel_backend_backward,
-                BLOCK_SIZE_B=ctx.BLOCK_SIZE_B_backward,
-                BLOCK_SIZE_H=ctx.BLOCK_SIZE_V_backward,
+                kernel_backend=kernel_backend_backward,
+                BLOCK_SIZE_B=BLOCK_SIZE_B_backward,
+                BLOCK_SIZE_H=BLOCK_SIZE_V_backward,
             )
 
             # I am lazy :)
