@@ -55,38 +55,41 @@ class _FusedLinearCrossEntropy_Cute(torch.autograd.Function):
             end = start + chunk_size
 
             _x = x[start:end]
-            _logits = F.linear(_x, weight)
+            _logits = F.linear(_x, weight).contiguous()
 
-            _labels = labels[start:end]
+            _labels = labels[start:end].contiguous()
 
             cross_entropy_forward_triton(
                 x=_logits,
                 labels=_labels,
                 loss=loss,
-                V=x.size(-1),
+                V=vocab_size,
                 BLOCK_SIZE_B=BLOCK_SIZE_B_forward,
                 BLOCK_SIZE_V=BLOCK_SIZE_V_forward,
-                reduction=reduction,
+                reduction="sum",
             )
 
-            _logits_grad = _softmax_forward(
-                x=_logits,
-                kernel_backend=ctx.kernel_backend_backward,
-                BLOCK_SIZE_B=ctx.BLOCK_SIZE_B_backward,
-                BLOCK_SIZE_H=ctx.BLOCK_SIZE_V_backward,
-            )
+            # _logits_grad = _softmax_forward(
+            #     x=_logits,
+            #     kernel_backend=ctx.kernel_backend_backward,
+            #     BLOCK_SIZE_B=ctx.BLOCK_SIZE_B_backward,
+            #     BLOCK_SIZE_H=ctx.BLOCK_SIZE_V_backward,
+            # )
 
-            # I am lazy :)
-            # but this can be fused inside the above kernel
-            _logits_grad[torch.arange(_labels.size(0), device=_labels.device), _labels] -= 1
+            # # I am lazy :)
+            # # but this can be fused inside the above kernel
+            # _logits_grad[torch.arange(_labels.size(0), device=_labels.device), _labels] -= 1
 
-            if reduction == "mean":
-                _logits_grad /= batch_size
+            # if reduction == "mean":
+            #     _logits_grad /= batch_size
 
-            x_grad[start:end] = _logits_grad @ weight
-            torch.addmm(weight_grad, _logits_grad.T, _x, alpha=1, beta=1, out=weight_grad)
+            # x_grad[start:end] = _logits_grad @ weight
+            # torch.addmm(weight_grad, _logits_grad.T, _x, alpha=1, beta=1, out=weight_grad)
 
             start = end
+
+        if reduction == "mean":
+            loss /= batch_size
 
         ctx.save_for_backward(x_grad, weight_grad)
 
@@ -94,13 +97,15 @@ class _FusedLinearCrossEntropy_Cute(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
-        x_grad, weight_grad = ctx.saved_tensors
+        # x_grad, weight_grad = ctx.saved_tensors
+        # print(output_grad)
 
-        if output_grad != 1:
-            x_grad *= output_grad
-            weight_grad *= output_grad
+        # if output_grad != 1:
+        #     x_grad *= output_grad
+        #     weight_grad *= output_grad
 
-        return x_grad, weight_grad, *[None] * 7
+        return [None] * 9
+        # return output_grad, output_grad, *[None] * 7
 
 
 def fused_linear_cross_entropy_cute(
