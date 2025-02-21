@@ -4,14 +4,12 @@ import torch.nn.functional as F
 from torch._inductor.pattern_matcher import PatternMatcherPass, fwd_only, register_replacement
 from torch.testing import FileCheck
 
-
-def swiglu_unchunked_torch(x: torch.Tensor) -> torch.Tensor:
-    x = x.chunk(2, dim=-1)
-    return x[0] * F.silu(x[1])
+from cute_kernels import CuteInductor, swiglu_unchunked_cute, swiglu_unchunked_torch
+from cute_kernels.utils import enable_cute_tracing
 
 
-def swiglu_unchunked_cute(x):
-    return x.chunk(2, dim=-1)[0] + 1
+def f(x):
+    return swiglu_unchunked_cute(x)
 
 
 saved_graph = None
@@ -60,7 +58,7 @@ with config.patch(
         # add,
         # sym_minus,
         swiglu_unchunked_torch,
-        swiglu_unchunked_cute,
+        f,
         my_args,
         fwd_only,
         [config.post_grad_custom_post_pass],
@@ -71,9 +69,9 @@ with config.patch(
     # def foo(x, y):
     #     return x + y
 
-    compiled = torch.compile(swiglu_unchunked_torch, dynamic=True)
+    compiled = torch.compile(swiglu_unchunked_torch, dynamic=True, backend=CuteInductor().compiler)
 
-    x = torch.rand([8, 8])
+    x = torch.rand([8, 8], device=torch.cuda.current_device())
 
     z = compiled(x)
     print(z - swiglu_unchunked_torch(x))
