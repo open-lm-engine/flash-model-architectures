@@ -1,7 +1,6 @@
 import torch
 
 from cute_kernels import CuteInductor, swiglu_unchunked_cute, swiglu_unchunked_torch
-from cute_kernels.cute_inductor.compiler import GraphCapture
 
 from ..test_commons import TestCommons
 
