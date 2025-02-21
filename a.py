@@ -22,13 +22,7 @@ class _CustomPass(PatternMatcherPass):
         saved_graph = g
 
 
-with config.patch(
-    # leave custom pass only in post_grad_passes()
-    pattern_matcher=False,
-    # define pattern match as custom post grad opt pass
-    post_grad_custom_pre_pass=None,
-    post_grad_custom_post_pass=_CustomPass(),
-):
+with config.patch(post_grad_custom_post_pass=_CustomPass()):
     my_args = [torch.empty([10, 10], device="cpu")]
 
     invoked = False
