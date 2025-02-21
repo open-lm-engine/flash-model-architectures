@@ -52,7 +52,16 @@ with config.patch(
     compiled = torch.compile(swiglu_unchunked_torch, dynamic=True, backend=CuteInductor().compiler)
 
     x = torch.rand([8, 8], device=torch.cuda.current_device())
-    z = compiled(x)
+    x.requires_grad_()
+    x_clone = x.clone().detach().requires_grad_()
 
-    print(z - swiglu_unchunked_torch(x))
+    z = compiled(x)
+    z_clone = swiglu_unchunked_torch(x)
+
+    print(z - z_clone)
+
+    z.sum().backward()
+    z_clone.sum().backward()
+    print(x.grad - x_clone.grad)
+
     print(saved_graph)
