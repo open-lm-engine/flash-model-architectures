@@ -39,8 +39,6 @@ with config.patch(
         return True
 
     register_replacement(
-        # add,
-        # sym_minus,
         swiglu_unchunked_torch,
         f,
         my_args,
