@@ -1,11 +1,8 @@
 import torch
 import torch._inductor.config as config
-import torch.nn.functional as F
 from torch._inductor.pattern_matcher import PatternMatcherPass, fwd_only, register_replacement
-from torch.testing import FileCheck
 
 from cute_kernels import CuteInductor, swiglu_unchunked_cute, swiglu_unchunked_torch
-from cute_kernels.utils import enable_cute_tracing
 
 
 def f(x):
@@ -32,20 +29,7 @@ with config.patch(
     post_grad_custom_pre_pass=None,
     post_grad_custom_post_pass=_CustomPass(),
 ):
-
-    # def add(x, y):
-    #     return x + y
-
-    # # testing that
-    # def sym_minus(x, y):
-    #     return (x - (-y.size(0))) - (y * -1) - y.size(0)
-
-    device = "cpu"
-    # my_args = [
-    #     torch.empty([8, 1], device=device),
-    #     torch.empty([10], device=device),
-    # ]
-    my_args = [torch.empty([10, 10], device=device)]
+    my_args = [torch.empty([10, 10], device="cpu")]
 
     invoked = False
 
@@ -65,20 +49,10 @@ with config.patch(
         extra_check=extra_check,
     )
 
-    # @torch.compile(dynamic=True)
-    # def foo(x, y):
-    #     return x + y
-
     compiled = torch.compile(swiglu_unchunked_torch, dynamic=True, backend=CuteInductor().compiler)
 
     x = torch.rand([8, 8], device=torch.cuda.current_device())
-
     z = compiled(x)
+
     print(z - swiglu_unchunked_torch(x))
-
     print(saved_graph)
-
-    # # we trace out the y.sym_size in replacement
-    # FileCheck().check("sym_size_int").check_same("num_users=2").check_same("target=torch.ops.aten.sym_size").run(
-    #     str(saved_graph)
-    # )
