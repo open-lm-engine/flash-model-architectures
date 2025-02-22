@@ -38,8 +38,17 @@ cute_inductor = CuteInductor(
     use_torch_inductor_after_cute_inductor=use_torch_inductor_after_cute_inductor, replace_functions=replace_functions
 )
 
-compiled_model = torch.compile(model, backend=cute_inductor.compiler)
+compiled_model = torch.compile(model, backend=cute_inductor.compiler, fullgraph=True)
 
 # trigger JIT compilation
-x = torch.randn(4, 4, device=torch.cuda.current_device())
+x = torch.randn(4, 4, device=torch.cuda.current_device(), requires_grad=True)
+x_clone = x.clone().detach().requires_grad_()
+
 y = compiled_model(x)
+y_clone = model(x_clone)
+
+y_clone.sum().backward()
+y.sum().backward()
+
+print(y_clone - y)
+print(x.grad - x_clone.grad)
