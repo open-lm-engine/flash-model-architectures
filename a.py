@@ -10,20 +10,16 @@ def f(x):
     return swiglu_unchunked_cute(x)
 
 
-saved_graph = None
-
-
 class _CustomPass(PatternMatcherPass):
     def __init__(self) -> None:
         super().__init__()
 
     def __call__(self, g: torch.fx.graph.Graph):
         self.apply(g)
-        global saved_graph
-        saved_graph = g
+        print(g)
 
 
-with config.patch(post_grad_custom_post_pass=_CustomPass()):
+with config.patch(joint_custom_post_pass=_CustomPass()):
     my_args = [
         torch.empty([10, 10], device=torch.cuda.current_device(), requires_grad=True),
     ]
@@ -39,16 +35,15 @@ with config.patch(post_grad_custom_post_pass=_CustomPass()):
         swiglu_unchunked_torch,
         f,
         my_args,
-        fwd_only,
-        [config.post_grad_custom_post_pass],
+        joint_fwd_bwd,
+        [config.joint_custom_post_pass],
         extra_check=extra_check,
     )
 
     compiled = torch.compile(swiglu_unchunked_torch, dynamic=True, backend=CuteInductor().compiler)
 
     x = torch.randn([8, 8], device=torch.cuda.current_device())
-    x = x.detach()
-    # x.requires_grad_()
+    x = x.detach().requires_grad_()
 
     x_clone = x.clone().detach().requires_grad_()
 
