@@ -50,7 +50,6 @@ with config.patch(joint_custom_post_pass=_CustomPass()):
     z = compiled(x)
     z_clone = swiglu_unchunked_torch(x_clone)
 
-    print(saved_graph)
     print(z - z_clone)
 
     z.sum().backward()
