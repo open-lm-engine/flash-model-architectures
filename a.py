@@ -23,7 +23,7 @@ class _CustomPass(PatternMatcherPass):
 
 
 with config.patch(post_grad_custom_post_pass=_CustomPass()):
-    my_args = [torch.empty([10, 10], device="cpu")]
+    my_args = [torch.empty([10, 10], device=torch.cuda.current_device())]
 
     invoked = False
 
@@ -44,16 +44,11 @@ with config.patch(post_grad_custom_post_pass=_CustomPass()):
     compiled = torch.compile(swiglu_unchunked_torch, dynamic=True, backend=CuteInductor().compiler)
 
     x = torch.rand([8, 8], device=torch.cuda.current_device())
-    x.requires_grad_()
+    x = x.detach().requires_grad_()
     x_clone = x.clone().detach().requires_grad_()
 
     z = compiled(x)
     z_clone = swiglu_unchunked_torch(x)
 
     print(z - z_clone)
-
-    z.sum().backward()
-    z_clone.sum().backward()
-    print(x.grad - x_clone.grad)
-
     print(saved_graph)
