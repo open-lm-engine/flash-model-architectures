@@ -44,7 +44,7 @@ with config.patch(post_grad_custom_post_pass=_CustomPass()):
     compiled = torch.compile(swiglu_unchunked_torch, dynamic=True, backend=CuteInductor().compiler)
 
     x = torch.rand([8, 8], device=torch.cuda.current_device())
-    x = x.detach().requires_grad_()
+    x.detach().requires_grad_()
     x_clone = x.clone().detach().requires_grad_()
 
     z = compiled(x)
