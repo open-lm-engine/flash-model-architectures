@@ -1,117 +1,75 @@
 import os
-from enum import Enum
 
 import yaml
 
-from ..enums import KernelBackend
 from ..utils import get_boolean_env_variable
 from .config import CutoTuneConfig
 
 
 _LOAD_CUTOTUNE_CACHE = get_boolean_env_variable("LOAD_CUTOTUNE_CACHE", True)
+_CUTOTUNE_CACHE_FILENAME = os.path.join(os.path.dirname(os.path.dirname(__file__)), "cache.yml")
 
 
 class _CutoTuneCache:
-    def __init__(self, function_hash: str, filename: str | None = None) -> None:
-        self.best_cache = {}
-        self.function_hash = function_hash
+    def __init__(self) -> None:
+        self.cache = {}
 
-        self.filename = (
-            f"{os.path.join(os.path.dirname(os.path.dirname(__file__)), self.function_hash)}.yml"
-            if filename is None
-            else filename
-        )
+        if _LOAD_CUTOTUNE_CACHE and os.path.exists(_CUTOTUNE_CACHE_FILENAME):
+            cache = yaml.load(open(_CUTOTUNE_CACHE_FILENAME, "r"), yaml.SafeLoader)
+            self.cache = self._deserialize(cache)
 
-        if _LOAD_CUTOTUNE_CACHE and os.path.exists(self.filename):
-            cache = yaml.load(open(self.filename, "r"), yaml.SafeLoader)
-            self.best_cache = self._deserialize(cache["best_configs"], False)
+    def add_config(self, function_hash: str, lookup_key: str, config: CutoTuneConfig) -> None:
+        if function_hash not in self.cache:
+            self.cache[function_hash] = {}
 
-    def add_config(self, lookup_key: str, config: CutoTuneConfig, time: float) -> None:
-        min_time = float("inf")
-        if lookup_key in self.best_cache:
-            min_time = self.best_cache[lookup_key][1]
+        self.cache[function_hash][lookup_key] = config
 
-        if time < min_time:
-            self.best_cache[lookup_key] = (config, time)
+    def get_config(self, function_hash: str, lookup_key: str, default: CutoTuneConfig = None) -> CutoTuneConfig:
+        if function_hash in self.cache:
+            function_cache = self.cache[function_hash]
+            return function_cache.get(lookup_key, default)
+
+        return default
 
     def save(self) -> None:
-        yaml.dump({"best_configs": self._serialize(self.best_cache, False)}, open(self.filename, "w"))
+        yaml.dump(self._serialize(self.cache), open(_CUTOTUNE_CACHE_FILENAME, "w"))
 
-    def get_best_configs(self) -> dict[str, CutoTuneConfig]:
-        return self.best_cache
-
-    def _serialize(self, x: dict, has_config_time_list: bool) -> dict:
+    def _serialize(self, x: dict) -> dict:
         result = {}
 
-        for lookup_key in x:
-            config_time_list = x[lookup_key]
-            if not has_config_time_list:
-                config_time_list = [config_time_list]
+        for function_hash in x:
+            function_cache = x[function_hash]
+            result[function_hash] = {}
 
-            def _serialize(v):
-                if isinstance(v, Enum):
-                    v = v.value
-                return v
-
-            for i, config_time in enumerate(config_time_list):
-                config, time = config_time
-                config = {key: _serialize(value) for key, value in config.get_key_values().items()}
-
-                config_time_list[i] = {"config": config, "time": time}
-
-            if not has_config_time_list:
-                config_time_list = config_time_list[0]
-
-            result[lookup_key] = config_time_list
+            for lookup_key, config in function_cache.items():
+                result[function_hash][lookup_key] = {key: value for key, value in config.get_key_values().items()}
 
         return result
 
-    def _deserialize(self, x: dict, has_config_time_list: bool) -> dict:
+    def _deserialize(self, x: dict) -> dict:
         result = {}
 
-        for lookup_key in x:
-            config_time_list = x[lookup_key]
-            if not has_config_time_list:
-                config_time_list = [config_time_list]
+        for function_hash in x:
+            function_cache = x[function_hash]
+            result[function_hash] = {}
 
-            def _deserialize(k, v):
-                if k.startswith("kernel_backend"):
-                    v = KernelBackend(v)
-                return v
-
-            for i, config_time in enumerate(config_time_list):
-                config = config_time["config"]
-                time = config_time["time"]
-                config = CutoTuneConfig({key: _deserialize(key, value) for key, value in config.items()})
-
-                config_time_list[i] = [config, time]
-
-            if not has_config_time_list:
-                config_time_list = config_time_list[0]
-
-            result[lookup_key] = config_time_list
+            for lookup_key, config in function_cache.items():
+                result[function_hash][lookup_key] = CutoTuneConfig({key: value for key, value in config.items()})
 
         return result
 
 
-_CUTOTUNE_CACHE_MAP = {}
+_CUTOTUNE_CACHE = None
 
 
-def get_cutotune_cache(function_hash: str) -> _CutoTuneCache:
-    global _CUTOTUNE_CACHE_MAP
-    cutotune_cache = _CUTOTUNE_CACHE_MAP.get(function_hash, None)
+def get_cutotune_cache() -> _CutoTuneCache:
+    global _CUTOTUNE_CACHE
+    if _CUTOTUNE_CACHE is None:
+        _CUTOTUNE_CACHE = _CutoTuneCache()
 
-    if cutotune_cache is None:
-        _CUTOTUNE_CACHE_MAP[function_hash] = _CutoTuneCache(function_hash)
-        cutotune_cache = _CUTOTUNE_CACHE_MAP[function_hash]
-
-    return cutotune_cache
+    return _CUTOTUNE_CACHE
 
 
-def save_cutotune_cache(function_hash: str) -> None:
-    global _CUTOTUNE_CACHE_MAP
-    _CUTOTUNE_CACHE_MAP[function_hash].save()
-
-
-def get_all_cutotune_caches() -> dict:
-    return _CUTOTUNE_CACHE_MAP
+def save_cutotune_cache() -> None:
+    global _CUTOTUNE_CACHE
+    _CUTOTUNE_CACHE.save()

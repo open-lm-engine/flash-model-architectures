@@ -7,12 +7,14 @@
 
 #include "alias.h"
 #include "common.h"
+#include "cutlass/half.h"
 
 template <>
 struct DType<c10::Half> {
     using c10_dtype = c10::Half;
     using nv_dtype = fp16;
     using nv_dtype2 = fp16_2;
+    using cutlass_dtype = cutlass::half_t;
 
     // fp32 -> fp16_2
     inline __device__ static nv_dtype2 reinterpret_32_bits_as_2x16(const fp32 &value) {

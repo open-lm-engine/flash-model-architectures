@@ -3,12 +3,10 @@ from .cutotune import (
     CutoTuneConfig,
     CutoTuneParameter,
     cutotune,
-    get_all_cutotune_caches,
     get_cartesian_product_cutotune_configs,
     get_cutotune_cache,
     save_cutotune_cache,
 )
-from .enums import KernelBackend
 from .inductor import init_inductor
 from .kernels import (
     MoE_Torch,
@@ -21,14 +19,20 @@ from .kernels import (
     continuous_count_and_sort_torch,
     continuous_count_cute,
     continuous_count_torch,
+    cross_entropy_cute,
+    cross_entropy_torch,
     embedding_cute,
     embedding_torch,
+    fused_linear_cross_entropy_cute,
+    fused_linear_cross_entropy_torch,
     gemm_cute,
     gemm_torch,
     linear_cute,
     linear_torch,
     rmsnorm_cute,
     rmsnorm_torch,
+    softmax_cute,
+    softmax_torch,
     swiglu_cute,
     swiglu_torch,
     swiglu_unchunked_cute,

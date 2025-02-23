@@ -14,6 +14,7 @@ struct DType<fp32> {
     using nv_dtype = fp32;
     using nv_dtype2 = fp32_2;
     using nv_dtype4 = fp32_4;
+    using cutlass_dtype = fp32;
 
     inline __device__ static nv_dtype2 make2(const nv_dtype &x, const nv_dtype &y) { return make_float2(x, y); }
     inline __device__ static nv_dtype2 make2(const nv_dtype *array) { return make_float2(array[0], array[1]); }

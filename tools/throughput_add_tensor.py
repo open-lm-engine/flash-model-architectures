@@ -3,7 +3,7 @@ from functools import partial
 import torch
 from tabulate import tabulate
 
-from cute_kernels import KernelBackend, add_tensor_cute, add_tensor_torch, device_synchronize
+from cute_kernels import add_tensor_cute, add_tensor_torch, device_synchronize
 
 
 n = 100
@@ -11,8 +11,8 @@ n = 100
 headers = ["dtype", "torch", "cuda", "triton"]
 kernels = [
     add_tensor_torch,
-    partial(add_tensor_cute, kernel_backend=KernelBackend.cuda, BLOCK_SIZE=1024),
-    partial(add_tensor_cute, kernel_backend=KernelBackend.triton, BLOCK_SIZE=1024),
+    partial(add_tensor_cute, kernel_backend="cuda", BLOCK_SIZE=1024),
+    partial(add_tensor_cute, kernel_backend="triton", BLOCK_SIZE=1024),
 ]
 
 table = []

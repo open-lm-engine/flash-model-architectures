@@ -2,25 +2,25 @@ import torch
 
 
 def gemm_torch(
-    a: torch.Tensor,
-    b: torch.Tensor,
-    c: torch.Tensor,
+    A: torch.Tensor,
+    B: torch.Tensor,
+    C: torch.Tensor,
     alpha: float = 1,
     beta: float = 1,
-    is_a_transposed: bool = False,
-    is_b_transposed: bool = False,
+    is_A_transposed: bool = False,
+    is_B_transposed: bool = False,
 ) -> torch.Tensor:
-    if is_a_transposed:
-        a = a.T
+    if is_A_transposed:
+        A = A.T
 
-    if is_b_transposed:
-        b = b.T
+    if is_B_transposed:
+        B = B.T
 
     if beta == 0:
-        output = a @ b
+        output = A @ B
         if alpha != 1:
             output *= alpha
     else:
-        output = torch.addmm(c, a, b, alpha=alpha, beta=beta)
+        output = torch.addmm(C, A, B, alpha=alpha, beta=beta)
 
     return output

@@ -1,7 +1,6 @@
 import torch
 
 from ...cutotune import CutoTuneParameter
-from ...enums import KernelBackend
 from ...utils import ensure_contiguous
 from .backward import _backward
 from .forward import _forward
@@ -15,8 +14,8 @@ class _Swiglu_Cute(torch.autograd.Function):
         ctx,
         gate: torch.Tensor,
         up: torch.Tensor,
-        kernel_backend_forward: KernelBackend,
-        kernel_backend_backward: KernelBackend,
+        kernel_backend_forward: str,
+        kernel_backend_backward: str,
         BLOCK_SIZE_forward: int,
         BLOCK_SIZE_backward: int,
     ) -> torch.Tensor:
@@ -48,8 +47,8 @@ class _Swiglu_Cute(torch.autograd.Function):
 def swiglu_cute(
     gate: torch.Tensor,
     up: torch.Tensor,
-    kernel_backend_forward: KernelBackend = CutoTuneParameter(),
-    kernel_backend_backward: KernelBackend = CutoTuneParameter(),
+    kernel_backend_forward: str = CutoTuneParameter(),
+    kernel_backend_backward: str = CutoTuneParameter(),
     BLOCK_SIZE_forward: int = CutoTuneParameter(),
     BLOCK_SIZE_backward: int = CutoTuneParameter(),
 ) -> torch.Tensor:

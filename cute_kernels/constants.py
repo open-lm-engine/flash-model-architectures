@@ -1,5 +1,4 @@
 import torch
-import triton.language as tl
 
 from .math import get_powers_of_2
 
