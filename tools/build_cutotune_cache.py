@@ -7,12 +7,13 @@ from cute_kernels import (
     add_scalar_cute,
     add_tensor_cute,
     continuous_count_cute,
+    cross_entropy_cute,
     embedding_cute,
     gemm_cute,
-    get_all_cutotune_caches,
     get_powers_of_2,
     rmsnorm_cute,
     save_cutotune_cache,
+    softmax_cute,
     swiglu_cute,
     swiglu_unchunked_cute,
 )
@@ -53,6 +54,11 @@ for dtype in all_dtypes:
             eps=1e-5,
         )
 
+    size = (81920, 8192)
+    x = torch.randn(size, dtype=dtype, device=torch.cuda.current_device(), requires_grad=True)
+
+    forward_backward(softmax_cute, x)
+
     input_ids_size = (32, 4096)
     weight_size = (131072, 4096)
     forward_backward(
@@ -66,16 +72,21 @@ for dtype in all_dtypes:
     input_size = (4096, 4096)
     weight_size = (4096, 4096)
 
-    for is_a_transposed in [False, True]:
-        for is_b_transposed in [False, True]:
+    for is_A_transposed in [False, True]:
+        for is_B_transposed in [False, True]:
             gemm_cute(
-                a=torch.randn(*input_size, device=torch.cuda.current_device(), dtype=dtype, requires_grad=True),
-                b=torch.randn(*weight_size, device=torch.cuda.current_device(), dtype=dtype, requires_grad=True),
-                c=None,
-                is_a_transposed=is_a_transposed,
-                is_b_transposed=is_b_transposed,
+                A=torch.randn(*input_size, device=torch.cuda.current_device(), dtype=dtype, requires_grad=True),
+                B=torch.randn(*weight_size, device=torch.cuda.current_device(), dtype=dtype, requires_grad=True),
+                C=None,
+                is_A_transposed=is_A_transposed,
+                is_B_transposed=is_B_transposed,
                 beta=0,
             )
+
+    size = (16384, 4096)
+    x = torch.randn(size, dtype=dtype, device=torch.cuda.current_device(), requires_grad=True)
+    labels = torch.randint(0, size[1], (x.size(0),), device=torch.cuda.current_device())
+    forward_backward(cross_entropy_cute, x=x, labels=labels)
 
 size = 104857600
 for dtype in [torch.long, torch.int32]:
@@ -84,5 +95,4 @@ for dtype in [torch.long, torch.int32]:
         continuous_count_cute(x, n)
 
 
-for function_hash in get_all_cutotune_caches():
-    save_cutotune_cache(function_hash)
+save_cutotune_cache()

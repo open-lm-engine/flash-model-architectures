@@ -1,4 +1,5 @@
 import inspect
+from contextlib import contextmanager
 from typing import Callable, Iterable, Sequence
 
 import torch
@@ -7,9 +8,14 @@ import torch
 _IS_CUTE_TRACING = False
 
 
-def set_cute_tracing(enable: bool) -> None:
+@contextmanager
+def enable_cute_tracing():
     global _IS_CUTE_TRACING
-    _IS_CUTE_TRACING = enable
+    _IS_CUTE_TRACING = True
+
+    yield
+
+    _IS_CUTE_TRACING = False
 
 
 def _dispatch(func: Callable, compileable_fn: Callable, *args, **kwargs):

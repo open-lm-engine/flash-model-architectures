@@ -19,17 +19,17 @@ _CUTLASS_KERNEL_NAME = "cutlass_gemm_cuda"
         condition=lambda **kwargs: kwargs["BLOCK_SIZE_M"] * kwargs["BLOCK_SIZE_N"] >= 32,
     ),
     default_config=CutoTuneConfig(dict(BLOCK_SIZE_M=16, BLOCK_SIZE_N=16)),
-    triggers={"a.dtype", "is_a_transposed", "is_b_transposed"},
+    triggers={"A.dtype", "is_A_transposed", "is_B_transposed"},
 )
 @cute_op(f"{LIBRARY_NAME}::{_NAIVE_KERNEL_NAME}", mutates_args={"output"})
 @cpp_jit(_NAIVE_KERNEL_NAME)
 def naive_gemm_cuda(
-    a: torch.Tensor,
-    b: torch.Tensor,
-    c: torch.Tensor | None,
+    A: torch.Tensor,
+    B: torch.Tensor,
+    C: torch.Tensor | None,
     output: torch.Tensor,
-    is_a_transposed: bool,
-    is_b_transposed: bool,
+    is_A_transposed: bool,
+    is_B_transposed: bool,
     alpha: float,
     beta: float,
     M: int,
@@ -43,17 +43,17 @@ def naive_gemm_cuda(
 @cutotune(
     get_cartesian_product_cutotune_configs(BLOCK_SIZE=get_powers_of_2(8, 32)),
     default_config=CutoTuneConfig(dict(BLOCK_SIZE=32)),
-    triggers={"a.dtype"},
+    triggers={"A.dtype"},
 )
 @cute_op(f"{LIBRARY_NAME}::{_SHARED_MEMORY_KERNEL_NAME}", mutates_args={"output"})
 @cpp_jit(_SHARED_MEMORY_KERNEL_NAME)
 def shared_memory_gemm_cuda(
-    a: torch.Tensor,
-    b: torch.Tensor,
-    c: torch.Tensor | None,
+    A: torch.Tensor,
+    B: torch.Tensor,
+    C: torch.Tensor | None,
     output: torch.Tensor,
-    is_a_transposed: bool,
-    is_b_transposed: bool,
+    is_A_transposed: bool,
+    is_B_transposed: bool,
     alpha: float,
     beta: float,
     M: int,
@@ -66,12 +66,12 @@ def shared_memory_gemm_cuda(
 @cute_op(f"{LIBRARY_NAME}::{_CUTLASS_KERNEL_NAME}", mutates_args={"output"})
 @cpp_jit(_CUTLASS_KERNEL_NAME)
 def cutlass_gemm_cuda(
-    a: torch.Tensor,
-    b: torch.Tensor,
-    c: torch.Tensor | None,
+    A: torch.Tensor,
+    B: torch.Tensor,
+    C: torch.Tensor | None,
     output: torch.Tensor,
-    is_a_transposed: bool,
-    is_b_transposed: bool,
+    is_A_transposed: bool,
+    is_B_transposed: bool,
     alpha: float,
     beta: float,
     M: int,

@@ -3,7 +3,7 @@ from typing import Callable
 import torch
 from parameterized import parameterized
 
-from cute_kernels import KernelBackend, ceil_divide, swiglu_unchunked_cute, swiglu_unchunked_torch
+from cute_kernels import ceil_divide, swiglu_unchunked_cute, swiglu_unchunked_torch
 
 from ..test_commons import TestCommons
 
@@ -14,8 +14,8 @@ class SwigluUnchunkedTest(TestCommons):
             TestCommons.get_2d_tensor_sizes(),  # size
             [torch.device("cuda")],  # device
             TestCommons.get_dtypes(),  # dtype
-            [KernelBackend.triton],  # kernel_backend_forward
-            [KernelBackend.triton],  # kernel_backend_backward
+            ["triton"],  # kernel_backend_forward
+            ["triton"],  # kernel_backend_backward
             [64],  # BLOCK_SIZE_B_forward
             [64],  # BLOCK_SIZE_B_forward
             [64],  # BLOCK_SIZE_H_backward
@@ -28,8 +28,8 @@ class SwigluUnchunkedTest(TestCommons):
         size: tuple[int],
         device: torch.device,
         dtype: torch.dtype,
-        kernel_backend_forward: KernelBackend,
-        kernel_backend_backward: KernelBackend,
+        kernel_backend_forward: str,
+        kernel_backend_backward: str,
         BLOCK_SIZE_B_forward: int,
         BLOCK_SIZE_H_forward: int,
         BLOCK_SIZE_B_backward: int,

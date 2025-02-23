@@ -1,7 +1,6 @@
 import torch
 
 from ....cutotune import CutoTuneParameter
-from ....enums import KernelBackend
 from .forward import _forward
 from .torch_implementation import add_scalar_torch
 
@@ -12,7 +11,7 @@ class _AddScalar_Cute(torch.autograd.Function):
         ctx,
         x: torch.Tensor,
         y: float,
-        kernel_backend: KernelBackend,
+        kernel_backend: str,
         BLOCK_SIZE: int,
     ) -> torch.Tensor:
         return _forward(
@@ -30,7 +29,7 @@ class _AddScalar_Cute(torch.autograd.Function):
 def add_scalar_cute(
     x: torch.Tensor,
     y: torch.Tensor,
-    kernel_backend: KernelBackend = CutoTuneParameter(),
+    kernel_backend: str = CutoTuneParameter(),
     BLOCK_SIZE: int = CutoTuneParameter(),
 ) -> torch.Tensor:
     return x if y == 0 else _AddScalar_Cute.apply(x, y, kernel_backend, BLOCK_SIZE)
