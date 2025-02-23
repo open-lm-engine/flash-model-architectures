@@ -4,8 +4,7 @@ import torch
 from parameterized import parameterized
 from transformers import set_seed
 
-from cute_kernels import KernelBackend, gemm_cute, gemm_torch
-from cute_kernels.kernels.gemm import CUDAKernelAlgorithm
+from cute_kernels import gemm_cute, gemm_torch
 
 from ..test_commons import TestCommons
 
@@ -17,33 +16,30 @@ class GEMMTest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(
             TestCommons.get_2d_tensor_sizes(),  # size
-            [False, True],  # is_a_transposed
-            [False, True],  # is_b_transposed
-            [False, True],  # has_c
-            [KernelBackend.triton],  # kernel_backend
-            [None],  # cuda_kernel_algorithm
+            [False, True],  # is_A_transposed
+            [False, True],  # is_B_transposed
+            [False, True],  # has_C
+            ["triton"],  # kernel_backend
             [torch.device("cuda")],  # device
             TestCommons.get_dtypes(),  # dtype
             [gemm_cute, torch.compile(gemm_cute, fullgraph=True)],  # function
         )
         + TestCommons.make_args_matrix(
             TestCommons.get_2d_tensor_sizes(),  # size
-            [False, True],  # is_a_transposed
-            [False, True],  # is_b_transposed
-            [False, True],  # has_c
-            [KernelBackend.cuda],  # kernel_backend
-            [CUDAKernelAlgorithm.naive],  # cuda_kernel_algorithm
+            [False, True],  # is_A_transposed
+            [False, True],  # is_B_transposed
+            [False, True],  # has_C
+            ["naive_cuda", "cutlass"],  # kernel_backend
             [torch.device("cuda")],  # device
             TestCommons.get_dtypes(),  # dtype
             [gemm_cute, torch.compile(gemm_cute, fullgraph=True)],  # function
         )
         + TestCommons.make_args_matrix(
             TestCommons.get_2d_tensor_sizes(),  # size
-            [False],  # is_a_transposed
-            [False],  # is_b_transposed
-            [False, True],  # has_c
-            [KernelBackend.cuda],  # kernel_backend
-            [CUDAKernelAlgorithm.shared_memory, CUDAKernelAlgorithm.cutlass_gemm_cuda],  # cuda_kernel_algorithm
+            [False],  # is_A_transposed
+            [False],  # is_B_transposed
+            [False, True],  # has_C
+            ["shared_memory_cuda"],  # kernel_backend
             [torch.device("cuda")],  # device
             TestCommons.get_dtypes(),  # dtype
             [gemm_cute, torch.compile(gemm_cute, fullgraph=True)],  # function
@@ -52,11 +48,10 @@ class GEMMTest(TestCommons):
     def test_gemm(
         self,
         size: tuple[int],
-        is_a_transposed: bool,
-        is_b_transposed: bool,
-        has_c: bool,
-        kernel_backend: KernelBackend,
-        cuda_kernel_algorithm: CUDAKernelAlgorithm,
+        is_A_transposed: bool,
+        is_B_transposed: bool,
+        has_C: bool,
+        kernel_backend: str,
         device: torch.device,
         dtype: torch.dtype,
         function: Callable,
@@ -65,36 +60,35 @@ class GEMMTest(TestCommons):
 
         std = 0.02
         M = 417
-        a = (
+        A = (
             torch.randn(
-                (size[0], M) if is_a_transposed else (M, size[0]), device=device, dtype=dtype, requires_grad=False
+                (size[0], M) if is_A_transposed else (M, size[0]), device=device, dtype=dtype, requires_grad=False
             )
             * std
         )
-        b = (
+        B = (
             torch.randn(
-                (size[1], size[0]) if is_b_transposed else size, device=device, dtype=dtype, requires_grad=False
+                (size[1], size[0]) if is_B_transposed else size, device=device, dtype=dtype, requires_grad=False
             )
             * std
         )
-        c = torch.randn(M, size[1], device=device, dtype=dtype, requires_grad=False) * std if has_c else None
+        C = torch.randn(M, size[1], device=device, dtype=dtype, requires_grad=False) * std if has_C else None
 
         alpha = 0.3
-        beta = 0.7 if has_c else 0
+        beta = 0.7 if has_C else 0
 
         output_kernel = function(
-            a=a,
-            b=b,
-            c=c,
-            is_a_transposed=is_a_transposed,
-            is_b_transposed=is_b_transposed,
+            A=A,
+            B=B,
+            C=C,
+            is_A_transposed=is_A_transposed,
+            is_B_transposed=is_B_transposed,
             alpha=alpha,
             beta=beta,
-            cuda_kernel_algorithm=cuda_kernel_algorithm,
             kernel_backend=kernel_backend,
         )
         output_expected = gemm_torch(
-            a=a, b=b, c=c, alpha=alpha, beta=beta, is_a_transposed=is_a_transposed, is_b_transposed=is_b_transposed
+            A=A, B=B, C=C, alpha=alpha, beta=beta, is_A_transposed=is_A_transposed, is_B_transposed=is_B_transposed
         )
 
         self.assert_equal_tensors(

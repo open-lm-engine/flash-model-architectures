@@ -3,8 +3,7 @@ from functools import partial
 import torch
 from tabulate import tabulate
 
-from cute_kernels import KernelBackend, device_synchronize, gemm_cute, gemm_torch
-from cute_kernels.kernels.gemm import CUDAKernelAlgorithm
+from cute_kernels import device_synchronize, gemm_cute, gemm_torch
 
 
 torch._inductor.config.max_autotune_gemm_backends = "TRITON"
@@ -24,10 +23,10 @@ headers = [
 kernels = [
     gemm_torch,
     torch.compile(gemm_torch, mode="max-autotune"),
-    partial(gemm_cute, kernel_backend=KernelBackend.cuda, cuda_kernel_algorithm=CUDAKernelAlgorithm.naive),
-    partial(gemm_cute, kernel_backend=KernelBackend.cuda, cuda_kernel_algorithm=CUDAKernelAlgorithm.shared_memory),
-    partial(gemm_cute, kernel_backend=KernelBackend.cuda, cuda_kernel_algorithm=CUDAKernelAlgorithm.cutlass_gemm_cuda),
-    partial(gemm_cute, kernel_backend=KernelBackend.triton),
+    partial(gemm_cute, kernel_backend="naive_cuda"),
+    partial(gemm_cute, kernel_backend="shared_memory_cuda"),
+    partial(gemm_cute, kernel_backend="cutlass"),
+    partial(gemm_cute, kernel_backend="triton"),
 ]
 
 table = []

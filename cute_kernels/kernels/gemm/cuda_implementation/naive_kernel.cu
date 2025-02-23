@@ -8,12 +8,12 @@
 #include "index.h"
 
 template <typename scalar_t>
-__global__ void _naive_gemm_cuda_kernel(const scalar_t *a,
-                                        const scalar_t *b,
-                                        const scalar_t *c,
+__global__ void _naive_gemm_cuda_kernel(const scalar_t *A,
+                                        const scalar_t *B,
+                                        const scalar_t *C,
                                         scalar_t *output,
-                                        const bool is_a_transposed,
-                                        const bool is_b_transposed,
+                                        const bool is_A_transposed,
+                                        const bool is_B_transposed,
                                         const fp32 alpha,
                                         const fp32 beta,
                                         const uint32 M,
@@ -29,29 +29,29 @@ __global__ void _naive_gemm_cuda_kernel(const scalar_t *a,
         #pragma unroll 128
         // clang-format on
         for (uint32 k = 0; k < K; k++) {
-            const uint64 a_index = get_matrix_index(i, k, M, K, is_a_transposed);
-            const uint64 b_index = get_matrix_index(k, j, K, N, is_b_transposed);
+            const uint64 A_index = get_matrix_index(i, k, M, K, is_A_transposed);
+            const uint64 B_index = get_matrix_index(k, j, K, N, is_B_transposed);
 
-            accumulator += a[a_index] * b[b_index];
+            accumulator += A[A_index] * B[B_index];
         }
 
         accumulator *= alpha;
         const uint64 index = get_matrix_index(i, j, M, N, false);
 
         if (beta != 0) {
-            accumulator += beta * c[index];
+            accumulator += beta * C[index];
         }
 
         output[index] = accumulator;
     }
 }
 
-void naive_gemm_cuda(const torch::Tensor &a,
-                     const torch::Tensor &b,
-                     std::optional<torch::Tensor> &c,
+void naive_gemm_cuda(const torch::Tensor &A,
+                     const torch::Tensor &B,
+                     std::optional<torch::Tensor> &C,
                      torch::Tensor &output,
-                     const bool &is_a_transposed,
-                     const bool &is_b_transposed,
+                     const bool &is_A_transposed,
+                     const bool &is_B_transposed,
                      const fp32 alpha,
                      const fp32 beta,
                      const uint32 &M,
@@ -64,14 +64,14 @@ void naive_gemm_cuda(const torch::Tensor &a,
     dim3 NUM_BLOCKS = dim3(ceil_divide<uint32>(N, BLOCK_SIZE_N), ceil_divide<uint32>(M, BLOCK_SIZE_M), 1);
     dim3 BLOCK_SIZE = dim3(BLOCK_SIZE_N, BLOCK_SIZE_M, 1);
 
-    AT_DISPATCH_CUSTOM_FLOAT_TYPES(a.scalar_type(), "naive_gemm_cuda_kernel", ([&] {
+    AT_DISPATCH_CUSTOM_FLOAT_TYPES(A.scalar_type(), "naive_gemm_cuda_kernel", ([&] {
                                        _naive_gemm_cuda_kernel<scalar_t><<<NUM_BLOCKS, BLOCK_SIZE>>>(
-                                           a.data_ptr<scalar_t>(),
-                                           b.data_ptr<scalar_t>(),
-                                           c.has_value() ? c.value().data_ptr<scalar_t>() : nullptr,
+                                           A.data_ptr<scalar_t>(),
+                                           B.data_ptr<scalar_t>(),
+                                           C.has_value() ? C.value().data_ptr<scalar_t>() : nullptr,
                                            output.data_ptr<scalar_t>(),
-                                           is_a_transposed,
-                                           is_b_transposed,
+                                           is_A_transposed,
+                                           is_B_transposed,
                                            alpha,
                                            beta,
                                            M,

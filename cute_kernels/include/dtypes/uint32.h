@@ -21,3 +21,11 @@ struct DType<uint32> {
         return make_uint4(x, y, z, t);
     }
 };
+
+inline int32 safe_cast_uint32_to_int32(const uint32 value) {
+    if (value > std::numeric_limits<int32>::max()) {
+        throw std::runtime_error("value exceeds int32's max value");
+    }
+
+    return static_cast<int32>(value);
+}
