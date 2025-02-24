@@ -2,7 +2,7 @@ import torch
 import torch._inductor.config as config
 import torch.nn.functional as F
 
-from .pattern_matcher import PatternMatcherPass, fwd_only, joint_fwd_bwd, register_replacement
+from pattern_matcher import PatternMatcherPass, fwd_only, joint_fwd_bwd, register_replacement
 
 
 def swiglu_unchunked_torch(x: torch.Tensor) -> torch.Tensor:
@@ -47,7 +47,7 @@ with config.patch(
         swiglu_unchunked_torch,
         f,
         my_args,
-        fwd_only,
+        joint_fwd_bwd,
         [config.post_grad_custom_post_pass],
         extra_check=extra_check,
     )
