@@ -11,7 +11,7 @@ def swiglu_unchunked_torch(x: torch.Tensor) -> torch.Tensor:
 
 def f(x):
     x = x.chunk(2, dim=-1)
-    return F.relu(x[0])
+    return F.relu(x[0]) + F.relu(-x[1])
 
 
 class _CustomPass(PatternMatcherPass):
@@ -24,15 +24,16 @@ class _CustomPass(PatternMatcherPass):
         print(g)
 
 
+device = "cpu"
+
+
 with config.patch(
     pattern_matcher=False,
     # define pattern match as custom post grad opt pass
     post_grad_custom_pre_pass=None,
     post_grad_custom_post_pass=_CustomPass(),
 ):
-    my_args = [
-        torch.empty([10, 10], device=torch.cuda.current_device(), requires_grad=True),
-    ]
+    my_args = [torch.empty([10, 10], device=device, requires_grad=True)]
 
     invoked = False
 
@@ -52,7 +53,7 @@ with config.patch(
 
     compiled = torch.compile(swiglu_unchunked_torch, dynamic=True)
 
-    x = torch.randn([8, 8], device=torch.cuda.current_device())
+    x = torch.randn([8, 8], device=device)
     x = x.detach()  # .requires_grad_()
 
     x_clone = x.clone().detach().requires_grad_()
