@@ -1,0 +1,18 @@
+graph():
+    %arg0_1 : [num_users=1] = placeholder[target=arg0_1]
+    %arg1_1 : [num_users=2] = placeholder[target=arg1_1]
+    %add : [num_users=1] = call_function[target=operator.add](args = (%arg0_1, 2), kwargs = {})
+    %sub : [num_users=1] = call_function[target=operator.sub](args = (%add, 1), kwargs = {})
+    %floordiv : [num_users=0] = call_function[target=operator.floordiv](args = (%sub, 2), kwargs = {})
+    %sym_size_int_3 : [num_users=1] = call_function[target=torch.ops.aten.sym_size.int](args = (%arg1_1, 1), kwargs = {})
+    %add_13 : [num_users=1] = call_function[target=operator.add](args = (%sym_size_int_3, 2), kwargs = {})
+    %sub_9 : [num_users=1] = call_function[target=operator.sub](args = (%add_13, 1), kwargs = {})
+    %floordiv_1 : [num_users=1] = call_function[target=operator.floordiv](args = (%sub_9, 2), kwargs = {})
+    %split_tensor : [num_users=2] = call_function[target=torch.ops.aten.split.Tensor](args = (%arg1_1, %floordiv_1, -1), kwargs = {})
+    %getitem_2 : [num_users=1] = call_function[target=operator.getitem](args = (%split_tensor, 0), kwargs = {})
+    %getitem_3 : [num_users=1] = call_function[target=operator.getitem](args = (%split_tensor, 1), kwargs = {})
+    %relu_default : [num_users=1] = call_function[target=torch.ops.aten.relu.default](args = (%getitem_2,), kwargs = {})
+    %neg_default : [num_users=1] = call_function[target=torch.ops.aten.neg.default](args = (%getitem_3,), kwargs = {})
+    %relu_default_1 : [num_users=1] = call_function[target=torch.ops.aten.relu.default](args = (%neg_default,), kwargs = {})
+    %add_tensor : [num_users=1] = call_function[target=torch.ops.aten.add.Tensor](args = (%relu_default, %relu_default_1), kwargs = {})
+    return (add_tensor,)

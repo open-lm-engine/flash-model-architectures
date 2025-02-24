@@ -16,7 +16,7 @@ def replace(x: torch.Tensor) -> torch.Tensor:
 
 def f(x):
     x = x * 4
-    x += 3
+    x = x + 3
     x = search(x)
     return F.sigmoid(x)
 
@@ -42,12 +42,20 @@ with config.patch(
 ):
     my_args = [torch.empty([10, 10], device=device, requires_grad=True)]
 
+    invoked = False
+
+    def extra_check(match):
+        global invoked
+        invoked = True
+        return True
+
     register_replacement(
         search,
         replace,
         my_args,
         fwd_only,
         [config.post_grad_custom_post_pass],
+        extra_check=extra_check,
     )
 
     compiled_f = torch.compile(f, dynamic=True)
