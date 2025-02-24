@@ -1,18 +1,24 @@
 import torch
 import torch._inductor.config as config
 import torch.nn.functional as F
+from torch._inductor.pattern_matcher import PatternMatcherPass, fwd_only, joint_fwd_bwd, register_replacement
 
-from pattern_matcher import PatternMatcherPass, fwd_only, joint_fwd_bwd, register_replacement
 
-
-def swiglu_unchunked_torch(x: torch.Tensor) -> torch.Tensor:
+def search(x: torch.Tensor) -> torch.Tensor:
     x = x.chunk(2, dim=-1)
     return x[0] * F.silu(x[1])
 
 
-def f(x):
+def replace(x: torch.Tensor) -> torch.Tensor:
     x = x.chunk(2, dim=-1)
     return F.relu(x[0]) + F.relu(-x[1])
+
+
+def f(x):
+    x = x * 4
+    x += 3
+    x = search(x)
+    return F.sigmoid(x)
 
 
 class _CustomPass(PatternMatcherPass):
@@ -36,35 +42,22 @@ with config.patch(
 ):
     my_args = [torch.empty([10, 10], device=device, requires_grad=True)]
 
-    invoked = False
-
-    def extra_check(match):
-        global invoked
-        invoked = True
-        return True
-
     register_replacement(
-        swiglu_unchunked_torch,
-        f,
+        search,
+        replace,
         my_args,
-        joint_fwd_bwd,
+        fwd_only,
         [config.post_grad_custom_post_pass],
-        extra_check=extra_check,
     )
 
-    compiled = torch.compile(swiglu_unchunked_torch, dynamic=True)
+    compiled_f = torch.compile(f, dynamic=True)
 
     x = torch.randn([8, 8], device=device)
-    x = x.detach().requires_grad_()
+    x = x.detach()  # .requires_grad_()
 
     x_clone = x.clone().detach().requires_grad_()
 
-    z = compiled(x)
-    z_clone = swiglu_unchunked_torch(x_clone)
+    z = compiled_f(x)
+    z_clone = f(x_clone)
 
     print(z - z_clone)
-
-    z.sum().backward()
-    z_clone.sum().backward()
-
-    print(x.grad - x_clone.grad)
