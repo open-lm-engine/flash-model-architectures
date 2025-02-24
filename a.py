@@ -1,7 +1,8 @@
 import torch
 import torch._inductor.config as config
 import torch.nn.functional as F
-from torch._inductor.pattern_matcher import PatternMatcherPass, fwd_only, joint_fwd_bwd, register_replacement
+
+from .pattern_matcher import PatternMatcherPass, fwd_only, joint_fwd_bwd, register_replacement
 
 
 def swiglu_unchunked_torch(x: torch.Tensor) -> torch.Tensor:
@@ -54,7 +55,7 @@ with config.patch(
     compiled = torch.compile(swiglu_unchunked_torch, dynamic=True)
 
     x = torch.randn([8, 8], device=device)
-    x = x.detach()  # .requires_grad_()
+    x = x.detach().requires_grad_()
 
     x_clone = x.clone().detach().requires_grad_()
 
@@ -63,7 +64,7 @@ with config.patch(
 
     print(z - z_clone)
 
-    # z.sum().backward()
-    # z_clone.sum().backward()
+    z.sum().backward()
+    z_clone.sum().backward()
 
-    # print(x.grad - x_clone.grad)
+    print(x.grad - x_clone.grad)
