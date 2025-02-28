@@ -39,11 +39,15 @@ class SoftmaxTest(TestCommons):
             size = (size,)
 
         x_kernel, x_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype, std=0.02)
+        logits_multiplier = 0.7
 
         z_kernel = function(
-            x_kernel, kernel_backend_forward=kernel_backend_forward, kernel_backend_backward=kernel_backend_backward
+            x_kernel,
+            logits_multiplier,
+            kernel_backend_forward=kernel_backend_forward,
+            kernel_backend_backward=kernel_backend_backward,
         )
-        z_expected = softmax_torch(x_expected)
+        z_expected = softmax_torch(x_expected, logits_multiplier)
 
         z_kernel.sum().backward()
         z_expected.sum().backward()
