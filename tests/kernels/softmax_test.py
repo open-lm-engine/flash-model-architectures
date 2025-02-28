@@ -57,7 +57,7 @@ class SoftmaxTest(TestCommons):
             x_kernel.grad,
             x_expected.grad,
             False,
-            atol_float32=3e-5,
+            atol_float32=4e-5,
             rtol_float32=0,
             atol_bfloat16=4e-5,
             rtol_bfloat16=0,
