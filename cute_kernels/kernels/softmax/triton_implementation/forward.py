@@ -67,6 +67,7 @@ def _softmax_forward_triton_kernel(
         )
 
         x = x.to(tl.float32)
+        x *= logits_multiplier
         x -= M
         x = tl.exp(x)
         x /= Z
