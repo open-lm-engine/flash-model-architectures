@@ -15,6 +15,7 @@ class _CrossEntropy_Cute(torch.autograd.Function):
         x: torch.Tensor,
         labels: torch.Tensor,
         reduction: str,
+        logits_multiplier: float,
         BLOCK_SIZE_B_forward: int,
         BLOCK_SIZE_V_forward: int,
         kernel_backend_backward: str,
@@ -29,6 +30,7 @@ class _CrossEntropy_Cute(torch.autograd.Function):
         ctx.save_for_backward(x, labels)
 
         ctx.reduction = reduction
+        ctx.logits_multiplier = logits_multiplier
         ctx.kernel_backend_backward = kernel_backend_backward
         ctx.BLOCK_SIZE_B_backward = BLOCK_SIZE_B_backward
         ctx.BLOCK_SIZE_V_backward = BLOCK_SIZE_V_backward
@@ -38,6 +40,7 @@ class _CrossEntropy_Cute(torch.autograd.Function):
             x=x,
             labels=labels,
             loss=loss,
+            logits_multiplier=logits_multiplier,
             BLOCK_SIZE_B=BLOCK_SIZE_B_forward,
             BLOCK_SIZE_V=BLOCK_SIZE_V_forward,
             reduction=reduction,
@@ -71,6 +74,7 @@ def cross_entropy_cute(
     x: torch.Tensor,
     labels: torch.Tensor,
     reduction: str = "mean",
+    logits_multiplier: float = 1,
     BLOCK_SIZE_B_forward: int = CutoTuneParameter(),
     BLOCK_SIZE_V_forward: int = CutoTuneParameter(),
     kernel_backend_backward: str = CutoTuneParameter(),
@@ -81,6 +85,7 @@ def cross_entropy_cute(
         x,
         labels,
         reduction,
+        logits_multiplier,
         BLOCK_SIZE_B_forward,
         BLOCK_SIZE_V_forward,
         kernel_backend_backward,
