@@ -33,6 +33,7 @@ def _softmax_backward_triton_kernel(
     output_ptr,
     output_grad_ptr,
     x_grad_ptr,
+    logits_multiplier,
     B,
     H,
     BLOCK_SIZE_B: tl.constexpr,
@@ -60,6 +61,8 @@ def _softmax_backward_triton_kernel(
         acc = output_grad * output
         acc = acc.to(tl.float32)
         accumulator += tl.sum(acc, axis=1, keep_dims=True)
+
+    accumulator *= logits_multiplier
 
     for h in range(num_blocks_h):
         output, output_grad, indices, mask_bh = _load_output_output_grad(
@@ -90,7 +93,12 @@ def _softmax_backward_triton_kernel(
 )
 @cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"x_grad"})
 def softmax_backward_triton(
-    output: torch.Tensor, output_grad: torch.Tensor, x_grad: torch.Tensor, BLOCK_SIZE_B: int, BLOCK_SIZE_H: int
+    output: torch.Tensor,
+    output_grad: torch.Tensor,
+    x_grad: torch.Tensor,
+    logits_multiplier: float,
+    BLOCK_SIZE_B: int,
+    BLOCK_SIZE_H: int,
 ) -> None:
     num_elements, hidden_size = get_num_elements_and_hidden_size(x_grad)
 
@@ -99,6 +107,7 @@ def softmax_backward_triton(
             output_ptr=output,
             output_grad_ptr=output_grad,
             x_grad_ptr=x_grad,
+            logits_multiplier=logits_multiplier,
             B=num_elements,
             H=hidden_size,
             BLOCK_SIZE_B=BLOCK_SIZE_B,

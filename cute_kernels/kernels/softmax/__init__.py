@@ -60,6 +60,7 @@ class _Softmax_Cute(torch.autograd.Function):
             x_grad = _backward(
                 output=output,
                 output_grad=output_grad,
+                logits_multiplier=ctx.logits_multiplier,
                 kernel_backend=ctx.kernel_backend_backward,
                 BLOCK_SIZE_B=ctx.BLOCK_SIZE_B_backward,
                 BLOCK_SIZE_H=ctx.BLOCK_SIZE_H_backward,
