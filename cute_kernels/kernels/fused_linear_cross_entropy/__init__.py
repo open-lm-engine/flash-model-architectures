@@ -74,7 +74,8 @@ class _FusedLinearCrossEntropy_Cute(torch.autograd.Function):
             # I am lazy :)
             # but this can be fused inside the above kernel
             _logits_grad[torch.arange(_labels.size(0), device=_labels.device), _labels] -= 1
-            _logits_grad *= logits_multiplier
+            if logits_multiplier != 1:
+                _logits_grad *= logits_multiplier
 
             x_grad[start:end] = _logits_grad @ weight
             torch.addmm(weight_grad, _logits_grad.T, _x, alpha=1, beta=1, out=weight_grad)
