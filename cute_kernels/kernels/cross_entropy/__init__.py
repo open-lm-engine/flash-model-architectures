@@ -55,6 +55,7 @@ class _CrossEntropy_Cute(torch.autograd.Function):
 
         x_grad = _softmax_forward(
             x=x,
+            logits_multiplier=ctx.logits_multiplier,
             kernel_backend=ctx.kernel_backend_backward,
             BLOCK_SIZE_B=ctx.BLOCK_SIZE_B_backward,
             BLOCK_SIZE_H=ctx.BLOCK_SIZE_V_backward,
