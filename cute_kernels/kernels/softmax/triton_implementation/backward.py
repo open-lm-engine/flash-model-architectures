@@ -62,8 +62,6 @@ def _softmax_backward_triton_kernel(
         acc = acc.to(tl.float32)
         accumulator += tl.sum(acc, axis=1, keep_dims=True)
 
-    accumulator *= logits_multiplier
-
     for h in range(num_blocks_h):
         output, output_grad, indices, mask_bh = _load_output_output_grad(
             output_ptr=output_ptr,
@@ -76,7 +74,7 @@ def _softmax_backward_triton_kernel(
         )
 
         output_grad -= accumulator
-        output *= output_grad
+        output *= output_grad * logits_multiplier
 
         x_grad_ptrs = x_grad_ptr + indices
         tl.store(x_grad_ptrs, output, mask=mask_bh)
