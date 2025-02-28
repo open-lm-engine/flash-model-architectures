@@ -8,13 +8,14 @@ from ....math import ceil_divide, get_powers_of_2
 from ....utils import cute_op, get_num_elements_and_hidden_size
 
 
-_KERNEL_NAME = "online_softmax_forward_triton"
+_KERNEL_NAME = "softmax_forward_triton"
 
 
 @triton.jit
-def _exp_with_offset(x, offset):
+def _exp_with_offset(x, logits_multiplier, offset):
     x += offset
     x = x.to(tl.float32)
+    x *= logits_multiplier
     x = tl.exp(x)
     return x
 
@@ -37,6 +38,7 @@ def _load_x(x_ptr, h, H, BLOCK_SIZE_H, indices_b, mask_b, other=None):
 def _softmax_forward_triton_kernel(
     x_ptr,
     output_ptr,
+    logits_multiplier,
     B,
     H,
     BLOCK_SIZE_B: tl.constexpr,
@@ -61,7 +63,7 @@ def _softmax_forward_triton_kernel(
         m = tl.max(x, axis=1, keep_dims=True)
         M = max(M, m)
 
-        x = _exp_with_offset(x, -M)
+        x = _exp_with_offset(x, logits_multiplier, -M)
         Z = Z * tl.exp(prev_m - M) + tl.sum(x, axis=1, keep_dims=True)
 
     for h in range(num_blocks_h):
@@ -69,7 +71,7 @@ def _softmax_forward_triton_kernel(
             x_ptr=x_ptr, h=h, H=H, BLOCK_SIZE_H=BLOCK_SIZE_H, indices_b=indices_b, mask_b=mask_b
         )
 
-        x = _exp_with_offset(x, -M)
+        x = _exp_with_offset(x, logits_multiplier, -M)
         x /= Z
 
         output_ptrs = output_ptr + indices
@@ -86,13 +88,16 @@ def _softmax_forward_triton_kernel(
     triggers={"x.dtype"},
 )
 @cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"output"})
-def softmax_forward_triton(x: torch.Tensor, output: torch.Tensor, BLOCK_SIZE_B: int, BLOCK_SIZE_H: int) -> None:
+def softmax_forward_triton(
+    x: torch.Tensor, output: torch.Tensor, logits_multiplier: float, BLOCK_SIZE_B: int, BLOCK_SIZE_H: int
+) -> None:
     num_elements, hidden_size = get_num_elements_and_hidden_size(x)
 
     with torch.device(x.device):
         _softmax_forward_triton_kernel[(ceil_divide(num_elements, BLOCK_SIZE_B),)](
             x_ptr=x,
             output_ptr=output,
+            logits_multiplier=logits_multiplier,
             B=num_elements,
             H=hidden_size,
             BLOCK_SIZE_B=BLOCK_SIZE_B,

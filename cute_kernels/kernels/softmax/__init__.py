@@ -13,6 +13,7 @@ class _Softmax_Cute(torch.autograd.Function):
     def forward(
         ctx,
         x: torch.Tensor,
+        logits_multiplier: float,
         kernel_backend_forward: str,
         BLOCK_SIZE_B_forward: int,
         BLOCK_SIZE_H_forward: int,
@@ -40,6 +41,7 @@ class _Softmax_Cute(torch.autograd.Function):
             output = output.squeeze(0)
 
         ctx.save_for_backward(output)
+        ctx.logits_multiplier = logits_multiplier
         ctx.kernel_backend_backward = kernel_backend_backward
         ctx.BLOCK_SIZE_B_backward = BLOCK_SIZE_B_backward
         ctx.BLOCK_SIZE_H_backward = BLOCK_SIZE_H_backward
@@ -67,6 +69,7 @@ class _Softmax_Cute(torch.autograd.Function):
 
 def softmax_cute(
     x: torch.Tensor,
+    logits_multiplier: float = 1,
     kernel_backend_forward: str = CutoTuneParameter(),
     BLOCK_SIZE_B_forward: int = CutoTuneParameter(),
     BLOCK_SIZE_H_forward: int = CutoTuneParameter(),
@@ -76,6 +79,7 @@ def softmax_cute(
 ) -> torch.Tensor:
     return _Softmax_Cute.apply(
         x,
+        logits_multiplier,
         kernel_backend_forward,
         BLOCK_SIZE_B_forward,
         BLOCK_SIZE_H_forward,
