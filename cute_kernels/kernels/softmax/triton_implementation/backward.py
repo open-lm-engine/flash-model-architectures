@@ -74,7 +74,8 @@ def _softmax_backward_triton_kernel(
         )
 
         output_grad -= accumulator
-        output *= output_grad * logits_multiplier
+        output *= output_grad
+        output *= logits_multiplier
 
         x_grad_ptrs = x_grad_ptr + indices
         tl.store(x_grad_ptrs, output, mask=mask_bh)
