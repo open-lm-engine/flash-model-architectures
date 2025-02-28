@@ -16,6 +16,7 @@ def _cross_entropy_forward_triton_kernel(
     x_ptr,
     labels_ptr,
     loss_ptr,
+    logits_multiplier,
     B,
     V,
     BLOCK_SIZE_B: tl.constexpr,
@@ -41,13 +42,14 @@ def _cross_entropy_forward_triton_kernel(
 
         x_ptrs = x_ptr + indices
         x = tl.load(x_ptrs, mask=mask_bh, other=-float("inf"))
+        x = x.to(tl.float32)
+        x *= logits_multiplier
 
         prev_m = M
         m = tl.max(x, axis=1, keep_dims=True)
         M = max(M, m)
 
         x -= M
-        x = x.to(tl.float32)
         x = tl.exp(x)
         Z = Z * tl.exp(prev_m - M) + tl.sum(x, axis=1, keep_dims=True)
 
@@ -56,6 +58,8 @@ def _cross_entropy_forward_triton_kernel(
 
     x_ptrs = x_ptr + indices_b * V + labels
     x = tl.load(x_ptrs, mask=mask_b)
+    x = x.to(tl.float32)
+    x *= logits_multiplier
 
     loss = M + tl.log(Z) - x[:, None]
     loss = tl.where(mask_b[:, None], loss, 0)
@@ -82,6 +86,7 @@ def cross_entropy_forward_triton(
     x: torch.Tensor,
     labels: torch.Tensor,
     loss: torch.Tensor,
+    logits_multiplier: float,
     BLOCK_SIZE_B: int,
     BLOCK_SIZE_V: int,
     reduction: str,
@@ -93,6 +98,7 @@ def cross_entropy_forward_triton(
             x_ptr=x,
             labels_ptr=labels,
             loss_ptr=loss,
+            logits_multiplier=logits_multiplier,
             B=num_elements,
             V=vocab_size,
             BLOCK_SIZE_B=BLOCK_SIZE_B,
