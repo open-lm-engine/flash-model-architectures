@@ -12,15 +12,6 @@ _KERNEL_NAME = "softmax_forward_triton"
 
 
 @triton.jit
-def _exp_with_offset(x, logits_multiplier, offset):
-    x += offset
-    x = x.to(tl.float32)
-    x *= logits_multiplier
-    x = tl.exp(x)
-    return x
-
-
-@triton.jit
 def _load_x(x_ptr, h, H, BLOCK_SIZE_H, indices_b, mask_b, other=None):
     indices_h = h * BLOCK_SIZE_H + tl.arange(0, BLOCK_SIZE_H)
     mask_h = indices_h < H
@@ -59,11 +50,15 @@ def _softmax_forward_triton_kernel(
             x_ptr=x_ptr, h=h, H=H, BLOCK_SIZE_H=BLOCK_SIZE_H, indices_b=indices_b, mask_b=mask_b, other=-float("inf")
         )
 
+        x = x.to(tl.float32)
+        x *= logits_multiplier
+
         prev_m = M
         m = tl.max(x, axis=1, keep_dims=True)
         M = max(M, m)
 
-        x = _exp_with_offset(x, logits_multiplier, -M)
+        x -= M
+        x = tl.exp(x)
         Z = Z * tl.exp(prev_m - M) + tl.sum(x, axis=1, keep_dims=True)
 
     for h in range(num_blocks_h):
@@ -71,7 +66,9 @@ def _softmax_forward_triton_kernel(
             x_ptr=x_ptr, h=h, H=H, BLOCK_SIZE_H=BLOCK_SIZE_H, indices_b=indices_b, mask_b=mask_b
         )
 
-        x = _exp_with_offset(x, logits_multiplier, -M)
+        x = x.to(tl.float32)
+        x -= M
+        x = tl.exp(x)
         x /= Z
 
         output_ptrs = output_ptr + indices
