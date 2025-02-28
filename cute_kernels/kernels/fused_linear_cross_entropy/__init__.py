@@ -95,7 +95,7 @@ class _FusedLinearCrossEntropy_Cute(torch.autograd.Function):
         x_grad *= output_grad
         weight_grad *= output_grad
 
-        return x_grad, weight_grad, *[None] * 7
+        return x_grad, weight_grad, *[None] * 8
 
 
 def fused_linear_cross_entropy_cute(
