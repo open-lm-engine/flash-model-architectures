@@ -32,6 +32,7 @@ class _Softmax_Cute(torch.autograd.Function):
 
         output = _forward(
             x=x,
+            logits_multiplier=logits_multiplier,
             kernel_backend=kernel_backend_forward,
             BLOCK_SIZE_B=BLOCK_SIZE_B_forward,
             BLOCK_SIZE_H=BLOCK_SIZE_H_forward,
