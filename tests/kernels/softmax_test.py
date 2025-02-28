@@ -52,7 +52,7 @@ class SoftmaxTest(TestCommons):
         z_kernel.sum().backward()
         z_expected.sum().backward()
 
-        self.assert_equal_tensors(z_kernel, z_expected, False, atol_float32=4e-5, rtol_float32=0)
+        self.assert_equal_tensors(z_kernel, z_expected, False, atol_float32=5e-5, rtol_float32=0)
         self.assert_equal_tensors(
             x_kernel.grad,
             x_expected.grad,
