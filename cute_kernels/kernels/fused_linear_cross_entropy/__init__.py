@@ -17,6 +17,7 @@ class _FusedLinearCrossEntropy_Cute(torch.autograd.Function):
         weight: torch.Tensor,
         labels: torch.Tensor,
         reduction: str,
+        logits_multiplier: float,
         BLOCK_SIZE_B_forward: int,
         BLOCK_SIZE_V_forward: int,
         kernel_backend_backward: str,
@@ -56,6 +57,7 @@ class _FusedLinearCrossEntropy_Cute(torch.autograd.Function):
                 x=_logits,
                 labels=_labels,
                 loss=loss,
+                logits_multiplier=logits_multiplier,
                 BLOCK_SIZE_B=BLOCK_SIZE_B_forward,
                 BLOCK_SIZE_V=BLOCK_SIZE_V_forward,
                 reduction="sum",
@@ -63,6 +65,7 @@ class _FusedLinearCrossEntropy_Cute(torch.autograd.Function):
 
             _logits_grad = _softmax_forward(
                 x=_logits,
+                logits_multiplier=logits_multiplier,
                 kernel_backend=kernel_backend_backward,
                 BLOCK_SIZE_B=BLOCK_SIZE_B_backward,
                 BLOCK_SIZE_H=BLOCK_SIZE_V_backward,
@@ -71,6 +74,7 @@ class _FusedLinearCrossEntropy_Cute(torch.autograd.Function):
             # I am lazy :)
             # but this can be fused inside the above kernel
             _logits_grad[torch.arange(_labels.size(0), device=_labels.device), _labels] -= 1
+            _logits_grad *= logits_multiplier
 
             x_grad[start:end] = _logits_grad @ weight
             torch.addmm(weight_grad, _logits_grad.T, _x, alpha=1, beta=1, out=weight_grad)
@@ -99,6 +103,7 @@ def fused_linear_cross_entropy_cute(
     weight: torch.Tensor,
     labels: torch.Tensor,
     reduction: str = "mean",
+    logits_multiplier: float = 1,
     BLOCK_SIZE_B_forward: int = CutoTuneParameter(),
     BLOCK_SIZE_V_forward: int = CutoTuneParameter(),
     kernel_backend_backward: str = CutoTuneParameter(),
@@ -110,6 +115,7 @@ def fused_linear_cross_entropy_cute(
         weight,
         labels,
         reduction,
+        logits_multiplier,
         BLOCK_SIZE_B_forward,
         BLOCK_SIZE_V_forward,
         kernel_backend_backward,
