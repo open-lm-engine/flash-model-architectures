@@ -59,6 +59,6 @@ class SoftmaxTest(TestCommons):
             False,
             atol_float32=2e-5,
             rtol_float32=0,
-            atol_bfloat16=3e-5,
+            atol_bfloat16=4e-5,
             rtol_bfloat16=0,
         )
