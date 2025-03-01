@@ -25,7 +25,7 @@ class _AddScalar_Cute(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
-        return output_grad, *[None] * 4
+        return output_grad, *[None] * 3
 
 
 def add_scalar_cute(
