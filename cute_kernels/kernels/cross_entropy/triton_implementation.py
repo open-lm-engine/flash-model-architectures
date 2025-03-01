@@ -8,7 +8,7 @@ from ...math import ceil_divide, get_powers_of_2
 from ...utils import cute_op
 
 
-_KERNEL_NAME = "cross_entropy_forward_triton"
+_KERNEL_NAME = "cross_entropy_forward_backward_triton"
 
 
 @triton.jit
