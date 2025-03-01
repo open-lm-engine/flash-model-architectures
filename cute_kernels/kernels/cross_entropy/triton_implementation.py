@@ -2,10 +2,10 @@ import torch
 import triton
 import triton.language as tl
 
-from ....constants import LIBRARY_NAME, MAX_TRITON_BLOCK_SIZE
-from ....cutotune import CutoTuneConfig, cutotune, get_cartesian_product_cutotune_configs
-from ....math import ceil_divide, get_powers_of_2
-from ....utils import cute_op
+from ...constants import LIBRARY_NAME, MAX_TRITON_BLOCK_SIZE
+from ...cutotune import CutoTuneConfig, cutotune, get_cartesian_product_cutotune_configs
+from ...math import ceil_divide, get_powers_of_2
+from ...utils import cute_op
 
 
 _KERNEL_NAME = "cross_entropy_forward_triton"
