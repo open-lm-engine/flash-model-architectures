@@ -103,7 +103,7 @@ kernels/continuous_count/__init__.py->_continuous_count_cute:
   '''next_power_of_2(size) = 8192'', ''sizeof(dtype) = 8''':
     BLOCK_SIZE: 1024
     thread_block_cluster_size: 2
-kernels/cross_entropy/triton_implementation.py->cross_entropy_forward_triton:
+kernels/cross_entropy/triton_implementation.py->cross_entropy_forward_backward_triton:
   '''x.dtype = torch.bfloat16''':
     BLOCK_SIZE_B: 4
     BLOCK_SIZE_V: 256
