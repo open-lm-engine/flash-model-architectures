@@ -15,7 +15,6 @@ class _CrossEntropy_Cute(torch.autograd.Function):
         labels: torch.Tensor,
         reduction: str,
         logits_multiplier: float,
-        kernel_backend: str,
         BLOCK_SIZE_B: int,
         BLOCK_SIZE_V: int,
     ) -> torch.Tensor:
@@ -23,12 +22,6 @@ class _CrossEntropy_Cute(torch.autograd.Function):
         assert x.dim() == 2, "x should be 2 dimensional"
         assert labels.dim() == 1, "labels should be 1 dimensional"
         assert x.size(0) == labels.size(0), "x and labels have different number of elements along dim 0"
-
-        ctx.reduction = reduction
-        ctx.logits_multiplier = logits_multiplier
-        ctx.kernel_backend = kernel_backend
-        ctx.BLOCK_SIZE_B = BLOCK_SIZE_B
-        ctx.BLOCK_SIZE_V = BLOCK_SIZE_V
 
         loss = torch.tensor(0, device=x.device, dtype=torch.float32)
         x_grad = torch.empty_like(x)
@@ -54,11 +47,11 @@ class _CrossEntropy_Cute(torch.autograd.Function):
         return loss
 
     @staticmethod
-    @ensure_contiguous
     def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
         x_grad = ctx.saved_tensors[0]
+        x_grad *= output_grad
 
-        return x_grad, *[None] * 8
+        return x_grad, *[None] * 5
 
 
 def cross_entropy_cute(
@@ -66,7 +59,6 @@ def cross_entropy_cute(
     labels: torch.Tensor,
     reduction: str = "mean",
     logits_multiplier: float = 1,
-    kernel_backend: str = CutoTuneParameter(),
     BLOCK_SIZE_B: int = CutoTuneParameter(),
     BLOCK_SIZE_V: int = CutoTuneParameter(),
 ) -> torch.Tensor:
@@ -75,7 +67,6 @@ def cross_entropy_cute(
         labels,
         reduction,
         logits_multiplier,
-        kernel_backend,
         BLOCK_SIZE_B,
         BLOCK_SIZE_V,
     )

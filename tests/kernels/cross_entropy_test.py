@@ -18,7 +18,6 @@ class CrossEntropyTest(TestCommons):
             TestCommons.get_2d_tensor_sizes(),  # size
             [torch.device("cuda")],  # device
             [torch.float32, torch.bfloat16],  # dtype
-            ["triton"],  # kernel_backend
             [cross_entropy_cute, torch.compile(cross_entropy_cute, fullgraph=True)],  # function
         )
     )
@@ -27,7 +26,6 @@ class CrossEntropyTest(TestCommons):
         size: tuple[int],
         device: torch.device,
         dtype: torch.dtype,
-        kernel_backend: str,
         function: Callable,
     ) -> None:
         set_seed(_SEED)
@@ -39,12 +37,7 @@ class CrossEntropyTest(TestCommons):
         labels = torch.randint(0, x_kernel.size(-1), (x_kernel.size(0),), device=x_kernel.device)
         logits_multiplier = 0.7
 
-        loss_kernel = function(
-            x=x_kernel,
-            labels=labels,
-            kernel_backend=kernel_backend,
-            logits_multiplier=logits_multiplier,
-        )
+        loss_kernel = function(x=x_kernel, labels=labels, logits_multiplier=logits_multiplier)
         loss_expected = cross_entropy_torch(x=x_expected, labels=labels, logits_multiplier=logits_multiplier)
 
         loss_kernel.backward()
