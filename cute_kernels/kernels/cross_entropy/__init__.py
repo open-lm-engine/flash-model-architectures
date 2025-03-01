@@ -47,7 +47,6 @@ class _CrossEntropy_Cute(torch.autograd.Function):
 
         # I am lazy :)
         # but this can be fused inside the above kernel
-        x_grad[torch.arange(labels.size(0), device=labels.device), labels] -= 1
         if logits_multiplier != 1:
             x_grad *= logits_multiplier
 
