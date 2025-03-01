@@ -30,7 +30,7 @@ class _AddTensor_Cute(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
-        return output_grad, output_grad, *[None] * 3
+        return output_grad, output_grad, *[None] * 2
 
 
 def add_tensor_cute(
