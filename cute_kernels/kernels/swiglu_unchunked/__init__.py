@@ -20,6 +20,8 @@ class _SwigluUnchunked_Cute(torch.autograd.Function):
         BLOCK_SIZE_B_backward: int,
         BLOCK_SIZE_H_backward: int,
     ) -> torch.Tensor:
+        assert x.dtype in [torch.float32, torch.float16, torch.bfloat16]
+
         ctx.save_for_backward(x)
         ctx.kernel_backend_backward = kernel_backend_backward
         ctx.BLOCK_SIZE_B_backward = BLOCK_SIZE_B_backward
