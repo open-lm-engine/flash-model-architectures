@@ -20,7 +20,8 @@ class _Swiglu_Cute(torch.autograd.Function):
         BLOCK_SIZE_backward: int,
     ) -> torch.Tensor:
         assert gate.size() == up.size(), "tensors gate and up should have same shape"
-        assert gate.type() == up.type(), "tensors gate and up should have same dtype"
+        assert gate.dtype == up.dtype, "tensors gate and up should have same dtype"
+        assert gate.dtype in [torch.float32, torch.float16, torch.bfloat16]
 
         ctx.save_for_backward(gate, up)
         ctx.kernel_backend_backward = kernel_backend_backward
