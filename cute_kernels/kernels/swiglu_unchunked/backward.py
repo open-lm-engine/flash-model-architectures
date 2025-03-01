@@ -18,14 +18,16 @@ def _backward(
     x_grad = torch.empty_like(x)
 
     if kernel_backend == "triton":
-        B, H = get_num_elements_and_hidden_size(x)
+        num_elements, hidden_size = get_num_elements_and_hidden_size(x)
 
-        _swiglu_unchunked_backward_triton_kernel[(ceil_divide(B, BLOCK_SIZE_B), ceil_divide(H, BLOCK_SIZE_H))](
+        _swiglu_unchunked_backward_triton_kernel[
+            (ceil_divide(num_elements, BLOCK_SIZE_B), ceil_divide(hidden_size, BLOCK_SIZE_H))
+        ](
             x_ptr=x,
             output_grad_ptr=output_grad,
             x_grad_ptr=x_grad,
-            B=B,
-            H=H,
+            B=num_elements,
+            H=hidden_size,
             BLOCK_SIZE_B=BLOCK_SIZE_B,
             BLOCK_SIZE_H=BLOCK_SIZE_H,
         )
