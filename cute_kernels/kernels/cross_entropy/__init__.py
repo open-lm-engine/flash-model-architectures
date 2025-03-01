@@ -45,6 +45,11 @@ class _CrossEntropy_Cute(torch.autograd.Function):
             reduction=reduction,
         )
 
+        # Meta is on fucking drugs
+        # torch compiler doesn't work without this :/
+        if torch.compiler.is_compiling():
+            x_grad += 0
+
         ctx.save_for_backward(x_grad)
 
         return loss
