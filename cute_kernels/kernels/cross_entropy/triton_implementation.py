@@ -17,6 +17,7 @@ def _cross_entropy_forward_triton_kernel(
     x_ptr,
     labels_ptr,
     loss_ptr,
+    x_grad_ptr,
     logits_multiplier,
     B,
     V,
@@ -50,6 +51,20 @@ def _cross_entropy_forward_triton_kernel(
         x = tl.exp(x)
         Z = Z * tl.exp(prev_m - M) + tl.sum(x, axis=1, keep_dims=True)
 
+    for v in range(num_blocks_v):
+        x, indices, mask_bv = _load_x(
+            x_ptr=x_ptr, h=v, H=V, BLOCK_SIZE_H=BLOCK_SIZE_V, indices_b=indices_b, mask_b=mask_b
+        )
+
+        x = x.to(tl.float32)
+        x *= logits_multiplier
+        x -= M
+        x = tl.exp(x)
+        x /= Z
+
+        x_grad_ptrs = x_grad_ptr + indices
+        tl.store(x_grad_ptrs, x, mask=mask_bv)
+
     labels_ptrs = labels_ptr + indices_b
     labels = tl.load(labels_ptrs, mask=mask_b)
 
@@ -78,11 +93,12 @@ def _cross_entropy_forward_triton_kernel(
     triggers={"x.dtype"},
     reset_to_zero={"loss": lambda **kwargs: True},
 )
-@cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"loss"})
+@cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"loss", "x_grad"})
 def cross_entropy_forward_triton(
     x: torch.Tensor,
     labels: torch.Tensor,
     loss: torch.Tensor,
+    x_grad: torch.Tensor,
     logits_multiplier: float,
     BLOCK_SIZE_B: int,
     BLOCK_SIZE_V: int,
@@ -95,6 +111,7 @@ def cross_entropy_forward_triton(
             x_ptr=x,
             labels_ptr=labels,
             loss_ptr=loss,
+            x_grad_ptr=x_grad,
             logits_multiplier=logits_multiplier,
             B=num_elements,
             V=vocab_size,
