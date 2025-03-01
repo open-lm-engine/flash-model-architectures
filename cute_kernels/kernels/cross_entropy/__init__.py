@@ -45,9 +45,6 @@ class _CrossEntropy_Cute(torch.autograd.Function):
             reduction=reduction,
         )
 
-        if ctx.reduction == "mean":
-            x_grad /= x.size(0)
-
         ctx.save_for_backward(x_grad)
 
         return loss

@@ -76,6 +76,8 @@ def _cross_entropy_forward_triton_kernel(
 
         x -= tl.where(indices_v[None, :] == labels[:, None], 1, 0)
         x *= logits_multiplier
+        if reduction == "mean":
+            x /= B
 
         x_grad_ptrs = x_grad_ptr + indices
         tl.store(x_grad_ptrs, x, mask=mask_bv)
