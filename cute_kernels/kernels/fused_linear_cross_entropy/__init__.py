@@ -3,7 +3,7 @@ import torch
 from ...cutotune import CutoTuneParameter
 from ...math import ceil_divide, get_next_power_of_2
 from ...utils import ensure_contiguous
-from ..cross_entropy import cross_entropy_forward_triton
+from ..cross_entropy import cross_entropy_forward_backward_triton
 from ..softmax import _forward as _softmax_forward
 from .torch_implementation import fused_linear_cross_entropy_torch
 
