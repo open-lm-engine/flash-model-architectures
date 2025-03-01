@@ -32,6 +32,8 @@ class _CrossEntropy_Cute(torch.autograd.Function):
         ctx.BLOCK_SIZE_V = BLOCK_SIZE_V
 
         loss = torch.tensor(0, device=x.device, dtype=torch.float32)
+        x_grad = torch.empty_like(x)
+
         cross_entropy_forward_triton(
             x=x,
             labels=labels,

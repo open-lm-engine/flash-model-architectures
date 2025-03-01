@@ -6,6 +6,7 @@ from ...constants import LIBRARY_NAME, MAX_TRITON_BLOCK_SIZE
 from ...cutotune import CutoTuneConfig, cutotune, get_cartesian_product_cutotune_configs
 from ...math import ceil_divide, get_powers_of_2
 from ...utils import cute_op
+from ..softmax.triton_implementation.forward import _load_x
 
 
 _KERNEL_NAME = "cross_entropy_forward_triton"
@@ -34,14 +35,10 @@ def _cross_entropy_forward_triton_kernel(
     num_blocks_v = tl.cdiv(V, BLOCK_SIZE_V)
 
     for v in range(num_blocks_v):
-        indices_v = v * BLOCK_SIZE_V + tl.arange(0, BLOCK_SIZE_V)
-        mask_v = indices_v < V
+        x, indices, mask_bv = _load_x(
+            x_ptr=x_ptr, h=v, H=V, BLOCK_SIZE_H=BLOCK_SIZE_V, indices_b=indices_b, mask_b=mask_b, other=-float("inf")
+        )
 
-        indices = indices_b[:, None] * V + indices_v[None, :]
-        mask_bh = mask_b[:, None] & mask_v[None, :]
-
-        x_ptrs = x_ptr + indices
-        x = tl.load(x_ptrs, mask=mask_bh, other=-float("inf"))
         x = x.to(tl.float32)
         x *= logits_multiplier
 
