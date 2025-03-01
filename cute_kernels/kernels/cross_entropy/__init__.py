@@ -25,8 +25,6 @@ class _CrossEntropy_Cute(torch.autograd.Function):
         assert labels.dim() == 1, "labels should be 1 dimensional"
         assert x.size(0) == labels.size(0), "x and labels have different number of elements along dim 0"
 
-        ctx.save_for_backward(x, labels)
-
         ctx.reduction = reduction
         ctx.logits_multiplier = logits_multiplier
         ctx.kernel_backend = kernel_backend
@@ -44,20 +42,12 @@ class _CrossEntropy_Cute(torch.autograd.Function):
             reduction=reduction,
         )
 
-        return loss
-
-    @staticmethod
-    @ensure_contiguous
-    def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
-        x, labels = ctx.saved_tensors
-        logits_multiplier = ctx.logits_multiplier
-
         x_grad = _softmax_forward(
             x=x,
             logits_multiplier=logits_multiplier,
-            kernel_backend=ctx.kernel_backend,
-            BLOCK_SIZE_B=ctx.BLOCK_SIZE_B,
-            BLOCK_SIZE_H=ctx.BLOCK_SIZE_V,
+            kernel_backend=kernel_backend,
+            BLOCK_SIZE_B=BLOCK_SIZE_B,
+            BLOCK_SIZE_H=BLOCK_SIZE_V,
         )
 
         # I am lazy :)
@@ -68,6 +58,15 @@ class _CrossEntropy_Cute(torch.autograd.Function):
 
         if ctx.reduction == "mean":
             x_grad /= x.size(0)
+
+        ctx.save_for_backward(x_grad)
+
+        return loss
+
+    @staticmethod
+    @ensure_contiguous
+    def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
+        x_grad = ctx.saved_tensors[0]
 
         return x_grad, *[None] * 8
 
