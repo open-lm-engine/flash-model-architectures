@@ -16,8 +16,8 @@ class _AddTensor_Cute(torch.autograd.Function):
         BLOCK_SIZE: int,
     ) -> torch.Tensor:
         assert x.size() == y.size(), "tensors x and y should have same shape"
-        assert x.type() == y.type(), "tensors x and y should have same dtype"
-        assert x.type() in [torch.float32, torch.float16, torch.bfloat16]
+        assert x.dtype == y.dtype, "tensors x and y should have same dtype"
+        assert x.dtype in [torch.float32, torch.float16, torch.bfloat16]
 
         x, y = ensure_same_strides(x, y)
 
