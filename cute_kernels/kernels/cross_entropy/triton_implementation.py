@@ -2,20 +2,21 @@ import torch
 import triton
 import triton.language as tl
 
-from ....constants import LIBRARY_NAME, MAX_TRITON_BLOCK_SIZE
-from ....cutotune import CutoTuneConfig, cutotune, get_cartesian_product_cutotune_configs
-from ....math import ceil_divide, get_powers_of_2
-from ....utils import cute_op
+from ...constants import LIBRARY_NAME, MAX_TRITON_BLOCK_SIZE
+from ...cutotune import CutoTuneConfig, cutotune, get_cartesian_product_cutotune_configs
+from ...math import ceil_divide, get_powers_of_2
+from ...utils import cute_op
 
 
-_KERNEL_NAME = "cross_entropy_forward_triton"
+_KERNEL_NAME = "cross_entropy_forward_backward_triton"
 
 
 @triton.jit
-def _cross_entropy_forward_triton_kernel(
+def _cross_entropy_forward_backward_triton_kernel(
     x_ptr,
     labels_ptr,
     loss_ptr,
+    x_grad_ptr,
     logits_multiplier,
     B,
     V,
@@ -38,10 +39,11 @@ def _cross_entropy_forward_triton_kernel(
         mask_v = indices_v < V
 
         indices = indices_b[:, None] * V + indices_v[None, :]
-        mask_bh = mask_b[:, None] & mask_v[None, :]
+        mask_bv = mask_b[:, None] & mask_v[None, :]
 
         x_ptrs = x_ptr + indices
-        x = tl.load(x_ptrs, mask=mask_bh, other=-float("inf"))
+        x = tl.load(x_ptrs, mask=mask_bv, other=-float("inf"))
+
         x = x.to(tl.float32)
         x *= logits_multiplier
 
@@ -55,6 +57,30 @@ def _cross_entropy_forward_triton_kernel(
 
     labels_ptrs = labels_ptr + indices_b
     labels = tl.load(labels_ptrs, mask=mask_b)
+
+    for v in range(num_blocks_v):
+        indices_v = v * BLOCK_SIZE_V + tl.arange(0, BLOCK_SIZE_V)
+        mask_v = indices_v < V
+
+        indices = indices_b[:, None] * V + indices_v[None, :]
+        mask_bv = mask_b[:, None] & mask_v[None, :]
+
+        x_ptrs = x_ptr + indices
+        x = tl.load(x_ptrs, mask=mask_bv)
+
+        x = x.to(tl.float32)
+        x *= logits_multiplier
+        x -= M
+        x = tl.exp(x)
+        x /= Z
+
+        x -= tl.where(indices_v[None, :] == labels[:, None], 1, 0)
+        x *= logits_multiplier
+        if reduction == "mean":
+            x /= B
+
+        x_grad_ptrs = x_grad_ptr + indices
+        tl.store(x_grad_ptrs, x, mask=mask_bv)
 
     x_ptrs = x_ptr + indices_b * V + labels
     x = tl.load(x_ptrs, mask=mask_b)
@@ -81,11 +107,12 @@ def _cross_entropy_forward_triton_kernel(
     triggers={"x.dtype"},
     reset_to_zero={"loss": lambda **kwargs: True},
 )
-@cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"loss"})
-def cross_entropy_forward_triton(
+@cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"loss", "x_grad"})
+def cross_entropy_forward_backward_triton(
     x: torch.Tensor,
     labels: torch.Tensor,
     loss: torch.Tensor,
+    x_grad: torch.Tensor,
     logits_multiplier: float,
     BLOCK_SIZE_B: int,
     BLOCK_SIZE_V: int,
@@ -94,10 +121,11 @@ def cross_entropy_forward_triton(
     num_elements, vocab_size = x.size()
 
     with torch.device(x.device):
-        _cross_entropy_forward_triton_kernel[(ceil_divide(num_elements, BLOCK_SIZE_B),)](
+        _cross_entropy_forward_backward_triton_kernel[(ceil_divide(num_elements, BLOCK_SIZE_B),)](
             x_ptr=x,
             labels_ptr=labels,
             loss_ptr=loss,
+            x_grad_ptr=x_grad,
             logits_multiplier=logits_multiplier,
             B=num_elements,
             V=vocab_size,
