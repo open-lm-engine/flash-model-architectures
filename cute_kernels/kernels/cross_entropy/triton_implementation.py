@@ -12,7 +12,7 @@ _KERNEL_NAME = "cross_entropy_forward_triton"
 
 
 @triton.jit
-def _cross_entropy_forward_triton_kernel(
+def _cross_entropy_forward_backward_triton_kernel(
     x_ptr,
     labels_ptr,
     loss_ptr,
@@ -108,7 +108,7 @@ def _cross_entropy_forward_triton_kernel(
     reset_to_zero={"loss": lambda **kwargs: True},
 )
 @cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"loss", "x_grad"})
-def cross_entropy_forward_triton(
+def cross_entropy_forward_backward_triton(
     x: torch.Tensor,
     labels: torch.Tensor,
     loss: torch.Tensor,
@@ -121,7 +121,7 @@ def cross_entropy_forward_triton(
     num_elements, vocab_size = x.size()
 
     with torch.device(x.device):
-        _cross_entropy_forward_triton_kernel[(ceil_divide(num_elements, BLOCK_SIZE_B),)](
+        _cross_entropy_forward_backward_triton_kernel[(ceil_divide(num_elements, BLOCK_SIZE_B),)](
             x_ptr=x,
             labels_ptr=labels,
             loss_ptr=loss,

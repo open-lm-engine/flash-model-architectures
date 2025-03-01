@@ -2,9 +2,8 @@ import torch
 
 from ...cutotune import CutoTuneParameter
 from ...utils import ensure_contiguous
-from ..softmax import _forward as _softmax_forward
 from .torch_implementation import cross_entropy_torch
-from .triton_implementation import cross_entropy_forward_triton
+from .triton_implementation import cross_entropy_forward_backward_triton
 
 
 class _CrossEntropy_Cute(torch.autograd.Function):
@@ -34,7 +33,7 @@ class _CrossEntropy_Cute(torch.autograd.Function):
         loss = torch.tensor(0, device=x.device, dtype=torch.float32)
         x_grad = torch.empty_like(x)
 
-        cross_entropy_forward_triton(
+        cross_entropy_forward_backward_triton(
             x=x,
             labels=labels,
             loss=loss,
