@@ -14,6 +14,8 @@ class _AddScalar_Cute(torch.autograd.Function):
         kernel_backend: str,
         BLOCK_SIZE: int,
     ) -> torch.Tensor:
+        assert x.dtype in [torch.float32, torch.float16, torch.bfloat16]
+
         return _forward(
             x=x,
             y=y,
