@@ -9,15 +9,15 @@
 using input_dtype = fp32;
 
 template <bool is_A_transposed, bool is_B_transposed>
-inline void _cutlass_gemm_templated_layout(const input_dtype *A,
-                                           const input_dtype *B,
-                                           const input_dtype *C,
-                                           input_dtype *output,
-                                           const fp32 &alpha,
-                                           const fp32 &beta,
-                                           const int32 &M,
-                                           const int32 &K,
-                                           const int32 &N) {
+inline void _cutlass_tensorcore_mma_gemm_templated_layout(const input_dtype *A,
+                                                          const input_dtype *B,
+                                                          const input_dtype *C,
+                                                          input_dtype *output,
+                                                          const fp32 &alpha,
+                                                          const fp32 &beta,
+                                                          const int32 &M,
+                                                          const int32 &K,
+                                                          const int32 &N) {
     // PyTorch tensors are row major
     using RowMajor = cutlass::layout::RowMajor;
     using ColumnMajor = cutlass::layout::ColumnMajor;
@@ -83,17 +83,17 @@ inline void _cutlass_gemm_templated_layout(const input_dtype *A,
     gemm_operator();
 }
 
-void cutlass_gemm_cuda(const torch::Tensor &A,
-                       const torch::Tensor &B,
-                       std::optional<torch::Tensor> &C,
-                       torch::Tensor &output,
-                       const bool &is_A_transposed,
-                       const bool &is_B_transposed,
-                       const fp32 &alpha,
-                       const fp32 &beta,
-                       const uint32 &M,
-                       const uint32 &K,
-                       const uint32 &N) {
+void cutlass_tensorcore_mma_gemm_cuda(const torch::Tensor &A,
+                                      const torch::Tensor &B,
+                                      std::optional<torch::Tensor> &C,
+                                      torch::Tensor &output,
+                                      const bool &is_A_transposed,
+                                      const bool &is_B_transposed,
+                                      const fp32 &alpha,
+                                      const fp32 &beta,
+                                      const uint32 &M,
+                                      const uint32 &K,
+                                      const uint32 &N) {
     const input_dtype *A_data = reinterpret_cast<input_dtype *>(A.data_ptr<scalar_t>());
     const input_dtype *B_data = reinterpret_cast<input_dtype *>(B.data_ptr<scalar_t>());
     const input_dtype *C_data = C.has_value() ? reinterpret_cast<input_dtype *>(C.value().data_ptr<scalar_t>())
@@ -106,15 +106,19 @@ void cutlass_gemm_cuda(const torch::Tensor &A,
 
     if (is_A_transposed) {
         if (is_B_transposed) {
-            _cutlass_gemm_templated_layout<true, true>(A_data, B_data, C_data, output_data, alpha, beta, _M, _K, _N);
+            _cutlass_tensorcore_mma_gemm_templated_layout<true, true>(
+                A_data, B_data, C_data, output_data, alpha, beta, _M, _K, _N);
         } else {
-            _cutlass_gemm_templated_layout<true, false>(A_data, B_data, C_data, output_data, alpha, beta, _M, _K, _N);
+            _cutlass_tensorcore_mma_gemm_templated_layout<true, false>(
+                A_data, B_data, C_data, output_data, alpha, beta, _M, _K, _N);
         }
     } else {
         if (is_B_transposed) {
-            _cutlass_gemm_templated_layout<false, true>(A_data, B_data, C_data, output_data, alpha, beta, _M, _K, _N);
+            _cutlass_tensorcore_mma_gemm_templated_layout<false, true>(
+                A_data, B_data, C_data, output_data, alpha, beta, _M, _K, _N);
         } else {
-            _cutlass_gemm_templated_layout<false, false>(A_data, B_data, C_data, output_data, alpha, beta, _M, _K, _N);
+            _cutlass_tensorcore_mma_gemm_templated_layout<false, false>(
+                A_data, B_data, C_data, output_data, alpha, beta, _M, _K, _N);
         }
     }
 }
