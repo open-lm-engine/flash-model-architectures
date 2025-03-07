@@ -4,7 +4,7 @@ import torch
 from parameterized import parameterized
 from transformers import set_seed
 
-from cute_kernels import gemm_cute, gemm_torch
+from cute_kernels import ceil_divide, gemm_cute, gemm_torch
 
 from ..test_commons import TestCommons
 
@@ -19,17 +19,7 @@ class GEMMTest(TestCommons):
             [False, True],  # is_A_transposed
             [False, True],  # is_B_transposed
             [False, True],  # has_C
-            ["triton"],  # kernel_backend
-            [torch.device("cuda")],  # device
-            TestCommons.get_dtypes(),  # dtype
-            [gemm_cute, torch.compile(gemm_cute, fullgraph=True)],  # function
-        )
-        + TestCommons.make_args_matrix(
-            TestCommons.get_2d_tensor_sizes(),  # size
-            [False, True],  # is_A_transposed
-            [False, True],  # is_B_transposed
-            [False, True],  # has_C
-            ["naive_cuda", "cutlass"],  # kernel_backend
+            ["triton", "naive_cuda", "cutlass"],  # kernel_backend
             [torch.device("cuda")],  # device
             TestCommons.get_dtypes(),  # dtype
             [gemm_cute, torch.compile(gemm_cute, fullgraph=True)],  # function
@@ -42,6 +32,16 @@ class GEMMTest(TestCommons):
             ["shared_memory_cuda"],  # kernel_backend
             [torch.device("cuda")],  # device
             TestCommons.get_dtypes(),  # dtype
+            [gemm_cute, torch.compile(gemm_cute, fullgraph=True)],  # function
+        )
+        + TestCommons.make_args_matrix(
+            TestCommons.get_2d_tensor_sizes(),  # size
+            [False, True],  # is_A_transposed
+            [False, True],  # is_B_transposed
+            [False, True],  # has_C
+            ["cutlass_tensorcore_mma_gemm_cuda"],  # kernel_backend
+            [torch.device("cuda")],  # device
+            [torch.float32],  # dtype
             [gemm_cute, torch.compile(gemm_cute, fullgraph=True)],  # function
         )
     )
@@ -59,7 +59,13 @@ class GEMMTest(TestCommons):
         set_seed(_SEED)
 
         std = 0.02
-        M = 417
+
+        if kernel_backend == "cutlass_tensorcore_mma_gemm_cuda":
+            M = 416
+            size = (ceil_divide(size[0], 16) * 16, ceil_divide(size[1], 16) * 16)
+        else:
+            M = 417
+
         A = (
             torch.randn(
                 (size[0], M) if is_A_transposed else (M, size[0]), device=device, dtype=dtype, requires_grad=False

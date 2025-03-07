@@ -42,6 +42,7 @@ def compile_cpp(name: str) -> None:
         extra_include_paths=[
             os.path.dirname(__file__),
             os.path.dirname(os.path.dirname(__file__)) + "/cutlass/include",
+            os.path.dirname(os.path.dirname(__file__)) + "/cutlass/tools/util/include",
         ],
         extra_cflags=[
             "-O3",
