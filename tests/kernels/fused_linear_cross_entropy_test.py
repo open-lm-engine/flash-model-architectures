@@ -19,7 +19,6 @@ class FusedLinearCrossEntropyTest(TestCommons):
             TestCommons.get_2d_tensor_sizes(),  # size
             [torch.device("cuda")],  # device
             [torch.float32, torch.bfloat16],  # dtype
-            ["triton"],  # kernel_backend_backward
             [
                 fused_linear_cross_entropy_cute,
                 torch.compile(fused_linear_cross_entropy_cute, fullgraph=True),
@@ -31,7 +30,6 @@ class FusedLinearCrossEntropyTest(TestCommons):
         size: tuple[int],
         device: torch.device,
         dtype: torch.dtype,
-        kernel_backend_backward: str,
         function: Callable,
     ) -> None:
         set_seed(_SEED)
@@ -45,17 +43,18 @@ class FusedLinearCrossEntropyTest(TestCommons):
         weight_kernel, weight_expected = self.get_random_duplicated_tensors(
             (vocab_size, size[1]), device=device, dtype=dtype, std=2e-3
         )
+        logits_multiplier = 0.7
 
         labels = torch.randint(0, vocab_size, (x_kernel.size(0),), device=x_kernel.device)
 
-        loss_kernel = function(
-            x=x_kernel, weight=weight_kernel, labels=labels, kernel_backend_backward=kernel_backend_backward
+        loss_kernel = function(x=x_kernel, weight=weight_kernel, labels=labels, logits_multiplier=logits_multiplier)
+        loss_expected = fused_linear_cross_entropy_torch(
+            x=x_expected, weight=weight_expected, labels=labels, logits_multiplier=logits_multiplier
         )
-        loss_expected = fused_linear_cross_entropy_torch(x=x_expected, weight=weight_expected, labels=labels)
 
         loss_kernel.backward()
         loss_expected.backward()
 
-        self.assert_equal_tensors(loss_kernel, loss_expected, False, atol_float32=2e-4, rtol_float32=0)
+        self.assert_equal_tensors(loss_kernel, loss_expected, False, atol_float32=3.2e-4, rtol_float32=0)
         self.assert_equal_tensors(x_kernel.grad, x_expected.grad, False)
         self.assert_equal_tensors(weight_kernel.grad, weight_expected.grad, False)

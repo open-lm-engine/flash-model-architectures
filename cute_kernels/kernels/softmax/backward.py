@@ -12,6 +12,7 @@ from .triton_implementation import softmax_backward_triton
 def _backward(
     output: torch.Tensor,
     output_grad: torch.Tensor,
+    logits_multiplier: float,
     kernel_backend: str,
     BLOCK_SIZE_B: int,
     BLOCK_SIZE_H: int,
@@ -23,6 +24,7 @@ def _backward(
             output=output,
             output_grad=output_grad,
             x_grad=x_grad,
+            logits_multiplier=logits_multiplier,
             BLOCK_SIZE_B=BLOCK_SIZE_B,
             BLOCK_SIZE_H=BLOCK_SIZE_H,
         )
