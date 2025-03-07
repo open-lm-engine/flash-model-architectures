@@ -45,7 +45,7 @@ for dtype in [torch.float16, torch.bfloat16, torch.float32]:
 
         s.record()
         for i in range(n):
-            z = kernel(x, w, c=None, beta=0)
+            z = kernel(x, w, C=None, beta=0)
         e.record()
 
         device_synchronize()
