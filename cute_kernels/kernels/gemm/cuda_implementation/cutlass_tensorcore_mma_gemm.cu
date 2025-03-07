@@ -94,11 +94,11 @@ void cutlass_tensorcore_mma_gemm_cuda(const torch::Tensor &A,
                                       const uint32 &M,
                                       const uint32 &K,
                                       const uint32 &N) {
-    const input_dtype *A_data = reinterpret_cast<input_dtype *>(A.data_ptr<scalar_t>());
-    const input_dtype *B_data = reinterpret_cast<input_dtype *>(B.data_ptr<scalar_t>());
-    const input_dtype *C_data = C.has_value() ? reinterpret_cast<input_dtype *>(C.value().data_ptr<scalar_t>())
+    const input_dtype *A_data = reinterpret_cast<input_dtype *>(A.data_ptr<input_dtype>());
+    const input_dtype *B_data = reinterpret_cast<input_dtype *>(B.data_ptr<input_dtype>());
+    const input_dtype *C_data = C.has_value() ? reinterpret_cast<input_dtype *>(C.value().data_ptr<input_dtype>())
                                               : nullptr;
-    input_dtype *output_data = reinterpret_cast<input_dtype *>(output.data_ptr<scalar_t>());
+    input_dtype *output_data = reinterpret_cast<input_dtype *>(output.data_ptr<input_dtype>());
 
     const int32 _M = safe_cast_uint32_to_int32(M);
     const int32 _K = safe_cast_uint32_to_int32(K);
