@@ -4,7 +4,7 @@ import torch
 from parameterized import parameterized
 from transformers import set_seed
 
-from cute_kernels import gemm_cute, gemm_torch
+from cute_kernels import ceil_divide, gemm_cute, gemm_torch
 
 from ..test_commons import TestCommons
 
@@ -72,7 +72,7 @@ class GEMMTest(TestCommons):
 
         if kernel_backend == "cutlass_tensorcore_mma_gemm_cuda":
             M = 416
-            size = ((size[0] // 8) * 8, (size[1] // 8) * 8)
+            size = (ceil_divide(size[0], 8), ceil_divide(size[1], 8))
         else:
             M = 417
 
