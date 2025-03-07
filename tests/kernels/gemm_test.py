@@ -62,7 +62,7 @@ class GEMMTest(TestCommons):
 
         if kernel_backend == "cutlass_tensorcore_mma_gemm_cuda":
             M = 416
-            size = (ceil_divide(size[0], 8), ceil_divide(size[1], 8))
+            size = (ceil_divide(size[0], 16) * 16, ceil_divide(size[1], 16) * 16)
         else:
             M = 417
 
