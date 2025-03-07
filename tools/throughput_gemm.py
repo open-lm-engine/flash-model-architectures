@@ -38,7 +38,7 @@ for dtype in [torch.float16, torch.bfloat16, torch.float32]:
         w = torch.randn(4096, 4096, device=torch.cuda.current_device(), dtype=dtype)
 
         for i in range(n):
-            z = kernel(x, w, c=None, beta=0)
+            z = kernel(x, w, C=None, beta=0)
 
         s = torch.cuda.Event(enable_timing=True)
         e = torch.cuda.Event(enable_timing=True)
