@@ -19,17 +19,7 @@ class GEMMTest(TestCommons):
             [False, True],  # is_A_transposed
             [False, True],  # is_B_transposed
             [False, True],  # has_C
-            ["triton"],  # kernel_backend
-            [torch.device("cuda")],  # device
-            TestCommons.get_dtypes(),  # dtype
-            [gemm_cute, torch.compile(gemm_cute, fullgraph=True)],  # function
-        )
-        + TestCommons.make_args_matrix(
-            TestCommons.get_2d_tensor_sizes(),  # size
-            [False, True],  # is_A_transposed
-            [False, True],  # is_B_transposed
-            [False, True],  # has_C
-            ["naive_cuda", "cutlass"],  # kernel_backend
+            ["triton", "naive_cuda", "cutlass"],  # kernel_backend
             [torch.device("cuda")],  # device
             TestCommons.get_dtypes(),  # dtype
             [gemm_cute, torch.compile(gemm_cute, fullgraph=True)],  # function
