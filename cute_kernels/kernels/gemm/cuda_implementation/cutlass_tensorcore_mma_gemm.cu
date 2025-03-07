@@ -81,9 +81,6 @@ inline void _cutlass_gemm_templated_layout(const input_dtype *A,
     status = gemm_operator.initialize(args, workspace.get());
 
     gemm_operator();
-
-    // call the kernel
-    // cutlass::Status status = gemm_operator(args);
 }
 
 void cutlass_gemm_cuda(const torch::Tensor &A,
