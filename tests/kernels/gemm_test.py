@@ -69,8 +69,12 @@ class GEMMTest(TestCommons):
         set_seed(_SEED)
 
         std = 0.02
-        M = 416
-        size = ((size[0] // 8) * 8, (size[1] // 8) * 8)
+
+        if kernel_backend == "cutlass_tensorcore_mma_gemm_cuda":
+            M = 416
+            size = ((size[0] // 8) * 8, (size[1] // 8) * 8)
+        else:
+            M = 417
 
         A = (
             torch.randn(
