@@ -17,7 +17,8 @@ headers = [
     "torch compile TFLOPs",
     "naive CUDA TFLOPs",
     "shared memory CUDA TFLOPs",
-    "CUTLASS GEMM CUDA TFLOPs",
+    "CUTLASS TFLOPs",
+    "CUTLASS MMA tensorcore TFLOPs",
     "triton TFLOPs",
 ]
 kernels = [
@@ -26,6 +27,7 @@ kernels = [
     partial(gemm_cute, kernel_backend="naive_cuda"),
     partial(gemm_cute, kernel_backend="shared_memory_cuda"),
     partial(gemm_cute, kernel_backend="cutlass"),
+    partial(gemm_cute, kernel_backend="cutlass_tensorcore_mma_gemm_cuda"),
     partial(gemm_cute, kernel_backend="triton"),
 ]
 
