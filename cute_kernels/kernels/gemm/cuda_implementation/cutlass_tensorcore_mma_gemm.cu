@@ -6,13 +6,11 @@
 #include "cutlass/util/device_memory.h"
 #include "include/dtypes/all.h"
 
-using input_dtype = fp32;
-
 template <bool is_A_transposed, bool is_B_transposed>
-inline void _cutlass_tensorcore_mma_gemm_templated_layout(const input_dtype *A,
-                                                          const input_dtype *B,
-                                                          const input_dtype *C,
-                                                          input_dtype *output,
+inline void _cutlass_tensorcore_mma_gemm_templated_layout(const fp32 *A,
+                                                          const fp32 *B,
+                                                          const fp32 *C,
+                                                          fp32 *output,
                                                           const fp32 &alpha,
                                                           const fp32 &beta,
                                                           const int32 &M,
@@ -26,8 +24,6 @@ inline void _cutlass_tensorcore_mma_gemm_templated_layout(const input_dtype *A,
     using layout_B = std::conditional_t<is_B_transposed, ColumnMajor, RowMajor>;
     using layout_C = RowMajor;
 
-    using accumulator_dtype = fp32;
-
     using MMAOp = cutlass::arch::OpClassTensorOp;
     using SmArch = cutlass::arch::Sm80;
 
@@ -37,20 +33,17 @@ inline void _cutlass_tensorcore_mma_gemm_templated_layout(const input_dtype *A,
 
     using SwizzleThreadBlock = cutlass::gemm::threadblock::GemmIdentityThreadblockSwizzle<>;
     using EpilogueOp =
-        cutlass::epilogue::thread::LinearCombination<accumulator_dtype,
-                                                     128 / cutlass::sizeof_bits<accumulator_dtype>::value,
-                                                     accumulator_dtype,
-                                                     fp32>;
+        cutlass::epilogue::thread::LinearCombination<fp32, 128 / cutlass::sizeof_bits<fp32>::value, fp32, fp32>;
 
     constexpr int NumStages = 4;
 
-    using CutlassGemm = cutlass::gemm::device::Gemm<input_dtype,
+    using CutlassGemm = cutlass::gemm::device::Gemm<fp32,
                                                     layout_A,
-                                                    input_dtype,
+                                                    fp32,
                                                     layout_B,
-                                                    input_dtype,
+                                                    fp32,
                                                     layout_C,
-                                                    accumulator_dtype,
+                                                    fp32,
                                                     MMAOp,
                                                     SmArch,
                                                     ShapeMMAThreadBlock,
@@ -94,11 +87,10 @@ void cutlass_tensorcore_mma_gemm_cuda(const torch::Tensor &A,
                                       const uint32 &M,
                                       const uint32 &K,
                                       const uint32 &N) {
-    const input_dtype *A_data = reinterpret_cast<input_dtype *>(A.data_ptr<input_dtype>());
-    const input_dtype *B_data = reinterpret_cast<input_dtype *>(B.data_ptr<input_dtype>());
-    const input_dtype *C_data = C.has_value() ? reinterpret_cast<input_dtype *>(C.value().data_ptr<input_dtype>())
-                                              : nullptr;
-    input_dtype *output_data = reinterpret_cast<input_dtype *>(output.data_ptr<input_dtype>());
+    const fp32 *A_data = A.data_ptr<fp32>();
+    const fp32 *B_data = B.data_ptr<fp32>();
+    const fp32 *C_data = C.has_value() ? C.value().data_ptr<fp32>() : nullptr;
+    fp32 *output_data = output.data_ptr<fp32>();
 
     const int32 _M = safe_cast_uint32_to_int32(M);
     const int32 _K = safe_cast_uint32_to_int32(K);
