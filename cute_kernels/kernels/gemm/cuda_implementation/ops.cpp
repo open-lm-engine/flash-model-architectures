@@ -49,9 +49,9 @@ void cutlass_tensorcore_mma_gemm_cuda(const torch::Tensor &A,
                                       const fp32 &beta,
                                       const uint32 &M,
                                       const uint32 &K,
-                                      const uint32 &N)
+                                      const uint32 &N);
 
-    PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
+PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
     m.def("naive_gemm_cuda", &naive_gemm_cuda, "naive GEMM (CUDA)");
     m.def("shared_memory_gemm_cuda", &shared_memory_gemm_cuda, "shared memory GEMM (CUDA)");
     m.def("cutlass_gemm_cuda", &cutlass_gemm_cuda, "CUTLASS GEMM (CUDA)");
