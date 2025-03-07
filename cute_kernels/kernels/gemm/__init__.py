@@ -2,7 +2,12 @@ import torch
 
 from ...cutotune import CutoTuneConfig, CutoTuneParameter, cutotune
 from ...utils import ensure_contiguous, get_num_elements_and_hidden_size
-from .cuda_implementation import cutlass_gemm_cuda, naive_gemm_cuda, shared_memory_gemm_cuda
+from .cuda_implementation import (
+    cutlass_gemm_cuda,
+    cutlass_tensorcore_mma_gemm_cuda,
+    naive_gemm_cuda,
+    shared_memory_gemm_cuda,
+)
 from .torch_implementation import gemm_torch
 from .triton_implementation import gemm_triton
 
@@ -53,7 +58,25 @@ def gemm_cute(
     else:
         assert C is not None
 
-    if kernel_backend == "cutlass":
+    if kernel_backend == "cutlass_tensorcore_mma_gemm_cuda":
+        assert isinstance(BLOCK_SIZE_M, CutoTuneParameter)
+        assert isinstance(BLOCK_SIZE_K, CutoTuneParameter)
+        assert isinstance(BLOCK_SIZE_N, CutoTuneParameter)
+
+        cutlass_tensorcore_mma_gemm_cuda(
+            A=A,
+            B=B,
+            C=C,
+            output=output,
+            is_A_transposed=is_A_transposed,
+            is_B_transposed=is_B_transposed,
+            alpha=alpha,
+            beta=beta,
+            M=M,
+            K=K,
+            N=N,
+        )
+    elif kernel_backend == "cutlass":
         assert isinstance(BLOCK_SIZE_M, CutoTuneParameter)
         assert isinstance(BLOCK_SIZE_K, CutoTuneParameter)
         assert isinstance(BLOCK_SIZE_N, CutoTuneParameter)
