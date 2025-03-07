@@ -20,8 +20,6 @@
 #define AT_DISPATCH_CUSTOM_INT_TYPES(TYPE, NAME, ...) \
     AT_DISPATCH_SWITCH(TYPE, NAME, AT_DISPATCH_CASE_CUSTOM_INT_TYPES(__VA_ARGS__))
 
-#define CHECK_VALUE_IS_VALID_UINT32(value) ((value) >= 0 && (value) <= UINT32_MAX)
-
 // define dtype aliases
 using fp64 = double;
 using fp64_2 = double2;
