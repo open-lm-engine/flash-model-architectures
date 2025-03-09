@@ -32,12 +32,30 @@ from torch._inductor.pattern_matcher import (
 from torch._subclasses import FakeTensor
 
 
+@torch.library.custom_op("test::mayank_op", mutates_args={"x"})
+def _op(x: torch.Tensor) -> None:
+    return
+
+
+class _F(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, x):
+        return x
+        # return _op(x)
+
+    @staticmethod
+    def backward(ctx, x):
+        return x
+        # return _op(x)
+
+
 def _sfdp_pattern_1(query, key, value):
     return torch.matmul(query, key.transpose(-2, -1)).softmax(dim=-1).matmul(value)
 
 
 def _replacement_pattern_1(query, key, value):
     print("hi")
+    # return _F.apply(q)
     return q + k + v
 
 
