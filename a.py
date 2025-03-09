@@ -56,13 +56,8 @@ def _sfdp_pattern_1(query, key, value):
 def _replacement_pattern_1(query, key, value):
     print("hi")
     # return _F.apply(q)
-    return q + k + v
+    return query + key + value
 
-
-device = "cpu"
-q = torch.empty((2, 4, 8, 16), device=device, requires_grad=True)
-k = torch.empty((2, 4, 8, 16), device=device, requires_grad=True)
-v = torch.empty((2, 4, 8, 16), device=device, requires_grad=True)
 
 SERIALIZED_PATTERN_PATH = Path("./")
 
@@ -153,7 +148,7 @@ def gen_register_replacement(
     scalar_workaround: Union[dict[str, Union[float, int]], None] = None,
     exclusive_arg_names: Sequence[str] = (),
     skip_duplicates: bool = False,
-    build: bool = False,
+    build: bool = True,
 ) -> None:
     # Make sure the example_inputs is materialized.
     example_inputs = tuple(example_inputs)
@@ -208,6 +203,11 @@ def init_once_fakemode(fn: Callable[..., Any]) -> Callable[[], Any]:
 def f():
     name = "mayank"
 
+    device = "cpu"
+    q = torch.empty((2, 4, 8, 16), device=device, requires_grad=True)
+    k = torch.empty((2, 4, 8, 16), device=device, requires_grad=True)
+    v = torch.empty((2, 4, 8, 16), device=device, requires_grad=True)
+
     training_name = name + "_training"
     args = {
         "search_fn": _sfdp_pattern_1,
@@ -239,6 +239,12 @@ f()
 
 def g():
     _sfdp_pattern_1_compiled = torch.compile(_sfdp_pattern_1)
+
+    device = "cpu"
+    q = torch.empty((2, 4, 8, 16), device=device, requires_grad=True)
+    k = torch.empty((2, 4, 8, 16), device=device, requires_grad=True)
+    v = torch.empty((2, 4, 8, 16), device=device, requires_grad=True)
+
     o = _sfdp_pattern_1_compiled(q, k, v)
 
     print(o)
