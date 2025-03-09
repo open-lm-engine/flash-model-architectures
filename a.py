@@ -131,8 +131,6 @@ def _serialize_pattern(
 
 @init_once_fakemode
 def f():
-    name = "mayank"
-
     device = "cpu"
     q = torch.empty((2, 4, 8, 16), device=device, requires_grad=True)
     k = torch.empty((2, 4, 8, 16), device=device, requires_grad=True)
