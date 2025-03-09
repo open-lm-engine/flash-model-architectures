@@ -28,26 +28,29 @@ from torch._inductor.pattern_matcher import (
     init_once_fakemode,
     joint_fwd_bwd,
     register_replacement,
-    unset_fake_temporarily,
 )
 from torch._subclasses import FakeTensor
 
 
 @torch.library.custom_op("test::mayank_op", mutates_args={"x"})
-def _op(x: torch.Tensor) -> None:
+def _op(x: torch.Tensor, forward: bool) -> None:
+    if forward:
+        print("this is an OP's forward")
+    else:
+        print("this is an OP's backward")
     return
 
 
 class _F(torch.autograd.Function):
     @staticmethod
     def forward(ctx, x):
+        _op(x, True)
         return x
-        # return _op(x)
 
     @staticmethod
     def backward(ctx, x):
+        _op(x, False)
         return x
-        # return _op(x)
 
 
 def _sfdp_pattern_1(query, key, value):
@@ -55,9 +58,8 @@ def _sfdp_pattern_1(query, key, value):
 
 
 def _replacement_pattern_1(query, key, value):
-    print("hi")
-    # return _F.apply(q)
-    return query + key + value
+    return _F.apply(query)
+    # return query + key + value
 
 
 SERIALIZED_PATTERN_PATH = Path("./")
@@ -233,9 +235,7 @@ def g():
     v = torch.empty((2, 4, 8, 16), device=device, requires_grad=True)
 
     o = _sfdp_pattern_1_compiled(q, k, v)
-
-    print(o)
-    print(torch._dynamo.utils.counters)
+    o.sum().backward()
 
 
 g()
