@@ -1,26 +1,15 @@
-import functools
-import importlib
-import os
 import textwrap
-from math import log
 from pathlib import Path
-from typing import Any, Callable, Iterable, Sequence, Union
+from typing import Any, Sequence, Union
 
 import torch
 import torch._inductor.fx_passes.fuse_attention
-import torch.utils._pytree as pytree
 from torch._inductor.fx_passes.joint_graph import patterns
 from torch._inductor.pattern_matcher import (
-    FakeTensorMode,
-    Match,
     PatternExpr,
     PatternPrettyPrinter,
-    ReplaceFn,
     SearchFn,
     TraceFn,
-    _known_precompiled_patterns,
-    _PassDictsType,
-    _return_true,
     _serialized_patterns,
     _TargetExpr,
     fwd_only,
@@ -140,54 +129,6 @@ def _serialize_pattern(
     return pattern
 
 
-def gen_register_replacement(
-    unique_name: str,
-    search_fn: SearchFn,
-    replace_fn: ReplaceFn,
-    example_inputs: Iterable[Any],
-    trace_fn: TraceFn,
-    pass_dicts: Union[_PassDictsType, Sequence[_PassDictsType]],
-    extra_check: Callable[[Match], bool] = _return_true,
-    scalar_workaround: Union[dict[str, Union[float, int]], None] = None,
-    exclusive_arg_names: Sequence[str] = (),
-    skip_duplicates: bool = False,
-    build: bool = True,
-) -> None:
-    # Make sure the example_inputs is materialized.
-    example_inputs = tuple(example_inputs)
-
-    if build:
-        pat = _serialize_pattern(unique_name, search_fn, example_inputs, trace_fn, scalar_workaround)
-    else:
-        pattern_name = search_fn.__name__
-        m = importlib.import_module(f"_sfdp_pattern_1")
-        if not m or not hasattr(m, unique_name):
-            assert False
-        pat = getattr(m, unique_name)
-
-    for arg in pytree.tree_iter(example_inputs):
-        if isinstance(arg, FakeTensor) and arg.constant is not None:
-            # This can be a problem - small fake tensors (e.g. `tensor(2)`) will
-            # hold onto their original constant value - and by stashing it here
-            # will cause a memory leak if the constant value is on GPU.
-            # Since this is just an optimization we can clear it out.
-            arg.constant = None
-
-    _known_precompiled_patterns.append((search_fn, example_inputs, trace_fn, scalar_workaround, pat))
-    register_replacement(
-        search_fn,
-        replace_fn,
-        example_inputs,
-        trace_fn,
-        pass_dicts,
-        extra_check,
-        scalar_workaround,
-        exclusive_arg_names,
-        search_fn_pattern=pat,
-        skip_duplicates=skip_duplicates,
-    )
-
-
 @init_once_fakemode
 def f():
     name = "mayank"
@@ -197,7 +138,6 @@ def f():
     k = torch.empty((2, 4, 8, 16), device=device, requires_grad=True)
     v = torch.empty((2, 4, 8, 16), device=device, requires_grad=True)
 
-    training_name = name + "_training"
     args = {
         "search_fn": _sfdp_pattern_1,
         "replace_fn": _replacement_pattern_1,
@@ -206,9 +146,8 @@ def f():
         "pass_dicts": patterns,
     }
 
-    gen_register_replacement(training_name, **args)
+    register_replacement(**args)
 
-    inference_name = name + "_inference"
     args = {
         "search_fn": _sfdp_pattern_1,
         "replace_fn": _replacement_pattern_1,
@@ -220,7 +159,7 @@ def f():
         "skip_duplicates": True,
     }
 
-    gen_register_replacement(inference_name, **args)
+    register_replacement(**args)
 
 
 f()
