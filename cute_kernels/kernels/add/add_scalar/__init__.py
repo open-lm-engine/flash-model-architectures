@@ -1,6 +1,6 @@
 import torch
 
-from ....counters import kernel_counter_increment
+from ....counters import kernel_counter
 from ....cutotune import CutoTuneParameter
 from .forward import _forward
 from .torch_implementation import add_scalar_torch
@@ -27,11 +27,11 @@ class _AddScalar_Cute(torch.autograd.Function):
         return output_grad, *[None] * 4
 
 
-@kernel_counter_increment
 def add_scalar_cute(
     x: torch.Tensor,
     y: torch.Tensor,
     kernel_backend: str = CutoTuneParameter(),
     BLOCK_SIZE: int = CutoTuneParameter(),
 ) -> torch.Tensor:
+    kernel_counter[add_scalar_cute.__name__] += 1
     return x if y == 0 else _AddScalar_Cute.apply(x, y, kernel_backend, BLOCK_SIZE)
