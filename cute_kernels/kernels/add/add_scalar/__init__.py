@@ -1,6 +1,5 @@
 import torch
 
-from ....counters import kernel_counter
 from ....cutotune import CutoTuneParameter
 from .forward import _forward
 from .torch_implementation import add_scalar_torch
@@ -33,5 +32,4 @@ def add_scalar_cute(
     kernel_backend: str = CutoTuneParameter(),
     BLOCK_SIZE: int = CutoTuneParameter(),
 ) -> torch.Tensor:
-    kernel_counter[add_scalar_cute.__name__] += 1
     return x if y == 0 else _AddScalar_Cute.apply(x, y, kernel_backend, BLOCK_SIZE)
