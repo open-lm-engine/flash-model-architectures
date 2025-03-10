@@ -4,8 +4,6 @@ from typing import Callable, Iterable, Sequence
 
 import torch
 
-from ..counters import kernel_counter
-
 
 _IS_CUTE_TRACING = False
 
@@ -45,7 +43,6 @@ def cute_op(
             compileable_func.register_fake(fake_func)
 
         def _run(*args, **kwargs):
-            kernel_counter[name] += 1
             return _dispatch(func, compileable_func, *args, **kwargs)
 
         _run.__signature__ = inspect.signature(func)
