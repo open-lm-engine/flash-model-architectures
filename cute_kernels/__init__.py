@@ -1,4 +1,4 @@
-from .cute_inductor import CuteInductor
+from .cute_inductor import CuteInductor, add_tensor_replacement_config
 from .cutotune import (
     CutoTuneConfig,
     CutoTuneParameter,
