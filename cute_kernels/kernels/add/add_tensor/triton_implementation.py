@@ -30,6 +30,7 @@ def add_tensor_triton(x: torch.Tensor, y: torch.Tensor, output: torch.Tensor, BL
     num_elements = x.numel()
     num_programs = ceil_divide(num_elements, BLOCK_SIZE)
 
-    _add_tensor_triton_kernel[(num_programs,)](
-        x_ptr=x, y_ptr=y, output_ptr=output, num_elements=num_elements, BLOCK_SIZE=BLOCK_SIZE
-    )
+    with torch.device(x.device):
+        _add_tensor_triton_kernel[(num_programs,)](
+            x_ptr=x, y_ptr=y, output_ptr=output, num_elements=num_elements, BLOCK_SIZE=BLOCK_SIZE
+        )
