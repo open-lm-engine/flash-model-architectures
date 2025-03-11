@@ -34,15 +34,17 @@ class CuteInductorAddTensorReplacementTest(TestCommons):
         y = torch.randn(size, device=device, dtype=dtype, requires_grad=True)
         z = torch.randn(size, device=device, dtype=dtype, requires_grad=True)
 
-        _compiled_forward = torch.compile(
-            _forward,
-            backend=CuteInductor(
-                replacement_configs=[add_tensor_replacement_config_copied],
-                apply_torch_inductor_after_cute_inductor=True,
-            ),
+        compiler = CuteInductor(
+            replacement_configs=[add_tensor_replacement_config_copied],
+            apply_torch_inductor_after_cute_inductor=True,
         )
+
+        _compiled_forward = torch.compile(_forward, backend=compiler.__call__)
 
         output_expected = _forward(x, y, z)
         output_compiled = _compiled_forward(x, y, z)
+
+        print(counter)
+        assert False
 
         self.assert_equal_tensors(output_compiled, output_expected, True)

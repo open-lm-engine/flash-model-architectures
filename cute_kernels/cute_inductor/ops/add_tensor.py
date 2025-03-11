@@ -5,7 +5,10 @@ from ..config import ReplacementConfig
 
 
 def _get_example_inputs() -> tuple[torch.Tensor]:
-    return torch.empty(8, 8)
+    return [
+        torch.empty(8, 8, device=torch.cuda.current_device(), requires_grad=True),
+        torch.empty(8, 8, device=torch.cuda.current_device(), requires_grad=True),
+    ]
 
 
 add_tensor_replacement_config = ReplacementConfig(
