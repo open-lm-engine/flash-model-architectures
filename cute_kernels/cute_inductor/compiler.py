@@ -5,11 +5,8 @@ from torch._dynamo import lookup_backend
 from torch._inductor.fx_passes.joint_graph import patterns
 from torch._inductor.pattern_matcher import fwd_only, init_once_fakemode, joint_fwd_bwd, register_replacement
 
-from ..utils import enable_cute_tracing, get_boolean_env_variable
+from ..utils import enable_cute_tracing
 from .config import ReplacementConfig
-
-
-_DEBUG_CUTEINDUCTOR = get_boolean_env_variable("DEBUG_CUTEINDUCTOR", True)
 
 
 class CuteInductor:
@@ -35,16 +32,6 @@ class CuteInductor:
 
     def __call__(self, gm: torch.fx.GraphModule, example_inputs: list[torch.Tensor]) -> Callable:
         with enable_cute_tracing():
-            if _DEBUG_CUTEINDUCTOR:
-                print("graph before cute inductor")
-                gm.print_readable()
-
             inductor = lookup_backend("inductor" if self.apply_torch_inductor_after_cute_inductor else "eager")
             compiled = inductor(gm, example_inputs)
-
-            if _DEBUG_CUTEINDUCTOR:
-                print("graph after cute inductor")
-                print(compiled.__wrapped__.print_readable())
-                compiled.print_readable()
-
             return compiled

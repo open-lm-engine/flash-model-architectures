@@ -45,7 +45,5 @@ class CuteInductorAddTensorReplacementTest(TestCommons):
         output_expected = _forward(x, y, z)
         output_compiled = _compiled_forward(x, y, z)
 
-        print(counter)
-        assert False
-
         self.assert_equal_tensors(output_compiled, output_expected, True)
+        assert counter == 4
