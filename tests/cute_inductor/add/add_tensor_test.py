@@ -1,22 +1,15 @@
-from typing import Callable
+from copy import deepcopy
 
 import torch
-import torch.nn as nn
 
-from cute_kernels import add_scalar_torch, add_tensor_replacement_config
+from cute_kernels import CuteInductor, add_tensor_cute, add_tensor_replacement_config
 
 from ...test_commons import TestCommons
 
 
 class CuteInductorAddTensorReplacementTest(TestCommons):
     def test_cute_inductor_add_tensor_replacement(
-        self,
-        size: tuple[int],
-        device: torch.device,
-        dtype: torch.dtype,
-        kernel_backend: str,
-        BLOCK_SIZE: int,
-        function: Callable,
+        self, size: tuple[int], device: torch.device, dtype: torch.dtype
     ) -> None:
         def _forward(x: torch.Tensor, y: torch.Tensor, z: torch.Tensor) -> torch.Tensor:
             x1 = x * 3
@@ -25,19 +18,29 @@ class CuteInductorAddTensorReplacementTest(TestCommons):
             z = z + x1
             return z
 
-        x_kernel, x_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype)
-        y = 0.42
+        counter = 0
 
-        z_kernel = function(
-            x_kernel,
-            y,
-            kernel_backend=kernel_backend,
-            BLOCK_SIZE=BLOCK_SIZE,
+        def _replacement(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+            nonlocal counter
+            counter += 1
+            return add_tensor_cute(x, y)
+
+        add_tensor_replacement_config_copied = deepcopy(add_tensor_replacement_config)
+        add_tensor_replacement_config_copied.replacement_function = _replacement
+
+        x = torch.randn(size, device=device, dtype=dtype, requires_grad=True)
+        y = torch.randn(size, device=device, dtype=dtype, requires_grad=True)
+        z = torch.randn(size, device=device, dtype=dtype, requires_grad=True)
+
+        _compiled_forward = torch.compile(
+            _forward,
+            backend=CuteInductor(
+                replacement_configs=[add_tensor_replacement_config_copied],
+                apply_torch_inductor_after_cute_inductor=True,
+            ),
         )
-        z_expected = add_scalar_torch(x_expected, y)
 
-        z_kernel.mean().backward()
-        z_expected.mean().backward()
+        output_expected = _forward(x, y, z)
+        output_compiled = _compiled_forward(x, y, z)
 
-        self.assert_equal_tensors(z_kernel, z_expected, True)
-        self.assert_equal_tensors(x_kernel.grad, x_expected.grad, True)
+        self.assert_equal_tensors(output_compiled, output_expected, True)
