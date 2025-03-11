@@ -23,6 +23,7 @@ class CuteInductor:
                     "replace_fn": replacement_config.replacement_function,
                     "example_inputs": tuple(replacement_config.example_inputs_function()),
                     "pass_dicts": patterns,
+                    "extra_check": replacement_config.extra_check,
                 }
 
                 register_replacement(**args, trace_fn=joint_fwd_bwd)
