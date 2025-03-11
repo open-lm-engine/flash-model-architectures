@@ -29,7 +29,7 @@ class CuteInductor:
             register_replacement(**args, trace_fn=joint_fwd_bwd)
             register_replacement(**args, trace_fn=fwd_only, skip_duplicates=True)
 
-    def compiler(self, gm: torch.fx.GraphModule, example_inputs: list[torch.Tensor]) -> Callable:
+    def __call__(self, gm: torch.fx.GraphModule, example_inputs: list[torch.Tensor]) -> Callable:
         with enable_cute_tracing():
             if _DEBUG_CUTEINDUCTOR:
                 print("graph before cute inductor")
