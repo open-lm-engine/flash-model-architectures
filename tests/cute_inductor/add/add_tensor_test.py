@@ -8,9 +8,11 @@ from ...test_commons import TestCommons
 
 
 class CuteInductorAddTensorReplacementTest(TestCommons):
-    def test_cute_inductor_add_tensor_replacement(
-        self, size: tuple[int], device: torch.device, dtype: torch.dtype
-    ) -> None:
+    def test_cute_inductor_add_tensor_replacement(self) -> None:
+        size = (4, 4)
+        device = torch.cuda.current_device()
+        dtype = torch.float32
+
         def _forward(x: torch.Tensor, y: torch.Tensor, z: torch.Tensor) -> torch.Tensor:
             x1 = x * 3
             x1 = x1 + y
