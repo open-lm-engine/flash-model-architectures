@@ -13,8 +13,8 @@ def _get_example_inputs() -> tuple[torch.Tensor]:
 
 
 def _extra_check(match: Match) -> bool:
-    x = match["x"]
-    y = match["y"]
+    x = match.kwargs["x"]
+    y = match.kwargs["y"]
 
     return isinstance(x, torch.Tensor) and isinstance(y, torch.Tensor) and x.size() == y.size() and x.dtype == y.dtype
 
