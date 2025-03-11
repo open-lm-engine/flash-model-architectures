@@ -11,5 +11,5 @@ def _get_example_inputs() -> tuple[torch.Tensor]:
 add_tensor_replacement_config = ReplacementConfig(
     pattern_function=add_tensor_torch,
     replacement_function=add_tensor_cute,
-    example_inputs_functions=_get_example_inputs,
+    example_inputs_function=_get_example_inputs,
 )
