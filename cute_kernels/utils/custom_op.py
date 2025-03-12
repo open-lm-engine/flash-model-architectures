@@ -1,30 +1,7 @@
 import inspect
-from contextlib import contextmanager
 from typing import Callable, Iterable, Sequence
 
 import torch
-
-
-_IS_CUTE_TRACING = False
-
-
-@contextmanager
-def enable_cute_tracing():
-    global _IS_CUTE_TRACING
-    _IS_CUTE_TRACING = True
-
-    yield
-
-    _IS_CUTE_TRACING = False
-
-
-def _dispatch(func: Callable, compileable_fn: Callable, *args, **kwargs):
-    if _IS_CUTE_TRACING or torch.compiler.is_compiling():
-        output = compileable_fn(*args, **kwargs)
-    else:
-        output = func(*args, **kwargs)
-
-    return output
 
 
 def cute_op(
@@ -43,7 +20,7 @@ def cute_op(
             compileable_func.register_fake(fake_func)
 
         def _run(*args, **kwargs):
-            return _dispatch(func, compileable_func, *args, **kwargs)
+            return compileable_func(*args, **kwargs)
 
         _run.__signature__ = inspect.signature(func)
         _run.__name__ = func.__name__
