@@ -22,9 +22,13 @@ def _extra_check(match: Match) -> bool:
     return isinstance(x, torch.Tensor) and isinstance(y, torch.Tensor) and x.size() == y.size() and x.dtype == y.dtype
 
 
+def _replacement_function(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    return add_tensor_cute(x, y)
+
+
 add_tensor_replacement_config = ReplacementConfig(
     pattern_function=add_tensor_torch,
-    replacement_function=add_tensor_cute,
+    replacement_function=_replacement_function,
     example_inputs_function=_get_example_inputs,
     extra_check=_extra_check,
 )
