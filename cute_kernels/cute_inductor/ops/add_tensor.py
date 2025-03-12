@@ -13,6 +13,9 @@ def _get_example_inputs() -> tuple[torch.Tensor]:
 
 
 def _extra_check(match: Match) -> bool:
+    if len(match.kwargs) != 2:
+        return False
+
     x = match.kwargs["x"].meta["val"]
     y = match.kwargs["y"].meta["val"]
 
