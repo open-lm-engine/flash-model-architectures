@@ -119,7 +119,7 @@ def gen_register_replacement(
     pattern_name = search_fn.__name__
 
     os.makedirs(CACHE.split(".")[1], exist_ok=True)
-    m = importlib.import_module(f"{CACHE}.{pattern_name}")
+    m = importlib.import_module(f"{CACHE}.{pattern_name}", package="cute_kernels")
 
     if not m or not hasattr(m, unique_name):
         pat = _serialize_pattern(unique_name, search_fn, example_inputs, trace_fn, scalar_workaround, CACHE)
