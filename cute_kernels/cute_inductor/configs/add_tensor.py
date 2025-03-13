@@ -5,6 +5,9 @@ from ...kernels import add_tensor_cute, add_tensor_torch
 from ..config import ReplacementConfig
 
 
+counter = 0
+
+
 def _get_example_inputs() -> tuple[torch.Tensor]:
     return [
         torch.empty(8, 8, device=torch.cuda.current_device(), requires_grad=True),
@@ -29,6 +32,8 @@ def _extra_check(match: Match) -> bool:
 
 
 def _replacement_function(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    global counter
+    counter += 1
     return add_tensor_cute(x, y)
 
 
