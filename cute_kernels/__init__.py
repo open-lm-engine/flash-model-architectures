@@ -1,4 +1,9 @@
-from .cute_inductor import CuteInductor, add_tensor_replacement_config, scattermoe_replacement_config
+from .cute_inductor import (
+    CuteInductor,
+    add_tensor_replacement_config,
+    scattermoe_replacement_config,
+    swiglu_replacement_config,
+)
 from .cutotune import (
     CutoTuneConfig,
     CutoTuneParameter,
