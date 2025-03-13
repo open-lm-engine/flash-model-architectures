@@ -25,7 +25,7 @@ from torch._inductor.pattern_matcher import (
 from torch._subclasses import FakeTensor
 
 
-CACHE = "./"
+CACHE = "."
 
 
 def _serialize_pattern(
