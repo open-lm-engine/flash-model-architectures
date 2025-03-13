@@ -1,8 +1,7 @@
-from copy import deepcopy
-
 import torch
 
-from cute_kernels import CuteInductor, add_tensor_cute, add_tensor_replacement_config
+from cute_kernels import CuteInductor, add_tensor_replacement_config
+from cute_kernels.cute_inductor.configs.add_tensor import counter
 
 from ...test_commons import TestCommons
 
@@ -20,16 +19,6 @@ class CuteInductorAddTensorReplacementTest(TestCommons):
             z = z + x1
             return z
 
-        counter = 0
-
-        def _replacement(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-            nonlocal counter
-            counter += 1
-            return add_tensor_cute(x, y)
-
-        add_tensor_replacement_config_copied = deepcopy(add_tensor_replacement_config)
-        add_tensor_replacement_config_copied.replacement_function = _replacement
-
         x = torch.randn(size, device=device, dtype=dtype, requires_grad=True)
         y = torch.randn(size, device=device, dtype=dtype, requires_grad=True)
         z = torch.randn(size, device=device, dtype=dtype, requires_grad=True)
@@ -37,7 +26,7 @@ class CuteInductorAddTensorReplacementTest(TestCommons):
         _compiled_forward = torch.compile(
             _forward,
             backend=CuteInductor(
-                replacement_configs=[add_tensor_replacement_config_copied],
+                replacement_configs=[add_tensor_replacement_config],
                 apply_torch_inductor_after_cute_inductor=True,
             ),
         )
