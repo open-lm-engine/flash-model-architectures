@@ -3,7 +3,7 @@ from typing import Callable
 import torch
 from torch._dynamo import lookup_backend
 from torch._inductor.fx_passes.joint_graph import patterns
-from torch._inductor.pattern_matcher import fwd_only, init_once_fakemode, joint_fwd_bwd, register_replacement
+from torch._inductor.pattern_matcher import fwd_only, init_once_fakemode, joint_fwd_bwd
 
 from .config import ReplacementConfig
 from .pattern_matcher import gen_register_replacement
