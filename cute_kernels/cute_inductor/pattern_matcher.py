@@ -25,6 +25,9 @@ from torch._inductor.pattern_matcher import (
 from torch._subclasses import FakeTensor
 
 
+CACHE = "./"
+
+
 def _serialize_pattern(
     unique_name: str,
     search_fn: SearchFn,
@@ -114,10 +117,10 @@ def gen_register_replacement(
     example_inputs = tuple(example_inputs)
 
     pattern_name = search_fn.__name__
-    m = importlib.import_module(f"torch._inductor.fx_passes.serialized_patterns.{pattern_name}")
+    m = importlib.import_module(f"{CACHE}.{pattern_name}")
 
     if not m or not hasattr(m, unique_name):
-        pat = _serialize_pattern(unique_name, search_fn, example_inputs, trace_fn, scalar_workaround)
+        pat = _serialize_pattern(unique_name, search_fn, example_inputs, trace_fn, scalar_workaround, CACHE)
     else:
         pat = getattr(m, unique_name, None)
 
