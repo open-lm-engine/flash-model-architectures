@@ -25,7 +25,7 @@ from torch._inductor.pattern_matcher import (
 from torch._subclasses import FakeTensor
 
 
-CACHE = "."
+CACHE = ".graphs"
 
 
 def _serialize_pattern(
@@ -117,6 +117,8 @@ def gen_register_replacement(
     example_inputs = tuple(example_inputs)
 
     pattern_name = search_fn.__name__
+
+    os.makedirs(CACHE.split(".")[1], exist_ok=True)
     m = importlib.import_module(f"{CACHE}.{pattern_name}")
 
     if not m or not hasattr(m, unique_name):
