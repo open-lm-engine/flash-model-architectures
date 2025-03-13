@@ -1,7 +1,6 @@
 import torch
 
 from cute_kernels import CuteInductor, add_tensor_replacement_config
-from cute_kernels.cute_inductor.configs.add_tensor import counter
 
 from ...test_commons import TestCommons
 
@@ -34,4 +33,4 @@ class CuteInductorAddTensorReplacementTest(TestCommons):
         output_compiled = _compiled_forward(x, y, z)
 
         self.assert_equal_tensors(output_compiled, output_expected, True)
-        assert counter == 4
+        assert False
