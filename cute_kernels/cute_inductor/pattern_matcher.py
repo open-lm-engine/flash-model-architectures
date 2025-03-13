@@ -112,13 +112,10 @@ def gen_register_replacement(
 ) -> None:
     # Make sure the example_inputs is materialized.
     example_inputs = tuple(example_inputs)
-
-    pattern_name = search_fn.__name__
-
     os.makedirs(_IMPORT_CACHE.split(".")[1], exist_ok=True)
 
     try:
-        m = importlib.import_module(f"{_IMPORT_CACHE}.{pattern_name}", package="cute_kernels")
+        m = importlib.import_module(f"{_IMPORT_CACHE}.{unique_name}", package="cute_kernels")
         pat = getattr(m, unique_name, None)
     except ModuleNotFoundError:
         pat = _serialize_pattern(unique_name, search_fn, example_inputs, trace_fn, scalar_workaround)
