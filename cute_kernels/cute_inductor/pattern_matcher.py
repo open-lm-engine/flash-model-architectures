@@ -25,7 +25,8 @@ from torch._inductor.pattern_matcher import (
 from torch._subclasses import FakeTensor
 
 
-CACHE = ".graphs"
+_CACHE_DIRECTORY = Path(os.path.dirname(__file__)) / "graphs"
+_IMPORT_CACHE = ".graphs"
 
 
 def _serialize_pattern(
@@ -34,7 +35,6 @@ def _serialize_pattern(
     example_inputs: Sequence[Any],
     trace_fn: TraceFn,
     scalar_workaround: Union[dict[str, Union[float, int]], None],
-    directory: Path,
 ) -> PatternExpr:
     def get_file_template() -> str:
         auto_generated_msg = textwrap.dedent(
@@ -71,8 +71,8 @@ def _serialize_pattern(
         formatted_imports = f"from torch._inductor.pattern_matcher import (\n   {formatted_imports},\n)\n"
         return f"{file_template}{formatted_imports}"
 
-    if not directory.is_dir():
-        raise RuntimeError(f"Could not find serialized patterns directory at {directory}")
+    if not _CACHE_DIRECTORY.is_dir():
+        raise RuntimeError(f"Could not find serialized patterns directory at {_CACHE_DIRECTORY}")
 
     pattern_name = search_fn.__name__
 
@@ -90,7 +90,7 @@ def _serialize_pattern(
 
     file_template = get_file_template()
 
-    with open(directory / f"{pattern_name}.py", write_mode) as f:
+    with open(_CACHE_DIRECTORY / f"{pattern_name}.py", write_mode) as f:
         if write_mode == "w":
             f.write(file_template)
         else:
@@ -118,11 +118,11 @@ def gen_register_replacement(
 
     pattern_name = search_fn.__name__
 
-    os.makedirs(CACHE.split(".")[1], exist_ok=True)
-    m = importlib.import_module(f"{CACHE}.{pattern_name}", package="cute_kernels")
+    os.makedirs(_IMPORT_CACHE.split(".")[1], exist_ok=True)
+    m = importlib.import_module(f"{_IMPORT_CACHE}.{pattern_name}", package="cute_kernels")
 
     if not m or not hasattr(m, unique_name):
-        pat = _serialize_pattern(unique_name, search_fn, example_inputs, trace_fn, scalar_workaround, CACHE)
+        pat = _serialize_pattern(unique_name, search_fn, example_inputs, trace_fn, scalar_workaround)
     else:
         pat = getattr(m, unique_name, None)
 
