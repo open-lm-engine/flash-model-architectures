@@ -15,7 +15,6 @@ class CuteInductorAddTensorReplacementTest(TestCommons):
         def _forward(x: torch.Tensor, y: torch.Tensor, z: torch.Tensor) -> torch.Tensor:
             x1 = x * 3
             x1 = x1 + y
-            x1 += x1
             z = z + x1
             return z
 
