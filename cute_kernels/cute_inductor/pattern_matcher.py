@@ -26,7 +26,7 @@ from torch._subclasses import FakeTensor
 
 
 _CACHE_DIRECTORY = Path(os.path.dirname(__file__)) / "graphs"
-_IMPORT_CACHE = ".graphs"
+_IMPORT_CACHE = ".cute_inductor.graphs"
 
 
 def _serialize_pattern(
