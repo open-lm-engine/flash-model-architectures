@@ -29,6 +29,7 @@ def _extra_check(match: Match) -> bool:
 
 
 scattermoe_replacement_config = ReplacementConfig(
+    name="scattermoe",
     pattern_function=MoE_Torch._compute_experts,
     replacement_function=MoE_Triton._compute_experts,
     example_inputs_function=_get_example_inputs,
