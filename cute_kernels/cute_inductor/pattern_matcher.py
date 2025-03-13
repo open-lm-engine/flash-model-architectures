@@ -71,8 +71,7 @@ def _serialize_pattern(
         formatted_imports = f"from torch._inductor.pattern_matcher import (\n   {formatted_imports},\n)\n"
         return f"{file_template}{formatted_imports}"
 
-    if not _CACHE_DIRECTORY.is_dir():
-        raise RuntimeError(f"Could not find serialized patterns directory at {_CACHE_DIRECTORY}")
+    os.makedirs(_CACHE_DIRECTORY, exist_ok=True)
 
     pattern_name = search_fn.__name__
 
