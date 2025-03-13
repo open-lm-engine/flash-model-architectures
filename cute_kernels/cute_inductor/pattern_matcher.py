@@ -73,23 +73,21 @@ def _serialize_pattern(
 
     os.makedirs(_CACHE_DIRECTORY, exist_ok=True)
 
-    pattern_name = search_fn.__name__
-
     from torch._functorch import config as functorch_config
 
     with functorch_config.patch(functionalize_rng_ops=False):
         pattern = gen_pattern(search_fn, example_inputs, trace_fn, scalar_workaround)
 
     serialized_pattern = PatternPrettyPrinter.run(pattern, output_name=unique_name)
-    if pattern_name not in _serialized_patterns:
+    if unique_name not in _serialized_patterns:
         write_mode = "w"
-        _serialized_patterns.add(pattern_name)
+        _serialized_patterns.add(unique_name)
     else:
         write_mode = "a"
 
     file_template = get_file_template()
 
-    with open(_CACHE_DIRECTORY / f"{pattern_name}.py", write_mode) as f:
+    with open(_CACHE_DIRECTORY / f"{unique_name}.py", write_mode) as f:
         if write_mode == "w":
             f.write(file_template)
         else:
