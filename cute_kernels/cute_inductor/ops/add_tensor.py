@@ -33,6 +33,7 @@ def _replacement_function(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
 
 
 add_tensor_replacement_config = ReplacementConfig(
+    name="add_tensor",
     pattern_function=add_tensor_torch,
     replacement_function=_replacement_function,
     example_inputs_function=_get_example_inputs,

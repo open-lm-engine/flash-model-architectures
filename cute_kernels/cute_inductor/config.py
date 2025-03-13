@@ -6,6 +6,7 @@ from torch._inductor.pattern_matcher import _return_true
 
 @dataclass
 class ReplacementConfig:
+    name: str
     pattern_function: Callable
     replacement_function: Callable
     example_inputs_function: Callable

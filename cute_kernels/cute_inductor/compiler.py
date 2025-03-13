@@ -19,6 +19,7 @@ class CuteInductor:
         def _init():
             for replacement_config in replacement_configs:
                 args = {
+                    "unique_name": replacement_config.name,
                     "search_fn": replacement_config.pattern_function,
                     "replace_fn": replacement_config.replacement_function,
                     "example_inputs": tuple(replacement_config.example_inputs_function()),
@@ -26,8 +27,8 @@ class CuteInductor:
                     "extra_check": replacement_config.extra_check,
                 }
 
-                register_replacement(**args, trace_fn=joint_fwd_bwd)
-                register_replacement(**args, trace_fn=fwd_only, skip_duplicates=True)
+                gen_register_replacement(**args, trace_fn=joint_fwd_bwd)
+                gen_register_replacement(**args, trace_fn=fwd_only, skip_duplicates=True)
 
         _init()
 
