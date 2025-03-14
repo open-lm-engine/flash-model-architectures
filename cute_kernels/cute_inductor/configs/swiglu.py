@@ -1,4 +1,5 @@
 import torch
+import torch.nn.functional as F
 from torch._inductor.pattern_matcher import Match
 
 from ...kernels import swiglu_cute, swiglu_torch
@@ -29,6 +30,15 @@ def _extra_check(match: Match) -> bool:
 swiglu_replacement_config = ReplacementConfig(
     name="swiglu",
     pattern_function=swiglu_torch,
+    replacement_function=_replacement_function,
+    example_inputs_function=_get_example_inputs,
+    extra_check=_extra_check,
+)
+
+
+swiglu1_replacement_config = ReplacementConfig(
+    name="swiglu",
+    pattern_function=lambda gate, up: F.silu(gate) * up,
     replacement_function=_replacement_function,
     example_inputs_function=_get_example_inputs,
     extra_check=_extra_check,
