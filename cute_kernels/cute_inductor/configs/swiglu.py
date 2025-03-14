@@ -37,7 +37,7 @@ swiglu_replacement_config = ReplacementConfig(
 
 
 swiglu1_replacement_config = ReplacementConfig(
-    name="swiglu",
+    name="swiglu1",
     pattern_function=lambda gate, up: F.silu(gate) * up,
     replacement_function=_replacement_function,
     example_inputs_function=_get_example_inputs,
