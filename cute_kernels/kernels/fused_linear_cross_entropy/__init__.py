@@ -30,7 +30,7 @@ class _FusedLinearCrossEntropy_Cute(torch.autograd.Function):
         vocab_size = weight.size(0)
 
         # NOTE chunking is copied from liger kernel
-        memory_increase_factor = ceil_divide(hidden_size, vocab_size)
+        memory_increase_factor = ceil_divide(vocab_size, hidden_size)
         # chunk_size needed to reduce memory increase back to 1
         chunk_size = get_next_power_of_2(ceil_divide(batch_size, memory_increase_factor))
         num_chunks = ceil_divide(batch_size, chunk_size)
