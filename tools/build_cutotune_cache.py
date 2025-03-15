@@ -1,7 +1,6 @@
 from typing import Callable
 
 import torch
-from transformers import set_seed
 
 from cute_kernels import (
     add_scalar_cute,
@@ -13,6 +12,7 @@ from cute_kernels import (
     get_powers_of_2,
     rmsnorm_cute,
     save_cutotune_cache,
+    set_seed,
     softmax_cute,
     swiglu_cute,
     swiglu_unchunked_cute,

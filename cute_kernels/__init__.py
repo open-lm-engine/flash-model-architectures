@@ -15,8 +15,6 @@ from .kernels import (
     add_scalar_torch,
     add_tensor_cute,
     add_tensor_torch,
-    continuous_count_and_sort_cute,
-    continuous_count_and_sort_torch,
     continuous_count_cute,
     continuous_count_torch,
     cross_entropy_cute,
@@ -40,4 +38,4 @@ from .kernels import (
 )
 from .math import ceil_divide, get_powers_of_2
 from .tensor import CuteTensor
-from .utils import device_synchronize, get_ptx_from_triton_kernel, get_triton_num_warps
+from .utils import device_synchronize, get_ptx_from_triton_kernel, get_triton_num_warps, set_seed

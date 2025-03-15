@@ -2,9 +2,8 @@ from typing import Callable
 
 import torch
 from parameterized import parameterized
-from transformers import set_seed
 
-from cute_kernels import linear_cute, linear_torch
+from cute_kernels import linear_cute, linear_torch, set_seed
 
 from ..test_commons import TestCommons
 
