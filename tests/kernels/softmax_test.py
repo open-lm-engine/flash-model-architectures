@@ -2,9 +2,8 @@ from typing import Callable
 
 import torch
 from parameterized import parameterized
-from transformers import set_seed
 
-from cute_kernels import softmax_cute, softmax_torch
+from cute_kernels import set_seed, softmax_cute, softmax_torch
 
 from ..test_commons import TestCommons
 from .rmsnorm_test import _get_sizes

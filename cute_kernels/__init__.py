@@ -38,4 +38,4 @@ from .kernels import (
 )
 from .math import ceil_divide, get_powers_of_2
 from .tensor import CuteTensor
-from .utils import device_synchronize, get_ptx_from_triton_kernel, get_triton_num_warps
+from .utils import device_synchronize, get_ptx_from_triton_kernel, get_triton_num_warps, set_seed
