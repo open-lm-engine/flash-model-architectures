@@ -15,8 +15,6 @@ from .kernels import (
     add_scalar_torch,
     add_tensor_cute,
     add_tensor_torch,
-    continuous_count_and_sort_cute,
-    continuous_count_and_sort_torch,
     continuous_count_cute,
     continuous_count_torch,
     cross_entropy_cute,
