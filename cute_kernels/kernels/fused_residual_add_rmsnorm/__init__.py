@@ -37,7 +37,7 @@ class _FusedResidualAddRMSNorm_Cute(torch.autograd.Function):
         if eps is None:
             eps = torch.finfo(x.dtype).eps
 
-        output, rmsnorm_denominator = _forward(
+        output, added_x_residual, rmsnorm_denominator = _forward(
             x=x,
             residual=residual,
             weight=weight,
@@ -52,7 +52,7 @@ class _FusedResidualAddRMSNorm_Cute(torch.autograd.Function):
         if is_x_1d:
             output = output.squeeze(0)
 
-        ctx.save_for_backward(x, residual, weight, rmsnorm_denominator)
+        ctx.save_for_backward(added_x_residual, weight, rmsnorm_denominator)
         ctx.is_x_1d = is_x_1d
         ctx.kernel_backend_backward = kernel_backend_backward
         ctx.eps = eps
@@ -65,11 +65,10 @@ class _FusedResidualAddRMSNorm_Cute(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
     def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
-        x, residual, weight, rmsnorm_denominator = ctx.saved_tensors
+        added_x_residual, weight, rmsnorm_denominator = ctx.saved_tensors
 
         x_grad, residual_grad, weight_grad = _backward(
-            x=x,
-            residual=residual,
+            added_x_residual=added_x_residual,
             weight=weight,
             eps=ctx.eps,
             multiplier=ctx.multiplier,

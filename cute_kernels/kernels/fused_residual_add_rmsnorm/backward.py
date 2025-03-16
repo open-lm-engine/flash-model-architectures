@@ -9,8 +9,7 @@ from .triton_implementation import fused_residual_add_rmsnorm_backward_triton
 
 @cutotune(**get_cutotune_parameters())
 def _backward(
-    x: torch.Tensor,
-    residual: torch.Tensor,
+    added_x_residual: torch.Tensor,
     weight: torch.Tensor | None,
     eps: float,
     multiplier: float | None,
@@ -20,10 +19,10 @@ def _backward(
     BLOCK_SIZE_B: int,
     BLOCK_SIZE_H: int,
 ) -> tuple[torch.Tensor | None]:
-    hidden_size = x.size(-1)
+    hidden_size = added_x_residual.size(-1)
 
-    x_grad = torch.empty_like(x)
-    residual_grad = torch.empty_like(x)
+    x_grad = torch.empty_like(added_x_residual)
+    residual_grad = torch.empty_like(added_x_residual)
     weight_grad = None if weight is None else torch.zeros_like(weight, dtype=torch.float32)
 
     if kernel_backend == "triton":
@@ -31,8 +30,7 @@ def _backward(
         assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
 
         fused_residual_add_rmsnorm_backward_triton(
-            x=x,
-            residual=residual,
+            added_x_residual=added_x_residual,
             weight=weight,
             output_grad=output_grad,
             rmsnorm_denominator=rmsnorm_denominator,

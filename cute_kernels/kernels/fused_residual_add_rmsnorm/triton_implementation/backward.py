@@ -14,8 +14,7 @@ _KERNEL_NAME = "fused_residual_add_rmsnorm_backward_triton"
 
 @triton.jit
 def _rmsnorm_backward_triton_kernel(
-    x_ptr,
-    residual_ptr,
+    added_x_residual_ptr,
     has_weight: tl.constexpr,
     weight_ptr,
     output_grad_ptr,
@@ -46,7 +45,7 @@ def _rmsnorm_backward_triton_kernel(
 
     num_loops = tl.cdiv(num_elements_in_current_program, BLOCK_SIZE_B)
 
-    x_dtype = x_ptr.dtype.element_ty
+    x_dtype = added_x_residual_ptr.dtype.element_ty
 
     if has_weight:
         weight = tl.load(weight_ptr + indices_h, mask=mask_h)[None, :]
@@ -59,21 +58,13 @@ def _rmsnorm_backward_triton_kernel(
         mask_b = indices_b < program_end
         mask_bh = mask_b[:, None] & mask_h[None, :]
 
-        x_ptrs = x_ptr + indices_bh
-        x = tl.load(x_ptrs, mask=mask_bh).to(tl.float32)
-
-        if has_multiplier:
-            x *= multiplier
-
-        residual_ptrs = residual_ptr + indices_bh
-        residual = tl.load(residual_ptrs, mask=mask_bh)
-
-        x += residual
+        added_x_residual_ptrs = added_x_residual_ptr + indices_bh
+        added_x_residual = tl.load(added_x_residual_ptrs, mask=mask_bh).to(tl.float32)
 
         if has_rmsnorm_denominator:
             inverse_rms = tl.load(rmsnorm_denominator_ptr + indices_b, mask=mask_b)
         else:
-            squared_sum = tl.sum(x * x, axis=1)
+            squared_sum = tl.sum(added_x_residual * added_x_residual, axis=1)
             inverse_rms = tl.rsqrt(squared_sum / H + eps)
 
         output_grad_ptrs = output_grad_ptr + indices_bh
@@ -91,8 +82,8 @@ def _rmsnorm_backward_triton_kernel(
             * inverse_rms[:, None]
             * inverse_rms[:, None]
             * inverse_rms[:, None]
-            * x
-            * tl.sum(output_grad_weight * x, axis=1, keep_dims=True)
+            * added_x_residual
+            * tl.sum(output_grad_weight * added_x_residual, axis=1, keep_dims=True)
         )
 
         residual_grad_ptrs = residual_grad_ptr + indices_bh
@@ -105,7 +96,7 @@ def _rmsnorm_backward_triton_kernel(
         tl.store(x_grad_ptrs, x_grad, mask=mask_bh)
 
         if has_weight:
-            weight_grad += tl.sum(output_grad * (x * inverse_rms[:, None]).to(x_dtype), axis=0)
+            weight_grad += tl.sum(output_grad * (added_x_residual * inverse_rms[:, None]).to(x_dtype), axis=0)
 
     if has_weight:
         tl.atomic_add(weight_grad_ptr + indices_h, weight_grad, mask=mask_h)
@@ -116,8 +107,7 @@ def _rmsnorm_backward_triton_kernel(
 )
 @cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"x_grad", "residual_grad", "weight_grad"})
 def fused_residual_add_rmsnorm_backward_triton(
-    x: torch.Tensor,
-    residual: torch.Tensor,
+    added_x_residual: torch.Tensor,
     weight: torch.Tensor,
     output_grad: torch.Tensor,
     rmsnorm_denominator: torch.Tensor,
@@ -139,8 +129,7 @@ def fused_residual_add_rmsnorm_backward_triton(
 
     with torch.device(x.device):
         _rmsnorm_backward_triton_kernel[(num_programs,)](
-            x_ptr=x,
-            residual_ptr=residual,
+            added_x_residual_ptr=added_x_residual,
             has_weight=weight is not None,
             weight_ptr=weight,
             output_grad_ptr=output_grad,

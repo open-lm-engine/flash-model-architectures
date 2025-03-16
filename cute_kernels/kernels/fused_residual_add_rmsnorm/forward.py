@@ -23,6 +23,7 @@ def _forward(
     num_elements, hidden_size = get_num_elements_and_hidden_size(x)
 
     output = torch.empty_like(x)
+    added_x_residual = torch.empty_like(x)
     rmsnorm_denominator = None if memory_efficient else torch.empty(num_elements, device=x.device, dtype=torch.float32)
 
     if kernel_backend == "triton":
@@ -36,6 +37,7 @@ def _forward(
             output=output,
             eps=eps,
             multiplier=multiplier,
+            added_x_residual=added_x_residual,
             rmsnorm_denominator=rmsnorm_denominator,
             BLOCK_SIZE_B=BLOCK_SIZE_B,
             BLOCK_SIZE_H=BLOCK_SIZE_H,
@@ -43,4 +45,4 @@ def _forward(
     else:
         raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
-    return output, rmsnorm_denominator
+    return output, added_x_residual, rmsnorm_denominator

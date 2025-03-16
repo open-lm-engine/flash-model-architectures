@@ -22,6 +22,7 @@ def _rmsnorm_forward_triton_kernel(
     eps,
     has_multiplier: tl.constexpr,
     multiplier,
+    added_x_residual_ptr,
     has_rmsnorm_denominator: tl.constexpr,
     rmsnorm_denominator_ptr,
     B,
@@ -51,6 +52,9 @@ def _rmsnorm_forward_triton_kernel(
 
     x += residual
 
+    added_x_residual_ptrs = added_x_residual_ptr + indices_bh
+    tl.store(added_x_residual_ptrs, x, mask=mask_bh)
+
     squared_sum = tl.sum(x * x, axis=1)
     inverse_rms = tl.rsqrt((squared_sum / H) + eps)
 
@@ -68,7 +72,7 @@ def _rmsnorm_forward_triton_kernel(
 
 
 @cutotune(**get_cutotune_parameters())
-@cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"output", "rmsnorm_denominator"})
+@cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"output", "added_x_residual", "rmsnorm_denominator"})
 def fused_residual_add_rmsnorm_forward_triton(
     x: torch.Tensor,
     residual: torch.Tensor,
@@ -76,6 +80,7 @@ def fused_residual_add_rmsnorm_forward_triton(
     output: torch.Tensor,
     eps: float,
     multiplier: float | None,
+    added_x_residual: torch.Tensor,
     rmsnorm_denominator: torch.Tensor | None,
     BLOCK_SIZE_B: int,
     BLOCK_SIZE_H: int,
@@ -95,6 +100,7 @@ def fused_residual_add_rmsnorm_forward_triton(
             eps=eps,
             has_multiplier=multiplier is not None and multiplier != 1,
             multiplier=multiplier,
+            added_x_residual_ptr=added_x_residual,
             has_rmsnorm_denominator=rmsnorm_denominator is not None,
             rmsnorm_denominator_ptr=rmsnorm_denominator,
             B=num_elements,
