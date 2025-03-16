@@ -7,7 +7,7 @@ from ..rmsnorm.parameters import get_cutotune_parameters
 from .triton_implementation import fused_residual_add_rmsnorm_backward_triton
 
 
-@cutotune(**get_cutotune_parameters())
+@cutotune(**get_cutotune_parameters(triggers={"added_x_residual.dtype"}))
 def _backward(
     added_x_residual: torch.Tensor,
     weight: torch.Tensor | None,

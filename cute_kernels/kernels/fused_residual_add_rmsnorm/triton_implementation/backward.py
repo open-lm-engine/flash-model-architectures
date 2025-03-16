@@ -103,7 +103,8 @@ def _rmsnorm_backward_triton_kernel(
 
 
 @cutotune(
-    **get_cutotune_parameters(), reset_to_zero={"weight_grad": lambda **kwargs: kwargs["weight_grad"] is not None}
+    **get_cutotune_parameters(triggers={"added_x_residual.dtype"}),
+    reset_to_zero={"weight_grad": lambda **kwargs: kwargs["weight_grad"] is not None},
 )
 @cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"x_grad", "residual_grad", "weight_grad"})
 def fused_residual_add_rmsnorm_backward_triton(
