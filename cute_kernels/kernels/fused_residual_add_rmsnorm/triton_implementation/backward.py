@@ -15,6 +15,7 @@ _KERNEL_NAME = "fused_residual_add_rmsnorm_backward_triton"
 @triton.jit
 def _rmsnorm_backward_triton_kernel(
     x_ptr,
+    residual_ptr,
     has_weight: tl.constexpr,
     weight_ptr,
     output_grad_ptr,
@@ -60,6 +61,14 @@ def _rmsnorm_backward_triton_kernel(
 
         x_ptrs = x_ptr + indices_bh
         x = tl.load(x_ptrs, mask=mask_bh).to(tl.float32)
+
+        if has_multiplier:
+            x *= multiplier
+
+        residual_ptrs = residual_ptr + indices_bh
+        residual = tl.load(residual_ptrs, mask=mask_bh)
+
+        x += residual
 
         if has_rmsnorm_denominator:
             inverse_rms = tl.load(rmsnorm_denominator_ptr + indices_b, mask=mask_b)
@@ -108,6 +117,7 @@ def _rmsnorm_backward_triton_kernel(
 @cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"x_grad", "residual_grad", "weight_grad"})
 def fused_residual_add_rmsnorm_backward_triton(
     x: torch.Tensor,
+    residual: torch.Tensor,
     weight: torch.Tensor,
     output_grad: torch.Tensor,
     rmsnorm_denominator: torch.Tensor,
@@ -130,6 +140,7 @@ def fused_residual_add_rmsnorm_backward_triton(
     with torch.device(x.device):
         _rmsnorm_backward_triton_kernel[(num_programs,)](
             x_ptr=x,
+            residual_ptr=residual,
             has_weight=weight is not None,
             weight_ptr=weight,
             output_grad_ptr=output_grad,

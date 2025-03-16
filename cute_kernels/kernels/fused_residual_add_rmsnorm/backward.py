@@ -10,6 +10,7 @@ from .triton_implementation import fused_residual_add_rmsnorm_backward_triton
 @cutotune(**get_cutotune_parameters())
 def _backward(
     x: torch.Tensor,
+    residual: torch.Tensor,
     weight: torch.Tensor | None,
     eps: float,
     multiplier: float | None,
@@ -31,6 +32,7 @@ def _backward(
 
         fused_residual_add_rmsnorm_backward_triton(
             x=x,
+            residual=residual,
             weight=weight,
             output_grad=output_grad,
             rmsnorm_denominator=rmsnorm_denominator,
