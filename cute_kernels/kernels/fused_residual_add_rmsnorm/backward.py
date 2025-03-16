@@ -48,4 +48,4 @@ def _backward(
     if weight_grad is not None:
         weight_grad = weight_grad.type_as(weight)
 
-    return x_grad, weight_grad
+    return x_grad, residual_grad, weight_grad
