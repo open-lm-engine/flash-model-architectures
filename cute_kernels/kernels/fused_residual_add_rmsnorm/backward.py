@@ -12,6 +12,7 @@ def _backward(
     x: torch.Tensor,
     weight: torch.Tensor | None,
     eps: float,
+    multiplier: float | None,
     rmsnorm_denominator: torch.Tensor,
     output_grad: torch.Tensor,
     kernel_backend: str,
@@ -21,6 +22,7 @@ def _backward(
     hidden_size = x.size(-1)
 
     x_grad = torch.empty_like(x)
+    residual_grad = torch.empty_like(x)
     weight_grad = None if weight is None else torch.zeros_like(weight, dtype=torch.float32)
 
     if kernel_backend == "triton":
@@ -33,8 +35,10 @@ def _backward(
             output_grad=output_grad,
             rmsnorm_denominator=rmsnorm_denominator,
             x_grad=x_grad,
+            residual_grad=residual_grad,
             weight_grad=weight_grad,
             eps=eps,
+            multiplier=multiplier,
             BLOCK_SIZE_B=BLOCK_SIZE_B,
             BLOCK_SIZE_H=BLOCK_SIZE_H,
         )

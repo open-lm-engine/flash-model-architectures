@@ -19,8 +19,11 @@ def _rmsnorm_backward_triton_kernel(
     weight_ptr,
     output_grad_ptr,
     x_grad_ptr,
+    residual_grad_ptr,
     weight_grad_ptr,
     eps,
+    has_multiplier: tl.constexpr,
+    multiplier,
     has_rmsnorm_denominator: tl.constexpr,
     rmsnorm_denominator_ptr,
     B,
@@ -50,11 +53,12 @@ def _rmsnorm_backward_triton_kernel(
 
     for i in range(num_loops):
         indices_b = program_start + i * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
-        mask_b = indices_b < program_end
+        indices_bh = indices_b[:, None] * H + indices_h[None, :]
 
+        mask_b = indices_b < program_end
         mask_bh = mask_b[:, None] & mask_h[None, :]
 
-        x_ptrs = x_ptr + indices_b[:, None] * H + indices_h[None, :]
+        x_ptrs = x_ptr + indices_bh
         x = tl.load(x_ptrs, mask=mask_bh).to(tl.float32)
 
         if has_rmsnorm_denominator:
@@ -63,10 +67,14 @@ def _rmsnorm_backward_triton_kernel(
             squared_sum = tl.sum(x * x, axis=1)
             inverse_rms = tl.rsqrt(squared_sum / H + eps)
 
-        output_grad_ptrs = output_grad_ptr + indices_b[:, None] * H + indices_h[None, :]
+        output_grad_ptrs = output_grad_ptr + indices_bh
         output_grad = tl.load(output_grad_ptrs, mask=mask_bh)
 
-        output_grad_weight = (output_grad * weight).to(tl.float32)
+        output_grad_weight = output_grad
+        if has_weight:
+            output_grad_weight *= weight
+
+        output_grad_weight = output_grad_weight.to(tl.float32)
 
         x_grad = inverse_rms[:, None] * output_grad_weight
         x_grad -= (
@@ -77,9 +85,14 @@ def _rmsnorm_backward_triton_kernel(
             * x
             * tl.sum(output_grad_weight * x, axis=1, keep_dims=True)
         )
-        x_grad = x_grad.to(x_dtype)
 
-        x_grad_ptrs = x_grad_ptr + indices_b[:, None] * H + indices_h[None, :]
+        residual_grad_ptrs = residual_grad_ptr + indices_bh
+        tl.store(residual_grad_ptrs, x_grad, mask=mask_bh)
+
+        if has_multiplier:
+            x_grad *= multiplier
+
+        x_grad_ptrs = x_grad_ptr + indices_bh
         tl.store(x_grad_ptrs, x_grad, mask=mask_bh)
 
         if has_weight:
@@ -99,8 +112,10 @@ def fused_residual_add_rmsnorm_backward_triton(
     output_grad: torch.Tensor,
     rmsnorm_denominator: torch.Tensor,
     x_grad: torch.Tensor,
+    residual_grad: torch.Tensor,
     weight_grad: torch.Tensor | None,
     eps: float,
+    multiplier: float | None,
     BLOCK_SIZE_B: int,
     BLOCK_SIZE_H: int,
 ) -> None:
@@ -119,8 +134,11 @@ def fused_residual_add_rmsnorm_backward_triton(
             weight_ptr=weight,
             output_grad_ptr=output_grad,
             x_grad_ptr=x_grad,
+            residual_grad_ptr=residual_grad,
             weight_grad_ptr=weight_grad,
             eps=eps,
+            has_multiplier=multiplier is not None and multiplier != 1,
+            multiplier=multiplier,
             has_rmsnorm_denominator=rmsnorm_denominator is not None,
             rmsnorm_denominator_ptr=rmsnorm_denominator,
             B=num_elements,
