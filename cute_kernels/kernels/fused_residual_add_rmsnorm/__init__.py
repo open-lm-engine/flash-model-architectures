@@ -56,6 +56,7 @@ class _FusedResidualAddRMSNorm_Cute(torch.autograd.Function):
         ctx.is_x_1d = is_x_1d
         ctx.kernel_backend_backward = kernel_backend_backward
         ctx.eps = eps
+        ctx.multiplier = multiplier
         ctx.BLOCK_SIZE_B_backward = BLOCK_SIZE_B_backward
         ctx.BLOCK_SIZE_H_backward = BLOCK_SIZE_H_backward
 
@@ -70,6 +71,7 @@ class _FusedResidualAddRMSNorm_Cute(torch.autograd.Function):
             x=x,
             weight=weight,
             eps=ctx.eps,
+            multiplier=ctx.multiplier,
             rmsnorm_denominator=rmsnorm_denominator,
             output_grad=output_grad,
             kernel_backend=ctx.kernel_backend_backward,
