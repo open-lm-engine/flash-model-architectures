@@ -21,7 +21,7 @@ class FusedResdidualAddRMSNormTest(TestCommons):
             [torch.float32, torch.float16],  # dtype
             [True, False],  # memory_efficient
             [True, False],  # has_weight
-            [None, 0.5],  # multiplier
+            [None, 0.9],  # multiplier
             [
                 fused_residual_add_rmsnorm_cute,
                 # torch.compile(fused_residual_add_rmsnorm_cute, fullgraph=True),
