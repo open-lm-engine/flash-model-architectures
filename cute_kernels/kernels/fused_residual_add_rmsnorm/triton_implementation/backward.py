@@ -9,7 +9,7 @@ from ....utils import cute_op, get_num_elements_and_hidden_size, get_sm_count
 from ...rmsnorm.triton_implementation.parameters import get_cutotune_parameters
 
 
-_KERNEL_WEIGHTED_NAME = "rmsnorm_backward_triton"
+_KERNEL_WEIGHTED_NAME = "fused_residual_add_rmsnorm_backward_triton"
 
 
 @triton.jit
