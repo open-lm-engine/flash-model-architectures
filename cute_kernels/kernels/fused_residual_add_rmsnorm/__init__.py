@@ -7,7 +7,7 @@ from .forward import _forward
 from .torch_implementation import fused_residual_add_rmsnorm_torch
 
 
-class _RMSNorm_Cute(torch.autograd.Function):
+class _FusedResidualAddRMSNorm_Cute(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
     def forward(
@@ -83,7 +83,7 @@ class _RMSNorm_Cute(torch.autograd.Function):
         return x_grad, weight_grad, *[None] * 8
 
 
-def rmsnorm_cute(
+def fused_residual_add_rmsnorm_cute(
     x: torch.Tensor,
     residual: torch.Tensor,
     weight: torch.Tensor | None,
@@ -97,7 +97,7 @@ def rmsnorm_cute(
     BLOCK_SIZE_H_forward: int = CutoTuneParameter(),
     BLOCK_SIZE_H_backward: int = CutoTuneParameter(),
 ) -> torch.Tensor:
-    return _RMSNorm_Cute.apply(
+    return _FusedResidualAddRMSNorm_Cute.apply(
         x,
         residual,
         weight,
