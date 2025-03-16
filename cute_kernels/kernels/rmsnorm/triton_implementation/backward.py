@@ -48,10 +48,9 @@ def _rmsnorm_backward_triton_kernel(
         weight = tl.load(weight_ptr + indices_h, mask=mask_h)[None, :]
         weight_grad = tl.zeros((BLOCK_SIZE_H,), dtype=tl.float32)
 
-    indices_bh = indices_b[:, None] * H + indices_h[None, :]
-
     for i in range(num_loops):
         indices_b = program_start + i * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
+        indices_bh = indices_b[:, None] * H + indices_h[None, :]
         mask_b = indices_b < program_end
 
         mask_bh = mask_b[:, None] & mask_h[None, :]
