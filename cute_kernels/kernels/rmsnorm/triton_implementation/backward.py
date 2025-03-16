@@ -48,13 +48,15 @@ def _rmsnorm_backward_triton_kernel(
         weight = tl.load(weight_ptr + indices_h, mask=mask_h)[None, :]
         weight_grad = tl.zeros((BLOCK_SIZE_H,), dtype=tl.float32)
 
+    indices_bh = indices_b[:, None] * H + indices_h[None, :]
+
     for i in range(num_loops):
         indices_b = program_start + i * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
         mask_b = indices_b < program_end
 
         mask_bh = mask_b[:, None] & mask_h[None, :]
 
-        x_ptrs = x_ptr + indices_b[:, None] * H + indices_h[None, :]
+        x_ptrs = x_ptr + indices_bh
         x = tl.load(x_ptrs, mask=mask_bh).to(tl.float32)
 
         if has_rmsnorm_denominator:
@@ -63,7 +65,7 @@ def _rmsnorm_backward_triton_kernel(
             squared_sum = tl.sum(x * x, axis=1)
             inverse_rms = tl.rsqrt(squared_sum / H + eps)
 
-        output_grad_ptrs = output_grad_ptr + indices_b[:, None] * H + indices_h[None, :]
+        output_grad_ptrs = output_grad_ptr + indices_bh
         output_grad = tl.load(output_grad_ptrs, mask=mask_bh)
 
         output_grad_weight = output_grad
@@ -83,7 +85,7 @@ def _rmsnorm_backward_triton_kernel(
         )
         x_grad = x_grad.to(x_dtype)
 
-        x_grad_ptrs = x_grad_ptr + indices_b[:, None] * H + indices_h[None, :]
+        x_grad_ptrs = x_grad_ptr + indices_bh
         tl.store(x_grad_ptrs, x_grad, mask=mask_bh)
 
         if has_weight:
