@@ -120,7 +120,7 @@ def fused_residual_add_rmsnorm_backward_triton(
     BLOCK_SIZE_B: int,
     BLOCK_SIZE_H: int,
 ) -> None:
-    num_elements, hidden_size = get_num_elements_and_hidden_size(x)
+    num_elements, hidden_size = get_num_elements_and_hidden_size(added_x_residual)
 
     if BLOCK_SIZE_H < hidden_size:
         raise ValueError(f"hidden_size should be more than the BLOCK_SIZE_H")
