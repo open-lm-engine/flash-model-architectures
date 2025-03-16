@@ -24,7 +24,7 @@ def divide_if_divisible(dividend: int, divisor: int, msg: str = "") -> int:
     return dividend // divisor
 
 
-_POWERS_OF_2 = get_powers_of_2(1, 65536)
+_POWERS_OF_2 = get_powers_of_2(1, 4294967296)
 
 
 def get_next_power_of_2(x: int) -> int:
