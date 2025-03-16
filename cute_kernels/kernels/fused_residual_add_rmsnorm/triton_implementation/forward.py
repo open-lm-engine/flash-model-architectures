@@ -15,10 +15,13 @@ _KERNEL_NAME = "fused_residual_add_rmsnorm_forward_triton"
 @triton.jit
 def _rmsnorm_forward_triton_kernel(
     x_ptr,
+    residual_ptr,
     has_weight: tl.constexpr,
     weight_ptr,
     output_ptr,
     eps,
+    has_multiplier: tl.constexpr,
+    multiplier,
     has_rmsnorm_denominator: tl.constexpr,
     rmsnorm_denominator_ptr,
     B,
@@ -38,6 +41,14 @@ def _rmsnorm_forward_triton_kernel(
 
     x_ptrs = x_ptr + indices_b[:, None] * H + indices_h[None, :]
     x = tl.load(x_ptrs, mask=mask_bh).to(tl.float32)
+
+    if has_multiplier:
+        x *= multiplier
+
+    residual_ptrs = residual_ptr + indices_b[:, None] * H + indices_h[None, :]
+    residual = tl.load(residual_ptrs, mask=mask_bh)
+
+    x += residual
 
     squared_sum = tl.sum(x * x, axis=1)
     inverse_rms = tl.rsqrt((squared_sum / H) + eps)
@@ -59,9 +70,11 @@ def _rmsnorm_forward_triton_kernel(
 @cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"output", "rmsnorm_denominator"})
 def fused_residual_add_rmsnorm_forward_triton(
     x: torch.Tensor,
+    residual: torch.Tensor,
     weight: torch.Tensor | None,
     output: torch.Tensor,
     eps: float,
+    multiplier: float | None,
     rmsnorm_denominator: torch.Tensor | None,
     BLOCK_SIZE_B: int,
     BLOCK_SIZE_H: int,
@@ -74,10 +87,13 @@ def fused_residual_add_rmsnorm_forward_triton(
     with torch.device(x.device):
         _rmsnorm_forward_triton_kernel[(ceil_divide(num_elements, BLOCK_SIZE_B),)](
             x_ptr=x,
+            residual_ptr=residual,
             has_weight=weight is not None,
             weight_ptr=weight,
             output_ptr=output,
             eps=eps,
+            has_multiplier=multiplier is not None and multiplier != 1,
+            multiplier=multiplier,
             has_rmsnorm_denominator=rmsnorm_denominator is not None,
             rmsnorm_denominator_ptr=rmsnorm_denominator,
             B=num_elements,

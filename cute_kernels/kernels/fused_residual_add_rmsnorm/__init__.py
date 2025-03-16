@@ -13,8 +13,10 @@ class _RMSNorm_Cute(torch.autograd.Function):
     def forward(
         ctx,
         x: torch.Tensor,
+        residual: torch.Tensor,
         weight: torch.Tensor | None,
         eps: float | None,
+        multiplier: float | None,
         memory_efficient: bool,
         kernel_backend_forward: str,
         kernel_backend_backward: str,
@@ -37,8 +39,10 @@ class _RMSNorm_Cute(torch.autograd.Function):
 
         output, rmsnorm_denominator = _forward(
             x=x,
+            residual=residual,
             weight=weight,
             eps=eps,
+            multiplier=multiplier,
             memory_efficient=memory_efficient,
             kernel_backend=kernel_backend_forward,
             BLOCK_SIZE_B=BLOCK_SIZE_B_forward,
@@ -81,8 +85,10 @@ class _RMSNorm_Cute(torch.autograd.Function):
 
 def rmsnorm_cute(
     x: torch.Tensor,
+    residual: torch.Tensor,
     weight: torch.Tensor | None,
     eps: float | None,
+    multiplier: float | None = None,
     memory_efficient: bool = False,
     kernel_backend_forward: str = CutoTuneParameter(),
     kernel_backend_backward: str = CutoTuneParameter(),
@@ -93,8 +99,10 @@ def rmsnorm_cute(
 ) -> torch.Tensor:
     return _RMSNorm_Cute.apply(
         x,
+        residual,
         weight,
         eps,
+        multiplier,
         memory_efficient,
         kernel_backend_forward,
         kernel_backend_backward,

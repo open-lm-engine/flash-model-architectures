@@ -11,8 +11,10 @@ from .triton_implementation import fused_residual_add_rmsnorm_forward_triton
 @cutotune(**get_cutotune_parameters())
 def _forward(
     x: torch.Tensor,
+    residual: torch.Tensor,
     weight: torch.Tensor | None,
     eps: float,
+    multiplier: float | None,
     memory_efficient: bool,
     kernel_backend: str,
     BLOCK_SIZE_B: int,
@@ -29,9 +31,11 @@ def _forward(
 
         fused_residual_add_rmsnorm_forward_triton(
             x=x,
+            residual=residual,
             weight=weight,
             output=output,
             eps=eps,
+            multiplier=multiplier,
             rmsnorm_denominator=rmsnorm_denominator,
             BLOCK_SIZE_B=BLOCK_SIZE_B,
             BLOCK_SIZE_H=BLOCK_SIZE_H,
