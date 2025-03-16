@@ -21,6 +21,7 @@ class FusedResdidualAddRMSNormTest(TestCommons):
             [torch.float32, torch.float16],  # dtype
             [True, False],  # memory_efficient
             [True, False],  # has_weight
+            [None, 0.5],  # multiplier
             [
                 fused_residual_add_rmsnorm_cute,
                 torch.compile(fused_residual_add_rmsnorm_cute, fullgraph=True),
@@ -34,6 +35,7 @@ class FusedResdidualAddRMSNormTest(TestCommons):
         dtype: torch.dtype,
         memory_efficient: bool,
         has_weight: bool,
+        multiplier: float | None,
         function: Callable,
     ) -> None:
         set_seed(_SEED)
@@ -42,6 +44,7 @@ class FusedResdidualAddRMSNormTest(TestCommons):
             size = (size,)
 
         x_kernel, x_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype)
+        residual_kernel, residual_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype)
 
         if has_weight:
             weight_kernel, weight_expected = self.get_random_duplicated_tensors(size[-1], device=device, dtype=dtype)
@@ -49,8 +52,17 @@ class FusedResdidualAddRMSNormTest(TestCommons):
             weight_kernel = None
             weight_expected = None
 
-        z_kernel = function(x=x_kernel, weight=weight_kernel, eps=_EPSILON, memory_efficient=memory_efficient)
-        z_expected = fused_residual_add_rmsnorm_torch(x=x_expected, weight=weight_expected, eps=_EPSILON)
+        z_kernel = function(
+            x=x_kernel,
+            residual=residual_kernel,
+            weight=weight_kernel,
+            eps=_EPSILON,
+            multiplier=multiplier,
+            memory_efficient=memory_efficient,
+        )
+        z_expected = fused_residual_add_rmsnorm_torch(
+            x=x_expected, residual=residual_expected, weight=weight_expected, eps=_EPSILON, multiplier=multiplier
+        )
 
         z_kernel.sum().backward()
         z_expected.sum().backward()
