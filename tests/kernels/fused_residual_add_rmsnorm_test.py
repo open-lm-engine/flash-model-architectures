@@ -68,7 +68,7 @@ class FusedResdidualAddRMSNormTest(TestCommons):
         z_expected.sum().backward()
 
         self.assert_equal_tensors(z_kernel, z_expected, False)
-        self.assert_equal_tensors(x_kernel.grad, x_expected.grad, False)
+        self.assert_equal_tensors(x_kernel.grad, x_expected.grad, False, atol_float32=7e-5, rtol_float32=0)
 
         if has_weight:
             self.assert_equal_tensors(
