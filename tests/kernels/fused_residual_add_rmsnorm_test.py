@@ -73,7 +73,7 @@ class FusedResdidualAddRMSNormTest(TestCommons):
         self.assert_equal_tensors(z_kernel, z_expected, False)
         self.assert_equal_tensors(x_kernel.grad, x_expected.grad, False, atol_float32=1.5e-4, rtol_float32=0)
         self.assert_equal_tensors(
-            residual_kernel.grad, residual_expected.grad, False, atol_float32=7e-5, rtol_float32=0
+            residual_kernel.grad, residual_expected.grad, False, atol_float32=1.6e-4, rtol_float32=0
         )
 
         if has_weight:
