@@ -9,7 +9,7 @@ namespace cute_kernels {
     template <typename T>
     struct ChunkedArray {
         T* array;
-        uint64 num_elements;
+        uint32 num_elements;
     };
 
     template <typename T>
@@ -22,7 +22,7 @@ namespace cute_kernels {
         // We will "yield" chunks of the array, each of size 'chunk_size' or less
         while (start < num_elements) {
             uint64 remaining = num_elements - start;
-            uint64 current_chunk_size = std::min(remaining, num_elements_per_chunk);
+            uint32 current_chunk_size = std::min(remaining, num_elements_per_chunk);
 
             ChunkedArray<T> chunked_x;
             chunked_x.array = (T*)&x[start];

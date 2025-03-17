@@ -11,6 +11,13 @@
 #define MAX_ALLOWED_C 16384
 
 namespace cg = cooperative_groups;
+namespace ck = cute_kernels;
+
+using uint32 = ck::uint32;
+using uint32_4 = ck::uint32_4;
+
+using uint64 = ck::uint64;
+using uint64_2 = ck::uint64_2;
 
 inline __device__ void _looped_atomic_add(
     uint32 *source, uint32 *destination, const uint32 &num_loops_C, const uint32 &C, const uint32 &local_thread_id) {
@@ -25,7 +32,7 @@ inline __device__ void _looped_atomic_add(
 inline __device__ void _initialize_global_output(uint32 *output, const uint32 &C, const uint32 &global_thread_id) {
     const uint32 C4 = C >> 2;
     for (uint32 i = global_thread_id; i < C4; i += gridDim.x * blockDim.x) {
-        ((uint32_4 *)output)[i] = DType<uint32>::make4(0, 0, 0, 0);
+        ((uint32_4 *)output)[i] = ck::DType<uint32>::make4(0, 0, 0, 0);
     }
 
     const uint32 index = (C4 << 2) + global_thread_id;
@@ -37,7 +44,7 @@ inline __device__ void _initialize_global_output(uint32 *output, const uint32 &C
 template <typename scalar_t>
 inline __device__ void _update_local_count(const scalar_t *x,
                                            uint32 *shared_memory,
-                                           const uint64 &num_elements,
+                                           const uint32 &num_elements,
                                            const uint32 &global_thread_id) {
     const uint32 num_elements_per_thread = 16 / sizeof(scalar_t);
     const uint32 num_elements4 = num_elements / num_elements_per_thread;
@@ -64,10 +71,10 @@ inline __device__ void _update_local_count(const scalar_t *x,
 
 template <typename scalar_t>
 __global__ void _continuous_count_cuda_kernel(
-    const scalar_t *x, uint32 *output, const uint64 num_elements, const uint32 C, const bool initialize_output) {
-    const uint32 local_thread_id = get_local_thread_id();
-    const uint32 global_thread_id = get_global_thread_id();
-    const uint32 num_loops_C = ceil_divide<uint32>(C, blockDim.x);
+    const scalar_t *x, uint32 *output, const uint32 num_elements, const uint32 C, const bool initialize_output) {
+    const uint32 local_thread_id = ck::get_local_thread_id();
+    const uint32 global_thread_id = ck::get_global_thread_id();
+    const uint32 num_loops_C = ck::ceil_divide<uint32>(C, blockDim.x);
 
     extern __shared__ uint32 shared_memory[];
 
@@ -115,25 +122,26 @@ void continuous_count_cuda(const torch::Tensor &x,
     TORCH_CHECK(C <= MAX_ALLOWED_C);
 
     const uint64 total_elements = x.numel();
-    const int max_num_blocks = get_max_thread_blocks(sm_count, thread_block_cluster_size);
+    const int max_num_blocks = ck::get_max_thread_blocks(sm_count, thread_block_cluster_size);
 
-    std::vector<ChunkedArray<uint32>> output_chunks = chunk_array<uint32>(output.data_ptr<uint32>(), total_elements);
+    std::vector<ck::ChunkedArray<uint32>> output_chunks =
+        ck::chunk_array<uint32>(output.data_ptr<uint32>(), total_elements);
 
     AT_DISPATCH_CUSTOM_INT_TYPES(x.scalar_type(), "continuous_count_cuda_kernel", ([&] {
                                      cudaFuncSetAttribute(_continuous_count_cuda_kernel<scalar_t>,
                                                           cudaFuncAttributeMaxDynamicSharedMemorySize,
                                                           MAX_ALLOWED_C * sizeof(uint32));
 
-                                     std::vector<ChunkedArray<scalar_t>> x_chunks =
-                                         chunk_array<scalar_t>(x.data_ptr<scalar_t>(), total_elements);
+                                     std::vector<ck::ChunkedArray<scalar_t>> x_chunks =
+                                         ck::chunk_array<scalar_t>(x.data_ptr<scalar_t>(), total_elements);
 
                                      for (int i = 0; i < x_chunks.size(); i++) {
-                                         ChunkedArray<scalar_t> x_chunk = x_chunks[i];
-                                         ChunkedArray<uint32> output_chunk = output_chunks[i];
+                                         ck::ChunkedArray<scalar_t> x_chunk = x_chunks[i];
+                                         ck::ChunkedArray<uint32> output_chunk = output_chunks[i];
 
-                                         const uint64 num_elements = x_chunk.num_elements;
+                                         const uint32 num_elements = x_chunk.num_elements;
 
-                                         auto [NUM_BLOCKS, cluster_size] = get_num_blocks(
+                                         auto [NUM_BLOCKS, cluster_size] = ck::get_num_blocks(
                                              num_elements, BLOCK_SIZE, max_num_blocks, thread_block_cluster_size);
 
                                          // dynamically sized clusters need this stupid way of launching the kernel
