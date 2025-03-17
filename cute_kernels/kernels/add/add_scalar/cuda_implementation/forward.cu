@@ -2,7 +2,7 @@
 #include <cuda_runtime.h>
 #include <torch/extension.h>
 
-#include "include/dtypes/dtypes.h"
+#include "include/dtypes.h"
 #include "include/launch.h"
 #include "include/math.h"
 #include "include/threads.h"
@@ -15,7 +15,7 @@ using uint32 = cute_kernels::uint32;
 using uint64 = cute_kernels::uint64;
 
 template <typename scalar_t>
-__global__ void _add_scalar_cuda_kernel(const scalar_t *x, const fp32 y, scalar_t *output, const uint64 num_elements) {
+__global__ void _add_scalar_cuda_kernel(const scalar_t *x, const fp32 y, scalar_t *output, const uint32 num_elements) {
     constexpr int num_elements_per_thread = 16 / sizeof(scalar_t);
     static_assert(num_elements_per_thread == 4 || num_elements_per_thread == 8);
 
@@ -74,7 +74,7 @@ void add_scalar_cuda(const torch::Tensor &x, const float &y, torch::Tensor &outp
                 cute_kernels::ChunkedArray<scalar_t> x_chunk = x_chunks[i];
                 cute_kernels::ChunkedArray<scalar_t> output_chunk = output_chunks[i];
 
-                const uint64 num_elements = x_chunk.num_elements;
+                const uint32 num_elements = x_chunk.num_elements;
                 const uint32 NUM_BLOCKS = cute_kernels::ceil_divide<uint64>(num_elements, num_elements_per_block);
 
                 _add_scalar_cuda_kernel<scalar_t>
