@@ -3,7 +3,7 @@
 #include <limits>
 #include <vector>
 
-#include "dtypes/dtypes.h"
+#include "dtypes.h"
 
 namespace cute_kernels {
     template <typename T>
