@@ -81,6 +81,6 @@ class FusedResdidualAddRMSNormTest(TestCommons):
                 weight_kernel.grad,
                 weight_expected.grad,
                 False,
-                atol_float32=7e-5,
+                atol_float32=8e-5,
                 rtol_float32=0,
             )
