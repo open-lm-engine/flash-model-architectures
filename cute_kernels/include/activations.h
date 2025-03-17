@@ -1,6 +1,6 @@
 #pragma once
 
-#include "dtypes/dtypes.h"
+#include "dtypes.h"
 
 namespace cute_kernels {
     template <typename input_T, typename output_T>

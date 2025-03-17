@@ -6,7 +6,7 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 
-#include "dtypes/dtypes.h"
+#include "dtypes.h"
 #include "math.h"
 
 namespace cute_kernels {
