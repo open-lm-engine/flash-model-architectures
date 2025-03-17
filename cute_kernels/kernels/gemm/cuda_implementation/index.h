@@ -3,7 +3,7 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 
-#include "include/dtypes/dtypes.h"
+#include "include/dtypes.h"
 
 template <typename T>
 inline __device__ T
