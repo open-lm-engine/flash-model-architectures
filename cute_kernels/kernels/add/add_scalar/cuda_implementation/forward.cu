@@ -77,13 +77,8 @@ void add_scalar_cuda(const torch::Tensor &x, const float &y, torch::Tensor &outp
                 const uint64 num_elements = x_chunk.num_elements;
                 const uint32 NUM_BLOCKS = cute_kernels::ceil_divide<uint64>(num_elements, num_elements_per_block);
 
-                if constexpr (std::is_same_v<scalar_t, fp32>) {
-                    _add_scalar_cuda_kernel<scalar_t>
-                        <<<NUM_BLOCKS, BLOCK_SIZE>>>(x_chunk.array, y, output_chunk.array, num_elements);
-                } else {
-                    _add_scalar_cuda_kernel<scalar_t>
-                        <<<NUM_BLOCKS, BLOCK_SIZE>>>(x_chunk.array, y, output_chunk.array, num_elements);
-                }
+                _add_scalar_cuda_kernel<scalar_t>
+                    <<<NUM_BLOCKS, BLOCK_SIZE>>>(x_chunk.array, y, output_chunk.array, num_elements);
             }
         }));
 }
