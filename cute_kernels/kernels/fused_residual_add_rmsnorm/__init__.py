@@ -24,7 +24,7 @@ class _FusedResidualAddRMSNorm_Cute(torch.autograd.Function):
         BLOCK_SIZE_B_backward: int,
         BLOCK_SIZE_H_forward: int,
         BLOCK_SIZE_H_backward: int,
-    ) -> torch.Tensor:
+    ) -> tuple[torch.Tensor]:
         if weight is not None:
             assert weight.dim() == 1, "weight should be 1D"
             assert weight.size(-1) == x.size(-1), "hidden size for x and weight tensor is different"
@@ -60,11 +60,11 @@ class _FusedResidualAddRMSNorm_Cute(torch.autograd.Function):
         ctx.BLOCK_SIZE_B_backward = BLOCK_SIZE_B_backward
         ctx.BLOCK_SIZE_H_backward = BLOCK_SIZE_H_backward
 
-        return output
+        return output, added_x_residual
 
     @staticmethod
     @ensure_contiguous
-    def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
+    def backward(ctx, output_grad: torch.Tensor, added_x_residual_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
         added_x_residual, weight, rmsnorm_denominator = ctx.saved_tensors
 
         x_grad, residual_grad, weight_grad = _backward(
@@ -74,6 +74,7 @@ class _FusedResidualAddRMSNorm_Cute(torch.autograd.Function):
             multiplier=ctx.multiplier,
             rmsnorm_denominator=rmsnorm_denominator,
             output_grad=output_grad,
+            added_x_residual_grad=added_x_residual_grad,
             kernel_backend=ctx.kernel_backend_backward,
             BLOCK_SIZE_B=ctx.BLOCK_SIZE_B_backward,
             BLOCK_SIZE_H=ctx.BLOCK_SIZE_H_backward,
@@ -98,7 +99,7 @@ def fused_residual_add_rmsnorm_cute(
     BLOCK_SIZE_B_backward: int = CutoTuneParameter(),
     BLOCK_SIZE_H_forward: int = CutoTuneParameter(),
     BLOCK_SIZE_H_backward: int = CutoTuneParameter(),
-) -> torch.Tensor:
+) -> tuple[torch.Tensor]:
     return _FusedResidualAddRMSNorm_Cute.apply(
         x,
         residual,

@@ -52,7 +52,7 @@ class FusedResdidualAddRMSNormTest(TestCommons):
             weight_kernel = None
             weight_expected = None
 
-        z_kernel = function(
+        z_kernel, r_kernel = function(
             x=x_kernel,
             residual=residual_kernel,
             weight=weight_kernel,
@@ -60,15 +60,21 @@ class FusedResdidualAddRMSNormTest(TestCommons):
             multiplier=multiplier,
             memory_efficient=memory_efficient,
         )
-        z_expected = fused_residual_add_rmsnorm_torch(
+        z_kernel = z_kernel * 2 + r_kernel * 3
+
+        z_expected, r_expected = fused_residual_add_rmsnorm_torch(
             x=x_expected, residual=residual_expected, weight=weight_expected, eps=_EPSILON, multiplier=multiplier
         )
+        z_expected = z_expected * 2 + r_expected * 3
 
         z_kernel.sum().backward()
         z_expected.sum().backward()
 
         self.assert_equal_tensors(z_kernel, z_expected, False)
         self.assert_equal_tensors(x_kernel.grad, x_expected.grad, False, atol_float32=7e-5, rtol_float32=0)
+        self.assert_equal_tensors(
+            residual_kernel.grad, residual_expected.grad, False, atol_float32=7e-5, rtol_float32=0
+        )
 
         if has_weight:
             self.assert_equal_tensors(

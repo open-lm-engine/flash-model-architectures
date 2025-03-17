@@ -18,6 +18,7 @@ def _rmsnorm_backward_triton_kernel(
     has_weight: tl.constexpr,
     weight_ptr,
     output_grad_ptr,
+    added_x_residual_grad_ptr,
     x_grad_ptr,
     residual_grad_ptr,
     weight_grad_ptr,
@@ -86,6 +87,11 @@ def _rmsnorm_backward_triton_kernel(
             * tl.sum(output_grad_weight * added_x_residual, axis=1, keep_dims=True)
         )
 
+        added_x_residual_grad_ptrs = added_x_residual_grad_ptr + indices_bh
+        added_x_residual_grad = tl.load(added_x_residual_grad_ptrs, mask=mask_bh)
+
+        x_grad += added_x_residual_grad
+
         residual_grad_ptrs = residual_grad_ptr + indices_bh
         tl.store(residual_grad_ptrs, x_grad, mask=mask_bh)
 
@@ -111,6 +117,7 @@ def fused_residual_add_rmsnorm_backward_triton(
     added_x_residual: torch.Tensor,
     weight: torch.Tensor,
     output_grad: torch.Tensor,
+    added_x_residual_grad: torch.Tensor,
     rmsnorm_denominator: torch.Tensor,
     x_grad: torch.Tensor,
     residual_grad: torch.Tensor,
@@ -134,6 +141,7 @@ def fused_residual_add_rmsnorm_backward_triton(
             has_weight=weight is not None,
             weight_ptr=weight,
             output_grad_ptr=output_grad,
+            added_x_residual_grad_ptr=added_x_residual_grad,
             x_grad_ptr=x_grad,
             residual_grad_ptr=residual_grad,
             weight_grad_ptr=weight_grad,
