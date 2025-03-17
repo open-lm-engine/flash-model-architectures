@@ -75,7 +75,7 @@ class _CutoTune:
             if _DEBUG_CUTOTUNE and (not torch.distributed.is_initialized() or torch.distributed.get_rank() == 0):
                 print(
                     f"config {best_config} achieved the best time ({best_time} sec) for {lookup_key} for "
-                    "function {self.function.__name__}"
+                    f"function {self.function.__name__}"
                 )
 
         output = self.function(
