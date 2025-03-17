@@ -82,6 +82,7 @@ class _FusedResidualAddRMSNorm_Cute(torch.autograd.Function):
 
         if ctx.is_x_1d:
             x_grad = x_grad.squeeze(0)
+            residual_grad = residual_grad.squeeze(0)
 
         return x_grad, residual_grad, weight_grad, *[None] * 9
 
