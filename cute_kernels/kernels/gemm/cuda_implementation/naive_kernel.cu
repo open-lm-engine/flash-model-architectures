@@ -5,7 +5,7 @@
 #include "include/dtypes.h"
 #include "include/math.h"
 #include "include/threads.h"
-#include "index.h"
+#include "index.cuh"
 
 namespace ck = cute_kernels;
 
