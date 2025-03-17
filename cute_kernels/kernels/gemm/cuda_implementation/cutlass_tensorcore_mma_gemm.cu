@@ -4,7 +4,14 @@
 
 #include "cutlass/gemm/device/gemm.h"
 #include "cutlass/util/device_memory.h"
-#include "include/dtypes/dtypes.h"
+#include "include/dtypes.h"
+
+namespace ck = cute_kernels;
+
+using uint32 = ck::uint32;
+using int32 = ck::int32;
+
+using fp32 = ck::fp32;
 
 template <bool is_A_transposed, bool is_B_transposed>
 inline void _cutlass_tensorcore_mma_gemm_templated_layout(const fp32 *A,
@@ -35,7 +42,7 @@ inline void _cutlass_tensorcore_mma_gemm_templated_layout(const fp32 *A,
     using EpilogueOp =
         cutlass::epilogue::thread::LinearCombination<fp32, 128 / cutlass::sizeof_bits<fp32>::value, fp32, fp32>;
 
-    constexpr int NumStages = 4;
+    constexpr int32 NumStages = 4;
 
     using CutlassGemm = cutlass::gemm::device::Gemm<fp32,
                                                     layout_A,
@@ -67,7 +74,7 @@ inline void _cutlass_tensorcore_mma_gemm_templated_layout(const fp32 *A,
                                          {alpha, beta},
                                          {1});
 
-    size_t workspace_size = CutlassGemm::get_workspace_size(args);
+    uint64 workspace_size = CutlassGemm::get_workspace_size(args);
     cutlass::device_memory::allocation<uint8_t> workspace(workspace_size);
 
     cutlass::Status status = gemm_operator.can_implement(args);
