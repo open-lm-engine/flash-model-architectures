@@ -22,3 +22,4 @@ PenaltyBreakTemplateDeclaration: 10
 PenaltyExcessCharacter: 1000000
 PenaltyReturnTypeOnItsOwnLine: 200
 IndentPPDirectives: BeforeHash
+NamespaceIndentation: All
