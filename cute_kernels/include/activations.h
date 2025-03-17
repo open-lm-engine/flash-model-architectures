@@ -1,6 +1,6 @@
 #pragma once
 
-#include "dtypes/all.h"
+#include "dtypes/dtypes.h"
 
 template <typename input_T, typename output_T>
 __device__ output_T sigmoid(const input_T &x) {

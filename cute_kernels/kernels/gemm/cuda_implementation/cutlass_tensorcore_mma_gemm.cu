@@ -4,7 +4,7 @@
 
 #include "cutlass/gemm/device/gemm.h"
 #include "cutlass/util/device_memory.h"
-#include "include/dtypes/all.h"
+#include "include/dtypes/dtypes.h"
 
 template <bool is_A_transposed, bool is_B_transposed>
 inline void _cutlass_tensorcore_mma_gemm_templated_layout(const fp32 *A,

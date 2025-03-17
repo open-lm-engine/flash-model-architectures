@@ -2,7 +2,7 @@
 #include <cuda_runtime.h>
 #include <torch/extension.h>
 
-#include "include/dtypes/all.h"
+#include "include/dtypes/dtypes.h"
 #include "include/launch.h"
 #include "include/math.h"
 #include "include/threads.h"

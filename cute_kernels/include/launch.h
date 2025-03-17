@@ -3,7 +3,7 @@
 #include <limits>
 #include <vector>
 
-#include "dtypes/all.h"
+#include "dtypes/dtypes.h"
 
 template <typename T>
 struct ChunkedArray {
