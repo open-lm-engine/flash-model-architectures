@@ -7,14 +7,14 @@
 #include "include/math.h"
 #include "include/threads.h"
 
+namespace ck = cute_kernels;
+
 using fp32 = ck::fp32;
 using fp32_2 = ck::fp32_2;
 using fp32_4 = ck::fp32_4;
 
 using uint32 = ck::uint32;
 using uint64 = ck::uint64;
-
-namespace ck = cute_kernels;
 
 template <typename scalar_t>
 __global__ void _add_scalar_cuda_kernel(const scalar_t *x, const fp32 y, scalar_t *output, const uint32 num_elements) {
