@@ -8,6 +8,7 @@ from cute_kernels import (
     continuous_count_cute,
     cross_entropy_cute,
     embedding_cute,
+    fused_residual_add_rmsnorm_cute,
     gemm_cute,
     get_powers_of_2,
     rmsnorm_cute,
@@ -49,6 +50,15 @@ for dtype in all_dtypes:
         forward_backward(rmsnorm_cute, x, weight=None, eps=1e-5)
         forward_backward(
             rmsnorm_cute,
+            x,
+            weight=torch.randn(x.size(-1), dtype=dtype, device=torch.cuda.current_device(), requires_grad=True),
+            eps=1e-5,
+        )
+
+        forward_backward(fused_residual_add_rmsnorm_cute, x, x, weight=None, eps=1e-5)
+        forward_backward(
+            fused_residual_add_rmsnorm_cute,
+            x,
             x,
             weight=torch.randn(x.size(-1), dtype=dtype, device=torch.cuda.current_device(), requires_grad=True),
             eps=1e-5,

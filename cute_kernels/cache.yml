@@ -139,6 +139,430 @@ kernels/embedding/forward.py->_forward:
     BLOCK_SIZE_B: 128
     BLOCK_SIZE_H: 128
     kernel_backend: triton
+kernels/fused_residual_add_rmsnorm/backward.py->_backward:
+  '''added_x_residual.dtype = torch.bfloat16''':
+    kernel_backend: triton
+  '''added_x_residual.dtype = torch.float16''':
+    kernel_backend: triton
+  '''added_x_residual.dtype = torch.float32''':
+    kernel_backend: triton
+kernels/fused_residual_add_rmsnorm/forward.py->_forward:
+  '''x.dtype = torch.bfloat16''':
+    kernel_backend: triton
+  '''x.dtype = torch.float16''':
+    kernel_backend: triton
+  '''x.dtype = torch.float32''':
+    kernel_backend: triton
+kernels/fused_residual_add_rmsnorm/triton_implementation/backward.py->fused_residual_add_rmsnorm_backward_triton:
+  '''added_x_residual.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 1'', ''has_weight = False''':
+    BLOCK_SIZE_B: 1024
+  '''added_x_residual.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 1'', ''has_weight = True''':
+    BLOCK_SIZE_B: 2048
+  '''added_x_residual.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 1024'', ''has_weight = False''':
+    BLOCK_SIZE_B: 8
+  '''added_x_residual.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 1024'', ''has_weight = True''':
+    BLOCK_SIZE_B: 4
+  '''added_x_residual.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 128'', ''has_weight = False''':
+    BLOCK_SIZE_B: 128
+  '''added_x_residual.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 128'', ''has_weight = True''':
+    BLOCK_SIZE_B: 16
+  '''added_x_residual.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 16'', ''has_weight = False''':
+    BLOCK_SIZE_B: 128
+  '''added_x_residual.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 16'', ''has_weight = True''':
+    BLOCK_SIZE_B: 64
+  '''added_x_residual.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 16384'', ''has_weight = False''':
+    BLOCK_SIZE_B: 1
+  '''added_x_residual.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 16384'', ''has_weight = True''':
+    BLOCK_SIZE_B: 1
+  '''added_x_residual.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 2'', ''has_weight = False''':
+    BLOCK_SIZE_B: 1024
+  '''added_x_residual.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 2'', ''has_weight = True''':
+    BLOCK_SIZE_B: 512
+  '''added_x_residual.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 2048'', ''has_weight = False''':
+    BLOCK_SIZE_B: 8
+  '''added_x_residual.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 2048'', ''has_weight = True''':
+    BLOCK_SIZE_B: 2
+  '''added_x_residual.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 256'', ''has_weight = False''':
+    BLOCK_SIZE_B: 8
+  '''added_x_residual.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 256'', ''has_weight = True''':
+    BLOCK_SIZE_B: 64
+  '''added_x_residual.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 32'', ''has_weight = False''':
+    BLOCK_SIZE_B: 64
+  '''added_x_residual.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 32'', ''has_weight = True''':
+    BLOCK_SIZE_B: 32
+  '''added_x_residual.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 32768'', ''has_weight = False''':
+    BLOCK_SIZE_B: 1
+  '''added_x_residual.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 32768'', ''has_weight = True''':
+    BLOCK_SIZE_B: 1
+  '''added_x_residual.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 4'', ''has_weight = False''':
+    BLOCK_SIZE_B: 512
+  '''added_x_residual.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 4'', ''has_weight = True''':
+    BLOCK_SIZE_B: 512
+  '''added_x_residual.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 4096'', ''has_weight = False''':
+    BLOCK_SIZE_B: 2
+  '''added_x_residual.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 4096'', ''has_weight = True''':
+    BLOCK_SIZE_B: 2
+  '''added_x_residual.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 512'', ''has_weight = False''':
+    BLOCK_SIZE_B: 8
+  '''added_x_residual.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 512'', ''has_weight = True''':
+    BLOCK_SIZE_B: 16
+  '''added_x_residual.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 64'', ''has_weight = False''':
+    BLOCK_SIZE_B: 32
+  '''added_x_residual.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 64'', ''has_weight = True''':
+    BLOCK_SIZE_B: 128
+  '''added_x_residual.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 65536'', ''has_weight = False''':
+    BLOCK_SIZE_B: 1
+  '''added_x_residual.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 65536'', ''has_weight = True''':
+    BLOCK_SIZE_B: 1
+  '''added_x_residual.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 8'', ''has_weight = False''':
+    BLOCK_SIZE_B: 256
+  '''added_x_residual.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 8'', ''has_weight = True''':
+    BLOCK_SIZE_B: 1024
+  '''added_x_residual.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 8192'', ''has_weight = False''':
+    BLOCK_SIZE_B: 2
+  '''added_x_residual.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 8192'', ''has_weight = True''':
+    BLOCK_SIZE_B: 1
+  '''added_x_residual.dtype = torch.float16'', ''BLOCK_SIZE_H = 1'', ''has_weight = False''':
+    BLOCK_SIZE_B: 1024
+  '''added_x_residual.dtype = torch.float16'', ''BLOCK_SIZE_H = 1'', ''has_weight = True''':
+    BLOCK_SIZE_B: 1024
+  '''added_x_residual.dtype = torch.float16'', ''BLOCK_SIZE_H = 1024'', ''has_weight = False''':
+    BLOCK_SIZE_B: 8
+  '''added_x_residual.dtype = torch.float16'', ''BLOCK_SIZE_H = 1024'', ''has_weight = True''':
+    BLOCK_SIZE_B: 2
+  '''added_x_residual.dtype = torch.float16'', ''BLOCK_SIZE_H = 128'', ''has_weight = False''':
+    BLOCK_SIZE_B: 64
+  '''added_x_residual.dtype = torch.float16'', ''BLOCK_SIZE_H = 128'', ''has_weight = True''':
+    BLOCK_SIZE_B: 16
+  '''added_x_residual.dtype = torch.float16'', ''BLOCK_SIZE_H = 16'', ''has_weight = False''':
+    BLOCK_SIZE_B: 128
+  '''added_x_residual.dtype = torch.float16'', ''BLOCK_SIZE_H = 16'', ''has_weight = True''':
+    BLOCK_SIZE_B: 1024
+  '''added_x_residual.dtype = torch.float16'', ''BLOCK_SIZE_H = 16384'', ''has_weight = False''':
+    BLOCK_SIZE_B: 1
+  '''added_x_residual.dtype = torch.float16'', ''BLOCK_SIZE_H = 16384'', ''has_weight = True''':
+    BLOCK_SIZE_B: 1
+  '''added_x_residual.dtype = torch.float16'', ''BLOCK_SIZE_H = 2'', ''has_weight = False''':
+    BLOCK_SIZE_B: 512
+  '''added_x_residual.dtype = torch.float16'', ''BLOCK_SIZE_H = 2'', ''has_weight = True''':
+    BLOCK_SIZE_B: 1024
+  '''added_x_residual.dtype = torch.float16'', ''BLOCK_SIZE_H = 2048'', ''has_weight = False''':
+    BLOCK_SIZE_B: 4
+  '''added_x_residual.dtype = torch.float16'', ''BLOCK_SIZE_H = 2048'', ''has_weight = True''':
+    BLOCK_SIZE_B: 4
+  '''added_x_residual.dtype = torch.float16'', ''BLOCK_SIZE_H = 256'', ''has_weight = False''':
+    BLOCK_SIZE_B: 4
+  '''added_x_residual.dtype = torch.float16'', ''BLOCK_SIZE_H = 256'', ''has_weight = True''':
+    BLOCK_SIZE_B: 16
+  '''added_x_residual.dtype = torch.float16'', ''BLOCK_SIZE_H = 32'', ''has_weight = False''':
+    BLOCK_SIZE_B: 128
+  '''added_x_residual.dtype = torch.float16'', ''BLOCK_SIZE_H = 32'', ''has_weight = True''':
+    BLOCK_SIZE_B: 32
+  '''added_x_residual.dtype = torch.float16'', ''BLOCK_SIZE_H = 32768'', ''has_weight = False''':
+    BLOCK_SIZE_B: 1
+  '''added_x_residual.dtype = torch.float16'', ''BLOCK_SIZE_H = 32768'', ''has_weight = True''':
+    BLOCK_SIZE_B: 1
+  '''added_x_residual.dtype = torch.float16'', ''BLOCK_SIZE_H = 4'', ''has_weight = False''':
+    BLOCK_SIZE_B: 512
+  '''added_x_residual.dtype = torch.float16'', ''BLOCK_SIZE_H = 4'', ''has_weight = True''':
+    BLOCK_SIZE_B: 2048
+  '''added_x_residual.dtype = torch.float16'', ''BLOCK_SIZE_H = 4096'', ''has_weight = False''':
+    BLOCK_SIZE_B: 4
+  '''added_x_residual.dtype = torch.float16'', ''BLOCK_SIZE_H = 4096'', ''has_weight = True''':
+    BLOCK_SIZE_B: 2
+  '''added_x_residual.dtype = torch.float16'', ''BLOCK_SIZE_H = 512'', ''has_weight = False''':
+    BLOCK_SIZE_B: 8
+  '''added_x_residual.dtype = torch.float16'', ''BLOCK_SIZE_H = 512'', ''has_weight = True''':
+    BLOCK_SIZE_B: 32
+  '''added_x_residual.dtype = torch.float16'', ''BLOCK_SIZE_H = 64'', ''has_weight = False''':
+    BLOCK_SIZE_B: 256
+  '''added_x_residual.dtype = torch.float16'', ''BLOCK_SIZE_H = 64'', ''has_weight = True''':
+    BLOCK_SIZE_B: 32
+  '''added_x_residual.dtype = torch.float16'', ''BLOCK_SIZE_H = 65536'', ''has_weight = False''':
+    BLOCK_SIZE_B: 1
+  '''added_x_residual.dtype = torch.float16'', ''BLOCK_SIZE_H = 65536'', ''has_weight = True''':
+    BLOCK_SIZE_B: 1
+  '''added_x_residual.dtype = torch.float16'', ''BLOCK_SIZE_H = 8'', ''has_weight = False''':
+    BLOCK_SIZE_B: 256
+  '''added_x_residual.dtype = torch.float16'', ''BLOCK_SIZE_H = 8'', ''has_weight = True''':
+    BLOCK_SIZE_B: 512
+  '''added_x_residual.dtype = torch.float16'', ''BLOCK_SIZE_H = 8192'', ''has_weight = False''':
+    BLOCK_SIZE_B: 1
+  '''added_x_residual.dtype = torch.float16'', ''BLOCK_SIZE_H = 8192'', ''has_weight = True''':
+    BLOCK_SIZE_B: 1
+  '''added_x_residual.dtype = torch.float32'', ''BLOCK_SIZE_H = 1'', ''has_weight = False''':
+    BLOCK_SIZE_B: 2048
+  '''added_x_residual.dtype = torch.float32'', ''BLOCK_SIZE_H = 1'', ''has_weight = True''':
+    BLOCK_SIZE_B: 4096
+  '''added_x_residual.dtype = torch.float32'', ''BLOCK_SIZE_H = 1024'', ''has_weight = False''':
+    BLOCK_SIZE_B: 8
+  '''added_x_residual.dtype = torch.float32'', ''BLOCK_SIZE_H = 1024'', ''has_weight = True''':
+    BLOCK_SIZE_B: 4
+  '''added_x_residual.dtype = torch.float32'', ''BLOCK_SIZE_H = 128'', ''has_weight = False''':
+    BLOCK_SIZE_B: 8
+  '''added_x_residual.dtype = torch.float32'', ''BLOCK_SIZE_H = 128'', ''has_weight = True''':
+    BLOCK_SIZE_B: 64
+  '''added_x_residual.dtype = torch.float32'', ''BLOCK_SIZE_H = 16'', ''has_weight = False''':
+    BLOCK_SIZE_B: 64
+  '''added_x_residual.dtype = torch.float32'', ''BLOCK_SIZE_H = 16'', ''has_weight = True''':
+    BLOCK_SIZE_B: 64
+  '''added_x_residual.dtype = torch.float32'', ''BLOCK_SIZE_H = 16384'', ''has_weight = False''':
+    BLOCK_SIZE_B: 1
+  '''added_x_residual.dtype = torch.float32'', ''BLOCK_SIZE_H = 16384'', ''has_weight = True''':
+    BLOCK_SIZE_B: 2
+  '''added_x_residual.dtype = torch.float32'', ''BLOCK_SIZE_H = 2'', ''has_weight = False''':
+    BLOCK_SIZE_B: 1024
+  '''added_x_residual.dtype = torch.float32'', ''BLOCK_SIZE_H = 2'', ''has_weight = True''':
+    BLOCK_SIZE_B: 2048
+  '''added_x_residual.dtype = torch.float32'', ''BLOCK_SIZE_H = 2048'', ''has_weight = False''':
+    BLOCK_SIZE_B: 4
+  '''added_x_residual.dtype = torch.float32'', ''BLOCK_SIZE_H = 2048'', ''has_weight = True''':
+    BLOCK_SIZE_B: 4
+  '''added_x_residual.dtype = torch.float32'', ''BLOCK_SIZE_H = 256'', ''has_weight = False''':
+    BLOCK_SIZE_B: 32
+  '''added_x_residual.dtype = torch.float32'', ''BLOCK_SIZE_H = 256'', ''has_weight = True''':
+    BLOCK_SIZE_B: 4
+  '''added_x_residual.dtype = torch.float32'', ''BLOCK_SIZE_H = 32'', ''has_weight = False''':
+    BLOCK_SIZE_B: 64
+  '''added_x_residual.dtype = torch.float32'', ''BLOCK_SIZE_H = 32'', ''has_weight = True''':
+    BLOCK_SIZE_B: 32
+  '''added_x_residual.dtype = torch.float32'', ''BLOCK_SIZE_H = 32768'', ''has_weight = False''':
+    BLOCK_SIZE_B: 1
+  '''added_x_residual.dtype = torch.float32'', ''BLOCK_SIZE_H = 32768'', ''has_weight = True''':
+    BLOCK_SIZE_B: 1
+  '''added_x_residual.dtype = torch.float32'', ''BLOCK_SIZE_H = 4'', ''has_weight = False''':
+    BLOCK_SIZE_B: 2048
+  '''added_x_residual.dtype = torch.float32'', ''BLOCK_SIZE_H = 4'', ''has_weight = True''':
+    BLOCK_SIZE_B: 512
+  '''added_x_residual.dtype = torch.float32'', ''BLOCK_SIZE_H = 4096'', ''has_weight = False''':
+    BLOCK_SIZE_B: 2
+  '''added_x_residual.dtype = torch.float32'', ''BLOCK_SIZE_H = 4096'', ''has_weight = True''':
+    BLOCK_SIZE_B: 1
+  '''added_x_residual.dtype = torch.float32'', ''BLOCK_SIZE_H = 512'', ''has_weight = False''':
+    BLOCK_SIZE_B: 16
+  '''added_x_residual.dtype = torch.float32'', ''BLOCK_SIZE_H = 512'', ''has_weight = True''':
+    BLOCK_SIZE_B: 16
+  '''added_x_residual.dtype = torch.float32'', ''BLOCK_SIZE_H = 64'', ''has_weight = False''':
+    BLOCK_SIZE_B: 16
+  '''added_x_residual.dtype = torch.float32'', ''BLOCK_SIZE_H = 64'', ''has_weight = True''':
+    BLOCK_SIZE_B: 16
+  '''added_x_residual.dtype = torch.float32'', ''BLOCK_SIZE_H = 65536'', ''has_weight = False''':
+    BLOCK_SIZE_B: 1
+  '''added_x_residual.dtype = torch.float32'', ''BLOCK_SIZE_H = 65536'', ''has_weight = True''':
+    BLOCK_SIZE_B: 1
+  '''added_x_residual.dtype = torch.float32'', ''BLOCK_SIZE_H = 8'', ''has_weight = False''':
+    BLOCK_SIZE_B: 1024
+  '''added_x_residual.dtype = torch.float32'', ''BLOCK_SIZE_H = 8'', ''has_weight = True''':
+    BLOCK_SIZE_B: 256
+  '''added_x_residual.dtype = torch.float32'', ''BLOCK_SIZE_H = 8192'', ''has_weight = False''':
+    BLOCK_SIZE_B: 2
+  '''added_x_residual.dtype = torch.float32'', ''BLOCK_SIZE_H = 8192'', ''has_weight = True''':
+    BLOCK_SIZE_B: 1
+kernels/fused_residual_add_rmsnorm/triton_implementation/forward.py->fused_residual_add_rmsnorm_forward_triton:
+  '''x.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 1'', ''has_weight = False''':
+    BLOCK_SIZE_B: 1024
+  '''x.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 1'', ''has_weight = True''':
+    BLOCK_SIZE_B: 8192
+  '''x.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 1024'', ''has_weight = False''':
+    BLOCK_SIZE_B: 16
+  '''x.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 1024'', ''has_weight = True''':
+    BLOCK_SIZE_B: 16
+  '''x.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 128'', ''has_weight = False''':
+    BLOCK_SIZE_B: 128
+  '''x.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 128'', ''has_weight = True''':
+    BLOCK_SIZE_B: 32
+  '''x.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 16'', ''has_weight = False''':
+    BLOCK_SIZE_B: 512
+  '''x.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 16'', ''has_weight = True''':
+    BLOCK_SIZE_B: 1024
+  '''x.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 16384'', ''has_weight = False''':
+    BLOCK_SIZE_B: 1
+  '''x.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 16384'', ''has_weight = True''':
+    BLOCK_SIZE_B: 1
+  '''x.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 2'', ''has_weight = False''':
+    BLOCK_SIZE_B: 1024
+  '''x.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 2'', ''has_weight = True''':
+    BLOCK_SIZE_B: 1024
+  '''x.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 2048'', ''has_weight = False''':
+    BLOCK_SIZE_B: 8
+  '''x.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 2048'', ''has_weight = True''':
+    BLOCK_SIZE_B: 1
+  '''x.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 256'', ''has_weight = False''':
+    BLOCK_SIZE_B: 16
+  '''x.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 256'', ''has_weight = True''':
+    BLOCK_SIZE_B: 8
+  '''x.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 32'', ''has_weight = False''':
+    BLOCK_SIZE_B: 128
+  '''x.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 32'', ''has_weight = True''':
+    BLOCK_SIZE_B: 128
+  '''x.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 32768'', ''has_weight = False''':
+    BLOCK_SIZE_B: 1
+  '''x.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 32768'', ''has_weight = True''':
+    BLOCK_SIZE_B: 2
+  '''x.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 4'', ''has_weight = False''':
+    BLOCK_SIZE_B: 256
+  '''x.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 4'', ''has_weight = True''':
+    BLOCK_SIZE_B: 2048
+  '''x.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 4096'', ''has_weight = False''':
+    BLOCK_SIZE_B: 1
+  '''x.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 4096'', ''has_weight = True''':
+    BLOCK_SIZE_B: 1
+  '''x.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 512'', ''has_weight = False''':
+    BLOCK_SIZE_B: 16
+  '''x.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 512'', ''has_weight = True''':
+    BLOCK_SIZE_B: 4
+  '''x.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 64'', ''has_weight = False''':
+    BLOCK_SIZE_B: 512
+  '''x.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 64'', ''has_weight = True''':
+    BLOCK_SIZE_B: 16
+  '''x.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 65536'', ''has_weight = False''':
+    BLOCK_SIZE_B: 1
+  '''x.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 65536'', ''has_weight = True''':
+    BLOCK_SIZE_B: 1
+  '''x.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 8'', ''has_weight = False''':
+    BLOCK_SIZE_B: 1024
+  '''x.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 8'', ''has_weight = True''':
+    BLOCK_SIZE_B: 256
+  '''x.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 8192'', ''has_weight = False''':
+    BLOCK_SIZE_B: 1
+  '''x.dtype = torch.bfloat16'', ''BLOCK_SIZE_H = 8192'', ''has_weight = True''':
+    BLOCK_SIZE_B: 2
+  '''x.dtype = torch.float16'', ''BLOCK_SIZE_H = 1'', ''has_weight = False''':
+    BLOCK_SIZE_B: 2048
+  '''x.dtype = torch.float16'', ''BLOCK_SIZE_H = 1'', ''has_weight = True''':
+    BLOCK_SIZE_B: 2048
+  '''x.dtype = torch.float16'', ''BLOCK_SIZE_H = 1024'', ''has_weight = False''':
+    BLOCK_SIZE_B: 8
+  '''x.dtype = torch.float16'', ''BLOCK_SIZE_H = 1024'', ''has_weight = True''':
+    BLOCK_SIZE_B: 32
+  '''x.dtype = torch.float16'', ''BLOCK_SIZE_H = 128'', ''has_weight = False''':
+    BLOCK_SIZE_B: 32
+  '''x.dtype = torch.float16'', ''BLOCK_SIZE_H = 128'', ''has_weight = True''':
+    BLOCK_SIZE_B: 8
+  '''x.dtype = torch.float16'', ''BLOCK_SIZE_H = 16'', ''has_weight = False''':
+    BLOCK_SIZE_B: 2048
+  '''x.dtype = torch.float16'', ''BLOCK_SIZE_H = 16'', ''has_weight = True''':
+    BLOCK_SIZE_B: 64
+  '''x.dtype = torch.float16'', ''BLOCK_SIZE_H = 16384'', ''has_weight = False''':
+    BLOCK_SIZE_B: 1
+  '''x.dtype = torch.float16'', ''BLOCK_SIZE_H = 16384'', ''has_weight = True''':
+    BLOCK_SIZE_B: 1
+  '''x.dtype = torch.float16'', ''BLOCK_SIZE_H = 2'', ''has_weight = False''':
+    BLOCK_SIZE_B: 512
+  '''x.dtype = torch.float16'', ''BLOCK_SIZE_H = 2'', ''has_weight = True''':
+    BLOCK_SIZE_B: 1024
+  '''x.dtype = torch.float16'', ''BLOCK_SIZE_H = 2048'', ''has_weight = False''':
+    BLOCK_SIZE_B: 2
+  '''x.dtype = torch.float16'', ''BLOCK_SIZE_H = 2048'', ''has_weight = True''':
+    BLOCK_SIZE_B: 4
+  '''x.dtype = torch.float16'', ''BLOCK_SIZE_H = 256'', ''has_weight = False''':
+    BLOCK_SIZE_B: 16
+  '''x.dtype = torch.float16'', ''BLOCK_SIZE_H = 256'', ''has_weight = True''':
+    BLOCK_SIZE_B: 32
+  '''x.dtype = torch.float16'', ''BLOCK_SIZE_H = 32'', ''has_weight = False''':
+    BLOCK_SIZE_B: 64
+  '''x.dtype = torch.float16'', ''BLOCK_SIZE_H = 32'', ''has_weight = True''':
+    BLOCK_SIZE_B: 128
+  '''x.dtype = torch.float16'', ''BLOCK_SIZE_H = 32768'', ''has_weight = False''':
+    BLOCK_SIZE_B: 1
+  '''x.dtype = torch.float16'', ''BLOCK_SIZE_H = 32768'', ''has_weight = True''':
+    BLOCK_SIZE_B: 2
+  '''x.dtype = torch.float16'', ''BLOCK_SIZE_H = 4'', ''has_weight = False''':
+    BLOCK_SIZE_B: 512
+  '''x.dtype = torch.float16'', ''BLOCK_SIZE_H = 4'', ''has_weight = True''':
+    BLOCK_SIZE_B: 2048
+  '''x.dtype = torch.float16'', ''BLOCK_SIZE_H = 4096'', ''has_weight = False''':
+    BLOCK_SIZE_B: 2
+  '''x.dtype = torch.float16'', ''BLOCK_SIZE_H = 4096'', ''has_weight = True''':
+    BLOCK_SIZE_B: 4
+  '''x.dtype = torch.float16'', ''BLOCK_SIZE_H = 512'', ''has_weight = False''':
+    BLOCK_SIZE_B: 4
+  '''x.dtype = torch.float16'', ''BLOCK_SIZE_H = 512'', ''has_weight = True''':
+    BLOCK_SIZE_B: 8
+  '''x.dtype = torch.float16'', ''BLOCK_SIZE_H = 64'', ''has_weight = False''':
+    BLOCK_SIZE_B: 128
+  '''x.dtype = torch.float16'', ''BLOCK_SIZE_H = 64'', ''has_weight = True''':
+    BLOCK_SIZE_B: 128
+  '''x.dtype = torch.float16'', ''BLOCK_SIZE_H = 65536'', ''has_weight = False''':
+    BLOCK_SIZE_B: 1
+  '''x.dtype = torch.float16'', ''BLOCK_SIZE_H = 65536'', ''has_weight = True''':
+    BLOCK_SIZE_B: 1
+  '''x.dtype = torch.float16'', ''BLOCK_SIZE_H = 8'', ''has_weight = False''':
+    BLOCK_SIZE_B: 512
+  '''x.dtype = torch.float16'', ''BLOCK_SIZE_H = 8'', ''has_weight = True''':
+    BLOCK_SIZE_B: 512
+  '''x.dtype = torch.float16'', ''BLOCK_SIZE_H = 8192'', ''has_weight = False''':
+    BLOCK_SIZE_B: 2
+  '''x.dtype = torch.float16'', ''BLOCK_SIZE_H = 8192'', ''has_weight = True''':
+    BLOCK_SIZE_B: 2
+  '''x.dtype = torch.float32'', ''BLOCK_SIZE_H = 1'', ''has_weight = False''':
+    BLOCK_SIZE_B: 16384
+  '''x.dtype = torch.float32'', ''BLOCK_SIZE_H = 1'', ''has_weight = True''':
+    BLOCK_SIZE_B: 8192
+  '''x.dtype = torch.float32'', ''BLOCK_SIZE_H = 1024'', ''has_weight = False''':
+    BLOCK_SIZE_B: 8
+  '''x.dtype = torch.float32'', ''BLOCK_SIZE_H = 1024'', ''has_weight = True''':
+    BLOCK_SIZE_B: 2
+  '''x.dtype = torch.float32'', ''BLOCK_SIZE_H = 128'', ''has_weight = False''':
+    BLOCK_SIZE_B: 8
+  '''x.dtype = torch.float32'', ''BLOCK_SIZE_H = 128'', ''has_weight = True''':
+    BLOCK_SIZE_B: 8
+  '''x.dtype = torch.float32'', ''BLOCK_SIZE_H = 16'', ''has_weight = False''':
+    BLOCK_SIZE_B: 1024
+  '''x.dtype = torch.float32'', ''BLOCK_SIZE_H = 16'', ''has_weight = True''':
+    BLOCK_SIZE_B: 256
+  '''x.dtype = torch.float32'', ''BLOCK_SIZE_H = 16384'', ''has_weight = False''':
+    BLOCK_SIZE_B: 1
+  '''x.dtype = torch.float32'', ''BLOCK_SIZE_H = 16384'', ''has_weight = True''':
+    BLOCK_SIZE_B: 1
+  '''x.dtype = torch.float32'', ''BLOCK_SIZE_H = 2'', ''has_weight = False''':
+    BLOCK_SIZE_B: 512
+  '''x.dtype = torch.float32'', ''BLOCK_SIZE_H = 2'', ''has_weight = True''':
+    BLOCK_SIZE_B: 512
+  '''x.dtype = torch.float32'', ''BLOCK_SIZE_H = 2048'', ''has_weight = False''':
+    BLOCK_SIZE_B: 1
+  '''x.dtype = torch.float32'', ''BLOCK_SIZE_H = 2048'', ''has_weight = True''':
+    BLOCK_SIZE_B: 4
+  '''x.dtype = torch.float32'', ''BLOCK_SIZE_H = 256'', ''has_weight = False''':
+    BLOCK_SIZE_B: 16
+  '''x.dtype = torch.float32'', ''BLOCK_SIZE_H = 256'', ''has_weight = True''':
+    BLOCK_SIZE_B: 64
+  '''x.dtype = torch.float32'', ''BLOCK_SIZE_H = 32'', ''has_weight = False''':
+    BLOCK_SIZE_B: 128
+  '''x.dtype = torch.float32'', ''BLOCK_SIZE_H = 32'', ''has_weight = True''':
+    BLOCK_SIZE_B: 256
+  '''x.dtype = torch.float32'', ''BLOCK_SIZE_H = 32768'', ''has_weight = False''':
+    BLOCK_SIZE_B: 1
+  '''x.dtype = torch.float32'', ''BLOCK_SIZE_H = 32768'', ''has_weight = True''':
+    BLOCK_SIZE_B: 2
+  '''x.dtype = torch.float32'', ''BLOCK_SIZE_H = 4'', ''has_weight = False''':
+    BLOCK_SIZE_B: 2048
+  '''x.dtype = torch.float32'', ''BLOCK_SIZE_H = 4'', ''has_weight = True''':
+    BLOCK_SIZE_B: 2048
+  '''x.dtype = torch.float32'', ''BLOCK_SIZE_H = 4096'', ''has_weight = False''':
+    BLOCK_SIZE_B: 1
+  '''x.dtype = torch.float32'', ''BLOCK_SIZE_H = 4096'', ''has_weight = True''':
+    BLOCK_SIZE_B: 4
+  '''x.dtype = torch.float32'', ''BLOCK_SIZE_H = 512'', ''has_weight = False''':
+    BLOCK_SIZE_B: 16
+  '''x.dtype = torch.float32'', ''BLOCK_SIZE_H = 512'', ''has_weight = True''':
+    BLOCK_SIZE_B: 16
+  '''x.dtype = torch.float32'', ''BLOCK_SIZE_H = 64'', ''has_weight = False''':
+    BLOCK_SIZE_B: 256
+  '''x.dtype = torch.float32'', ''BLOCK_SIZE_H = 64'', ''has_weight = True''':
+    BLOCK_SIZE_B: 128
+  '''x.dtype = torch.float32'', ''BLOCK_SIZE_H = 65536'', ''has_weight = False''':
+    BLOCK_SIZE_B: 1
+  '''x.dtype = torch.float32'', ''BLOCK_SIZE_H = 65536'', ''has_weight = True''':
+    BLOCK_SIZE_B: 1
+  '''x.dtype = torch.float32'', ''BLOCK_SIZE_H = 8'', ''has_weight = False''':
+    BLOCK_SIZE_B: 1024
+  '''x.dtype = torch.float32'', ''BLOCK_SIZE_H = 8'', ''has_weight = True''':
+    BLOCK_SIZE_B: 1024
+  '''x.dtype = torch.float32'', ''BLOCK_SIZE_H = 8192'', ''has_weight = False''':
+    BLOCK_SIZE_B: 1
+  '''x.dtype = torch.float32'', ''BLOCK_SIZE_H = 8192'', ''has_weight = True''':
+    BLOCK_SIZE_B: 1
 kernels/gemm/__init__.py->gemm_cute:
   '''A.dtype = torch.bfloat16'', ''is_A_transposed = False'', ''is_B_transposed = False''':
     kernel_backend: triton

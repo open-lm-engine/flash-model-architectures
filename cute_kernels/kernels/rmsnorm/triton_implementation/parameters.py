@@ -3,7 +3,7 @@ from ....cutotune import CutoTuneConfig, get_cartesian_product_cutotune_configs
 from ....math import get_powers_of_2
 
 
-def get_cutotune_parameters() -> dict:
+def get_cutotune_parameters(triggers: dict = {"x.dtype", "BLOCK_SIZE_H"}) -> dict:
     return dict(
         configs=get_cartesian_product_cutotune_configs(
             BLOCK_SIZE_B=get_powers_of_2(1, MAX_TRITON_BLOCK_SIZE),
@@ -12,6 +12,6 @@ def get_cutotune_parameters() -> dict:
             <= MAX_TRITON_BLOCK_SIZE,
         ),
         default_config=CutoTuneConfig({"BLOCK_SIZE_B": 1}),
-        triggers={"x.dtype", "BLOCK_SIZE_H"},
+        triggers=triggers,
         functional_triggers={"has_weight": lambda **kwargs: kwargs["weight"] is not None},
     )

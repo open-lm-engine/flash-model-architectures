@@ -6,21 +6,25 @@ from ....constants import LIBRARY_NAME
 from ....cutotune import cutotune
 from ....math import ceil_divide
 from ....utils import cute_op, get_num_elements_and_hidden_size, get_sm_count
-from .parameters import get_cutotune_parameters
+from ...rmsnorm.triton_implementation.parameters import get_cutotune_parameters
 
 
-_KERNEL_NAME = "rmsnorm_backward_triton"
+_KERNEL_NAME = "fused_residual_add_rmsnorm_backward_triton"
 
 
 @triton.jit
 def _rmsnorm_backward_triton_kernel(
-    x_ptr,
+    added_x_residual_ptr,
     has_weight: tl.constexpr,
     weight_ptr,
     output_grad_ptr,
+    added_x_residual_grad_ptr,
     x_grad_ptr,
+    residual_grad_ptr,
     weight_grad_ptr,
     eps,
+    has_multiplier: tl.constexpr,
+    multiplier,
     has_rmsnorm_denominator: tl.constexpr,
     rmsnorm_denominator_ptr,
     B,
@@ -42,7 +46,7 @@ def _rmsnorm_backward_triton_kernel(
 
     num_loops = tl.cdiv(num_elements_in_current_program, BLOCK_SIZE_B)
 
-    x_dtype = x_ptr.dtype.element_ty
+    x_dtype = added_x_residual_ptr.dtype.element_ty
 
     if has_weight:
         weight = tl.load(weight_ptr + indices_h, mask=mask_h)[None, :]
@@ -55,13 +59,13 @@ def _rmsnorm_backward_triton_kernel(
         mask_b = indices_b < program_end
         mask_bh = mask_b[:, None] & mask_h[None, :]
 
-        x_ptrs = x_ptr + indices_bh
-        x = tl.load(x_ptrs, mask=mask_bh).to(tl.float32)
+        added_x_residual_ptrs = added_x_residual_ptr + indices_bh
+        added_x_residual = tl.load(added_x_residual_ptrs, mask=mask_bh).to(tl.float32)
 
         if has_rmsnorm_denominator:
             inverse_rms = tl.load(rmsnorm_denominator_ptr + indices_b, mask=mask_b)
         else:
-            squared_sum = tl.sum(x * x, axis=1)
+            squared_sum = tl.sum(added_x_residual * added_x_residual, axis=1)
             inverse_rms = tl.rsqrt(squared_sum / H + eps)
 
         output_grad_ptrs = output_grad_ptr + indices_bh
@@ -79,53 +83,71 @@ def _rmsnorm_backward_triton_kernel(
             * inverse_rms[:, None]
             * inverse_rms[:, None]
             * inverse_rms[:, None]
-            * x
-            * tl.sum(output_grad_weight * x, axis=1, keep_dims=True)
+            * added_x_residual
+            * tl.sum(output_grad_weight * added_x_residual, axis=1, keep_dims=True)
         )
-        x_grad = x_grad.to(x_dtype)
+
+        added_x_residual_grad_ptrs = added_x_residual_grad_ptr + indices_bh
+        added_x_residual_grad = tl.load(added_x_residual_grad_ptrs, mask=mask_bh)
+
+        x_grad += added_x_residual_grad
+
+        residual_grad_ptrs = residual_grad_ptr + indices_bh
+        tl.store(residual_grad_ptrs, x_grad, mask=mask_bh)
+
+        if has_multiplier:
+            x_grad *= multiplier
 
         x_grad_ptrs = x_grad_ptr + indices_bh
         tl.store(x_grad_ptrs, x_grad, mask=mask_bh)
 
         if has_weight:
-            weight_grad += tl.sum(output_grad * (x * inverse_rms[:, None]).to(x_dtype), axis=0)
+            weight_grad += tl.sum(output_grad * (added_x_residual * inverse_rms[:, None]).to(x_dtype), axis=0)
 
     if has_weight:
         tl.atomic_add(weight_grad_ptr + indices_h, weight_grad, mask=mask_h)
 
 
 @cutotune(
-    **get_cutotune_parameters(), reset_to_zero={"weight_grad": lambda **kwargs: kwargs["weight_grad"] is not None}
+    **get_cutotune_parameters(triggers={"added_x_residual.dtype", "BLOCK_SIZE_H"}),
+    reset_to_zero={"weight_grad": lambda **kwargs: kwargs["weight_grad"] is not None},
 )
-@cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"x_grad", "weight_grad"})
-def rmsnorm_backward_triton(
-    x: torch.Tensor,
+@cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"x_grad", "residual_grad", "weight_grad"})
+def fused_residual_add_rmsnorm_backward_triton(
+    added_x_residual: torch.Tensor,
     weight: torch.Tensor,
     output_grad: torch.Tensor,
+    added_x_residual_grad: torch.Tensor,
     rmsnorm_denominator: torch.Tensor,
     x_grad: torch.Tensor,
+    residual_grad: torch.Tensor,
     weight_grad: torch.Tensor | None,
     eps: float,
+    multiplier: float | None,
     BLOCK_SIZE_B: int,
     BLOCK_SIZE_H: int,
 ) -> None:
-    num_elements, hidden_size = get_num_elements_and_hidden_size(x)
+    num_elements, hidden_size = get_num_elements_and_hidden_size(added_x_residual)
 
     if BLOCK_SIZE_H < hidden_size:
         raise ValueError(f"hidden_size should be more than the BLOCK_SIZE_H")
 
-    sm_count = get_sm_count(x.device)
+    sm_count = get_sm_count(added_x_residual.device)
     num_programs = min(sm_count, ceil_divide(num_elements, BLOCK_SIZE_B))
 
-    with torch.device(x.device):
+    with torch.device(added_x_residual.device):
         _rmsnorm_backward_triton_kernel[(num_programs,)](
-            x_ptr=x,
+            added_x_residual_ptr=added_x_residual,
             has_weight=weight is not None,
             weight_ptr=weight,
             output_grad_ptr=output_grad,
+            added_x_residual_grad_ptr=added_x_residual_grad,
             x_grad_ptr=x_grad,
+            residual_grad_ptr=residual_grad,
             weight_grad_ptr=weight_grad,
             eps=eps,
+            has_multiplier=multiplier is not None and multiplier != 1,
+            multiplier=multiplier,
             has_rmsnorm_denominator=rmsnorm_denominator is not None,
             rmsnorm_denominator_ptr=rmsnorm_denominator,
             B=num_elements,
