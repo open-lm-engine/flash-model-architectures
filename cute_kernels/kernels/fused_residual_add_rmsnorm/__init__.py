@@ -51,6 +51,7 @@ class _FusedResidualAddRMSNorm_Cute(torch.autograd.Function):
 
         if is_x_1d:
             output = output.squeeze(0)
+            added_x_residual = added_x_residual.squeeze(0)
 
         ctx.save_for_backward(added_x_residual, weight, rmsnorm_denominator)
         ctx.is_x_1d = is_x_1d
