@@ -24,7 +24,7 @@ class FusedResdidualAddRMSNormTest(TestCommons):
             [None, 0.9],  # multiplier
             [
                 fused_residual_add_rmsnorm_cute,
-                # torch.compile(fused_residual_add_rmsnorm_cute, fullgraph=True),
+                torch.compile(fused_residual_add_rmsnorm_cute, fullgraph=True),
             ],  # function
         )
     )
