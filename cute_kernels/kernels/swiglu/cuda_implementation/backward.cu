@@ -131,7 +131,7 @@ void swiglu_backward_cuda(const torch::Tensor &gate,
                 ck::ChunkedArray<scalar_t> up_grad_chunk = up_grad_chunks[i];
 
                 const uint32 num_elements = gate_chunk.num_elements;
-                const uint32 NUM_BLOCKS = ceil_divide<uint64>(num_elements, num_elements_per_block);
+                const uint32 NUM_BLOCKS = ck::ceil_divide<uint64>(num_elements, num_elements_per_block);
 
                 _swiglu_backward_cuda_kernel<scalar_t><<<NUM_BLOCKS, BLOCK_SIZE>>>(gate_chunk.array,
                                                                                    up_chunk.array,
