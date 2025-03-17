@@ -10,6 +10,7 @@ namespace ck = cute_kernels;
 
 using uint32 = ck::uint32;
 using int32 = ck::int32;
+using uint64 = ck::uint64;
 
 using fp32 = ck::fp32;
 
