@@ -13,7 +13,7 @@ _KERNEL_NAME = "fused_residual_add_rmsnorm_forward_triton"
 
 
 @triton.jit
-def _rmsnorm_forward_triton_kernel(
+def _fused_residual_add_rmsnorm_forward_triton_kernel(
     x_ptr,
     residual_ptr,
     has_weight: tl.constexpr,
@@ -91,7 +91,7 @@ def fused_residual_add_rmsnorm_forward_triton(
         raise ValueError(f"hidden_size should be more than the BLOCK_SIZE_H")
 
     with torch.device(x.device):
-        _rmsnorm_forward_triton_kernel[(ceil_divide(num_elements, BLOCK_SIZE_B),)](
+        _fused_residual_add_rmsnorm_forward_triton_kernel[(ceil_divide(num_elements, BLOCK_SIZE_B),)](
             x_ptr=x,
             residual_ptr=residual,
             has_weight=weight is not None,
