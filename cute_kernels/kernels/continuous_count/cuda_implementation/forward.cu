@@ -15,9 +15,11 @@ namespace ck = cute_kernels;
 
 using uint32 = ck::uint32;
 using uint32_4 = ck::uint32_4;
+using int32 = ck::int32;
 
 using uint64 = ck::uint64;
 using uint64_2 = ck::uint64_2;
+using int64 = ck::int64;
 
 inline __device__ void _looped_atomic_add(
     uint32 *source, uint32 *destination, const uint32 &num_loops_C, const uint32 &C, const uint32 &local_thread_id) {
