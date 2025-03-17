@@ -3,7 +3,13 @@
 #include <vector>
 
 #include "cutlass/gemm/device/gemm.h"
-#include "include/dtypes/dtypes.h"
+#include "include/dtypes.h"
+
+namespace ck = cute_kernels;
+
+using fp32 = ck::fp32;
+using uint32 = ck::uint32;
+using int32 = ck::int32;
 
 template <typename input_dtype, bool is_A_transposed, bool is_B_transposed>
 inline void _cutlass_gemm_templated_layout(const input_dtype *A,
