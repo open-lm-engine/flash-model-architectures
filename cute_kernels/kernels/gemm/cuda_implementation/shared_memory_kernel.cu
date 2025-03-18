@@ -2,10 +2,7 @@
 #include <cuda_runtime.h>
 #include <torch/extension.h>
 
-#include "include/dtypes.h"
-#include "include/math.h"
-#include "include/shared_memory.h"
-#include "include/threads.h"
+#include "include/cute_kernels.h"
 #include "index.cuh"
 
 namespace ck = cute_kernels;

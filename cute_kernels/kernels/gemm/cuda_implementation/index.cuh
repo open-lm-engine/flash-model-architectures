@@ -3,7 +3,7 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 
-#include "include/dtypes.h"
+#include "include/cute_kernels.h"
 
 namespace ck = cute_kernels;
 

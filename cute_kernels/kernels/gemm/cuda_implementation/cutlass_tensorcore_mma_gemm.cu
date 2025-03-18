@@ -4,7 +4,7 @@
 
 #include "cutlass/gemm/device/gemm.h"
 #include "cutlass/util/device_memory.h"
-#include "include/dtypes.h"
+#include "include/cute_kernels.h"
 
 namespace ck = cute_kernels;
 
