@@ -72,7 +72,7 @@ void add_scalar_cuda(const torch::Tensor &x, const float &y, torch::Tensor &outp
                                            ck::ChunkedArray<scalar_t> x_chunk = x_chunks[i];
                                            ck::ChunkedArray<scalar_t> output_chunk = output_chunks[i];
 
-                                           const uint32 num_elements = x_chunk.num_elements;
+                                           const uint64 num_elements = x_chunk.num_elements;
                                            const uint32 NUM_BLOCKS =
                                                ck::ceil_divide<uint64>(num_elements, num_elements_per_block);
 
