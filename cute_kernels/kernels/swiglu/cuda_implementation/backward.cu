@@ -19,7 +19,7 @@ __global__ void _swiglu_backward_cuda_kernel(const scalar_t *gate,
                                              const scalar_t *output_grad,
                                              scalar_t *gate_grad,
                                              scalar_t *up_grad,
-                                             const uint32 num_elements) {
+                                             const uint64 num_elements) {
     constexpr int num_elements_per_thread = 16 / sizeof(scalar_t);
     static_assert(num_elements_per_thread == 4 || num_elements_per_thread == 8);
 

@@ -17,7 +17,7 @@ template <typename scalar_t>
 __global__ void _swiglu_forward_cuda_kernel(const scalar_t *gate,
                                             const scalar_t *up,
                                             scalar_t *output,
-                                            const uint32 num_elements) {
+                                            const uint64 num_elements) {
     constexpr int num_elements_per_thread = 16 / sizeof(scalar_t);
     static_assert(num_elements_per_thread == 4 || num_elements_per_thread == 8);
 
