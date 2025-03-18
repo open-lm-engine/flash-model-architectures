@@ -90,7 +90,7 @@ void swiglu_forward_cuda(const torch::Tensor &gate,
                                            ck::ChunkedArray<scalar_t> up_chunk = up_chunks[i];
                                            ck::ChunkedArray<scalar_t> output_chunk = output_chunks[i];
 
-                                           const uint32 num_elements = gate_chunk.num_elements;
+                                           const uint64 num_elements = gate_chunk.num_elements;
                                            const uint32 NUM_BLOCKS =
                                                ck::ceil_divide<uint64>(num_elements, num_elements_per_block);
 
