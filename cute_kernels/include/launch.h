@@ -9,7 +9,7 @@ namespace cute_kernels {
     template <typename T>
     struct ChunkedArray {
         T* array;
-        uint32 num_elements;
+        uint64 num_elements;
     };
 
     template <typename T>
