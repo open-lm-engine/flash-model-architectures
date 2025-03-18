@@ -3,6 +3,8 @@
 #define WARP_SIZE 32
 #define LOG_WARP_SIZE 5
 
+#define CHECK_VALID_THREAD_BLOCK(block_size) block_size % WARP_SIZE == 0
+
 #include <cuda.h>
 #include <cuda_runtime.h>
 

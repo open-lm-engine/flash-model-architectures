@@ -2,6 +2,7 @@
 #include <cuda_runtime.h>
 #include <torch/extension.h>
 
+#include "include/checks.h"
 #include "include/dtypes.h"
 #include "include/launch.h"
 #include "include/math.h"
@@ -55,10 +56,10 @@ __global__ void _add_scalar_cuda_kernel(const scalar_t *x, const fp32 y, scalar_
 }
 
 void add_scalar_cuda(const torch::Tensor &x, const float &y, torch::Tensor &output, const uint32 &BLOCK_SIZE) {
-    TORCH_CHECK(x.is_cuda());
-    TORCH_CHECK(output.is_cuda());
+    CHECK_CUDA_TENSOR(x);
+    CHECK_CUDA_TENSOR(output);
 
-    TORCH_CHECK(BLOCK_SIZE % WARP_SIZE == 0);
+    CHECK_VALID_THREAD_BLOCK(BLOCK_SIZE);
 
     const uint64 total_elements = x.numel();
 
