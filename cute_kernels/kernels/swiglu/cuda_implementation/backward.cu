@@ -93,13 +93,13 @@ void swiglu_backward_cuda(const torch::Tensor &gate,
                           torch::Tensor &gate_grad,
                           torch::Tensor &up_grad,
                           const uint32 &BLOCK_SIZE) {
-    TORCH_CHECK(gate.is_cuda());
-    TORCH_CHECK(up.is_cuda());
-    TORCH_CHECK(output_grad.is_cuda());
-    TORCH_CHECK(gate_grad.is_cuda());
-    TORCH_CHECK(up_grad.is_cuda());
+    CHECK_CUDA_TENSOR(gate);
+    CHECK_CUDA_TENSOR(up);
+    CHECK_CUDA_TENSOR(output_grad);
+    CHECK_CUDA_TENSOR(gate_grad);
+    CHECK_CUDA_TENSOR(up_grad);
 
-    TORCH_CHECK(BLOCK_SIZE % WARP_SIZE == 0);
+    CHECK_VALID_THREAD_BLOCK(BLOCK_SIZE);
 
     const uint64 total_elements = gate.numel();
 

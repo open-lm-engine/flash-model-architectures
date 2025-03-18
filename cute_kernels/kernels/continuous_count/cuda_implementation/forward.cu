@@ -114,10 +114,11 @@ void continuous_count_cuda(const torch::Tensor &x,
                            const uint32 &thread_block_cluster_size,
                            const uint32 &C,
                            const uint32 &BLOCK_SIZE) {
-    TORCH_CHECK(x.is_cuda());
-    TORCH_CHECK(output.is_cuda());
+    CHECK_CUDA_TENSOR(x);
+    CHECK_CUDA_TENSOR(output);
 
-    TORCH_CHECK(BLOCK_SIZE % WARP_SIZE == 0);
+    CHECK_VALID_THREAD_BLOCK(BLOCK_SIZE);
+
     TORCH_CHECK(C <= MAX_ALLOWED_C);
 
     const uint64 total_elements = x.numel();

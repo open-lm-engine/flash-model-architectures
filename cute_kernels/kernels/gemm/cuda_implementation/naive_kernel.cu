@@ -62,7 +62,14 @@ void naive_gemm_cuda(const torch::Tensor &A,
                      const uint32 &N,
                      const uint32 &BLOCK_SIZE_M,
                      const uint32 &BLOCK_SIZE_N) {
-    TORCH_CHECK((BLOCK_SIZE_M * BLOCK_SIZE_N) % WARP_SIZE == 0);
+    CHECK_CUDA_TENSOR(A);
+    CHECK_CUDA_TENSOR(B);
+    if (C.has_value()) {
+        CHECK_CUDA_TENSOR(C);
+    }
+    CHECK_CUDA_TENSOR(output);
+
+    CHECK_VALID_THREAD_BLOCK(BLOCK_SIZE);
 
     dim3 NUM_BLOCKS = dim3(ck::ceil_divide<uint32>(N, BLOCK_SIZE_N), ck::ceil_divide<uint32>(M, BLOCK_SIZE_M), 1);
     dim3 BLOCK_SIZE = dim3(BLOCK_SIZE_N, BLOCK_SIZE_M, 1);

@@ -95,6 +95,15 @@ void cutlass_tensorcore_mma_gemm_cuda(const torch::Tensor &A,
                                       const uint32 &M,
                                       const uint32 &K,
                                       const uint32 &N) {
+    CHECK_CUDA_TENSOR(A);
+    CHECK_CUDA_TENSOR(B);
+    if (C.has_value()) {
+        CHECK_CUDA_TENSOR(C);
+    }
+    CHECK_CUDA_TENSOR(output);
+
+    CHECK_VALID_THREAD_BLOCK(BLOCK_SIZE);
+
     const fp32 *A_data = A.data_ptr<fp32>();
     const fp32 *B_data = B.data_ptr<fp32>();
     const fp32 *C_data = C.has_value() ? C.value().data_ptr<fp32>() : nullptr;
