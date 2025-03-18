@@ -139,7 +139,7 @@ void continuous_count_cuda(const torch::Tensor &x,
                                          ck::ChunkedArray<scalar_t> x_chunk = x_chunks[i];
                                          ck::ChunkedArray<uint32> output_chunk = output_chunks[i];
 
-                                         const uint32 num_elements = x_chunk.num_elements;
+                                         const uint64 num_elements = x_chunk.num_elements;
 
                                          auto [NUM_BLOCKS, cluster_size] = ck::get_num_blocks(
                                              num_elements, BLOCK_SIZE, max_num_blocks, thread_block_cluster_size);
