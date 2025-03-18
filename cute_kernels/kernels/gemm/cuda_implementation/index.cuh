@@ -3,7 +3,11 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 
-#include "include/dtypes/all.h"
+#include "include/cute_kernels.h"
+
+namespace ck = cute_kernels;
+
+using uint32 = ck::uint32;
 
 template <typename T>
 inline __device__ T

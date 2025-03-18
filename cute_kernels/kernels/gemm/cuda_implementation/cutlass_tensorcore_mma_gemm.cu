@@ -4,7 +4,15 @@
 
 #include "cutlass/gemm/device/gemm.h"
 #include "cutlass/util/device_memory.h"
-#include "include/dtypes/all.h"
+#include "include/cute_kernels.h"
+
+namespace ck = cute_kernels;
+
+using uint32 = ck::uint32;
+using int32 = ck::int32;
+using uint64 = ck::uint64;
+
+using fp32 = ck::fp32;
 
 template <bool is_A_transposed, bool is_B_transposed>
 inline void _cutlass_tensorcore_mma_gemm_templated_layout(const fp32 *A,
@@ -35,7 +43,7 @@ inline void _cutlass_tensorcore_mma_gemm_templated_layout(const fp32 *A,
     using EpilogueOp =
         cutlass::epilogue::thread::LinearCombination<fp32, 128 / cutlass::sizeof_bits<fp32>::value, fp32, fp32>;
 
-    constexpr int NumStages = 4;
+    constexpr int32 NumStages = 4;
 
     using CutlassGemm = cutlass::gemm::device::Gemm<fp32,
                                                     layout_A,
@@ -67,7 +75,7 @@ inline void _cutlass_tensorcore_mma_gemm_templated_layout(const fp32 *A,
                                          {alpha, beta},
                                          {1});
 
-    size_t workspace_size = CutlassGemm::get_workspace_size(args);
+    uint64 workspace_size = CutlassGemm::get_workspace_size(args);
     cutlass::device_memory::allocation<uint8_t> workspace(workspace_size);
 
     cutlass::Status status = gemm_operator.can_implement(args);
@@ -87,14 +95,21 @@ void cutlass_tensorcore_mma_gemm_cuda(const torch::Tensor &A,
                                       const uint32 &M,
                                       const uint32 &K,
                                       const uint32 &N) {
+    CHECK_CUDA_TENSOR(A);
+    CHECK_CUDA_TENSOR(B);
+    if (C.has_value()) {
+        CHECK_CUDA_TENSOR(C.value());
+    }
+    CHECK_CUDA_TENSOR(output);
+
     const fp32 *A_data = A.data_ptr<fp32>();
     const fp32 *B_data = B.data_ptr<fp32>();
     const fp32 *C_data = C.has_value() ? C.value().data_ptr<fp32>() : nullptr;
     fp32 *output_data = output.data_ptr<fp32>();
 
-    const int32 _M = safe_cast_uint32_to_int32(M);
-    const int32 _K = safe_cast_uint32_to_int32(K);
-    const int32 _N = safe_cast_uint32_to_int32(N);
+    const int32 _M = ck::safe_cast_uint32_to_int32(M);
+    const int32 _K = ck::safe_cast_uint32_to_int32(K);
+    const int32 _N = ck::safe_cast_uint32_to_int32(N);
 
     if (is_A_transposed) {
         if (is_B_transposed) {

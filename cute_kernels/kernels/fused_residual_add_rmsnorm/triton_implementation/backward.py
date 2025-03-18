@@ -13,7 +13,7 @@ _KERNEL_NAME = "fused_residual_add_rmsnorm_backward_triton"
 
 
 @triton.jit
-def _rmsnorm_backward_triton_kernel(
+def _fused_residual_add_rmsnorm_backward_triton_kernel(
     added_x_residual_ptr,
     has_weight: tl.constexpr,
     weight_ptr,
@@ -136,7 +136,7 @@ def fused_residual_add_rmsnorm_backward_triton(
     num_programs = min(sm_count, ceil_divide(num_elements, BLOCK_SIZE_B))
 
     with torch.device(added_x_residual.device):
-        _rmsnorm_backward_triton_kernel[(num_programs,)](
+        _fused_residual_add_rmsnorm_backward_triton_kernel[(num_programs,)](
             added_x_residual_ptr=added_x_residual,
             has_weight=weight is not None,
             weight_ptr=weight,

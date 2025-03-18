@@ -2,11 +2,13 @@
 #include <cuda_runtime.h>
 #include <torch/extension.h>
 
-#include "include/dtypes/all.h"
-#include "include/math.h"
-#include "include/shared_memory.h"
-#include "include/threads.h"
-#include "index.h"
+#include "include/cute_kernels.h"
+#include "index.cuh"
+
+namespace ck = cute_kernels;
+
+using uint32 = ck::uint32;
+using fp32 = ck::fp32;
 
 template <typename scalar_t>
 __global__ void _shared_memory_gemm_cuda_kernel(const scalar_t *A,
@@ -18,10 +20,10 @@ __global__ void _shared_memory_gemm_cuda_kernel(const scalar_t *A,
                                                 const uint32 M,
                                                 const uint32 K,
                                                 const uint32 N) {
-    const uint32 i = get_thread_id_along_axis(blockDim.x, blockIdx.y, threadIdx.y);
-    const uint32 j = get_thread_id_along_axis(blockDim.x, blockIdx.x, threadIdx.x);
+    const uint32 i = ck::get_thread_id_along_axis(blockDim.x, blockIdx.y, threadIdx.y);
+    const uint32 j = ck::get_thread_id_along_axis(blockDim.x, blockIdx.x, threadIdx.x);
 
-    scalar_t *shared_memory = get_dynamic_shared_memory<scalar_t>();
+    scalar_t *shared_memory = ck::get_dynamic_shared_memory<scalar_t>();
 
     scalar_t *A_shared = shared_memory;
     scalar_t *B_shared = &shared_memory[blockDim.x * blockDim.x];
@@ -84,12 +86,19 @@ void shared_memory_gemm_cuda(const torch::Tensor &A,
                              const uint32 &K,
                              const uint32 &N,
                              const uint32 &BLOCK_SIZE) {
-    TORCH_CHECK((BLOCK_SIZE * BLOCK_SIZE) % WARP_SIZE == 0);
+    CHECK_CUDA_TENSOR(A);
+    CHECK_CUDA_TENSOR(B);
+    if (C.has_value()) {
+        CHECK_CUDA_TENSOR(C.value());
+    }
+    CHECK_CUDA_TENSOR(output);
+
+    CHECK_VALID_THREAD_BLOCK(BLOCK_SIZE);
 
     TORCH_CHECK(!is_A_transposed);
     TORCH_CHECK(!is_B_transposed);
 
-    dim3 NUM_BLOCKS = dim3(ceil_divide<uint32>(N, BLOCK_SIZE), ceil_divide<uint32>(M, BLOCK_SIZE), 1);
+    dim3 NUM_BLOCKS = dim3(ck::ceil_divide<uint32>(N, BLOCK_SIZE), ck::ceil_divide<uint32>(M, BLOCK_SIZE), 1);
     dim3 BLOCK_SIZE_dim = dim3(BLOCK_SIZE, BLOCK_SIZE, 1);
 
     AT_DISPATCH_CUSTOM_FLOAT_TYPES(
