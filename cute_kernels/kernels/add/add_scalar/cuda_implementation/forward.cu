@@ -14,7 +14,7 @@ using uint32 = ck::uint32;
 using uint64 = ck::uint64;
 
 template <typename scalar_t>
-__global__ void _add_scalar_cuda_kernel(const scalar_t *x, const fp32 y, scalar_t *output, const uint32 num_elements) {
+__global__ void _add_scalar_cuda_kernel(const scalar_t *x, const fp32 y, scalar_t *output, const uint64 num_elements) {
     constexpr int num_elements_per_thread = 16 / sizeof(scalar_t);
     static_assert(num_elements_per_thread == 4 || num_elements_per_thread == 8);
 
