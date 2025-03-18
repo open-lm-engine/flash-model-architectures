@@ -69,8 +69,6 @@ void cutlass_gemm_cuda(const torch::Tensor &A,
     }
     CHECK_CUDA_TENSOR(output);
 
-    CHECK_VALID_THREAD_BLOCK(BLOCK_SIZE);
-
     AT_DISPATCH_CUSTOM_FLOAT_TYPES(
         A.scalar_type(), "cutlass_gemm_cuda", ([&] {
             using input_dtype = typename ck::DType<scalar_t>::cutlass_dtype;
