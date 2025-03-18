@@ -61,11 +61,11 @@ __global__ void _add_tensor_cuda_kernel(const scalar_t *x,
 }
 
 void add_tensor_cuda(const torch::Tensor &x, const torch::Tensor &y, torch::Tensor &output, const uint32 &BLOCK_SIZE) {
-    TORCH_CHECK(x.is_cuda());
-    TORCH_CHECK(y.is_cuda());
-    TORCH_CHECK(output.is_cuda());
+    CHECK_CUDA_TENSOR(x);
+    CHECK_CUDA_TENSOR(y);
+    CHECK_CUDA_TENSOR(output);
 
-    TORCH_CHECK(BLOCK_SIZE % WARP_SIZE == 0);
+    CHECK_VALID_THREAD_BLOCK(BLOCK_SIZE);
 
     const uint64 total_elements = x.numel();
 
