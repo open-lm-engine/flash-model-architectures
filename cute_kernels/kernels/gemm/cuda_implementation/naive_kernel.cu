@@ -65,7 +65,7 @@ void naive_gemm_cuda(const torch::Tensor &A,
     CHECK_CUDA_TENSOR(A);
     CHECK_CUDA_TENSOR(B);
     if (C.has_value()) {
-        CHECK_CUDA_TENSOR(C);
+        CHECK_CUDA_TENSOR(C.value());
     }
     CHECK_CUDA_TENSOR(output);
 
