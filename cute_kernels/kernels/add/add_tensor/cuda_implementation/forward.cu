@@ -17,7 +17,7 @@ template <typename scalar_t>
 __global__ void _add_tensor_cuda_kernel(const scalar_t *x,
                                         const scalar_t *y,
                                         scalar_t *output,
-                                        const uint32 num_elements) {
+                                        const uint64 num_elements) {
     constexpr int num_elements_per_thread = 16 / sizeof(scalar_t);
     static_assert(num_elements_per_thread == 4 || num_elements_per_thread == 8);
 
@@ -82,7 +82,7 @@ void add_tensor_cuda(const torch::Tensor &x, const torch::Tensor &y, torch::Tens
                                            ck::ChunkedArray<scalar_t> y_chunk = y_chunks[i];
                                            ck::ChunkedArray<scalar_t> output_chunk = output_chunks[i];
 
-                                           const uint32 num_elements = x_chunk.num_elements;
+                                           const uint64 num_elements = x_chunk.num_elements;
                                            const uint32 NUM_BLOCKS =
                                                ck::ceil_divide<uint64>(num_elements, num_elements_per_block);
 
