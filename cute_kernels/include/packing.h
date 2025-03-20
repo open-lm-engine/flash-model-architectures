@@ -48,7 +48,7 @@ template <typename T>
 struct Packed128Array {
     Packed128* array;
 
-    inline __device__ explicit Packed128(T* array) {
+    inline __device__ explicit Packed128Array(T* array) {
         Packed128Array result;
         result.array = reinterpret_cast<Packed128*>(array);
         return result;
