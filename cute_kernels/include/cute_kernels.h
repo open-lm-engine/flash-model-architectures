@@ -5,5 +5,6 @@
 #include "dtypes.h"
 #include "launch.h"
 #include "math.h"
+#include "packing.h"
 #include "shared_memory.h"
 #include "threads.h"
