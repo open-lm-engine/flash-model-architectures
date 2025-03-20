@@ -44,6 +44,20 @@ struct alignas(16) Packed128 {
     }
 };
 
+template <typename T>
+struct Packed128Array {
+    Packed128* array;
+
+    inline __device__ explicit Packed128(T* array) {
+        Packed128Array result;
+        result.array = reinterpret_cast<Packed128*>(array);
+        return result;
+    }
+
+    inline __device__ packed128& operator[](uint32& index) { return array[index]; }
+    inline __device__ const Packed128& operator[](uint32& index) const { return array[index]; }
+};
+
 // load a Packed128 from an aligned memory address
 template <typename T>
 inline __device__ Packed128<T> load128(const T* address) {
