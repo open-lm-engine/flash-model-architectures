@@ -9,7 +9,7 @@
 // This is a bit similar to the use of float4 in the case of 32-bit floats, but
 // supports arbitrary precision.
 
-template <class T>
+template <typename T>
 struct alignas(16) Packed128 {
     Packed128() = default;
 
@@ -46,31 +46,31 @@ struct alignas(16) Packed128 {
 };
 
 // load a Packed128 from an aligned memory address
-template <class T>
+template <typename T>
 inline __device__ Packed128<T> load128(const T* address) {
     return Packed128<T>{*reinterpret_cast<const int32_4*>(address)};
 }
 
 // load a Packed128 from an aligned memory address with streaming cache hint
-template <class T>
+template <typename T>
 inline __device__ Packed128<T> load128cs(const T* address) {
     return Packed128<T>{__ldcs(reinterpret_cast<const int32_4*>(address))};
 }
 
 // store a Packed128 to an aligned memory address
-template <class T>
+template <typename T>
 inline __device__ void store128(T* target, Packed128<T> value) {
     *reinterpret_cast<int32_4*>(target) = value.get_bits();
 }
 
 // store a Packed128 to an aligned memory address with streaming cache hint
-template <class T>
+template <typename T>
 inline __device__ void store128cs(T* target, Packed128<T> value) {
     __stcs(reinterpret_cast<int32_4*>(target), value.get_bits());
 }
 
 // store a Packed128 to an aligned memory address while caching in L2 but bypassing L1
-template <class T>
+template <typename T>
 inline __device__ void store128cg(T* target, Packed128<T> value) {
     __stcg(reinterpret_cast<int32_4*>(target), value.get_bits());
 }
