@@ -24,7 +24,7 @@ namespace cute_kernels {
         inline __device__ static Packed128 constant(T value) {
             Packed128 result;
             for (int i = 0; i < size; ++i) {
-                result.payload[k] = value;
+                result.payload[i] = value;
             }
 
             return result;
