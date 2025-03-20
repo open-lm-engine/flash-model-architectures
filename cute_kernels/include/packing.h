@@ -54,7 +54,7 @@ struct Packed128Array {
         return result;
     }
 
-    inline __device__ packed128& operator[](uint32& index) { return array[index]; }
+    inline __device__ Packed128& operator[](uint32& index) { return array[index]; }
     inline __device__ const Packed128& operator[](uint32& index) const { return array[index]; }
 };
 
