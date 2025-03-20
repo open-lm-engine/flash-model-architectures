@@ -3,7 +3,6 @@
 
 #include "dtypes.h"
 
-// ----------------------------------------------------------------------------
 // Packed128 data structure that forces the compiler to use 128-bit loads/stores
 // in GPUs that support (the LDG.128 and STS.128 instructions)
 // This is a bit similar to the use of float4 in the case of 32-bit floats, but
