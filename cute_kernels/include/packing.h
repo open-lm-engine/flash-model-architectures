@@ -60,8 +60,9 @@ namespace cute_kernels {
 
     // store a Packed128 to an aligned memory address
     template <typename T>
-    inline __device__ void store128(T* target, Packed128<T> value) {
-        *reinterpret_cast<int32_4*>(target) = value.get_bits();
+    inline __device__ void store128(T* target, Packed128<T> value, const uint32& index) {
+        int32_4* target_vec = reinterpret_cast<int32_4*>(target);
+        target_vec[index] = value.get_bits();
     }
 
     // store a Packed128 to an aligned memory address with streaming cache hint

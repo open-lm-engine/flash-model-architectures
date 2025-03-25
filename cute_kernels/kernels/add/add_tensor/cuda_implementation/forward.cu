@@ -33,24 +33,16 @@ __global__ void _add_tensor_cuda_kernel(const scalar_t *x,
             reinterpret_cast<const ck::Packed128<const scalar_t> *>(x)[thread_id];
         const ck::Packed128<const scalar_t> y_vec =
             reinterpret_cast<const ck::Packed128<const scalar_t> *>(y)[thread_id];
-        fp32 output_buffer[4];
+        scalar_t output_buffer[x_vec.size];
 
         // clang-format off
         #pragma unroll
         // clang-format on
-        for (uint32 i = 0; i < 4; i++) {
-            if constexpr (std::is_same_v<scalar_t, fp32>) {
-                output_buffer[i] = x_vec[i] + y_vec[i];
-            } else {
-                T2 _x = dtype::reinterpret_32_bits_as_2x16(x_vec[i]);
-                T2 _y = dtype::reinterpret_32_bits_as_2x16(y_vec[i]);
-
-                _x = __hadd2(_x, _y);
-                output_buffer[i] = dtype::reinterpret_2x16_as_32_bits(_x);
-            }
+        for (uint32 i = 0; i < x_vec.size; i++) {
+            output_buffer[i] = x_vec[i] + y_vec[i];
         }
 
-        ((fp32_4 *)output)[thread_id] = ck::DType<fp32>::make4(output_buffer);
+        store128<scalar_t>(output, ck::Packed128<scalar_t>(output_buffer), thread_id);
     }
 
     const uint32 index = num_elements4 * num_elements_per_thread + thread_id;
