@@ -26,37 +26,24 @@ namespace cute_kernels {
             for (int i = 0; i < size; ++i) {
                 result.payload[i] = value;
             }
-
             return result;
         }
 
         inline __device__ static Packed128 zeros() { return constant(0.f); }
         inline __device__ static Packed128 ones() { return constant(1.f); }
 
-        inline __device__ T& operator[](int index) { return payload[index]; }
-        inline __device__ const T& operator[](int index) const { return payload[index]; }
+        // Non-const accessors
+        inline __device__ T& operator[](uint32& index) { return payload[index]; }
+        inline __device__ T& operator[](const uint32& index) { return payload[index]; }
+        // Const accessors
+        inline __device__ const T& operator[](uint32& index) const { return payload[index]; }
+        inline __device__ const T& operator[](const uint32& index) const { return payload[index]; }
 
         inline __device__ int32_4 get_bits() const {
-            static_assert(sizeof(bits) == sizeof(payload), "size mismatch");
-
             int32_4 bits;
             memcpy(&bits, &payload, sizeof(bits));
             return bits;
         }
-    };
-
-    template <typename T>
-    struct Packed128Array {
-        Packed128* array;
-
-        inline __device__ explicit Packed128Array(T* array) {
-            Packed128Array result;
-            result.array = reinterpret_cast<Packed128*>(array);
-            return result;
-        }
-
-        inline __device__ Packed128& operator[](uint32& index) { return array[index]; }
-        inline __device__ const Packed128& operator[](uint32& index) const { return array[index]; }
     };
 
     // load a Packed128 from an aligned memory address

@@ -29,14 +29,16 @@ __global__ void _add_tensor_cuda_kernel(const scalar_t *x,
     const uint32 num_elements4 = num_elements / num_elements_per_thread;
 
     if (thread_id < num_elements4) {
-        const fp32 *x_vec = (fp32 *)&((fp32_4 *)x)[thread_id];
-        const fp32 *y_vec = (fp32 *)&((fp32_4 *)y)[thread_id];
+        const ck::Packed128<const scalar_t> x_vec =
+            reinterpret_cast<const ck::Packed128<const scalar_t> *>(x)[thread_id];
+        const ck::Packed128<const scalar_t> y_vec =
+            reinterpret_cast<const ck::Packed128<const scalar_t> *>(y)[thread_id];
         fp32 output_buffer[4];
 
         // clang-format off
         #pragma unroll
         // clang-format on
-        for (int i = 0; i < 4; i++) {
+        for (uint32 i = 0; i < 4; i++) {
             if constexpr (std::is_same_v<scalar_t, fp32>) {
                 output_buffer[i] = x_vec[i] + y_vec[i];
             } else {
