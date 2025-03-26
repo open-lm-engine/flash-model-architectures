@@ -17,29 +17,6 @@ namespace cute_kernels {
         using nv_dtype2 = bf16_2;
         using cutlass_dtype = cutlass::bfloat16_t;
 
-        // fp32 -> bf16_2
-        inline __device__ static nv_dtype2 reinterpret_32_bits_as_2x16(const fp32 &value) {
-            auto [left_int, right_int] = split_fp32_into_16_bits(value);
-
-            nv_dtype left = __ushort_as_bfloat16(left_int);
-            nv_dtype right = __ushort_as_bfloat16(right_int);
-
-            return __halves2bfloat162(left, right);
-        }
-
-        // bf16_2 -> fp32
-        inline __device__ static fp32 reinterpret_2x16_as_32_bits(const nv_dtype2 &value) {
-            return reinterpret_2x16_as_32_bits(value.x, value.y);
-        }
-
-        // bf16, bf16 -> fp32
-        inline __device__ static fp32 reinterpret_2x16_as_32_bits(const nv_dtype &left, const nv_dtype &right) {
-            uint16 left_int = __bfloat16_as_ushort(left);
-            uint16 right_int = __bfloat16_as_ushort(right);
-
-            return combine_16_bits_into_fp32(left_int, right_int);
-        }
-
         inline __device__ static fp32 upcast(const c10_dtype &value) { return upcast(static_cast<nv_dtype>(value)); }
         inline __device__ static fp32 upcast(const nv_dtype &value) { return __bfloat162float(value); }
         inline __device__ static fp32_2 upcast(const nv_dtype2 &value) { return __bfloat1622float2(value); }
