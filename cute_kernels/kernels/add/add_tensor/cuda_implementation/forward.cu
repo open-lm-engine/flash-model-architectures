@@ -42,7 +42,7 @@ __global__ void _add_tensor_cuda_kernel(const scalar_t *x,
             output_buffer[i] = x_vec[i] + y_vec[i];
         }
 
-        ck::store128<scalar_t>(output, ck::Packed128<scalar_t>(output_buffer), thread_id);
+        ck::store128<scalar_t>(output, reinterpret_cast<ck::Packed128<scalar_t> *>(output_buffer)[0], thread_id);
     }
 
     const uint32 index = num_elements4 * num_elements_per_thread + thread_id;
