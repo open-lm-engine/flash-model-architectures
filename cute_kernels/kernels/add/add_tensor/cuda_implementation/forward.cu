@@ -18,7 +18,6 @@ __global__ void _add_tensor_cuda_kernel(const scalar_t *x,
                                         const scalar_t *y,
                                         scalar_t *output,
                                         const uint64 num_elements) {
-    using dtype = ck::DType<scalar_t>;
     constexpr uint32 num_elements_per_thread = ck::Packed128<scalar_t>::size;
 
     const uint32 thread_id = ck::get_global_thread_id();
