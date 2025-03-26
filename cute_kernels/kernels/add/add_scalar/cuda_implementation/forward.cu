@@ -5,6 +5,7 @@
 #include "include/cute_kernels.h"
 
 namespace ck = cute_kernels;
+namespace ck_mem = ck::memory;
 
 using fp32 = ck::fp32;
 using fp32_2 = ck::fp32_2;
@@ -21,8 +22,8 @@ __global__ void _add_scalar_cuda_kernel(const scalar_t *x, const fp32 y, scalar_
     const uint32 num_vector_elements = num_elements / num_elements_per_thread;
 
     if (thread_id < num_vector_elements) {
-        const ck::Packed128<const scalar_t> x_vec =
-            reinterpret_cast<const ck::Packed128<const scalar_t> *>(x)[thread_id];
+        const ck_mem::Packed128<const scalar_t> x_vec =
+            reinterpret_cast<const ck_mem::Packed128<const scalar_t> *>(x)[thread_id];
         scalar_t output_buffer[num_elements_per_thread];
 
         // clang-format off
@@ -32,7 +33,8 @@ __global__ void _add_scalar_cuda_kernel(const scalar_t *x, const fp32 y, scalar_
             output_buffer[i] = x_vec[i] + y;
         }
 
-        ck::store128<scalar_t>(output, reinterpret_cast<ck::Packed128<scalar_t> *>(output_buffer)[0], thread_id);
+        ck::memory::store128<scalar_t>(
+            output, reinterpret_cast<ck_mem::Packed128<scalar_t> *>(output_buffer)[0], thread_id);
     }
 
     const uint32 index = num_vector_elements * num_elements_per_thread + thread_id;

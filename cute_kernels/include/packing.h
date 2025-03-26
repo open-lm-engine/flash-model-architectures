@@ -8,7 +8,7 @@
 // This is a bit similar to the use of float4 in the case of 32-bit floats, but
 // supports arbitrary precision.
 
-namespace cute_kernels {
+namespace cute_kernels::memory {
     template <typename T>
     struct alignas(16) Packed128 {
         Packed128() = default;
@@ -76,4 +76,4 @@ namespace cute_kernels {
     inline __device__ void store128cg(T* target, Packed128<T> value) {
         __stcg(reinterpret_cast<int32_4*>(target), value.get_bits());
     }
-}  // namespace cute_kernels
+}  // namespace cute_kernels::memory
