@@ -15,37 +15,27 @@ using uint64 = ck::uint64;
 
 template <typename scalar_t>
 __global__ void _add_scalar_cuda_kernel(const scalar_t *x, const fp32 y, scalar_t *output, const uint64 num_elements) {
-    constexpr int num_elements_per_thread = 16 / sizeof(scalar_t);
-    static_assert(num_elements_per_thread == 4 || num_elements_per_thread == 8);
-
-    using dtype = ck::DType<scalar_t>;
-    using T = typename dtype::nv_dtype;
-    using T2 = typename dtype::nv_dtype2;
+    constexpr uint32 num_elements_per_thread = ck::Packed128<scalar_t>::size;
 
     const uint32 thread_id = ck::get_global_thread_id();
-    const uint32 num_elements4 = num_elements / num_elements_per_thread;
+    const uint32 num_vector_elements = num_elements / num_elements_per_thread;
 
-    if (thread_id < num_elements4) {
-        const fp32 *x_vec = (fp32 *)&((fp32_4 *)x)[thread_id];
-        fp32 output_buffer[4];
+    if (thread_id < num_vector_elements) {
+        const ck::Packed128<const scalar_t> x_vec =
+            reinterpret_cast<const ck::Packed128<const scalar_t> *>(x)[thread_id];
+        scalar_t output_buffer[num_elements_per_thread];
 
         // clang-format off
         #pragma unroll
         // clang-format on
-        for (int i = 0; i < 4; i++) {
-            if constexpr (std::is_same_v<scalar_t, fp32>) {
-                output_buffer[i] = x_vec[i] + y;
-            } else {
-                fp32_2 _x_upcast = dtype::upcast(dtype::reinterpret_32_bits_as_2x16(x_vec[i]));
-                _x_upcast = ck::DType<fp32>::make2(_x_upcast.x + y, _x_upcast.y + y);
-                output_buffer[i] = dtype::reinterpret_2x16_as_32_bits(dtype::downcast(_x_upcast));
-            }
+        for (uint32 i = 0; i < num_elements_per_thread; i++) {
+            output_buffer[i] = x_vec[i] + y;
         }
 
-        ((fp32_4 *)output)[thread_id] = ck::DType<fp32>::make4(output_buffer);
+        ck::store128<scalar_t>(output, reinterpret_cast<ck::Packed128<scalar_t> *>(output_buffer)[0], thread_id);
     }
 
-    const uint32 index = num_elements4 * num_elements_per_thread + thread_id;
+    const uint32 index = num_vector_elements * num_elements_per_thread + thread_id;
     if (index < num_elements) {
         output[index] = x[index] + y;
     }
