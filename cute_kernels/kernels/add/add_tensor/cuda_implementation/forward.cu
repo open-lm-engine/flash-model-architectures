@@ -29,12 +29,12 @@ __global__ void _add_tensor_cuda_kernel(const scalar_t *x,
             reinterpret_cast<const ck::Packed128<const scalar_t> *>(x)[thread_id];
         const ck::Packed128<const scalar_t> y_vec =
             reinterpret_cast<const ck::Packed128<const scalar_t> *>(y)[thread_id];
-        scalar_t output_buffer[x_vec.size];
+        scalar_t output_buffer[num_elements_per_thread];
 
         // clang-format off
         #pragma unroll
         // clang-format on
-        for (uint32 i = 0; i < x_vec.size; i++) {
+        for (uint32 i = 0; i < num_elements_per_thread; i++) {
             output_buffer[i] = x_vec[i] + y_vec[i];
         }
 
