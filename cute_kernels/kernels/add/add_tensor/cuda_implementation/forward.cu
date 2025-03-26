@@ -22,9 +22,9 @@ __global__ void _add_tensor_cuda_kernel(const scalar_t *x,
     constexpr uint32 num_elements_per_thread = ck::Packed128<scalar_t>::size;
 
     const uint32 thread_id = ck::get_global_thread_id();
-    const uint32 num_elements4 = num_elements / num_elements_per_thread;
+    const uint32 num_vector_elements = num_elements / num_elements_per_thread;
 
-    if (thread_id < num_elements4) {
+    if (thread_id < num_vector_elements) {
         const ck::Packed128<const scalar_t> x_vec =
             reinterpret_cast<const ck::Packed128<const scalar_t> *>(x)[thread_id];
         const ck::Packed128<const scalar_t> y_vec =
@@ -41,7 +41,7 @@ __global__ void _add_tensor_cuda_kernel(const scalar_t *x,
         ck::store128<scalar_t>(output, reinterpret_cast<ck::Packed128<scalar_t> *>(output_buffer)[0], thread_id);
     }
 
-    const uint32 index = num_elements4 * num_elements_per_thread + thread_id;
+    const uint32 index = num_vector_elements * num_elements_per_thread + thread_id;
     if (index < num_elements) {
         output[index] = x[index] + y[index];
     }
