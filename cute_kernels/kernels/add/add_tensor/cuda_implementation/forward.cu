@@ -18,12 +18,8 @@ __global__ void _add_tensor_cuda_kernel(const scalar_t *x,
                                         const scalar_t *y,
                                         scalar_t *output,
                                         const uint64 num_elements) {
-    constexpr int num_elements_per_thread = 16 / sizeof(scalar_t);
-    static_assert(num_elements_per_thread == 4 || num_elements_per_thread == 8);
-
     using dtype = ck::DType<scalar_t>;
-    using T = typename dtype::nv_dtype;
-    using T2 = typename dtype::nv_dtype2;
+    constexpr uint32 num_elements_per_thread = ck::Packed128<scalar_t>::size;
 
     const uint32 thread_id = ck::get_global_thread_id();
     const uint32 num_elements4 = num_elements / num_elements_per_thread;
