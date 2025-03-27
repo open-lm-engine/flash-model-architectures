@@ -10,13 +10,11 @@ namespace ck = cute_kernels;
 using uint32 = ck::uint32;
 using fp32 = ck::fp32;
 
-template <typename scalar_t>
+template <typename scalar_t, bool is_A_transposed, bool is_B_transposed>
 __global__ void _naive_gemm_cuda_kernel(const scalar_t *A,
                                         const scalar_t *B,
                                         const scalar_t *C,
                                         scalar_t *output,
-                                        const bool is_A_transposed,
-                                        const bool is_B_transposed,
                                         const fp32 alpha,
                                         const fp32 beta,
                                         const uint32 M,
@@ -32,14 +30,14 @@ __global__ void _naive_gemm_cuda_kernel(const scalar_t *A,
         #pragma unroll 128
         // clang-format on
         for (uint32 k = 0; k < K; k++) {
-            const uint32 A_index = get_matrix_index<uint32>(i, k, M, K, is_A_transposed);
-            const uint32 B_index = get_matrix_index<uint32>(k, j, K, N, is_B_transposed);
+            const uint32 A_index = get_matrix_index<uint32, is_A_transposed>(i, k, M, K);
+            const uint32 B_index = get_matrix_index<uint32, is_B_transposed>(k, j, K, N);
 
             accumulator += A[A_index] * B[B_index];
         }
 
         accumulator *= alpha;
-        const uint32 index = get_matrix_index<uint32>(i, j, M, N, false);
+        const uint32 index = get_matrix_index<uint32, false>(i, j, M, N);
 
         if (beta != 0) {
             accumulator += beta * C[index];

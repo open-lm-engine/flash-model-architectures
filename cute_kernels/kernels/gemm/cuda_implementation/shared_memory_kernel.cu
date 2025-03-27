@@ -34,12 +34,12 @@ __global__ void _shared_memory_gemm_cuda_kernel(const scalar_t *A,
     #pragma unroll 128
     // clang-format on
     for (uint32 k = 0; k < K; k += blockDim.x) {
-        const uint32 index = get_matrix_index<uint32>(threadIdx.y, threadIdx.x, blockDim.x, blockDim.x, false);
+        const uint32 index = get_matrix_index<uint32, false>(threadIdx.y, threadIdx.x, blockDim.x, blockDim.x);
 
         // instead of looping over k dimension, we use the threads in the block to load the data to shared memory
         uint32 k_offset = k + threadIdx.x;
         if (i < M && k_offset < K) {
-            A_shared[index] = A[get_matrix_index<uint32>(i, k_offset, M, K, false)];
+            A_shared[index] = A[get_matrix_index<uint32, false>(i, k_offset, M, K, false)];
         }
 
         // instead of looping over k dimension, we use the threads in the block to load the data to shared memory
@@ -53,8 +53,8 @@ __global__ void _shared_memory_gemm_cuda_kernel(const scalar_t *A,
         if (i < M && j < N) {
             const uint32 max_q = min(K - k, blockDim.x);
             for (uint32 q = 0; q < max_q; q++) {
-                accumulator += A_shared[get_matrix_index<uint32>(threadIdx.y, q, blockDim.x, blockDim.x, false)] *
-                               B_shared[get_matrix_index<uint32>(q, threadIdx.x, blockDim.x, blockDim.x, false)];
+                accumulator += A_shared[get_matrix_index<uint32, false>(threadIdx.y, q, blockDim.x, blockDim.x)] *
+                               B_shared[get_matrix_index<uint32, false>(q, threadIdx.x, blockDim.x, blockDim.x)];
             }
         }
 
@@ -64,7 +64,7 @@ __global__ void _shared_memory_gemm_cuda_kernel(const scalar_t *A,
 
     if (i < M && j < N) {
         accumulator *= alpha;
-        const uint32 index = get_matrix_index<uint32>(i, j, M, N, false);
+        const uint32 index = get_matrix_index<uint32, false>(i, j, M, N);
 
         if (beta != 0) {
             accumulator += beta * C[index];
