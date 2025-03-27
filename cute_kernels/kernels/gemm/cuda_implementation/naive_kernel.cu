@@ -72,18 +72,56 @@ void naive_gemm_cuda(const torch::Tensor &A,
     dim3 NUM_BLOCKS = dim3(ck::ceil_divide<uint32>(N, BLOCK_SIZE_N), ck::ceil_divide<uint32>(M, BLOCK_SIZE_M), 1);
     dim3 BLOCK_SIZE = dim3(BLOCK_SIZE_N, BLOCK_SIZE_M, 1);
 
-    AT_DISPATCH_CUSTOM_FLOAT_TYPES(A.scalar_type(), "naive_gemm_cuda_kernel", ([&] {
-                                       _naive_gemm_cuda_kernel<scalar_t><<<NUM_BLOCKS, BLOCK_SIZE>>>(
-                                           A.data_ptr<scalar_t>(),
-                                           B.data_ptr<scalar_t>(),
-                                           C.has_value() ? C.value().data_ptr<scalar_t>() : nullptr,
-                                           output.data_ptr<scalar_t>(),
-                                           is_A_transposed,
-                                           is_B_transposed,
-                                           alpha,
-                                           beta,
-                                           M,
-                                           K,
-                                           N);
-                                   }));
+    AT_DISPATCH_CUSTOM_FLOAT_TYPES(
+        A.scalar_type(), "naive_gemm_cuda_kernel", ([&] {
+            if (is_A_transposed) {
+                if (is_B_transposed) {
+                    _naive_gemm_cuda_kernel<scalar_t, true, true>
+                        <<<NUM_BLOCKS, BLOCK_SIZE>>>(A.data_ptr<scalar_t>(),
+                                                     B.data_ptr<scalar_t>(),
+                                                     C.has_value() ? C.value().data_ptr<scalar_t>() : nullptr,
+                                                     output.data_ptr<scalar_t>(),
+                                                     alpha,
+                                                     beta,
+                                                     M,
+                                                     K,
+                                                     N);
+                } else {
+                    _naive_gemm_cuda_kernel<scalar_t, true, false>
+                        <<<NUM_BLOCKS, BLOCK_SIZE>>>(A.data_ptr<scalar_t>(),
+                                                     B.data_ptr<scalar_t>(),
+                                                     C.has_value() ? C.value().data_ptr<scalar_t>() : nullptr,
+                                                     output.data_ptr<scalar_t>(),
+                                                     alpha,
+                                                     beta,
+                                                     M,
+                                                     K,
+                                                     N);
+                }
+            } else {
+                if (is_B_transposed) {
+                    _naive_gemm_cuda_kernel<scalar_t, false, true>
+                        <<<NUM_BLOCKS, BLOCK_SIZE>>>(A.data_ptr<scalar_t>(),
+                                                     B.data_ptr<scalar_t>(),
+                                                     C.has_value() ? C.value().data_ptr<scalar_t>() : nullptr,
+                                                     output.data_ptr<scalar_t>(),
+                                                     alpha,
+                                                     beta,
+                                                     M,
+                                                     K,
+                                                     N);
+                } else {
+                    _naive_gemm_cuda_kernel<scalar_t, false, false>
+                        <<<NUM_BLOCKS, BLOCK_SIZE>>>(A.data_ptr<scalar_t>(),
+                                                     B.data_ptr<scalar_t>(),
+                                                     C.has_value() ? C.value().data_ptr<scalar_t>() : nullptr,
+                                                     output.data_ptr<scalar_t>(),
+                                                     alpha,
+                                                     beta,
+                                                     M,
+                                                     K,
+                                                     N);
+                }
+            }
+        }));
 }
