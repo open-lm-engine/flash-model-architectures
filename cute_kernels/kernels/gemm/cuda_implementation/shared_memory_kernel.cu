@@ -39,13 +39,13 @@ __global__ void _shared_memory_gemm_cuda_kernel(const scalar_t *A,
         // instead of looping over k dimension, we use the threads in the block to load the data to shared memory
         uint32 k_offset = k + threadIdx.x;
         if (i < M && k_offset < K) {
-            A_shared[index] = A[get_matrix_index<uint32, false>(i, k_offset, M, K, false)];
+            A_shared[index] = A[get_matrix_index<uint32, false>(i, k_offset, M, K)];
         }
 
         // instead of looping over k dimension, we use the threads in the block to load the data to shared memory
         k_offset = k + threadIdx.y;
         if (j < N && k_offset < K) {
-            B_shared[index] = B[get_matrix_index<uint32, false>(k_offset, j, K, N, false)];
+            B_shared[index] = B[get_matrix_index<uint32, false>(k_offset, j, K, N)];
         }
 
         __syncthreads();
