@@ -29,9 +29,6 @@ namespace cute_kernels::memory {
             return result;
         }
 
-        inline __device__ static Packed128 zeros() { return constant(0.f); }
-        inline __device__ static Packed128 ones() { return constant(1.f); }
-
         // Non-const accessors
         inline __device__ T& operator[](uint32& index) { return payload[index]; }
         inline __device__ T& operator[](const uint32& index) { return payload[index]; }
