@@ -16,7 +16,7 @@ namespace cute_kernels::memory {
         static constexpr const uint32 size = sizeof(int32_4) / sizeof(T);
         T payload[size];
 
-        inline __device__ explicit Packed128(int32_4 bits) {
+        inline __device__ explicit Packed128(int32_4& bits) {
             static_assert(sizeof(bits) == sizeof(payload), "size mismatch");
             memcpy(&payload, &bits, sizeof(bits));
         }
