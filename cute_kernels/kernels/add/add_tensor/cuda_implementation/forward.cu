@@ -25,10 +25,8 @@ __global__ void _add_tensor_cuda_kernel(const scalar_t *x,
     const uint32 num_vector_elements = num_elements / num_elements_per_thread;
 
     if (thread_id < num_vector_elements) {
-        const ck_mem::Packed128<const scalar_t> x_vec =
-            reinterpret_cast<const ck_mem::Packed128<const scalar_t> *>(x)[thread_id];
-        const ck_mem::Packed128<const scalar_t> y_vec =
-            reinterpret_cast<const ck_mem::Packed128<const scalar_t> *>(y)[thread_id];
+        const ck_mem::Packed128<const scalar_t> x_vec = ck_mem::Packed128Array<const scalar_t>(x)[thread_id];
+        const ck_mem::Packed128<const scalar_t> y_vec = ck_mem::Packed128Array<const scalar_t>(y)[thread_id];
         scalar_t output_buffer[num_elements_per_thread];
 
         // clang-format off
