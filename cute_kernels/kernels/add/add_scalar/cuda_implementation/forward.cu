@@ -43,7 +43,7 @@ __global__ void _add_scalar_cuda_kernel(const scalar_t *x, const fp32 y, scalar_
     }
 }
 
-void add_scalar_cuda(const torch::Tensor &x, const float &y, torch::Tensor &output, const uint32 &BLOCK_SIZE) {
+void add_scalar_cuda(const torch::Tensor &x, const fp32 &y, torch::Tensor &output, const uint32 &BLOCK_SIZE) {
     CHECK_CUDA_TENSOR(x);
     CHECK_CUDA_TENSOR(output);
 
