@@ -43,6 +43,14 @@ namespace cute_kernels::memory {
         }
     };
 
+    template <typename T>
+    struct alignas(16) Packed128Array {
+        using packed_type = std::conditional_t<std::is_const<T>::value, const Packed128<T>, Packed128<T>>;
+        packed_type* _array;
+
+        inline __device__ explicit Packed128Array(T* array) { _array = reinterpret_cast<packed_type*>(array); }
+    };
+
     // load a Packed128 from an aligned memory address
     template <typename T>
     inline __device__ Packed128<T> load128(const T* address) {
