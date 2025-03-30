@@ -25,19 +25,19 @@ __global__ void _add_tensor_cuda_kernel(const scalar_t *x,
     const uint32 num_vector_elements = num_elements / num_elements_per_thread;
 
     if (thread_id < num_vector_elements) {
+        // packed array allows loading using vector loads, its just a syntactic sugar
         const ck_mem::Packed128<const scalar_t> x_vec = ck_mem::Packed128Array<const scalar_t>(x)[thread_id];
         const ck_mem::Packed128<const scalar_t> y_vec = ck_mem::Packed128Array<const scalar_t>(y)[thread_id];
-        scalar_t output_buffer[num_elements_per_thread];
+        ck_mem::Packed128<scalar_t> output_vec;
 
         // clang-format off
         #pragma unroll
         // clang-format on
         for (uint32 i = 0; i < num_elements_per_thread; i++) {
-            output_buffer[i] = x_vec[i] + y_vec[i];
+            output_vec[i] = x_vec[i] + y_vec[i];
         }
 
-        ck_mem::store128<scalar_t>(
-            output, reinterpret_cast<ck_mem::Packed128<scalar_t> *>(output_buffer)[0], thread_id);
+        ck_mem::store128<scalar_t>(output, output_vec, thread_id);
     }
 
     const uint32 index = num_vector_elements * num_elements_per_thread + thread_id;
