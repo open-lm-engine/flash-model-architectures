@@ -51,10 +51,10 @@ namespace cute_kernels::memory {
         inline __device__ explicit Packed128Array(T* array) { _array = reinterpret_cast<packed_type*>(array); }
 
         // Non-const accessors
-        inline __device__ packed_type& operator[](uint32& index) { return _array[index]; }
-        inline __device__ packed_type& operator[](const uint32& index) { return _array[index]; }
+        inline __device__ packed_type& operator[](uint64& index) { return _array[index]; }
+        inline __device__ packed_type& operator[](const uint64& index) { return _array[index]; }
         // Const accessors
-        inline __device__ const packed_type& operator[](uint32& index) const { return _array[index]; }
-        inline __device__ const packed_type& operator[](const uint32& index) const { return _array[index]; }
+        inline __device__ const packed_type& operator[](uint64& index) const { return _array[index]; }
+        inline __device__ const packed_type& operator[](const uint64& index) const { return _array[index]; }
     };
 }  // namespace cute_kernels::memory
