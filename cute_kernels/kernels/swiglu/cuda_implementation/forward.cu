@@ -12,7 +12,7 @@ using uint32 = ck::uint32;
 using uint64 = ck::uint64;
 
 template <typename scalar_t>
-inline __device__ fp32 _swiglu(scalar_t &gate, scalar_t &up) {
+inline __device__ fp32 _swiglu_forward(scalar_t &gate, scalar_t &up) {
     using dtype = ck::DType<scalar_t>;
 
     _up = dtype::upcast(up_vec[i]);
@@ -43,7 +43,7 @@ __global__ void _swiglu_forward_cuda_kernel(const scalar_t *gate,
         #pragma unroll
         // clang-format on
         for (uint32 i = 0; i < num_elements_per_thread; i++) {
-            output_buffer[i] = _swiglu<scalar_t>(gate_vec[i], up_vec[i]);
+            output_buffer[i] = _swiglu_forward<scalar_t>(gate_vec[i], up_vec[i]);
         }
 
         ck_mem::Packed128Array<scalar_t> output_vec = ck_mem::Packed128Array<scalar_t>(output);
@@ -52,7 +52,7 @@ __global__ void _swiglu_forward_cuda_kernel(const scalar_t *gate,
 
     const uint32 index = num_vector_elements * num_elements_per_thread + thread_id;
     if (index < num_elements) {
-        output[index] = _swiglu<scalar_t>(gate[index], up[index]);
+        output[index] = _swiglu_forward<scalar_t>(gate[index], up[index]);
     }
 }
 
