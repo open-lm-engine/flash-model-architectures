@@ -15,8 +15,8 @@ template <typename scalar_t>
 inline __device__ fp32 _swiglu_forward(scalar_t &gate, scalar_t &up) {
     using dtype = ck::DType<scalar_t>;
 
-    fp32 _up = dtype::upcast(up_vec[i]);
-    fp32 _gate = dtype::upcast(gate_vec[i]);
+    fp32 _up = dtype::upcast(up);
+    fp32 _gate = dtype::upcast(gate);
     fp32 _sigmoid = ck::sigmoid<fp32, fp32>(_gate);
 
     _sigmoid *= _gate * _up;
