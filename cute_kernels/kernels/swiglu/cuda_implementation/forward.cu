@@ -5,60 +5,53 @@
 #include "include/cute_kernels.h"
 
 namespace ck = cute_kernels;
+namespace ck_mem = ck::memory;
 
+using fp32 = ck::fp32;
 using uint32 = ck::uint32;
 using uint64 = ck::uint64;
 
-using fp32 = ck::fp32;
-using fp32_2 = ck::fp32_2;
-using fp32_4 = ck::fp32_4;
+template <typename scalar_t>
+inline __device__ fp32 _swiglu(scalar_t &gate, scalar_t &up) {
+    using dtype = ck::DType<scalar_t>;
+
+    _up = dtype::upcast(up_vec[i]);
+    _gate = dtype::upcast(gate_vec[i]);
+    _sigmoid = ck::sigmoid<fp32, fp32>(_gate);
+
+    return _gate * _up * _sigmoid;
+}
 
 template <typename scalar_t>
 __global__ void _swiglu_forward_cuda_kernel(const scalar_t *gate,
                                             const scalar_t *up,
                                             scalar_t *output,
                                             const uint64 num_elements) {
-    constexpr int num_elements_per_thread = 16 / sizeof(scalar_t);
-    static_assert(num_elements_per_thread == 4 || num_elements_per_thread == 8);
-
-    using dtype = ck::DType<scalar_t>;
+    constexpr uint32 num_elements_per_thread = ck_mem::Packed128<scalar_t>::size;
 
     const uint32 thread_id = ck::get_global_thread_id();
-    const uint32 num_elements4 = num_elements / num_elements_per_thread;
+    const uint32 num_vector_elements = num_elements / num_elements_per_thread;
 
-    if (thread_id < num_elements4) {
-        const fp32 *gate_vec = (fp32 *)&((fp32_4 *)gate)[thread_id];
-        const fp32 *up_vec = (fp32 *)&((fp32_4 *)up)[thread_id];
-        fp32 output_buffer[4];
+    if (thread_id < num_vector_elements) {
+        // packed array allows loading using vector loads, its just a syntactic sugar
+        const ck_mem::Packed128<const scalar_t> gate_vec = ck_mem::Packed128Array<const scalar_t>(gate)[thread_id];
+        const ck_mem::Packed128<const scalar_t> up_vec = ck_mem::Packed128Array<const scalar_t>(up)[thread_id];
+        ck_mem::Packed128<scalar_t> output_buffer;
 
         // clang-format off
         #pragma unroll
         // clang-format on
-        for (int i = 0; i < 4; i++) {
-            if constexpr (std::is_same_v<scalar_t, fp32>) {
-                output_buffer[i] = up_vec[i] * gate_vec[i] * ck::sigmoid<fp32, fp32>(gate_vec[i]);
-            } else {
-                fp32_2 _gate_upcast = dtype::upcast(dtype::reinterpret_32_bits_as_2x16(gate_vec[i]));
-                fp32_2 _up_upcast = dtype::upcast(dtype::reinterpret_32_bits_as_2x16(up_vec[i]));
-
-                _gate_upcast =
-                    ck::DType<fp32>::make2(_up_upcast.x * _gate_upcast.x * ck::sigmoid<fp32, fp32>(_gate_upcast.x),
-                                           _up_upcast.y * _gate_upcast.y * ck::sigmoid<fp32, fp32>(_gate_upcast.y));
-
-                output_buffer[i] = dtype::reinterpret_2x16_as_32_bits(dtype::downcast(_gate_upcast));
-            }
+        for (uint32 i = 0; i < num_elements_per_thread; i++) {
+            output_buffer[i] = _swiglu<scalar_t>(gate_vec[i], up_vec[i]);
         }
 
-        ((fp32_4 *)output)[thread_id] = ck::DType<fp32>::make4(output_buffer);
+        ck_mem::Packed128Array<scalar_t> output_vec = ck_mem::Packed128Array<scalar_t>(output);
+        output_vec[thread_id] = output_buffer;
     }
 
-    const uint32 index = num_elements4 * num_elements_per_thread + thread_id;
+    const uint32 index = num_vector_elements * num_elements_per_thread + thread_id;
     if (index < num_elements) {
-        fp32 _gate_upcast = dtype::upcast(gate[index]);
-
-        // up is upcasted automatically
-        _gate_upcast = up[index] * _gate_upcast * ck::sigmoid<fp32, fp32>(_gate_upcast);
-        output[index] = dtype::downcast(_gate_upcast);
+        output[index] = _swiglu<scalar_t>(gate[index], up[index]);
     }
 }
 
