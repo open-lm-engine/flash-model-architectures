@@ -12,7 +12,7 @@ using uint32 = ck::uint32;
 using uint64 = ck::uint64;
 
 template <typename scalar_t>
-inline __device__ fp32 _swiglu_forward(scalar_t &gate, scalar_t &up) {
+inline __device__ scalar_t _swiglu_forward(scalar_t &gate, scalar_t &up) {
     using dtype = ck::DType<scalar_t>;
 
     fp32 _up = dtype::upcast(up);
