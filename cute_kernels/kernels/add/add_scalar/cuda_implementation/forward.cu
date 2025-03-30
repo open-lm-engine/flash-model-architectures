@@ -31,7 +31,8 @@ __global__ void _add_scalar_cuda_kernel(const scalar_t *x, const fp32 y, scalar_
             if constexpr (std::is_same_v<scalar_t, fp32>) {
                 output_buffer[i] = x_vec[i] + y;
             } else {
-                using T2 = dtype::nv_dtype2;
+                using T2 = typename dtype::nv_dtype2;
+
                 T2 x2 = dtype::make2(x_vec[0], x_vec[1]);
                 T2 y2 = dtype::make2(y);
                 x2 = __hadd2(x2, y2);
