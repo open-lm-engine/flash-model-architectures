@@ -13,6 +13,7 @@ using uint64 = ck::uint64;
 
 template <typename scalar_t>
 __global__ void _add_scalar_cuda_kernel(const scalar_t *x, const fp32 y, scalar_t *output, const uint64 num_elements) {
+    using dtype = ck::DType<scalar_t>;
     constexpr uint32 num_elements_per_thread = ck_mem::Packed128<scalar_t>::size;
 
     const uint32 thread_id = ck::get_global_thread_id();
@@ -26,8 +27,17 @@ __global__ void _add_scalar_cuda_kernel(const scalar_t *x, const fp32 y, scalar_
         // clang-format off
         #pragma unroll
         // clang-format on
-        for (uint32 i = 0; i < num_elements_per_thread; i++) {
-            output_buffer[i] = x_vec[i] + y;
+        for (uint32 i = 0; i < 4; i++) {
+            if constexpr (std::is_same_v<scalar_t, fp32>) {
+                output_buffer[i] = x_vec[i] + y;
+            } else {
+                dtype::nv_dtype2 x2 = dtype::make2(x_vec[0], x_vec[1]);
+                dtype::nv_dtype2 y2 = dtype::make2(y);
+                x2 = __hadd2(x2, y2);
+
+                output_buffer[i] = x2.x;
+                output_buffer[i + 1] = x2.y;
+            }
         }
 
         ck_mem::Packed128Array<scalar_t> output_vec = ck_mem::Packed128Array<scalar_t>(output);
