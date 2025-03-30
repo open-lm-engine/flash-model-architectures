@@ -30,7 +30,7 @@ inline __device__ std::tuple<scalar_t, scalar_t> _swiglu_backward(const scalar_t
     scalar_t gate_grad = dtype::downcast(_gate_grad);
     scalar_t up_grad = dtype::downcast(_up_grad);
 
-    return std::make_tuple(gate_grad, up_grad)
+    return std::make_tuple(gate_grad, up_grad);
 }
 
 template <typename scalar_t>
