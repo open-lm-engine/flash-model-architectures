@@ -57,35 +57,4 @@ namespace cute_kernels::memory {
         inline __device__ const packed_type& operator[](uint32& index) const { return _array[index]; }
         inline __device__ const packed_type& operator[](const uint32& index) const { return _array[index]; }
     };
-
-    // load a Packed128 from an aligned memory address
-    template <typename T>
-    inline __device__ Packed128<T> load128(const T* address) {
-        return Packed128<T>{*reinterpret_cast<const int32_4*>(address)};
-    }
-
-    // load a Packed128 from an aligned memory address with streaming cache hint
-    template <typename T>
-    inline __device__ Packed128<T> load128cs(const T* address) {
-        return Packed128<T>{__ldcs(reinterpret_cast<const int32_4*>(address))};
-    }
-
-    // store a Packed128 to an aligned memory address
-    template <typename T>
-    inline __device__ void store128(T* target, Packed128<T> value, const uint32& index) {
-        int32_4* target_vec = reinterpret_cast<int32_4*>(target);
-        target_vec[index] = value.get_bits();
-    }
-
-    // store a Packed128 to an aligned memory address with streaming cache hint
-    template <typename T>
-    inline __device__ void store128cs(T* target, Packed128<T> value) {
-        __stcs(reinterpret_cast<int32_4*>(target), value.get_bits());
-    }
-
-    // store a Packed128 to an aligned memory address while caching in L2 but bypassing L1
-    template <typename T>
-    inline __device__ void store128cg(T* target, Packed128<T> value) {
-        __stcg(reinterpret_cast<int32_4*>(target), value.get_bits());
-    }
 }  // namespace cute_kernels::memory
