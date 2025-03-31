@@ -26,7 +26,6 @@ namespace cute_kernels {
 
         inline __device__ static nv_dtype2 make2(const nv_dtype &value) { return __half2half2(value); }
         inline __device__ static nv_dtype2 make2(const nv_dtype &x, const nv_dtype &y) { return make_half2(x, y); }
-        inline __device__ static nv_dtype2 make2(const nv_dtype *array) { return make_half2(array[0], array[1]); }
     };
 
     template <>
