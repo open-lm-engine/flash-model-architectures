@@ -10,6 +10,7 @@ namespace ck_mem = ck::memory;
 using fp32 = ck::fp32;
 using uint32 = ck::uint32;
 using uint64 = ck::uint64;
+using fp32_2 = ck::fp32_2;
 
 template <typename scalar_t>
 __global__ void _add_scalar_cuda_kernel(const scalar_t *x, const fp32 y, scalar_t *output, const uint64 num_elements) {
@@ -34,12 +35,15 @@ __global__ void _add_scalar_cuda_kernel(const scalar_t *x, const fp32 y, scalar_
                 using T = typename dtype::nv_dtype;
                 using T2 = typename dtype::nv_dtype2;
 
-                T2 x2 = dtype::make2(x_vec[0], x_vec[1]);
-                T2 y2 = dtype::make2(reinterpret_cast<T>(y));
-                x2 = __hadd2(x2, y2);
+                const uint32 index = i << 1;
 
-                output_buffer[i] = x2.x;
-                output_buffer[i + 1] = x2.y;
+                fp32_2 x2 = dtype::upcast(dtype::make2((T)x_vec[index], (T)x_vec[index + 1]));
+                x2.x = x2.x + y;
+                x2.y = x2.y + y;
+                T2 output2 = dtype::downcast(x2);
+
+                output_buffer[index] = output2.x;
+                output_buffer[index + 1] = output2.y;
             }
         }
 
