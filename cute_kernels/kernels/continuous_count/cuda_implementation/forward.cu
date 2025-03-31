@@ -18,10 +18,12 @@ using uint64 = ck::uint64;
 using uint64_2 = ck::uint64_2;
 using int64 = ck::int64;
 
-inline __device__ void _looped_atomic_add(
-    uint32 *source, uint32 *destination, const uint32 &num_loops_C, const uint32 &C, const uint32 &local_thread_id) {
+inline __device__ void _looped_atomic_add(uint32 *source,
+                                          uint32 *destination,
+                                          const uint32 &num_loops_C,
+                                          const uint32 &C) {
     for (int i = 0; i < num_loops_C; i++) {
-        const uint32 index = i * blockDim.x + local_thread_id;
+        const uint32 index = i * blockDim.x + threadIdx.x;
         if (index < C) {
             atomicAdd(&destination[index], source[index]);
         }
@@ -30,7 +32,9 @@ inline __device__ void _looped_atomic_add(
 
 inline __device__ void _initialize_global_output(uint32 *output, const uint32 &C, const uint32 &global_thread_id) {
     const uint32 C4 = C >> 2;
-    for (uint32 i = global_thread_id; i < C4; i += gridDim.x * blockDim.x) {
+    const uint32 increment = gridDim.x * blockDim.x;
+
+    for (uint32 i = global_thread_id; i < C4; i += increment) {
         ((uint32_4 *)output)[i] = ck::DType<uint32>::make4(0, 0, 0, 0);
     }
 
@@ -71,14 +75,13 @@ inline __device__ void _update_local_count(const scalar_t *x,
 template <typename scalar_t>
 __global__ void _continuous_count_cuda_kernel(
     const scalar_t *x, uint32 *output, const uint64 num_elements, const uint32 C, const bool initialize_output) {
-    const uint32 local_thread_id = ck::get_local_thread_id();
     const uint32 global_thread_id = ck::get_global_thread_id();
     const uint32 num_loops_C = ck::ceil_divide<uint32>(C, blockDim.x);
 
     extern __shared__ uint32 shared_memory[];
 
     for (uint32 i = 0; i < num_loops_C; i++) {
-        const uint32 index = i * blockDim.x + local_thread_id;
+        const uint32 index = i * blockDim.x + threadIdx.x;
         if (index < C) {
             shared_memory[index] = 0;
         }
@@ -97,14 +100,14 @@ __global__ void _continuous_count_cuda_kernel(
     __syncthreads();
 
     if (!is_first_cluster_block) {
-        _looped_atomic_add(shared_memory, cluster.map_shared_rank(shared_memory, 0), num_loops_C, C, local_thread_id);
+        _looped_atomic_add(shared_memory, cluster.map_shared_rank(shared_memory, 0), num_loops_C, C);
     }
 
     cluster.sync();
 
     // write the output to the global memory
     if (is_first_cluster_block) {
-        _looped_atomic_add(shared_memory, output, num_loops_C, C, local_thread_id);
+        _looped_atomic_add(shared_memory, output, num_loops_C, C);
     }
 }
 
