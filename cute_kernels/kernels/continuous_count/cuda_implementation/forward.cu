@@ -78,7 +78,7 @@ __global__ void _continuous_count_cuda_kernel(
     uint32 index = threadIdx.x;
     while (index < C) {
         shared_memory[index] = 0;
-        index += blockDim.x
+        index += blockDim.x;
     }
 
     if (initialize_output) {
