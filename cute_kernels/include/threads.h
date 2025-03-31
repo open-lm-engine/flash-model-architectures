@@ -12,17 +12,7 @@
 #include "math.h"
 
 namespace cute_kernels {
-    inline __device__ uint32 get_threads_per_block() { return blockDim.x * blockDim.y * blockDim.z; }
-
     inline __device__ uint32 get_num_blocks() { return gridDim.x * gridDim.y * gridDim.z; }
-
-    inline __device__ uint32 get_block_id() { return gridDim.x * (gridDim.y * blockIdx.z + blockIdx.y) + blockIdx.x; }
-
-    inline __device__ uint64 get_thread_id_along_axis(const uint32 &block_size,
-                                                      const uint32 &block_id,
-                                                      const uint32 &thread_id) {
-        return block_size * block_id + thread_id;
-    }
 
     inline __host__ int get_max_thread_blocks(const int &sm_count, const int &thread_block_cluster_size) {
         int max_num_blocks = sm_count;
