@@ -24,6 +24,9 @@ namespace cute_kernels {
         inline __device__ static nv_dtype downcast(const fp32 &value) { return __float2bfloat16(value); }
         inline __device__ static nv_dtype2 downcast(const fp32_2 &value) { return __float22bfloat162_rn(value); }
 
+        inline __device__ static nv_dtype2 make2(const c10_dtype &value) {
+            return make2(static_cast<nv_dtype>(value));
+        }
         inline __device__ static nv_dtype2 make2(const nv_dtype &value) { return __bfloat162bfloat162(value); }
         inline __device__ static nv_dtype2 make2(const nv_dtype &x, const nv_dtype &y) { return make_bfloat162(x, y); }
     };
