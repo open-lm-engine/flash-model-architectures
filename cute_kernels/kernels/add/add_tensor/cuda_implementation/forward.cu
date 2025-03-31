@@ -33,8 +33,21 @@ __global__ void _add_tensor_cuda_kernel(const scalar_t *x,
         // clang-format off
         #pragma unroll
         // clang-format on
-        for (uint32 i = 0; i < num_elements_per_thread; i++) {
-            output_buffer[i] = x_vec[i] + y_vec[i];
+        for (uint32 i = 0; i < 4; i++) {
+            if constexpr (std::is_same_v<scalar_t, fp32>) {
+                output_buffer[i] = x_vec[i] + y_vec[i];
+            } else {
+                using dtype = ck::DType<scalar_t>;
+                using T2 = typename dtype::nv_dtype2;
+
+                const uint32 index = i << 1;
+                T2 x2 = dtype::make2(x_vec[index], x_vec[index + 1]);
+                T2 y2 = dtype::make2(y_vec[index], y_vec[index + 1]);
+                x2 = __hadd2(x2, y2);
+
+                output_buffer[index] = x2.x;
+                output_buffer[index + 1] = x2.y;
+            }
         }
 
         ck_mem::Packed128Array<scalar_t> output_vec = ck_mem::Packed128Array<scalar_t>(output);
