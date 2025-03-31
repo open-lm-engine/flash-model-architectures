@@ -32,9 +32,11 @@ __global__ void _add_scalar_cuda_kernel(const scalar_t *x, const fp32 y, scalar_
             if constexpr (std::is_same_v<scalar_t, fp32>) {
                 output_buffer[i] = x_vec[i] + y;
             } else {
-                const uint32 index = i << 1;
+                uint32 index = i << 1;
                 output_buffer[index] = x_vec[index] + y;
-                output_buffer[index + 1] = x_vec[index + 1] + y;
+
+                index++;
+                output_buffer[index] = x_vec[index] + y;
             }
         }
 
