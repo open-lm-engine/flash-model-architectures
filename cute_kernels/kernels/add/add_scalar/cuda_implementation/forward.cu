@@ -10,7 +10,6 @@ namespace ck_mem = ck::memory;
 using fp32 = ck::fp32;
 using uint32 = ck::uint32;
 using uint64 = ck::uint64;
-using fp32_2 = ck::fp32_2;
 
 template <typename scalar_t>
 __global__ void _add_scalar_cuda_kernel(const scalar_t *x, const fp32 y, scalar_t *output, const uint64 num_elements) {
