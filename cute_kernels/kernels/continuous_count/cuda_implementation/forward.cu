@@ -71,7 +71,7 @@ inline __device__ void _update_local_count(const scalar_t *x,
 template <typename scalar_t>
 __global__ void _continuous_count_cuda_kernel(
     const scalar_t *x, uint32 *output, const uint64 num_elements, const uint32 C, const bool initialize_output) {
-    const uint32 global_thread_id = ck::get_global_thread_id();
+    const uint32 global_thread_id = blockIdx.x * blockDim.x + threadIdx.x;
 
     extern __shared__ uint32 shared_memory[];
 
