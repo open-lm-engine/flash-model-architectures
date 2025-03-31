@@ -32,12 +32,11 @@ __global__ void _add_scalar_cuda_kernel(const scalar_t *x, const fp32 y, scalar_
             if constexpr (std::is_same_v<scalar_t, fp32>) {
                 output_buffer[i] = x_vec[i] + y;
             } else {
-                using T = typename dtype::nv_dtype;
                 using T2 = typename dtype::nv_dtype2;
 
                 const uint32 index = i << 1;
 
-                fp32_2 x2 = dtype::upcast(dtype::make2((T)x_vec[index], (T)x_vec[index + 1]));
+                fp32_2 x2 = dtype::upcast(dtype::make2(x_vec[index], x_vec[index + 1]));
                 x2.x = x2.x + y;
                 x2.y = x2.y + y;
                 T2 output2 = dtype::downcast(x2);
