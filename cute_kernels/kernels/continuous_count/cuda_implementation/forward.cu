@@ -9,6 +9,7 @@
 
 namespace cg = cooperative_groups;
 namespace ck = cute_kernels;
+namespace ck_mem = ck::memory;
 
 using uint32 = ck::uint32;
 using uint32_4 = ck::uint32_4;
@@ -30,8 +31,11 @@ inline __device__ void _initialize_global_output(uint32 *output, const uint32 &C
     const uint32 C4 = C >> 2;
     const uint32 increment = gridDim.x * blockDim.x;
 
+    ck_mem::Packed128Array<uint32> output_vec = ck_mem::Packed128Array<uint32>(output);
+    ck_mem::Packed128<uint32> init_value = ck_mem::Packed128Array<uint32>::constant(0);
+
     for (uint32 i = global_thread_id; i < C4; i += increment) {
-        ((uint32_4 *)output)[i] = ck::DType<uint32>::make4(0, 0, 0, 0);
+        output_vec[i] = constant;
     }
 
     const uint32 index = (C4 << 2) + global_thread_id;
