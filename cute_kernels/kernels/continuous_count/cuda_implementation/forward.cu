@@ -35,7 +35,7 @@ inline __device__ void _initialize_global_output(uint32 *output, const uint32 &C
     ck_mem::Packed128<uint32> init_value = ck_mem::Packed128Array<uint32>::constant(0);
 
     for (uint32 i = global_thread_id; i < C4; i += increment) {
-        output_vec[i] = constant;
+        output_vec[i] = init_value;
     }
 
     const uint32 index = (C4 << 2) + global_thread_id;
