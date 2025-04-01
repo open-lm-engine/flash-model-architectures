@@ -52,20 +52,12 @@ inline __device__ void _update_local_count(const scalar_t *x,
                                            const uint64 &num_elements,
                                            const uint32 &global_thread_id,
                                            const uint32 &total_threads) {
-    const uint32 num_elements_per_thread = ck_mem::Packed128<scalar_t>::size;
-    const uint32 num_vector_elements = num_elements / num_elements_per_thread;
+    ck_mem::Packed128Array<scalar_t> x_vec = ck_mem::Packed128Array<scalar_t>(x);
+    const uint32 num_vector_elements = num_elements / x_vec.size;
 
     for (uint32 i = global_thread_id; i < num_vector_elements; i += total_threads) {
-        if constexpr (std::is_same_v<scalar_t, uint32> || std::is_same_v<scalar_t, int32>) {
-            uint32_4 _x = ((uint32_4 *)x)[i];
-            atomicAdd(&shared_memory[_x.x], 1);
-            atomicAdd(&shared_memory[_x.y], 1);
-            atomicAdd(&shared_memory[_x.z], 1);
-            atomicAdd(&shared_memory[_x.w], 1);
-        } else if constexpr (std::is_same_v<scalar_t, uint64> || std::is_same_v<scalar_t, int64>) {
-            uint64_2 _x = ((uint64_2 *)x)[i];
-            atomicAdd(&shared_memory[_x.x], 1);
-            atomicAdd(&shared_memory[_x.y], 1);
+        for (uint32 j = 0; j < x_vec.size; j++) {
+            atomicAdd(&shared_memory[x_vec[j]], 1);
         }
     }
 
