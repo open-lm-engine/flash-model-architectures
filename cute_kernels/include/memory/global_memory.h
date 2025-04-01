@@ -1,7 +1,7 @@
 // NOTE this file is copied from llm.c and is a good template for vector load/stores
 // and is a nice alternative to manually casting everything to int32_4, loading and casting back
 
-#include "dtypes.h"
+#include "../dtypes.h"
 
 // Packed128 data structure that forces the compiler to use 128-bit loads/stores
 // in GPUs that support (the LDG.128 and STS.128 instructions)
