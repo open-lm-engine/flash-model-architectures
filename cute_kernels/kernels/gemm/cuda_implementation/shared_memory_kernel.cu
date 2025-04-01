@@ -6,6 +6,7 @@
 #include "index.cuh"
 
 namespace ck = cute_kernels;
+namespace ck_mem = cute_kernels::memory;
 
 using uint32 = ck::uint32;
 using fp32 = ck::fp32;
@@ -23,7 +24,7 @@ __global__ void _shared_memory_gemm_cuda_kernel(const scalar_t *A,
     const uint32 i = blockIdx.y * blockDim.x + threadIdx.y;
     const uint32 j = blockIdx.x * blockDim.x + threadIdx.x;
 
-    scalar_t *shared_memory = ck::get_dynamic_shared_memory<scalar_t>();
+    scalar_t *shared_memory = ck_mem::get_dynamic_shared_memory<scalar_t>();
 
     scalar_t *A_shared = shared_memory;
     scalar_t *B_shared = &shared_memory[blockDim.x * blockDim.x];
