@@ -11,13 +11,10 @@ namespace cg = cooperative_groups;
 namespace ck = cute_kernels;
 namespace ck_mem = ck::memory;
 
-using uint32 = ck::uint32;
-using uint32_4 = ck::uint32_4;
 using int32 = ck::int32;
-
-using uint64 = ck::uint64;
-using uint64_2 = ck::uint64_2;
 using int64 = ck::int64;
+using uint32 = ck::uint32;
+using uint64 = ck::uint64;
 
 inline __device__ void _looped_atomic_add(uint32 *source, uint32 *destination, const uint32 &C) {
     uint32 index = threadIdx.x;
