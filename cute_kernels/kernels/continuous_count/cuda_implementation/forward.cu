@@ -49,7 +49,7 @@ inline __device__ void _update_local_count(const scalar_t *x,
                                            const uint64 &num_elements,
                                            const uint32 &global_thread_id,
                                            const uint32 &total_threads) {
-    const ck_mem::Packed128Array<scalar_t> x_vec_array = ck_mem::Packed128Array<scalar_t>(x);
+    const ck_mem::Packed128Array<const scalar_t> x_vec_array = ck_mem::Packed128Array<const scalar_t>(x);
 
     constexpr uint32 num_elements_per_thread = x_vec_array.size;
     const uint32 num_vector_elements = num_elements / num_elements_per_thread;
