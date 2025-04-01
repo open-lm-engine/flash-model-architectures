@@ -27,14 +27,16 @@ inline __device__ void _looped_atomic_add(uint32 *source, uint32 *destination, c
     }
 }
 
-inline __device__ void _initialize_global_output(uint32 *output, const uint32 &C, const uint32 &global_thread_id) {
+inline __device__ void _initialize_global_output(uint32 *output,
+                                                 const uint32 &C,
+                                                 const uint32 &global_thread_id,
+                                                 const uint32 &total_threads) {
     const uint32 C4 = C >> 2;
-    const uint32 increment = gridDim.x * blockDim.x;
 
     ck_mem::Packed128Array<uint32> output_vec = ck_mem::Packed128Array<uint32>(output);
     ck_mem::Packed128<uint32> init_value = ck_mem::Packed128<uint32>::constant(0);
 
-    for (uint32 i = global_thread_id; i < C4; i += increment) {
+    for (uint32 i = global_thread_id; i < C4; i += total_threads) {
         output_vec[i] = init_value;
     }
 
@@ -48,12 +50,12 @@ template <typename scalar_t>
 inline __device__ void _update_local_count(const scalar_t *x,
                                            uint32 *shared_memory,
                                            const uint64 &num_elements,
-                                           const uint32 &global_thread_id) {
+                                           const uint32 &global_thread_id,
+                                           const uint32 &total_threads) {
     const uint32 num_elements_per_thread = ck_mem::Packed128<scalar_t>::size;
     const uint32 num_vector_elements = num_elements / num_elements_per_thread;
-    const uint32 increment = gridDim.x * blockDim.x;
 
-    for (uint32 i = global_thread_id; i < num_vector_elements; i += increment) {
+    for (uint32 i = global_thread_id; i < num_vector_elements; i += total_threads) {
         if constexpr (std::is_same_v<scalar_t, uint32> || std::is_same_v<scalar_t, int32>) {
             uint32_4 _x = ((uint32_4 *)x)[i];
             atomicAdd(&shared_memory[_x.x], 1);
@@ -86,12 +88,14 @@ __global__ void _continuous_count_cuda_kernel(
         index += blockDim.x;
     }
 
+    const uint32 grid_size = gridDim.x * blockDim.x;
+
     if (initialize_output) {
-        _initialize_global_output(output, C, global_thread_id);
+        _initialize_global_output(output, C, global_thread_id, grid_size);
         cg::this_grid().sync();
     }
 
-    _update_local_count<scalar_t>(x, shared_memory, num_elements, global_thread_id);
+    _update_local_count<scalar_t>(x, shared_memory, num_elements, global_thread_id, grid_size);
 
     cg::cluster_group cluster = cg::this_cluster();
     const bool is_first_cluster_block = cluster.block_rank() == 0;
