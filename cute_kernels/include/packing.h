@@ -21,7 +21,7 @@ namespace cute_kernels::memory {
             memcpy(&payload, &bits, sizeof(bits));
         }
 
-        inline __device__ static Packed128<T> constant(T& value) {
+        inline __device__ static Packed128<T> constant(const T& value) {
             Packed128 result;
             for (int i = 0; i < size; ++i) {
                 result.payload[i] = value;
