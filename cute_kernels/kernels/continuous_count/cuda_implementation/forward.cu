@@ -49,10 +49,11 @@ inline __device__ void _update_local_count(const scalar_t *x,
                                            uint32 *shared_memory,
                                            const uint64 &num_elements,
                                            const uint32 &global_thread_id) {
-    const uint32 num_elements_per_thread = 16 / sizeof(scalar_t);
-    const uint32 num_elements4 = num_elements / num_elements_per_thread;
+    const uint32 num_elements_per_thread = ck_mem::Packed128<scalar_t>::size;
+    const uint32 num_vector_elements = num_elements / num_elements_per_thread;
+    const uint32 increment = gridDim.x * blockDim.x;
 
-    for (uint32 i = global_thread_id; i < num_elements4; i += gridDim.x * blockDim.x) {
+    for (uint32 i = global_thread_id; i < num_vector_elements; i += increment) {
         if constexpr (std::is_same_v<scalar_t, uint32> || std::is_same_v<scalar_t, int32>) {
             uint32_4 _x = ((uint32_4 *)x)[i];
             atomicAdd(&shared_memory[_x.x], 1);
@@ -66,7 +67,7 @@ inline __device__ void _update_local_count(const scalar_t *x,
         }
     }
 
-    const uint32 index = (num_elements4 * num_elements_per_thread) + global_thread_id;
+    const uint32 index = (num_vector_elements * num_elements_per_thread) + global_thread_id;
     if (index < num_elements) {
         atomicAdd(&shared_memory[x[index]], 1);
     }
