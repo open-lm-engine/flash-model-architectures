@@ -43,7 +43,11 @@ __global__ void _swiglu_forward_cuda_kernel(const scalar_t *gate,
         #pragma unroll
         // clang-format on
         for (uint32 i = 0; i < num_elements_per_thread; i++) {
-            output_buffer[i] = _swiglu_forward<scalar_t>(gate_vec[i], up_vec[i]);
+            if constexpr (std::is_same_v<scalar_t, fp32>) {
+                output_buffer[i] = _swiglu_forward<scalar_t>(gate_vec[i], up_vec[i]);
+            } else {
+                output_buffer[i] = _swiglu_forward<scalar_t>(gate_vec[i], up_vec[i]);
+            }
         }
 
         ck_mem::Packed128Array<scalar_t> output_vec = ck_mem::Packed128Array<scalar_t>(output);
