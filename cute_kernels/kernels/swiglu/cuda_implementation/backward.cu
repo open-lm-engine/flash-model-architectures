@@ -45,7 +45,7 @@ __global__ void _swiglu_backward_cuda_kernel(const scalar_t *gate,
     const uint32 thread_id = blockIdx.x * blockDim.x + threadIdx.x;
     const uint32 num_vector_elements = num_elements / num_elements_per_thread;
 
-    if (thread_id < num_elements_per_thread) {
+    if (thread_id < num_vector_elements) {
         // packed array allows loading using vector loads, its just a syntactic sugar
         const ck_mem::Packed128<const scalar_t> gate_vec = ck_mem::Packed128Array<const scalar_t>(gate)[thread_id];
         const ck_mem::Packed128<const scalar_t> up_vec = ck_mem::Packed128Array<const scalar_t>(up)[thread_id];
@@ -58,10 +58,24 @@ __global__ void _swiglu_backward_cuda_kernel(const scalar_t *gate,
         // clang-format off
         #pragma unroll
         // clang-format on
-        for (uint32 i = 0; i < num_elements_per_thread; i++) {
-            auto [_gate_grad, _up_grad] = _swiglu_backward<scalar_t>(gate_vec[i], up_vec[i], output_grad_vec[i]);
-            gate_grad_buffer[i] = _gate_grad;
-            up_grad_buffer[i] = _up_grad;
+        for (uint32 i = 0; i < 4; i++) {
+            if constexpr (std::is_same_v<scalar_t, fp32>) {
+                auto [_gate_grad, _up_grad] = _swiglu_backward<scalar_t>(gate_vec[i], up_vec[i], output_grad_vec[i]);
+                gate_grad_buffer[i] = _gate_grad;
+                up_grad_buffer[i] = _up_grad;
+            } else {
+                uint32 index = i << 1;
+                auto [_gate_grad, _up_grad] =
+                    _swiglu_backward<scalar_t>(gate_vec[index], up_vec[index], output_grad_vec[index]);
+                gate_grad_buffer[index] = _gate_grad;
+                up_grad_buffer[index] = _up_grad;
+
+                index++;
+                auto [_gate_grad, _up_grad] =
+                    _swiglu_backward<scalar_t>(gate_vec[index], up_vec[index], output_grad_vec[index]);
+                gate_grad_buffer[index] = _gate_grad;
+                up_grad_buffer[index] = _up_grad;
+            }
         }
 
         ck_mem::Packed128Array<scalar_t> gate_grad_vec = ck_mem::Packed128Array<scalar_t>(gate_grad);
