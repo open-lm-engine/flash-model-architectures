@@ -41,6 +41,8 @@ namespace cute_kernels {
     using uint64_2 = ulong2;
 
     using int32 = int;
+    using int32_4 = int4;
+
     using uint32 = uint;
     using uint32_2 = uint2;
     using uint32_4 = uint4;

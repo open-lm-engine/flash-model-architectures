@@ -3,7 +3,7 @@
 #define WARP_SIZE 32
 #define LOG_WARP_SIZE 5
 
-#define CHECK_VALID_THREAD_BLOCK(block_size) TORCH_CHECK(block_size % WARP_SIZE == 0)
+#define CHECK_VALID_THREAD_BLOCK(BLOCK_SIZE) TORCH_CHECK(BLOCK_SIZE % WARP_SIZE == 0)
 
 #include <cuda.h>
 #include <cuda_runtime.h>
@@ -12,25 +12,7 @@
 #include "math.h"
 
 namespace cute_kernels {
-    inline __device__ uint32 get_threads_per_block() { return blockDim.x * blockDim.y * blockDim.z; }
-
     inline __device__ uint32 get_num_blocks() { return gridDim.x * gridDim.y * gridDim.z; }
-
-    inline __device__ uint32 get_block_id() { return gridDim.x * (gridDim.y * blockIdx.z + blockIdx.y) + blockIdx.x; }
-
-    inline __device__ uint32 get_local_thread_id() {
-        return blockDim.x * (blockDim.y * threadIdx.z + threadIdx.y) + threadIdx.x;
-    }
-
-    inline __device__ uint64 get_global_thread_id() {
-        return get_threads_per_block() * get_block_id() + get_local_thread_id();
-    }
-
-    inline __device__ uint64 get_thread_id_along_axis(const uint32 &block_size,
-                                                      const uint32 &block_id,
-                                                      const uint32 &thread_id) {
-        return block_size * block_id + thread_id;
-    }
 
     inline __host__ int get_max_thread_blocks(const int &sm_count, const int &thread_block_cluster_size) {
         int max_num_blocks = sm_count;

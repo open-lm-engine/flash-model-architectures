@@ -5,11 +5,9 @@
 #include "include/cute_kernels.h"
 
 namespace ck = cute_kernels;
+namespace ck_mem = ck::memory;
 
 using fp32 = ck::fp32;
-using fp32_2 = ck::fp32_2;
-using fp32_4 = ck::fp32_4;
-
 using uint32 = ck::uint32;
 using uint64 = ck::uint64;
 
@@ -18,40 +16,40 @@ __global__ void _add_tensor_cuda_kernel(const scalar_t *x,
                                         const scalar_t *y,
                                         scalar_t *output,
                                         const uint64 num_elements) {
-    constexpr int num_elements_per_thread = 16 / sizeof(scalar_t);
-    static_assert(num_elements_per_thread == 4 || num_elements_per_thread == 8);
+    constexpr uint32 num_elements_per_thread = ck_mem::Packed128<scalar_t>::size;
+    constexpr uint32 increment = 4 / sizeof(scalar_t);
 
-    using dtype = ck::DType<scalar_t>;
-    using T = typename dtype::nv_dtype;
-    using T2 = typename dtype::nv_dtype2;
+    const uint32 thread_id = blockIdx.x * blockDim.x + threadIdx.x;
+    const uint32 num_vector_elements = num_elements / num_elements_per_thread;
 
-    const uint32 thread_id = ck::get_global_thread_id();
-    const uint32 num_elements4 = num_elements / num_elements_per_thread;
+    if (thread_id < num_vector_elements) {
+        // packed array allows loading using vector loads, its just a syntactic sugar
+        const ck_mem::Packed128<const scalar_t> x_vec = ck_mem::Packed128Array<const scalar_t>(x)[thread_id];
+        const ck_mem::Packed128<const scalar_t> y_vec = ck_mem::Packed128Array<const scalar_t>(y)[thread_id];
+        ck_mem::Packed128<scalar_t> output_buffer;
 
-    if (thread_id < num_elements4) {
-        const fp32 *x_vec = (fp32 *)&((fp32_4 *)x)[thread_id];
-        const fp32 *y_vec = (fp32 *)&((fp32_4 *)y)[thread_id];
-        fp32 output_buffer[4];
-
-        // clang-format off
-        #pragma unroll
-        // clang-format on
-        for (int i = 0; i < 4; i++) {
+        for (uint32 i = 0; i < num_elements_per_thread; i += increment) {
             if constexpr (std::is_same_v<scalar_t, fp32>) {
                 output_buffer[i] = x_vec[i] + y_vec[i];
             } else {
-                T2 _x = dtype::reinterpret_32_bits_as_2x16(x_vec[i]);
-                T2 _y = dtype::reinterpret_32_bits_as_2x16(y_vec[i]);
+                using dtype = ck::DType<scalar_t>;
+                using T2 = typename dtype::nv_dtype2;
 
-                _x = __hadd2(_x, _y);
-                output_buffer[i] = dtype::reinterpret_2x16_as_32_bits(_x);
+                const uint32 i1 = i + 1;
+                T2 x2 = dtype::make2(x_vec[i], x_vec[i1]);
+                T2 y2 = dtype::make2(y_vec[i], y_vec[i1]);
+                x2 = __hadd2(x2, y2);
+
+                output_buffer[i] = x2.x;
+                output_buffer[i1] = x2.y;
             }
         }
 
-        ((fp32_4 *)output)[thread_id] = ck::DType<fp32>::make4(output_buffer);
+        ck_mem::Packed128Array<scalar_t> output_vec = ck_mem::Packed128Array<scalar_t>(output);
+        output_vec[thread_id] = output_buffer;
     }
 
-    const uint32 index = num_elements4 * num_elements_per_thread + thread_id;
+    const uint32 index = num_vector_elements * num_elements_per_thread + thread_id;
     if (index < num_elements) {
         output[index] = x[index] + y[index];
     }

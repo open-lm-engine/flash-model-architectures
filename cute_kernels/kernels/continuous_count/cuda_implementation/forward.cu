@@ -9,29 +9,32 @@
 
 namespace cg = cooperative_groups;
 namespace ck = cute_kernels;
+namespace ck_mem = ck::memory;
 
-using uint32 = ck::uint32;
-using uint32_4 = ck::uint32_4;
 using int32 = ck::int32;
-
-using uint64 = ck::uint64;
-using uint64_2 = ck::uint64_2;
 using int64 = ck::int64;
+using uint32 = ck::uint32;
+using uint64 = ck::uint64;
 
-inline __device__ void _looped_atomic_add(
-    uint32 *source, uint32 *destination, const uint32 &num_loops_C, const uint32 &C, const uint32 &local_thread_id) {
-    for (int i = 0; i < num_loops_C; i++) {
-        const uint32 index = i * blockDim.x + local_thread_id;
-        if (index < C) {
-            atomicAdd(&destination[index], source[index]);
-        }
+inline __device__ void _looped_atomic_add(uint32 *source, uint32 *destination, const uint32 &C) {
+    uint32 index = threadIdx.x;
+    while (index < C) {
+        atomicAdd(&destination[index], source[index]);
+        index += blockDim.x;
     }
 }
 
-inline __device__ void _initialize_global_output(uint32 *output, const uint32 &C, const uint32 &global_thread_id) {
+inline __device__ void _initialize_global_output(uint32 *output,
+                                                 const uint32 &C,
+                                                 const uint32 &global_thread_id,
+                                                 const uint32 &total_threads) {
     const uint32 C4 = C >> 2;
-    for (uint32 i = global_thread_id; i < C4; i += gridDim.x * blockDim.x) {
-        ((uint32_4 *)output)[i] = ck::DType<uint32>::make4(0, 0, 0, 0);
+
+    ck_mem::Packed128Array<uint32> output_vec = ck_mem::Packed128Array<uint32>(output);
+    ck_mem::Packed128<uint32> init_value = ck_mem::Packed128<uint32>::constant(0);
+
+    for (uint32 i = global_thread_id; i < C4; i += total_threads) {
+        output_vec[i] = init_value;
     }
 
     const uint32 index = (C4 << 2) + global_thread_id;
@@ -44,25 +47,22 @@ template <typename scalar_t>
 inline __device__ void _update_local_count(const scalar_t *x,
                                            uint32 *shared_memory,
                                            const uint64 &num_elements,
-                                           const uint32 &global_thread_id) {
-    const uint32 num_elements_per_thread = 16 / sizeof(scalar_t);
-    const uint32 num_elements4 = num_elements / num_elements_per_thread;
+                                           const uint32 &global_thread_id,
+                                           const uint32 &total_threads) {
+    constexpr uint32 num_elements_per_thread = ck_mem::Packed128<const scalar_t>::size;
+    const uint32 num_vector_elements = num_elements / num_elements_per_thread;
 
-    for (uint32 i = global_thread_id; i < num_elements4; i += gridDim.x * blockDim.x) {
-        if constexpr (std::is_same_v<scalar_t, uint32> || std::is_same_v<scalar_t, int32>) {
-            uint32_4 _x = ((uint32_4 *)x)[i];
-            atomicAdd(&shared_memory[_x.x], 1);
-            atomicAdd(&shared_memory[_x.y], 1);
-            atomicAdd(&shared_memory[_x.z], 1);
-            atomicAdd(&shared_memory[_x.w], 1);
-        } else if constexpr (std::is_same_v<scalar_t, uint64> || std::is_same_v<scalar_t, int64>) {
-            uint64_2 _x = ((uint64_2 *)x)[i];
-            atomicAdd(&shared_memory[_x.x], 1);
-            atomicAdd(&shared_memory[_x.y], 1);
+    const ck_mem::Packed128Array<const scalar_t> x_vec_array = ck_mem::Packed128Array<const scalar_t>(x);
+
+    for (uint32 i = global_thread_id; i < num_vector_elements; i += total_threads) {
+        const ck_mem::Packed128<const scalar_t> x_vec = x_vec_array[i];
+
+        for (uint32 j = 0; j < num_elements_per_thread; j++) {
+            atomicAdd(&shared_memory[x_vec[j]], 1);
         }
     }
 
-    const uint32 index = (num_elements4 * num_elements_per_thread) + global_thread_id;
+    const uint32 index = (num_vector_elements * num_elements_per_thread) + global_thread_id;
     if (index < num_elements) {
         atomicAdd(&shared_memory[x[index]], 1);
     }
@@ -71,25 +71,24 @@ inline __device__ void _update_local_count(const scalar_t *x,
 template <typename scalar_t>
 __global__ void _continuous_count_cuda_kernel(
     const scalar_t *x, uint32 *output, const uint64 num_elements, const uint32 C, const bool initialize_output) {
-    const uint32 local_thread_id = ck::get_local_thread_id();
-    const uint32 global_thread_id = ck::get_global_thread_id();
-    const uint32 num_loops_C = ck::ceil_divide<uint32>(C, blockDim.x);
+    const uint32 global_thread_id = blockIdx.x * blockDim.x + threadIdx.x;
 
     extern __shared__ uint32 shared_memory[];
 
-    for (uint32 i = 0; i < num_loops_C; i++) {
-        const uint32 index = i * blockDim.x + local_thread_id;
-        if (index < C) {
-            shared_memory[index] = 0;
-        }
+    uint32 index = threadIdx.x;
+    while (index < C) {
+        shared_memory[index] = 0;
+        index += blockDim.x;
     }
 
+    const uint32 grid_size = gridDim.x * blockDim.x;
+
     if (initialize_output) {
-        _initialize_global_output(output, C, global_thread_id);
+        _initialize_global_output(output, C, global_thread_id, grid_size);
         cg::this_grid().sync();
     }
 
-    _update_local_count<scalar_t>(x, shared_memory, num_elements, global_thread_id);
+    _update_local_count<scalar_t>(x, shared_memory, num_elements, global_thread_id, grid_size);
 
     cg::cluster_group cluster = cg::this_cluster();
     const bool is_first_cluster_block = cluster.block_rank() == 0;
@@ -97,14 +96,14 @@ __global__ void _continuous_count_cuda_kernel(
     __syncthreads();
 
     if (!is_first_cluster_block) {
-        _looped_atomic_add(shared_memory, cluster.map_shared_rank(shared_memory, 0), num_loops_C, C, local_thread_id);
+        _looped_atomic_add(shared_memory, cluster.map_shared_rank(shared_memory, 0), C);
     }
 
     cluster.sync();
 
     // write the output to the global memory
     if (is_first_cluster_block) {
-        _looped_atomic_add(shared_memory, output, num_loops_C, C, local_thread_id);
+        _looped_atomic_add(shared_memory, output, C);
     }
 }
 
