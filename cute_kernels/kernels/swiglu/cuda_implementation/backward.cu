@@ -71,10 +71,10 @@ __global__ void _swiglu_backward_cuda_kernel(const scalar_t *gate,
                 up_grad_buffer[index] = _up_grad;
 
                 index++;
-                auto [_gate_grad, _up_grad] =
+                auto [_gate_grad1, _up_grad1] =
                     _swiglu_backward<scalar_t>(gate_vec[index], up_vec[index], output_grad_vec[index]);
-                gate_grad_buffer[index] = _gate_grad;
-                up_grad_buffer[index] = _up_grad;
+                gate_grad_buffer[index] = _gate_grad1;
+                up_grad_buffer[index] = _up_grad1;
             }
         }
 
