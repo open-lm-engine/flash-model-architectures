@@ -14,7 +14,6 @@ using uint64 = ck::uint64;
 template <typename scalar_t>
 __global__ void _add_scalar_cuda_kernel(const scalar_t *x, const fp32 y, scalar_t *output, const uint64 num_elements) {
     constexpr uint32 num_elements_per_thread = ck_mem::Packed128<scalar_t>::size;
-    constexpr uint32 increment = 4 / sizeof(scalar_t);
 
     const uint32 thread_id = blockIdx.x * blockDim.x + threadIdx.x;
     const uint32 num_vector_elements = num_elements / num_elements_per_thread;
@@ -24,14 +23,8 @@ __global__ void _add_scalar_cuda_kernel(const scalar_t *x, const fp32 y, scalar_
         const ck_mem::Packed128<const scalar_t> x_vec = ck_mem::Packed128Array<const scalar_t>(x)[thread_id];
         ck_mem::Packed128<scalar_t> output_buffer;
 
-        for (uint32 i = 0; i < num_elements_per_thread; i += increment) {
-            if constexpr (std::is_same_v<scalar_t, fp32>) {
-                output_buffer[i] = x_vec[i] + y;
-            } else {
-                output_buffer[i] = x_vec[i] + y;
-                const uint32 index = i + 1;
-                output_buffer[index] = x_vec[index] + y;
-            }
+        for (uint32 i = 0; i < num_elements_per_thread; i++) {
+            output_buffer[i] = x_vec[i] + y;
         }
 
         ck_mem::Packed128Array<scalar_t> output_vec = ck_mem::Packed128Array<scalar_t>(output);
