@@ -42,11 +42,12 @@ __global__ void _swiglu_forward_cuda_kernel(const scalar_t *gate,
         // clang-format off
         #pragma unroll
         // clang-format on
-        for (uint32 i = 0; i < num_elements_per_thread; i++) {
+        for (uint32 i = 0; i < 4; i++) {
             if constexpr (std::is_same_v<scalar_t, fp32>) {
                 output_buffer[i] = _swiglu_forward<scalar_t>(gate_vec[i], up_vec[i]);
             } else {
                 output_buffer[i] = _swiglu_forward<scalar_t>(gate_vec[i], up_vec[i]);
+                output_buffer[i + 1] = _swiglu_forward<scalar_t>(gate_vec[i + 1], up_vec[i + 1]);
             }
         }
 
