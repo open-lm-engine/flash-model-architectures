@@ -41,6 +41,7 @@ __global__ void _swiglu_backward_cuda_kernel(const scalar_t *gate,
                                              scalar_t *up_grad,
                                              const uint64 num_elements) {
     constexpr uint32 num_elements_per_thread = ck_mem::Packed128<scalar_t>::size;
+    constexpr uint32 increment = 4 / sizeof(scalar_t);
 
     const uint32 thread_id = blockIdx.x * blockDim.x + threadIdx.x;
     const uint32 num_vector_elements = num_elements / num_elements_per_thread;
@@ -55,26 +56,21 @@ __global__ void _swiglu_backward_cuda_kernel(const scalar_t *gate,
         ck_mem::Packed128<scalar_t> gate_grad_buffer;
         ck_mem::Packed128<scalar_t> up_grad_buffer;
 
-        // clang-format off
-        #pragma unroll
-        // clang-format on
-        for (uint32 i = 0; i < 4; i++) {
+        for (uint32 i = 0; i < num_elements_per_thread; i += increment) {
             if constexpr (std::is_same_v<scalar_t, fp32>) {
                 auto [_gate_grad, _up_grad] = _swiglu_backward<scalar_t>(gate_vec[i], up_vec[i], output_grad_vec[i]);
                 gate_grad_buffer[i] = _gate_grad;
                 up_grad_buffer[i] = _up_grad;
             } else {
-                uint32 index = i << 1;
-                auto [_gate_grad, _up_grad] =
-                    _swiglu_backward<scalar_t>(gate_vec[index], up_vec[index], output_grad_vec[index]);
-                gate_grad_buffer[index] = _gate_grad;
-                up_grad_buffer[index] = _up_grad;
+                auto [_gate_grad, _up_grad] = _swiglu_backward<scalar_t>(gate_vec[i], up_vec[i], output_grad_vec[i]);
+                gate_grad_buffer[i] = _gate_grad;
+                up_grad_buffer[i] = _up_grad;
 
-                index++;
+                const uint32 i1 = i + 1;
                 auto [_gate_grad1, _up_grad1] =
-                    _swiglu_backward<scalar_t>(gate_vec[index], up_vec[index], output_grad_vec[index]);
-                gate_grad_buffer[index] = _gate_grad1;
-                up_grad_buffer[index] = _up_grad1;
+                    _swiglu_backward<scalar_t>(gate_vec[i1], up_vec[i1], output_grad_vec[i1]);
+                gate_grad_buffer[i1] = _gate_grad1;
+                up_grad_buffer[i1] = _up_grad1;
             }
         }
 
