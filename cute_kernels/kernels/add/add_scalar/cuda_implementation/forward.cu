@@ -24,9 +24,6 @@ __global__ void _add_scalar_cuda_kernel(const scalar_t *x, const fp32 y, scalar_
         const ck_mem::Packed128<const scalar_t> x_vec = ck_mem::Packed128Array<const scalar_t>(x)[thread_id];
         ck_mem::Packed128<scalar_t> output_buffer;
 
-        // clang-format off
-        #pragma unroll
-        // clang-format on
         for (uint32 i = 0; i < num_elements_per_thread; i += increment) {
             if constexpr (std::is_same_v<scalar_t, fp32>) {
                 output_buffer[i] = x_vec[i] + y;
