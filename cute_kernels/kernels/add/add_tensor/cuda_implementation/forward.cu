@@ -17,6 +17,7 @@ __global__ void _add_tensor_cuda_kernel(const scalar_t *x,
                                         scalar_t *output,
                                         const uint64 num_elements) {
     constexpr uint32 num_elements_per_thread = ck_mem::Packed128<scalar_t>::size;
+    constexpr uint32 increment = 4 / sizeof(scalar_t);
 
     const uint32 thread_id = blockIdx.x * blockDim.x + threadIdx.x;
     const uint32 num_vector_elements = num_elements / num_elements_per_thread;
@@ -30,20 +31,20 @@ __global__ void _add_tensor_cuda_kernel(const scalar_t *x,
         // clang-format off
         #pragma unroll
         // clang-format on
-        for (uint32 i = 0; i < 4; i++) {
+        for (uint32 i = 0; i < num_elements_per_thread; i += increment) {
             if constexpr (std::is_same_v<scalar_t, fp32>) {
                 output_buffer[i] = x_vec[i] + y_vec[i];
             } else {
                 using dtype = ck::DType<scalar_t>;
                 using T2 = typename dtype::nv_dtype2;
 
-                const uint32 index = i << 1;
-                T2 x2 = dtype::make2(x_vec[index], x_vec[index + 1]);
-                T2 y2 = dtype::make2(y_vec[index], y_vec[index + 1]);
+                const uint32 index = i + 1;
+                T2 x2 = dtype::make2(x_vec[i], x_vec[index]);
+                T2 y2 = dtype::make2(y_vec[i], y_vec[index]);
                 x2 = __hadd2(x2, y2);
 
-                output_buffer[index] = x2.x;
-                output_buffer[index + 1] = x2.y;
+                output_buffer[i] = x2.x;
+                output_buffer[index] = x2.y;
             }
         }
 
