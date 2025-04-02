@@ -47,7 +47,8 @@ __global__ void _swiglu_forward_cuda_kernel(const scalar_t *gate,
                 output_buffer[i] = _swiglu_forward<scalar_t>(gate_vec[i], up_vec[i]);
             } else {
                 output_buffer[i] = _swiglu_forward<scalar_t>(gate_vec[i], up_vec[i]);
-                output_buffer[i + 1] = _swiglu_forward<scalar_t>(gate_vec[i + 1], up_vec[i + 1]);
+                i = (i << 1) + 1;
+                output_buffer[i] = _swiglu_forward<scalar_t>(gate_vec[i], up_vec[i]);
             }
         }
 
