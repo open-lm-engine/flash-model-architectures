@@ -35,13 +35,13 @@ __global__ void _add_tensor_cuda_kernel(const scalar_t *x,
                 using dtype = ck::DType<scalar_t>;
                 using T2 = typename dtype::nv_dtype2;
 
-                const uint32 index = i + 1;
-                T2 x2 = dtype::make2(x_vec[i], x_vec[index]);
-                T2 y2 = dtype::make2(y_vec[i], y_vec[index]);
+                const uint32 i1 = i + 1;
+                T2 x2 = dtype::make2(x_vec[i], x_vec[i1]);
+                T2 y2 = dtype::make2(y_vec[i], y_vec[i1]);
                 x2 = __hadd2(x2, y2);
 
                 output_buffer[i] = x2.x;
-                output_buffer[index] = x2.y;
+                output_buffer[i1] = x2.y;
             }
         }
 
