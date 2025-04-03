@@ -44,26 +44,8 @@ __global__ void _swiglu_forward_cuda_kernel(const scalar_t *gate,
         const ck_mem::Packed128<const scalar_t> up_vec = ck_mem::Packed128Array<const scalar_t>(up)[thread_id];
         ck_mem::Packed128<scalar_t> output_buffer;
 
-        for (uint32 i = 0; i < num_elements_per_thread; i += increment) {
-            if constexpr (std::is_same_v<scalar_t, fp32>) {
-                output_buffer[i] = _swiglu_forward<scalar_t>(gate_vec[i], up_vec[i]);
-            } else {
-                const uint32 i1 = i + 1;
-
-                // upcast to fp32
-                fp32_2 gate2 = dtype::upcast(dtype::make2(gate_vec[i], gate_vec[i1]));
-                fp32_2 up2 = dtype::upcast(dtype::make2(up_vec[i], up_vec[i1]));
-
-                // compute output in fp32
-                gate2 = ck::DType<fp32>::make2(up2.x * gate2.x * ck::sigmoid<fp32, fp32>(gate2.x),
-                                               up2.y * gate2.y * ck::sigmoid<fp32, fp32>(gate2.y));
-
-                // downcast in target dtype
-                T2 _output = dtype::downcast(gate2);
-
-                output_buffer[i] = _output.x;
-                output_buffer[i1] = _output.y;
-            }
+        for (uint32 i = 0; i < num_elements_per_thread; i++) {
+            output_buffer[i] = _swiglu_forward<scalar_t>(gate_vec[i], up_vec[i]);
         }
 
         ck_mem::Packed128Array<scalar_t> output_vec = ck_mem::Packed128Array<scalar_t>(output);
