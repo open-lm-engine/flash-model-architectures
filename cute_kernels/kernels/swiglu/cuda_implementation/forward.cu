@@ -8,6 +8,7 @@ namespace ck = cute_kernels;
 namespace ck_mem = ck::memory;
 
 using fp32 = ck::fp32;
+using fp32_2 = ck::fp32_2;
 using uint32 = ck::uint32;
 using uint64 = ck::uint64;
 
@@ -34,6 +35,9 @@ __global__ void _swiglu_forward_cuda_kernel(const scalar_t *gate,
     const uint32 thread_id = blockIdx.x * blockDim.x + threadIdx.x;
     const uint32 num_vector_elements = num_elements / num_elements_per_thread;
 
+    using dtype = ck::DType<scalar_t>;
+    using T2 = typename dtype::nv_dtype2;
+
     if (thread_id < num_vector_elements) {
         // packed array allows loading using vector loads, its just a syntactic sugar
         const ck_mem::Packed128<const scalar_t> gate_vec = ck_mem::Packed128Array<const scalar_t>(gate)[thread_id];
@@ -44,10 +48,21 @@ __global__ void _swiglu_forward_cuda_kernel(const scalar_t *gate,
             if constexpr (std::is_same_v<scalar_t, fp32>) {
                 output_buffer[i] = _swiglu_forward<scalar_t>(gate_vec[i], up_vec[i]);
             } else {
-                output_buffer[i] = _swiglu_forward<scalar_t>(gate_vec[i], up_vec[i]);
-
                 const uint32 i1 = i + 1;
-                output_buffer[i1] = _swiglu_forward<scalar_t>(gate_vec[i1], up_vec[i1]);
+
+                // upcast to fp32
+                fp32_2 gate2 = dtype::upcast(dtype::make2(gate_vec[i], gate_vec[i1]));
+                fp32_2 up2 = dtype::upcast(dtype::make2(up_vec[i], up_vec[i1]));
+
+                // compute output in fp32
+                gate2 = ck::DType<fp32>::make2(up2.x * gate2.x * ck::sigmoid<fp32, fp32>(gate2.x),
+                                               up2.y * gate2.y * ck::sigmoid<fp32, fp32>(gate2.y));
+
+                // downcast in target dtype
+                T2 _output = dtype::downcast(gate2);
+
+                output_buffer[i] = _output.x;
+                output_buffer[i1] = _output.y;
             }
         }
 
