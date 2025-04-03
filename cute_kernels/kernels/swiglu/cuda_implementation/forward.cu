@@ -8,7 +8,6 @@ namespace ck = cute_kernels;
 namespace ck_mem = ck::memory;
 
 using fp32 = ck::fp32;
-using fp32_2 = ck::fp32_2;
 using uint32 = ck::uint32;
 using uint64 = ck::uint64;
 
@@ -21,6 +20,7 @@ inline __device__ scalar_t _swiglu_forward(const scalar_t &gate, const scalar_t 
     fp32 _sigmoid = ck::sigmoid<fp32, fp32>(_gate);
 
     _sigmoid *= _gate * _up;
+
     return dtype::downcast(_sigmoid);
 }
 

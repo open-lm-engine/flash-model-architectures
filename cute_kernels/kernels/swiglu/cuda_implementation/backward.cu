@@ -11,10 +11,13 @@ using fp32 = ck::fp32;
 using uint32 = ck::uint32;
 using uint64 = ck::uint64;
 
-template <typename scalar_t>
-inline __device__ std::tuple<scalar_t, scalar_t> _swiglu_backward(const scalar_t &gate,
-                                                                  const scalar_t &up,
-                                                                  const scalar_t &output_grad) {
+template <typename scalar_t, typename storage_t>
+inline __device__ void _swiglu_backward(const scalar_t &gate,
+                                        const scalar_t &up,
+                                        const scalar_t &output_grad,
+                                        storage_t &gate_grad_buffer,
+                                        storage_t &up_grad_buffer,
+                                        const uint32 &index) {
     using dtype = ck::DType<scalar_t>;
 
     fp32 _gate = dtype::upcast(gate);
@@ -30,7 +33,8 @@ inline __device__ std::tuple<scalar_t, scalar_t> _swiglu_backward(const scalar_t
     scalar_t gate_grad = dtype::downcast(_gate_grad);
     scalar_t up_grad = dtype::downcast(_up_grad);
 
-    return std::make_tuple(gate_grad, up_grad);
+    gate_grad_buffer[index] = gate_grad;
+    up_grad_buffer[index] = up_grad;
 }
 
 template <typename scalar_t>
@@ -41,7 +45,6 @@ __global__ void _swiglu_backward_cuda_kernel(const scalar_t *gate,
                                              scalar_t *up_grad,
                                              const uint64 num_elements) {
     constexpr uint32 num_elements_per_thread = ck_mem::Packed128<scalar_t>::size;
-    constexpr uint32 increment = 4 / sizeof(scalar_t);
 
     const uint32 thread_id = blockIdx.x * blockDim.x + threadIdx.x;
     const uint32 num_vector_elements = num_elements / num_elements_per_thread;
@@ -56,22 +59,9 @@ __global__ void _swiglu_backward_cuda_kernel(const scalar_t *gate,
         ck_mem::Packed128<scalar_t> gate_grad_buffer;
         ck_mem::Packed128<scalar_t> up_grad_buffer;
 
-        for (uint32 i = 0; i < num_elements_per_thread; i += increment) {
-            if constexpr (std::is_same_v<scalar_t, fp32>) {
-                auto [_gate_grad, _up_grad] = _swiglu_backward<scalar_t>(gate_vec[i], up_vec[i], output_grad_vec[i]);
-                gate_grad_buffer[i] = _gate_grad;
-                up_grad_buffer[i] = _up_grad;
-            } else {
-                auto [_gate_grad, _up_grad] = _swiglu_backward<scalar_t>(gate_vec[i], up_vec[i], output_grad_vec[i]);
-                gate_grad_buffer[i] = _gate_grad;
-                up_grad_buffer[i] = _up_grad;
-
-                const uint32 i1 = i + 1;
-                auto [_gate_grad1, _up_grad1] =
-                    _swiglu_backward<scalar_t>(gate_vec[i1], up_vec[i1], output_grad_vec[i1]);
-                gate_grad_buffer[i1] = _gate_grad1;
-                up_grad_buffer[i1] = _up_grad1;
-            }
+        for (uint32 i = 0; i < num_elements_per_thread; i++) {
+            _swiglu_backward<scalar_t, ck_mem::Packed128<scalar_t>>(
+                gate_vec[i], up_vec[i], output_grad_vec[i], gate_grad_buffer, up_grad_buffer, i);
         }
 
         ck_mem::Packed128Array<scalar_t> gate_grad_vec = ck_mem::Packed128Array<scalar_t>(gate_grad);
@@ -83,9 +73,7 @@ __global__ void _swiglu_backward_cuda_kernel(const scalar_t *gate,
 
     const uint32 index = num_vector_elements * num_elements_per_thread + thread_id;
     if (index < num_elements) {
-        auto [_gate_grad, _up_grad] = _swiglu_backward<scalar_t>(gate[index], up[index], output_grad[index]);
-        gate_grad[index] = _gate_grad;
-        up_grad[index] = _up_grad;
+        _swiglu_backward<scalar_t, scalar_t *>(gate[index], up[index], output_grad[index], gate_grad, up_grad, index);
     }
 }
 
