@@ -34,9 +34,6 @@ __global__ void _swiglu_forward_cuda_kernel(const scalar_t *gate,
     const uint32 thread_id = blockIdx.x * blockDim.x + threadIdx.x;
     const uint32 num_vector_elements = num_elements / num_elements_per_thread;
 
-    using dtype = ck::DType<scalar_t>;
-    using T2 = typename dtype::nv_dtype2;
-
     if (thread_id < num_vector_elements) {
         // packed array allows loading using vector loads, its just a syntactic sugar
         const ck_mem::Packed128<const scalar_t> gate_vec = ck_mem::Packed128Array<const scalar_t>(gate)[thread_id];
