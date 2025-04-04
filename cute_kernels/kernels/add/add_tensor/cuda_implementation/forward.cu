@@ -19,6 +19,13 @@ inline __device__ T *load_128_bits(T *array, const uint64 &index) {
     return reinterpret_cast<T *>(vector_element);
 }
 
+template <typename T, typename vecT>
+inline __device__ T *store_128_bits(T *source, T *destination, const uint64 &index) {
+    vecT *source_vector_array = reinterpret_cast<vecT *>(source);
+    vecT destination_vector_array = reinterpret_cast<vecT>(destination);
+    source_vector_array[index] = destination_vector_array;
+}
+
 template <typename scalar_t>
 __global__ void _add_tensor_cuda_kernel(const scalar_t *x,
                                         const scalar_t *y,
@@ -31,9 +38,8 @@ __global__ void _add_tensor_cuda_kernel(const scalar_t *x,
     const uint32 num_vector_elements = num_elements / num_elements_per_thread;
 
     if (thread_id < num_vector_elements) {
-        // packed array allows loading using vector loads, its just a syntactic sugar
-        scalar_t *x_vec = load_128_bits<scalar_t, fp32_4>(x, thread_id);
-        scalar_t *y_vec = load_128_bits<scalar_t, fp32_4>(y, thread_id);
+        const scalar_t *x_vec = load_128_bits<const scalar_t, const fp32_4>(x, thread_id);
+        const scalar_t *y_vec = load_128_bits<const scalar_t, const fp32_4>(y, thread_id);
         scalar_t output_buffer[num_elements_per_thread];
 
         for (uint32 i = 0; i < num_elements_per_thread; i += increment) {
@@ -53,8 +59,7 @@ __global__ void _add_tensor_cuda_kernel(const scalar_t *x,
             }
         }
 
-        ck_mem::Packed128Array<scalar_t> output_vec = ck_mem::Packed128Array<scalar_t>(output);
-        output_vec[thread_id] = output_buffer;
+        store_128_bits<scalar_t, fp32_4>(output_buffer, output, thread_id);
     }
 
     const uint32 index = num_vector_elements * num_elements_per_thread + thread_id;
