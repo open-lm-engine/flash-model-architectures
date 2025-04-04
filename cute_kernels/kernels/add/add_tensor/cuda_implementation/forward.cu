@@ -8,6 +8,7 @@ namespace ck = cute_kernels;
 namespace ck_mem = ck::memory;
 
 using fp32 = ck::fp32;
+using fp32_4 = ck::fp32_4;
 using uint32 = ck::uint32;
 using uint64 = ck::uint64;
 
