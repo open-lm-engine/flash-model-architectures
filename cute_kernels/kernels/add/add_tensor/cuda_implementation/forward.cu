@@ -11,6 +11,13 @@ using fp32 = ck::fp32;
 using uint32 = ck::uint32;
 using uint64 = ck::uint64;
 
+template <typename T, typename vecT>
+inline __device__ T *load_128_bits(T *array, const uint64 &index) {
+    vecT *vector_array = reinterpret_cast<vecT *>(array);
+    vecT vector_element = vector_array[index];
+    return reinterpret_cast<T *>(vector_element);
+}
+
 template <typename scalar_t>
 __global__ void _add_tensor_cuda_kernel(const scalar_t *x,
                                         const scalar_t *y,
@@ -24,9 +31,9 @@ __global__ void _add_tensor_cuda_kernel(const scalar_t *x,
 
     if (thread_id < num_vector_elements) {
         // packed array allows loading using vector loads, its just a syntactic sugar
-        const ck_mem::Packed128<const scalar_t> x_vec = ck_mem::Packed128Array<const scalar_t>(x)[thread_id];
-        const ck_mem::Packed128<const scalar_t> y_vec = ck_mem::Packed128Array<const scalar_t>(y)[thread_id];
-        ck_mem::Packed128<scalar_t> output_buffer;
+        scalar_t *x_vec = load_128_bits<scalar_t, fp32_4>(x, thread_id);
+        scalar_t *y_vec = load_128_bits<scalar_t, fp32_4>(y, thread_id);
+        scalar_t output_buffer[num_elements_per_thread];
 
         for (uint32 i = 0; i < num_elements_per_thread; i += increment) {
             if constexpr (std::is_same_v<scalar_t, fp32>) {
