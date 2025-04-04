@@ -20,6 +20,7 @@ inline __device__ scalar_t _swiglu_forward(const scalar_t &gate, const scalar_t 
     fp32 _sigmoid = ck::sigmoid<fp32, fp32>(_gate);
 
     _sigmoid *= _gate * _up;
+
     return dtype::downcast(_sigmoid);
 }
 
@@ -29,7 +30,6 @@ __global__ void _swiglu_forward_cuda_kernel(const scalar_t *gate,
                                             scalar_t *output,
                                             const uint64 num_elements) {
     constexpr uint32 num_elements_per_thread = ck_mem::Packed128<scalar_t>::size;
-    constexpr uint32 increment = 4 / sizeof(scalar_t);
 
     const uint32 thread_id = blockIdx.x * blockDim.x + threadIdx.x;
     const uint32 num_vector_elements = num_elements / num_elements_per_thread;
@@ -40,15 +40,8 @@ __global__ void _swiglu_forward_cuda_kernel(const scalar_t *gate,
         const ck_mem::Packed128<const scalar_t> up_vec = ck_mem::Packed128Array<const scalar_t>(up)[thread_id];
         ck_mem::Packed128<scalar_t> output_buffer;
 
-        for (uint32 i = 0; i < num_elements_per_thread; i += increment) {
-            if constexpr (std::is_same_v<scalar_t, fp32>) {
-                output_buffer[i] = _swiglu_forward<scalar_t>(gate_vec[i], up_vec[i]);
-            } else {
-                output_buffer[i] = _swiglu_forward<scalar_t>(gate_vec[i], up_vec[i]);
-
-                const uint32 i1 = i + 1;
-                output_buffer[i1] = _swiglu_forward<scalar_t>(gate_vec[i1], up_vec[i1]);
-            }
+        for (uint32 i = 0; i < num_elements_per_thread; i++) {
+            output_buffer[i] = _swiglu_forward<scalar_t>(gate_vec[i], up_vec[i]);
         }
 
         ck_mem::Packed128Array<scalar_t> output_vec = ck_mem::Packed128Array<scalar_t>(output);
