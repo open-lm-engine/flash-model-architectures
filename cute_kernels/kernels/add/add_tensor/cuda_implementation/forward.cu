@@ -31,8 +31,8 @@ __global__ void _add_tensor_cuda_kernel(const scalar_t *x,
                                         const scalar_t *y,
                                         scalar_t *output,
                                         const uint64 num_elements) {
-    constexpr uint32 num_elements_per_thread = ck_mem::Packed128<scalar_t>::size;
-    constexpr uint32 increment = 4 / sizeof(scalar_t);
+    constexpr uint32 num_elements_per_thread = 16 / sizeof(scalar_t);
+    constexpr uint32 increment = num_elements_per_thread / 4;
 
     const uint32 thread_id = blockIdx.x * blockDim.x + threadIdx.x;
     const uint32 num_vector_elements = num_elements / num_elements_per_thread;
