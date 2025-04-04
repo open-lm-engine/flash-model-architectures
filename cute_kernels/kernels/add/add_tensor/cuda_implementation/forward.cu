@@ -21,9 +21,9 @@ inline __device__ T *load_128_bits(T *array, const uint64 &index) {
 
 template <typename T, typename vecT>
 inline __device__ T *store_128_bits(T *source, T *destination, const uint64 &index) {
-    vecT *source_vector_array = reinterpret_cast<vecT *>(source);
-    vecT destination_vector_array = reinterpret_cast<vecT>(destination);
-    source_vector_array[index] = destination_vector_array;
+    vecT *destination_vector_array = reinterpret_cast<vecT *>(destination);
+    vecT source_vector = reinterpret_cast<vecT>(source);
+    destination_vector_array[index] = source_vector;
 }
 
 template <typename scalar_t>
