@@ -64,15 +64,12 @@ def compile_cpp(name: str) -> None:
 
 
 def get_cpp_function(name: str) -> Callable:
-    if _DISABLE_JIT_COMPILE:
-        pass
-    else:
-        function = CPP_FUNCTIONS.get(name, None)
+    function = CPP_FUNCTIONS.get(name, None)
 
-        # if kernel is compiled, we return the torch op since its compatible with torch compile
-        if function is None:
-            compile_cpp(name)
-            function = get_cpp_function(name)
+    # if kernel is compiled, we return the torch op since its compatible with torch compile
+    if function is None:
+        compile_cpp(name)
+        function = get_cpp_function(name)
 
     return function
 
