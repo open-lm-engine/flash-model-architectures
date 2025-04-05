@@ -6,11 +6,14 @@ import torch
 import yaml
 from torch.utils.cpp_extension import load as load_cpp_extension
 
+from .utils import get_boolean_env_variable
 
-CPP_MODULE_PREFIX = "cute_cuda_kernels"
+
+CPP_MODULE_PREFIX = "cute_kernels"
 CPP_BUILD_DIRECTORY = "build"
 CPP_FUNCTIONS = {}
 CPP_REGISTRY_YAML = yaml.safe_load(open(os.path.join(os.path.dirname(__file__), "cpp_registry.yml"), "r"))
+_DISABLE_JIT_COMPILE = get_boolean_env_variable("DISABLE_JIT_COMPILE", False)
 
 
 @torch._dynamo.disable
@@ -61,12 +64,15 @@ def compile_cpp(name: str) -> None:
 
 
 def get_cpp_function(name: str) -> Callable:
-    function = CPP_FUNCTIONS.get(name, None)
+    if _DISABLE_JIT_COMPILE:
+        pass
+    else:
+        function = CPP_FUNCTIONS.get(name, None)
 
-    # if kernel is compiled, we return the torch op since its compatible with torch compile
-    if function is None:
-        compile_cpp(name)
-        function = get_cpp_function(name)
+        # if kernel is compiled, we return the torch op since its compatible with torch compile
+        if function is None:
+            compile_cpp(name)
+            function = get_cpp_function(name)
 
     return function
 
