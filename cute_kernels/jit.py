@@ -42,17 +42,18 @@ def compile_cpp(name: str) -> None:
         f"{CPP_MODULE_PREFIX}_{build_directory}",
         sources=source_map[index],
         with_cuda=True,
-        extra_include_paths=[
-            os.path.dirname(__file__),
-            os.path.dirname(os.path.dirname(__file__)) + "/cutlass/include",
-            os.path.dirname(os.path.dirname(__file__)) + "/cutlass/tools/util/include",
-        ],
         extra_cflags=[
             "-O3",
             "-Wall",
             "-shared",
             "-fPIC",
             "-fdiagnostics-color",
+        ],
+        extra_cuda_cflags=["-lineinfo"],
+        extra_include_paths=[
+            os.path.dirname(__file__),
+            os.path.dirname(os.path.dirname(__file__)) + "/cutlass/include",
+            os.path.dirname(os.path.dirname(__file__)) + "/cutlass/tools/util/include",
         ],
         build_directory=full_build_path,
         verbose=True,
