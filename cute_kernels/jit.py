@@ -7,7 +7,7 @@ import yaml
 from torch.utils.cpp_extension import load as load_cpp_extension
 
 
-CPP_MODULE_PREFIX = "cute_cuda_kernels"
+CPP_MODULE_PREFIX = "cute_kernels"
 CPP_BUILD_DIRECTORY = "build"
 CPP_FUNCTIONS = {}
 CPP_REGISTRY_YAML = yaml.safe_load(open(os.path.join(os.path.dirname(__file__), "cpp_registry.yml"), "r"))
@@ -39,17 +39,18 @@ def compile_cpp(name: str) -> None:
         f"{CPP_MODULE_PREFIX}_{build_directory}",
         sources=source_map[index],
         with_cuda=True,
-        extra_include_paths=[
-            os.path.dirname(__file__),
-            os.path.dirname(os.path.dirname(__file__)) + "/cutlass/include",
-            os.path.dirname(os.path.dirname(__file__)) + "/cutlass/tools/util/include",
-        ],
         extra_cflags=[
             "-O3",
             "-Wall",
             "-shared",
             "-fPIC",
             "-fdiagnostics-color",
+        ],
+        extra_cuda_cflags=["-lineinfo"],
+        extra_include_paths=[
+            os.path.dirname(__file__),
+            os.path.dirname(os.path.dirname(__file__)) + "/cutlass/include",
+            os.path.dirname(os.path.dirname(__file__)) + "/cutlass/tools/util/include",
         ],
         build_directory=full_build_path,
         verbose=True,
