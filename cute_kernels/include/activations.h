@@ -2,8 +2,8 @@
 
 #include "dtypes.h"
 
-#define MAX_EXP_FP32 88.3762626647949f
-#define MIN_EXP_FP32 -88.3762626647949f
+#define MAX_EXP_FP32 88.3762626647949
+#define MIN_EXP_FP32 -88.3762626647949
 
 namespace cute_kernels {
     template <typename input_T, typename output_T>
