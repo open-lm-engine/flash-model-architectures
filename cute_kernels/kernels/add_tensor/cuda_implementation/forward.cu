@@ -27,12 +27,17 @@ inline __device__ void store_128_bits(T *source, T *destination, const uint64 &i
     destination_vector_array[index] = source_vector;
 }
 
+template <typename T, typename vecT>
+inline __device__ uint32 get_num_elements_for_vector_load_stores() {
+    return sizeof(vecT) / sizeof(T);
+}
+
 template <typename scalar_t>
 __global__ void _add_tensor_cuda_kernel(const scalar_t *x,
                                         const scalar_t *y,
                                         scalar_t *output,
                                         const uint64 num_elements) {
-    constexpr uint32 num_elements_per_thread = 16 / sizeof(scalar_t);
+    constexpr uint32 num_elements_per_thread = get_num_elements_for_vector_load_stores<scalar_t, fp32_4>();
     constexpr uint32 increment = num_elements_per_thread / 4;
 
     const uint32 thread_id = blockIdx.x * blockDim.x + threadIdx.x;
