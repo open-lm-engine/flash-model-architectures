@@ -13,22 +13,20 @@ using uint64 = ck::uint64;
 
 template <typename scalar_t>
 __global__ void _add_scalar_cuda_kernel(const scalar_t *x, const fp32 y, scalar_t *output, const uint64 num_elements) {
-    constexpr uint32 num_elements_per_thread = ck_mem::Packed128<scalar_t>::size;
+    constexpr uint32 num_elements_per_thread = ck_mem::get_num_elements_for_vector_load_stores<scalar_t>();
 
     const uint32 thread_id = blockIdx.x * blockDim.x + threadIdx.x;
     const uint32 num_vector_elements = num_elements / num_elements_per_thread;
 
     if (thread_id < num_vector_elements) {
-        // packed array allows loading using vector loads, its just a syntactic sugar
-        const ck_mem::Packed128<const scalar_t> x_vec = ck_mem::Packed128Array<const scalar_t>(x)[thread_id];
-        ck_mem::Packed128<scalar_t> output_buffer;
+        const scalar_t *x_vec = ck_mem::load_128_bits<const scalar_t>(x, thread_id);
+        scalar_t output_buffer[num_elements_per_thread];
 
         for (uint32 i = 0; i < num_elements_per_thread; i++) {
             output_buffer[i] = x_vec[i] + y;
         }
 
-        ck_mem::Packed128Array<scalar_t> output_vec = ck_mem::Packed128Array<scalar_t>(output);
-        output_vec[thread_id] = output_buffer;
+        ck_mem::store_128_bits<scalar_t>(output_buffer, output, thread_id);
     }
 
     const uint32 index = num_vector_elements * num_elements_per_thread + thread_id;
