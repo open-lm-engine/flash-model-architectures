@@ -1,8 +1,8 @@
 import torch
 
-from ....cutotune import cutotune
-from ..parameters import get_cutotune_parameters
+from ...cutotune import cutotune
 from .cuda_implementation import add_scalar_cuda
+from .parameters import get_cutotune_parameters
 from .triton_implementation import add_scalar_triton
 
 
