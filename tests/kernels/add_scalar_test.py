@@ -5,7 +5,7 @@ from parameterized import parameterized
 
 from cute_kernels import add_scalar_cute, add_scalar_torch
 
-from ...test_commons import TestCommons
+from ..test_commons import TestCommons
 
 
 class AddTensorTest(TestCommons):
