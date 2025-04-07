@@ -30,11 +30,10 @@ inline __device__ void _initialize_global_output(uint32 *output,
                                                  const uint32 &total_threads) {
     const uint32 C4 = C >> 2;
 
-    ck_mem::Packed128Array<uint32> output_vec = ck_mem::Packed128Array<uint32>(output);
-    ck_mem::Packed128<uint32> init_value = ck_mem::Packed128<uint32>::constant(0);
+    uint32 init_value[] = {0, 0, 0, 0};
 
     for (uint32 i = global_thread_id; i < C4; i += total_threads) {
-        output_vec[i] = init_value;
+        ck_mem::store_128_bits<uint32>(init_value, output, i);
     }
 
     const uint32 index = (C4 << 2) + global_thread_id;
@@ -49,13 +48,11 @@ inline __device__ void _update_local_count(const scalar_t *x,
                                            const uint64 &num_elements,
                                            const uint32 &global_thread_id,
                                            const uint32 &total_threads) {
-    constexpr uint32 num_elements_per_thread = ck_mem::Packed128<const scalar_t>::size;
+    constexpr uint32 num_elements_per_thread = get_num_elements_for_vector_load_stores<scalar_t>();
     const uint32 num_vector_elements = num_elements / num_elements_per_thread;
 
-    const ck_mem::Packed128Array<const scalar_t> x_vec_array = ck_mem::Packed128Array<const scalar_t>(x);
-
     for (uint32 i = global_thread_id; i < num_vector_elements; i += total_threads) {
-        const ck_mem::Packed128<const scalar_t> x_vec = x_vec_array[i];
+        const scalar_t *x_vec = ck_mem::load_128_bits<const scalar_t>(x, i);
 
         for (uint32 j = 0; j < num_elements_per_thread; j++) {
             atomicAdd(&shared_memory[x_vec[j]], 1);
