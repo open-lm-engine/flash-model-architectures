@@ -48,7 +48,7 @@ inline __device__ void _update_local_count(const scalar_t *x,
                                            const uint64 &num_elements,
                                            const uint32 &global_thread_id,
                                            const uint32 &total_threads) {
-    constexpr uint32 num_elements_per_thread = get_num_elements_for_vector_load_stores<scalar_t>();
+    constexpr uint32 num_elements_per_thread = ck_mem::get_num_elements_for_vector_load_stores<scalar_t>();
     const uint32 num_vector_elements = num_elements / num_elements_per_thread;
 
     for (uint32 i = global_thread_id; i < num_vector_elements; i += total_threads) {
