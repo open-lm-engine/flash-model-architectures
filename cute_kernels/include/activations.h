@@ -1,6 +1,5 @@
 #pragma once
 
-#include "constants.cuh"
 #include "dtypes.h"
 
 #define MAX_EXP_FP32 88.3762626647949f
