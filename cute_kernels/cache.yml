@@ -1,4 +1,4 @@
-kernels/add/add_scalar/forward.py->_forward:
+kernels/add_scalar/forward.py->_forward:
   '''x.dtype = torch.bfloat16''':
     BLOCK_SIZE: 512
     kernel_backend: cuda
@@ -8,7 +8,7 @@ kernels/add/add_scalar/forward.py->_forward:
   '''x.dtype = torch.float32''':
     BLOCK_SIZE: 512
     kernel_backend: triton
-kernels/add/add_tensor/forward.py->_forward:
+kernels/add_tensor/forward.py->_forward:
   '''x.dtype = torch.bfloat16''':
     BLOCK_SIZE: 512
     kernel_backend: cuda

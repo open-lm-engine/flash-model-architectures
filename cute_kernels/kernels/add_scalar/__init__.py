@@ -1,25 +1,19 @@
 import torch
 
-from ....cutotune import CutoTuneParameter
-from ....utils import ensure_same_strides
+from ...cutotune import CutoTuneParameter
 from .forward import _forward
-from .torch_implementation import add_tensor_torch
+from .torch_implementation import add_scalar_torch
 
 
-class _AddTensor_Cute(torch.autograd.Function):
+class _AddScalar_Cute(torch.autograd.Function):
     @staticmethod
     def forward(
         ctx,
         x: torch.Tensor,
-        y: torch.Tensor,
+        y: float,
         kernel_backend: str,
         BLOCK_SIZE: int,
     ) -> torch.Tensor:
-        assert x.size() == y.size(), "tensors x and y should have same shape"
-        assert x.type() == y.type(), "tensors x and y should have same dtype"
-
-        x, y = ensure_same_strides(x, y)
-
         return _forward(
             x=x,
             y=y,
@@ -29,13 +23,13 @@ class _AddTensor_Cute(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
-        return output_grad, output_grad, *[None] * 3
+        return output_grad, *[None] * 4
 
 
-def add_tensor_cute(
+def add_scalar_cute(
     x: torch.Tensor,
     y: torch.Tensor,
     kernel_backend: str = CutoTuneParameter(),
     BLOCK_SIZE: int = CutoTuneParameter(),
 ) -> torch.Tensor:
-    return _AddTensor_Cute.apply(x, y, kernel_backend, BLOCK_SIZE)
+    return x if y == 0 else _AddScalar_Cute.apply(x, y, kernel_backend, BLOCK_SIZE)
