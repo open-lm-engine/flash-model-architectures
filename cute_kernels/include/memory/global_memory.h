@@ -16,8 +16,8 @@ namespace cute_kernels::memory {
         destination_vector_array[index] = source_vector;
     }
 
-    template <typename T, typename vecT>
+    template <typename T>
     constexpr inline __device__ uint32 get_num_elements_for_vector_load_stores() {
-        return sizeof(vecT) / sizeof(T);
+        return 16 / sizeof(T);
     }
 }  // namespace cute_kernels::memory
