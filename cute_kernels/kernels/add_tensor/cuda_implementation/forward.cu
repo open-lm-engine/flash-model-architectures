@@ -24,8 +24,8 @@ __global__ void _add_tensor_cuda_kernel(const scalar_t *x,
     const uint32 num_vector_elements = num_elements / num_elements_per_thread;
 
     if (thread_id < num_vector_elements) {
-        const scalar_t *x_vec = ck_mem::load_128_bits<const scalar_t, const fp32_4>(x, thread_id);
-        const scalar_t *y_vec = ck_mem::load_128_bits<const scalar_t, const fp32_4>(y, thread_id);
+        const scalar_t *x_vec = ck_mem::load_128_bits<const scalar_t>(x, thread_id);
+        const scalar_t *y_vec = ck_mem::load_128_bits<const scalar_t>(y, thread_id);
         scalar_t output_buffer[num_elements_per_thread];
 
         for (uint32 i = 0; i < num_elements_per_thread; i += increment) {
@@ -45,7 +45,7 @@ __global__ void _add_tensor_cuda_kernel(const scalar_t *x,
             }
         }
 
-        ck_mem::store_128_bits<scalar_t, fp32_4>(output_buffer, output, thread_id);
+        ck_mem::store_128_bits<scalar_t>(output_buffer, output, thread_id);
     }
 
     const uint32 index = num_vector_elements * num_elements_per_thread + thread_id;
