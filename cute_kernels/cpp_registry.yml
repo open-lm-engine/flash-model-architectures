@@ -1,15 +1,15 @@
 - functions:
     - add_tensor_cuda
   sources:
-    - kernels/add/add_tensor/cuda_implementation/ops.cpp
-    - kernels/add/add_tensor/cuda_implementation/forward.cu
+    - kernels/add_tensor/cuda_implementation/ops.cpp
+    - kernels/add_tensor/cuda_implementation/forward.cu
   build_path: add_tensor
 
 - functions:
     - add_scalar_cuda
   sources:
-    - kernels/add/add_scalar/cuda_implementation/ops.cpp
-    - kernels/add/add_scalar/cuda_implementation/forward.cu
+    - kernels/add_scalar/cuda_implementation/ops.cpp
+    - kernels/add_scalar/cuda_implementation/forward.cu
   build_path: add_scalar
 
 - functions:

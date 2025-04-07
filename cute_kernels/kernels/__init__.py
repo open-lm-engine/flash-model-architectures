@@ -1,4 +1,5 @@
-from .add import add_scalar_cute, add_scalar_torch, add_tensor_cute, add_tensor_torch
+from .add_scalar import add_scalar_cute, add_scalar_torch
+from .add_tensor import add_tensor_cute, add_tensor_torch
 from .continuous_count import continuous_count_cute, continuous_count_torch
 from .cross_entropy import cross_entropy_cute, cross_entropy_torch
 from .embedding import embedding_cute, embedding_torch
