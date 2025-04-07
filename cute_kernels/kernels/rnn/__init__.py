@@ -1,6 +1,7 @@
 import torch
 import torch.nn.functional as F
 
+from ...cutotune import CutoTuneParameter
 from .triton_implementation import rnn_forward_triton
 
 
@@ -33,3 +34,15 @@ class _RNN_Cute(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor]: ...
+
+
+def rnn_cute(
+    input: torch.Tensor,
+    input_weight: torch.Tensor,
+    state_weight: torch.Tensor,
+    output_weight: torch.Tensor,
+    input_state: torch.Tensor | None = None,
+    BLOCK_SIZE_B: int = CutoTuneParameter(),
+    BLOCK_SIZE_H: int = CutoTuneParameter(),
+) -> torch.Tensor:
+    return _RNN_Cute.apply(input, input_weight, state_weight, output_weight, input_state, BLOCK_SIZE_B, BLOCK_SIZE_H)
