@@ -11,12 +11,12 @@ using fp32 = ck::fp32;
 using uint32 = ck::uint32;
 using uint64 = ck::uint64;
 
-template <typename scalar_t, typename storage_t>
+template <typename scalar_t>
 inline __device__ void _swiglu_backward(const scalar_t &gate,
                                         const scalar_t &up,
                                         const scalar_t &output_grad,
-                                        storage_t &gate_grad_buffer,
-                                        storage_t &up_grad_buffer,
+                                        scalar_t *gate_grad_buffer,
+                                        scalar_t *up_grad_buffer,
                                         const uint32 &index) {
     using dtype = ck::DType<scalar_t>;
 
@@ -50,17 +50,15 @@ __global__ void _swiglu_backward_cuda_kernel(const scalar_t *gate,
     const uint32 num_vector_elements = num_elements / num_elements_per_thread;
 
     if (thread_id < num_vector_elements) {
-        // packed array allows loading using vector loads, its just a syntactic sugar
-        const ck_mem::Packed128<const scalar_t> gate_vec = ck_mem::Packed128Array<const scalar_t>(gate)[thread_id];
-        const ck_mem::Packed128<const scalar_t> up_vec = ck_mem::Packed128Array<const scalar_t>(up)[thread_id];
-        const ck_mem::Packed128<const scalar_t> output_grad_vec =
-            ck_mem::Packed128Array<const scalar_t>(output_grad)[thread_id];
+        const scalar_t *gate_vec = ck_mem::load_128_bits<const scalar_t>(gate, thread_id);
+        const scalar_t *up_vec = ck_mem::load_128_bits<const scalar_t>(up, thread_id);
+        const scalar_t *output_grad_vec = ck_mem::load_128_bits<const scalar_t>(output_grad, thread_id);
 
-        ck_mem::Packed128<scalar_t> gate_grad_buffer;
-        ck_mem::Packed128<scalar_t> up_grad_buffer;
+        scalar_t gate_grad_buffer[num_elements_per_thread];
+        scalar_t up_grad_buffer[num_elements_per_thread];
 
         for (uint32 i = 0; i < num_elements_per_thread; i++) {
-            _swiglu_backward<scalar_t, ck_mem::Packed128<scalar_t>>(
+            _swiglu_backward<scalar_t>(
                 gate_vec[i], up_vec[i], output_grad_vec[i], gate_grad_buffer, up_grad_buffer, i);
         }
 
@@ -73,7 +71,7 @@ __global__ void _swiglu_backward_cuda_kernel(const scalar_t *gate,
 
     const uint32 index = num_vector_elements * num_elements_per_thread + thread_id;
     if (index < num_elements) {
-        _swiglu_backward<scalar_t, scalar_t *>(gate[index], up[index], output_grad[index], gate_grad, up_grad, index);
+        _swiglu_backward<scalar_t>(gate[index], up[index], output_grad[index], gate_grad, up_grad, index);
     }
 }
 
