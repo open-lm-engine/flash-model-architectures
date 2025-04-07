@@ -44,7 +44,7 @@ __global__ void _swiglu_backward_cuda_kernel(const scalar_t *gate,
                                              scalar_t *gate_grad,
                                              scalar_t *up_grad,
                                              const uint64 num_elements) {
-    constexpr uint32 num_elements_per_thread = ck_mem::Packed128<scalar_t>::size;
+    constexpr uint32 num_elements_per_thread = ck_mem::get_num_elements_for_vector_load_stores<scalar_t>();
 
     const uint32 thread_id = blockIdx.x * blockDim.x + threadIdx.x;
     const uint32 num_vector_elements = num_elements / num_elements_per_thread;
@@ -62,11 +62,8 @@ __global__ void _swiglu_backward_cuda_kernel(const scalar_t *gate,
                 gate_vec[i], up_vec[i], output_grad_vec[i], gate_grad_buffer, up_grad_buffer, i);
         }
 
-        ck_mem::Packed128Array<scalar_t> gate_grad_vec = ck_mem::Packed128Array<scalar_t>(gate_grad);
-        gate_grad_vec[thread_id] = gate_grad_buffer;
-
-        ck_mem::Packed128Array<scalar_t> up_grad_vec = ck_mem::Packed128Array<scalar_t>(up_grad);
-        up_grad_vec[thread_id] = up_grad_buffer;
+        ck_mem::store_128_bits<scalar_t>(gate_grad_buffer, gate_grad, thread_id);
+        ck_mem::store_128_bits<scalar_t>(up_grad_buffer, up_grad, thread_id);
     }
 
     const uint32 index = num_vector_elements * num_elements_per_thread + thread_id;
