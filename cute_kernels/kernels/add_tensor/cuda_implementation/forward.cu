@@ -28,7 +28,7 @@ inline __device__ void store_128_bits(T *source, T *destination, const uint64 &i
 }
 
 template <typename T, typename vecT>
-inline __device__ uint32 get_num_elements_for_vector_load_stores() {
+constexpr inline __device__ uint32 get_num_elements_for_vector_load_stores() {
     return sizeof(vecT) / sizeof(T);
 }
 
