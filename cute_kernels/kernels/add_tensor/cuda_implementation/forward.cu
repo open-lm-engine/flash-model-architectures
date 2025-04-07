@@ -16,7 +16,8 @@ template <typename T, typename vecT>
 inline __device__ T *load_128_bits(T *array, const uint64 &index) {
     vecT *vector_array = reinterpret_cast<vecT *>(array);
     vecT vector_element = vector_array[index];
-    return reinterpret_cast<T *>(vector_element);
+    T *output = reinterpret_cast<T *>(&vector_element);
+    return output;
 }
 
 template <typename T, typename vecT>
