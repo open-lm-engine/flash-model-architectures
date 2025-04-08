@@ -55,9 +55,10 @@ class RNNCute(nn.Module):
         self.output_size = output_size
         self.num_heads = num_heads
 
-        self.input_projection = nn.Linear(self.input_size, self.num_heads * self.state_size, bias=False)
         self.state_weight = nn.Parameter(torch.empty(self.num_heads, self.state_size, self.state_size))
         self.state_bias = nn.Parameter(torch.empty(self.num_heads, self.state_size)) if add_bias else None
+
+        self.input_projection = nn.Linear(self.input_size, self.num_heads * self.state_size, bias=False)
         self.output_projection = nn.Linear(self.num_heads * self.state_size, self.output_size, bias=False)
 
         self.reset_parameters()
