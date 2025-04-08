@@ -58,7 +58,7 @@ class RNNTorch(nn.Module):
 
     def forward(self, input: torch.Tensor, input_state: torch.Tensor | None = None) -> torch.Tensor:
         input = self.input_projection(input)
-        input = rnn_torch(input=input, weight=self.state_weight, input_state=input_state)
+        input, _ = rnn_torch(input=input, weight=self.state_weight, input_state=input_state, return_all_states=True)
         input = self.output_projection(input)
         return input
 
