@@ -32,7 +32,7 @@ def rnn_torch(input: torch.Tensor, weight: torch.Tensor, input_state: torch.Tens
     return output
 
 
-class RNNCute(nn.Module):
+class RNNTorch(nn.Module):
     def __init__(
         self, input_size: int, state_size: int, output_size: int, num_heads: int, add_bias: bool = True
     ) -> None:
@@ -52,3 +52,7 @@ class RNNCute(nn.Module):
         x = rnn_torch(input=x, weight=self.state_weight, state_size=self.state_size, input_state=input_state)
         x = self.output_projection(x)
         return x
+
+    @torch.no_grad()
+    def reset_parameters(self) -> None:
+        nn.init.normal_(self.state_weight)
