@@ -55,13 +55,15 @@ class RNNCute(nn.Module):
         self.output_size = output_size
         self.num_heads = num_heads
 
-        self.input_weight = nn.Parameter(torch.empty(self.num_heads * self.state_size, self.input_size))
+        self.input_projection = nn.Linear(self.input_size, self.num_heads * self.state_size, bias=False)
         self.state_weight = nn.Parameter(torch.empty(self.num_heads, self.state_size, self.state_size))
         self.state_bias = nn.Parameter(torch.empty(self.num_heads, self.state_size)) if add_bias else None
-        self.output_weight = nn.Parameter(torch.empty(self.output_size, self.num_heads * self.state_size))
+        self.output_projection = nn.Linear(self.num_heads * self.state_size, self.output_size, bias=False)
+
+        self.reset_parameters()
 
     def forward(self, x: torch.Tensor, input_state: torch.Tensor | None = None) -> torch.Tensor:
-        x = F.linear(x, self.input_weight)
+        x = self.input_projection(x)
         x = rnn_cute(input=x, state_weight=self.state_weight, state_bias=self.state_bias, input_state=input_state)
-        x = F.linear(x, self.output_weight)
+        x = self.output_projection(x)
         return x
