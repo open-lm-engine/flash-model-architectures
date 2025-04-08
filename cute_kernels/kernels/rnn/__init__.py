@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from ...cutotune import CutoTuneParameter
+from .torch_implementation import RNNTorch, rnn_torch
 from .triton_implementation import rnn_forward_triton
 
 
