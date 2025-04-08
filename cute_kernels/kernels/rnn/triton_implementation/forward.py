@@ -4,15 +4,11 @@ import triton.language as tl
 
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide
+from ....triton_math import tanh
 from ....utils import cute_op
 
 
 _KERNEL_NAME = "rnn_forward_triton"
-
-
-@triton.jit
-def _tanh(x):
-    return 2 * tl.sigmoid(x) - 1
 
 
 @triton.jit
@@ -77,7 +73,7 @@ def _rnn_forward_triton_kernel(
                 bias = tl.load(bias_ptrs, mask=mask_i[None, :])
                 starting_state += bias
 
-            starting_state = _tanh(starting_state)
+            starting_state = tanh(starting_state)
 
         output_ptrs = output_ptr + indices_b[:, None] * S * I + s * I + indices_i[None, :]
         tl.store(output_ptrs, starting_state[:, None, :], mask=mask_bi[:, None, :])
