@@ -1,6 +1,4 @@
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 
 from ...cutotune import CutoTuneParameter
 from .torch_implementation import RNNTorch, rnn_torch
@@ -13,22 +11,21 @@ class _RNN_Cute(torch.autograd.Function):
         ctx,
         input: torch.Tensor,
         weight: torch.Tensor,
-        bias: torch.Tensor | None,
         input_state: torch.Tensor | None,
         BLOCK_SIZE_B: int,
         BLOCK_SIZE_H: int,
+        BLOCK_SIZE_I: int,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         output = torch.empty_like(input)
 
         rnn_forward_triton(
             input=input,
             weight=weight,
-            bias=bias,
             output=output,
             input_state=input_state,
-            output_state=output_state,
             BLOCK_SIZE_B=BLOCK_SIZE_B,
             BLOCK_SIZE_H=BLOCK_SIZE_H,
+            BLOCK_SIZE_I=BLOCK_SIZE_I,
         )
 
         return y
