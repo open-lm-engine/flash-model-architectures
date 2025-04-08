@@ -43,10 +43,11 @@ def _rnn_forward_triton_kernel(
 
     mask_b = indices_b < B
     mask_i = indices_i < I
+    mask_bi = mask_b[:, None] & mask_i[None, :]
 
     if has_input_state:
         input_state_ptrs = input_state_ptr + indices_b[:, None] * I + indices_i[None, :]
-        input_state = tl.load(input_state_ptrs, mask=mask_b[:, None] & mask_i[None, :])
+        input_state = tl.load(input_state_ptrs, mask=mask_bi)
     else:
         input_state = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_I), dtype=tl.float32)
 
@@ -79,7 +80,7 @@ def _rnn_forward_triton_kernel(
             input_state = _tanh(input_state)
 
         y_ptrs = y_ptr + indices_b[:, None] * S * I + s * I + indices_i[None, :]
-        tl.store(y_ptrs, input_state[:, None, :], mask=mask_b[:, None, None] & mask_i[None, None, :])
+        tl.store(y_ptrs, input_state[:, None, :], mask=mask_bi[:, None, :])
 
 
 @cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"y", "output_state"})
