@@ -13,9 +13,10 @@ _KERNEL_NAME = "rnn_forward_triton"
 @triton.jit
 def _rnn_forward_triton_kernel(
     x_ptr,
-    W_ptr,
+    w_ptr,
     bias_ptr,
     y_ptr,
+    has_input_state: tl.constexpr,
     input_state_ptr,
     B,
     S,
@@ -37,6 +38,10 @@ def _rnn_forward_triton_kernel(
     mask_b = indices_b < B
     mask_i = indices_i < I
 
+    if has_input_state:
+        input_state_ptrs = input_state_ptr + indices_b[:, None] * I + indices_i[None, :]
+        input_state = tl.load(input_state_ptrs, mask=mask_b[:, None] & mask_i[None, :])
+
     for s in range(S):
         accumulator = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_I), dtype=tl.float32)
 
@@ -47,9 +52,9 @@ def _rnn_forward_triton_kernel(
             indices = pid_n * I * H + indices_i[:, None] * H + indices_h[None, :]
             mask = mask_i[:, None] & mask_h[None, :]
 
-            W_ptrs = W_ptr + indices
-            # W -> (BLOCK_SIZE_I, BLOCK_SIZE_H)
-            W = tl.load(W_ptrs, mask=mask)
+            w_ptrs = w_ptr + indices
+            # w -> (BLOCK_SIZE_I, BLOCK_SIZE_H)
+            w = tl.load(w_ptrs, mask=mask)
 
             indices = indices_b[:, None] * S * N * H + s * N * H + pid_i * H + indices_h[None, :]
             mask = mask_b[:, None] & mask_h[None, :]
@@ -58,7 +63,7 @@ def _rnn_forward_triton_kernel(
             # x -> (BLOCK_SIZE_B, BLOCK_SIZE_H)
             x = tl.load(x_ptrs, mask=mask)
 
-            accumulator += tl.dot(x, W.T, allow_tf32=allow_tf32, out_dtype=tl.float32)
+            accumulator = tl.dot(x, w.T, accumulator, allow_tf32=allow_tf32, out_dtype=tl.float32)
 
 
 @cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"y", "output_state"})
