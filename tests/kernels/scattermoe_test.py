@@ -1,5 +1,4 @@
 import torch
-import torch.nn as nn
 from parameterized import parameterized
 
 from cute_kernels import MoE_Torch, MoE_Triton, set_seed

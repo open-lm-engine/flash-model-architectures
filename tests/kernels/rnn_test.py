@@ -1,8 +1,7 @@
 import torch
-import torch.nn as nn
 from parameterized import parameterized
 
-from cute_kernels import MoE_Torch, MoE_Triton, set_seed
+from cute_kernels import RNNCute, RNNTorch, set_seed
 
 from ..test_commons import TestCommons
 
@@ -15,82 +14,46 @@ class ScatterMoETest(TestCommons):
         TestCommons.make_args_matrix(
             [torch.device("cuda")],
             TestCommons.get_dtypes(),
-            [2, 4, 6, 8],  # num_experts
-            [2, 4],  # num_experts_per_tok
-            [2048],  # hidden_size
-            [8192],  # intermediate_size
-            [True, False],  # is_glu
+            [2048],  # input_size
+            [8192],  # state_size
+            [2560],  # output_size
+            [4],  # num_heads
+            [True, False],  # is_compiling
         )
     )
     def test_scattermoe_triton(
         self,
         device: torch.device,
         dtype: torch.dtype,
-        num_experts: int,
-        num_experts_per_tok: int,
-        hidden_size: int,
-        intermediate_size: int,
-        is_glu: bool,
-        is_compiling: bool,
-    ) -> None:
-        self._test_scattermoe(
-            device=device,
-            dtype=dtype,
-            num_experts=num_experts,
-            num_experts_per_tok=num_experts_per_tok,
-            hidden_size=hidden_size,
-            intermediate_size=intermediate_size,
-            is_glu=is_glu,
-            module_class=MoE_Triton,
-            is_compiling=is_compiling,
-        )
-
-    def _test_scattermoe(
-        self,
-        device: torch.device,
-        dtype: torch.dtype,
-        num_experts: int,
-        num_experts_per_tok: int,
-        hidden_size: int,
-        intermediate_size: int,
-        is_glu: bool,
-        module_class: type[nn.Module],
+        input_size: int,
+        state_size: int,
+        output_size: int,
+        num_heads: int,
         is_compiling: bool,
     ) -> None:
         set_seed(_SEED)
 
-        if num_experts_per_tok > num_experts:
-            self.skipTest(
-                f"skipping test since number of experts per token ({num_experts_per_tok}) is more than number of experts ({num_experts})"
-            )
-
         with torch.device(device):
-            moe_custom = module_class(
-                num_experts=num_experts,
-                num_experts_per_tok=num_experts_per_tok,
-                hidden_size=hidden_size,
-                intermediate_size=intermediate_size,
-                activation_function=self.get_activation_function(is_glu=is_glu),
-                is_glu=is_glu,
+            rnn_cute = RNNCute(
+                input_size=input_size,
+                state_size=state_size,
+                output_size=output_size,
+                num_heads=num_heads,
                 add_bias=False,
-                std=0.02,
             ).to(dtype=dtype)
 
-            moe_torch = MoE_Torch(
-                num_experts=num_experts,
-                num_experts_per_tok=num_experts_per_tok,
-                hidden_size=hidden_size,
-                intermediate_size=intermediate_size,
-                activation_function=self.get_activation_function(is_glu=is_glu),
-                is_glu=is_glu,
+            rnn_torch = RNNTorch(
+                input_size=input_size,
+                state_size=state_size,
+                output_size=output_size,
+                num_heads=num_heads,
                 add_bias=False,
-                std=0.02,
             ).to(dtype=dtype)
 
         if is_compiling:
-            moe_custom = torch.compile(moe_custom, fullgraph=True)
+            rnn_cute = torch.compile(rnn_cute, fullgraph=True)
 
-        state_dict = moe_custom.state_dict()
+        state_dict = rnn_cute.state_dict()
 
         if is_compiling:
             new_state_dict = {}
@@ -101,13 +64,13 @@ class ScatterMoETest(TestCommons):
             state_dict = new_state_dict
             del new_state_dict
 
-        moe_torch.load_state_dict(state_dict)
+        rnn_torch.load_state_dict(state_dict)
 
-        x_torch = torch.randn(hidden_size, device=device, dtype=dtype, requires_grad=True)
+        x_torch = torch.randn(input_size, device=device, dtype=dtype, requires_grad=True)
         x_custom = x_torch.clone().detach().requires_grad_()
 
-        y_torch = moe_torch(x_torch)[0]
-        y_custom = moe_custom(x_custom)[0]
+        y_torch = rnn_torch(x_torch)[0]
+        y_custom = rnn_cute(x_custom)[0]
 
         self.assert_equal_tensors(
             y_custom,
