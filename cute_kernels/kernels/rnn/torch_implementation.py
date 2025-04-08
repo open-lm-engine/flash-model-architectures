@@ -10,7 +10,9 @@ def rnn_torch(input: torch.Tensor, weight: torch.Tensor, input_state: torch.Tens
     output = torch.empty_like(input)
 
     if input_state is None:
-        input_state = torch.zeros(B, N, H, device=input.device, dtype=input.dtype)
+        input_state = torch.zeros(B, N, H, device=input.device, dtype=torch.float32)
+    else:
+        input_state = input_state.float()
 
     # input_state -> (B, N, H)
     input_state = input_state.unsqueeze(-2)
@@ -24,7 +26,9 @@ def rnn_torch(input: torch.Tensor, weight: torch.Tensor, input_state: torch.Tens
 
     for s in range(S):
         # (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
+        input_state = input_state.type_as(weight)
         input_state = input_state @ weight + input[:, s, ...]
+        input_state = input_state.float()
         input_state = F.tanh(input_state)
 
         output[:, s, ...] = input_state.squeeze(-2)
