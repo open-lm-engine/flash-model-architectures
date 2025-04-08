@@ -48,23 +48,7 @@ def rnn_cute(
     return _RNN_Cute.apply(input, weight, bias, input_state, BLOCK_SIZE_B, BLOCK_SIZE_H)
 
 
-class RNNCute(nn.Module):
-    def __init__(
-        self, input_size: int, state_size: int, output_size: int, num_heads: int, add_bias: bool = True
-    ) -> None:
-        self.input_size = input_size
-        self.state_size = state_size
-        self.output_size = output_size
-        self.num_heads = num_heads
-
-        self.state_weight = nn.Parameter(torch.empty(self.num_heads, self.state_size, self.state_size))
-        self.state_bias = nn.Parameter(torch.empty(self.num_heads, self.state_size)) if add_bias else None
-
-        self.input_projection = nn.Linear(self.input_size, self.num_heads * self.state_size, bias=False)
-        self.output_projection = nn.Linear(self.num_heads * self.state_size, self.output_size, bias=False)
-
-        self.reset_parameters()
-
+class RNNCute(RNNTorch):
     def forward(self, x: torch.Tensor, input_state: torch.Tensor | None = None) -> torch.Tensor:
         x = self.input_projection(x)
         x = rnn_cute(input=x, state_weight=self.state_weight, state_bias=self.state_bias, input_state=input_state)
