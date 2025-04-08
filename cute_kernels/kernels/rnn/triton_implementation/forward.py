@@ -17,13 +17,13 @@ def _tanh(x):
 
 @triton.jit
 def _rnn_forward_triton_kernel(
-    x_ptr,
+    input_ptr,
     weight_ptr,
     has_bias: tl.constexpr,
     bias_ptr,
-    y_ptr,
+    output_ptr,
     has_input_state: tl.constexpr,
-    input_state_ptr,
+    starting_state_ptr,
     B,
     S,
     N,
@@ -46,10 +46,10 @@ def _rnn_forward_triton_kernel(
     mask_bi = mask_b[:, None] & mask_i[None, :]
 
     if has_input_state:
-        input_state_ptrs = input_state_ptr + indices_b[:, None] * I + indices_i[None, :]
-        input_state = tl.load(input_state_ptrs, mask=mask_bi)
+        starting_state_ptrs = starting_state_ptr + indices_b[:, None] * I + indices_i[None, :]
+        starting_state = tl.load(starting_state_ptrs, mask=mask_bi)
     else:
-        input_state = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_I), dtype=tl.float32)
+        starting_state = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_I), dtype=tl.float32)
 
     for s in range(S):
         for h in range(tl.cdiv(H, BLOCK_SIZE_H)):
@@ -60,51 +60,52 @@ def _rnn_forward_triton_kernel(
             mask = mask_i[:, None] & mask_h[None, :]
 
             weight_ptrs = weight_ptr + indices
-            # w -> (BLOCK_SIZE_I, BLOCK_SIZE_H)
+            # weight -> (BLOCK_SIZE_I, BLOCK_SIZE_H)
             weight = tl.load(weight_ptrs, mask=mask)
 
             indices = indices_b[:, None] * S * N * H + s * N * H + pid_i * H + indices_h[None, :]
             mask = mask_b[:, None] & mask_h[None, :]
 
-            x_ptrs = x_ptr + indices
-            # x -> (BLOCK_SIZE_B, BLOCK_SIZE_H)
-            x = tl.load(x_ptrs, mask=mask)
+            input_ptrs = input_ptr + indices
+            # input -> (BLOCK_SIZE_B, BLOCK_SIZE_H)
+            input = tl.load(input_ptrs, mask=mask)
 
-            input_state = tl.dot(x, weight.T, input_state, allow_tf32=allow_tf32, out_dtype=tl.float32)
+            starting_state = tl.dot(input, weight.T, starting_state, allow_tf32=allow_tf32, out_dtype=tl.float32)
 
             if has_bias:
                 bias_ptrs = bias_ptr + pid_n * I + indices_i[:, None]
                 bias = tl.load(bias_ptrs, mask=mask_i[None, :])
-                input_state += bias
+                starting_state += bias
 
-            input_state = _tanh(input_state)
+            starting_state = _tanh(starting_state)
 
-        y_ptrs = y_ptr + indices_b[:, None] * S * I + s * I + indices_i[None, :]
-        tl.store(y_ptrs, input_state[:, None, :], mask=mask_bi[:, None, :])
+        output_ptrs = output_ptr + indices_b[:, None] * S * I + s * I + indices_i[None, :]
+        tl.store(output_ptrs, starting_state[:, None, :], mask=mask_bi[:, None, :])
 
 
 @cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"y", "output_state"})
 def rnn_forward_triton(
-    x: torch.Tensor,
+    input: torch.Tensor,
     weight: torch.Tensor,
     bias: torch.Tensor | None,
-    y: torch.Tensor,
-    input_state: torch.Tensor | None,
-    output_state: torch.Tensor,
+    output: torch.Tensor,
+    starting_state: torch.Tensor | None,
+    state_size: int,
     BLOCK_SIZE_B: int,
-    BLOCK_SIZE_N: int,
+    BLOCK_SIZE_H: int,
+    BLOCK_SIZE_I: int,
 ) -> None:
-    B, S, N, H = x.size()
+    B, S, N, H = input.size()
 
-    with torch.device(x.device):
+    with torch.device(input.device):
         _rnn_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), N, ceil_divide(state_size, BLOCK_SIZE_I)](
-            x_ptr=x,
+            input_ptr=input,
             weight_ptr=weight,
             has_bias=bias is not None,
             bias_ptr=bias,
-            y_ptr=y,
-            has_input_state=input_state is not None,
-            input_state_ptr=input_state,
+            output_ptr=output,
+            has_input_state=starting_state is not None,
+            input_state_ptr=starting_state,
             B=B,
             S=S,
             N=N,

@@ -10,21 +10,22 @@ class _RNN_Cute(torch.autograd.Function):
     @staticmethod
     def forward(
         ctx,
-        x: torch.Tensor,
+        input: torch.Tensor,
         weight: torch.Tensor,
         bias: torch.Tensor | None,
         input_state: torch.Tensor | None,
         BLOCK_SIZE_B: int,
         BLOCK_SIZE_H: int,
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        y = torch.empty_like(x)
+        output = torch.empty_like(input)
 
         rnn_forward_triton(
-            x=x,
+            input=input,
             weight=weight,
             bias=bias,
-            y=y,
+            output=output,
             input_state=input_state,
+            output_state=output_state,
             BLOCK_SIZE_B=BLOCK_SIZE_B,
             BLOCK_SIZE_H=BLOCK_SIZE_H,
         )
