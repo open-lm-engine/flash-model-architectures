@@ -2,8 +2,8 @@ import triton
 import triton.language as tl
 
 
-MAX_EXP_FP32 = 88.3762626647949
-MIN_EXP_FP32 = -88.3762626647949
+MAX_EXP_FP32: tl.constexpr = 88.3762626647949
+MIN_EXP_FP32: tl.constexpr = -88.3762626647949
 
 
 @triton.jit
