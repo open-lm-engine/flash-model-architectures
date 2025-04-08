@@ -3,7 +3,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-@torch.compile
 def rnn_torch(
     input: torch.Tensor, weight: torch.Tensor, input_state: torch.Tensor | None = None, return_all_states: bool = True
 ) -> torch.Tensor:
