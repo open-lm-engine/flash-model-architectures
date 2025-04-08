@@ -4,6 +4,7 @@ import triton.language as tl
 
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide
+from ....triton_math import sigmoid
 from ....utils import cute_op, get_num_elements_and_hidden_size
 
 
@@ -32,7 +33,7 @@ def _swiglu_unchunked_forward_triton_kernel(
     gate_ptrs = up_ptrs + (H >> 1)
     gate = tl.load(gate_ptrs, mask=mask_bh).to(tl.float32)
 
-    output = up * gate * tl.sigmoid(gate)
+    output = up * gate * sigmoid(gate)
 
     output_ptrs = output_ptr + indices_b[:, None] * half_H + indices_h[None, :]
     tl.store(output_ptrs, output, mask=mask_bh)
