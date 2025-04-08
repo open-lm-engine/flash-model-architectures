@@ -4,6 +4,7 @@ import triton.language as tl
 
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide
+from ....triton_math import sigmoid
 from ....utils import cute_op
 
 
@@ -20,7 +21,7 @@ def _swiglu_forward_triton_kernel(gate_ptr, up_ptr, output_ptr, num_elements, BL
     gate = tl.load(gate_ptr + indices, mask=mask).to(tl.float32)
     up = tl.load(up_ptr + indices, mask=mask)
 
-    output = up * gate * tl.sigmoid(gate)
+    output = up * gate * sigmoid(gate)
 
     tl.store(output_ptr + indices, output, mask=mask)
 
