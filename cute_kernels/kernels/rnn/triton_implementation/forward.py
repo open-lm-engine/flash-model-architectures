@@ -63,7 +63,7 @@ def _rnn_forward_triton_kernel(
             # input -> (BLOCK_SIZE_B, BLOCK_SIZE_H)
             input = tl.load(input_ptrs, mask=mask)
 
-            input_state = tl.dot(input, weight.T, input_state, allow_tf32=allow_tf32, out_dtype=tl.float32)
+            input_state = tl.dot(input_state, weight.T, input, allow_tf32=allow_tf32, out_dtype=tl.float32)
             input_state = tanh(input_state)
 
         output_ptrs = output_ptr + indices_b[:, None] * S * H + s * H + indices_i[None, :]
