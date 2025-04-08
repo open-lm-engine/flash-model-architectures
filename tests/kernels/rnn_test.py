@@ -67,13 +67,13 @@ class ScatterMoETest(TestCommons):
         rnn_torch.load_state_dict(state_dict)
 
         x_torch = torch.randn(input_size, device=device, dtype=dtype, requires_grad=True)
-        x_custom = x_torch.clone().detach().requires_grad_()
+        x_cute = x_torch.clone().detach().requires_grad_()
 
         y_torch = rnn_torch(x_torch)[0]
-        y_custom = rnn_cute(x_custom)[0]
+        y_cute = rnn_cute(x_cute)[0]
 
         self.assert_equal_tensors(
-            y_custom,
+            y_cute,
             y_torch,
             False,
             atol_float16=4e-3,
@@ -85,10 +85,10 @@ class ScatterMoETest(TestCommons):
         )
 
         y_torch.sum().backward()
-        y_custom.sum().backward()
+        y_cute.sum().backward()
 
         self.assert_equal_tensors(
-            x_custom.grad,
+            x_cute.grad,
             x_torch.grad,
             False,
             atol_float16=4e-3,
