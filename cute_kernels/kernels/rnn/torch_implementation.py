@@ -51,11 +51,11 @@ class RNNTorch(nn.Module):
 
         self.reset_parameters()
 
-    def forward(self, x: torch.Tensor, input_state: torch.Tensor | None = None) -> torch.Tensor:
-        x = self.input_projection(x)
-        x = rnn_torch(input=x, weight=self.state_weight, state_size=self.state_size, input_state=input_state)
-        x = self.output_projection(x)
-        return x
+    def forward(self, input: torch.Tensor, input_state: torch.Tensor | None = None) -> torch.Tensor:
+        input = self.input_projection(input)
+        input = rnn_torch(input=input, weight=self.state_weight, state_size=self.state_size, input_state=input_state)
+        input = self.output_projection(input)
+        return input
 
     @torch.no_grad()
     def reset_parameters(self) -> None:
