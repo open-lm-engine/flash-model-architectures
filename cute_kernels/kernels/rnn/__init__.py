@@ -11,7 +11,8 @@ class _RNN_Cute(torch.autograd.Function):
     def forward(
         ctx,
         x: torch.Tensor,
-        state_weight: torch.Tensor,
+        weight: torch.Tensor,
+        bias: torch.Tensor | None,
         input_state: torch.Tensor | None,
         BLOCK_SIZE_B: int,
         BLOCK_SIZE_H: int,
@@ -20,7 +21,8 @@ class _RNN_Cute(torch.autograd.Function):
 
         rnn_forward_triton(
             x=x,
-            weight=state_weight,
+            weight=weight,
+            bias=bias,
             y=y,
             input_state=input_state,
             BLOCK_SIZE_B=BLOCK_SIZE_B,
@@ -35,12 +37,13 @@ class _RNN_Cute(torch.autograd.Function):
 
 def rnn_cute(
     input: torch.Tensor,
-    state_weight: torch.Tensor,
+    weight: torch.Tensor,
+    bias: torch.Tenosr | None = None,
     input_state: torch.Tensor | None = None,
     BLOCK_SIZE_B: int = CutoTuneParameter(),
     BLOCK_SIZE_H: int = CutoTuneParameter(),
 ) -> torch.Tensor:
-    return _RNN_Cute.apply(input, state_weight, input_state, BLOCK_SIZE_B, BLOCK_SIZE_H)
+    return _RNN_Cute.apply(input, weight, bias, input_state, BLOCK_SIZE_B, BLOCK_SIZE_H)
 
 
 class RNNCute(nn.Module):
