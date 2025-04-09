@@ -70,7 +70,7 @@ def _rnn_forward_triton_kernel(
         tl.store(output_ptrs, input_state[:, None, :], mask=mask_bi[:, None, :])
 
 
-@cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"y", "output_state"})
+@cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"output"})
 def rnn_forward_triton(
     input: torch.Tensor,
     weight: torch.Tensor,
