@@ -25,7 +25,6 @@ def _rnn_forward_triton_kernel(
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_HI: tl.constexpr,
     BLOCK_SIZE_HO: tl.constexpr,
-    allow_tf32: tl.constexpr = False,
 ):
     pid_b = tl.program_id(axis=0)
     pid_n = tl.program_id(axis=1)
@@ -52,14 +51,14 @@ def _rnn_forward_triton_kernel(
             weight_ptrs = weight_ptr + pid_n * H * H + indices_hi[:, None] * H + indices_ho[None, :]
             weight = tl.load(weight_ptrs, mask=mask_hi[:, None] & mask_ho[None, :])
 
-            input = tl.dot(input_state, weight, input, allow_tf32=allow_tf32, out_dtype=tl.float32)
+            input = tl.dot(input_state, weight, input, out_dtype=tl.float32)
 
-        input_state = input
+        input_state = input.to(tl.float32)
         input_state = tanh(input_state)
         input_state = input_state.to(input_ptr.dtype.element_ty)
 
         output_ptrs = (
-            output_ptr + indices_b[:, None, None] * S * N * H + s * N * H + pid_n * h + indices_ho[None, None, :]
+            output_ptr + indices_b[:, None, None] * S * N * H + s * N * H + pid_n * H + indices_ho[None, None, :]
         )
         tl.store(output_ptrs, input_state[:, None, :], mask=mask_bho[:, None, :])
 
