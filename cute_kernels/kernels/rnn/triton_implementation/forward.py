@@ -49,24 +49,26 @@ def _rnn_forward_triton_kernel(
             indices_h = h * BLOCK_SIZE_H + tl.arange(0, BLOCK_SIZE_H)
             mask_h = indices_h < H
 
-            indices = pid_n * H * H + indices_i[:, None] * H + indices_h[None, :]
-            mask = mask_i[:, None] & mask_h[None, :]
+            indices = pid_n * H * H + indices_h[:, None] * H + indices_i[None, :]
+            mask = mask_h[:, None] & mask_i[None, :]
 
             weight_ptrs = weight_ptr + indices
-            # weight -> (BLOCK_SIZE_I, BLOCK_SIZE_H)
             weight = tl.load(weight_ptrs, mask=mask)
 
-            indices = indices_b[:, None] * S * N * H + s * N * H + pid_i * H + indices_h[None, :]
-            mask = mask_b[:, None] & mask_h[None, :]
-
+            indices = indices_b[:, None] * S * N * H + s * N * H + pid_n * H + indices_i[None, :]
             input_ptrs = input_ptr + indices
-            # input -> (BLOCK_SIZE_B, BLOCK_SIZE_H)
-            input = tl.load(input_ptrs, mask=mask)
+            input = tl.load(input_ptrs, mask=mask_bi).to(tl.float32)
+
+            # weight -> (BLOCK_SIZE_H, BLOCK_SIZE_I)
+            # input -> (BLOCK_SIZE_B, BLOCK_SIZE_I)
 
             input_state = tl.dot(input_state, weight.T, input, allow_tf32=allow_tf32, out_dtype=tl.float32)
             input_state = tanh(input_state)
+            input_state = input_state.to(input_ptr.dtype.element_ty)
 
-        output_ptrs = output_ptr + indices_b[:, None] * S * H + s * H + indices_i[None, :]
+        output_ptrs = (
+            output_ptr + indices_b[:, None, None] * S * N * H + s * N * H + pid_n * h + indices_i[None, None, :]
+        )
         tl.store(output_ptrs, input_state[:, None, :], mask=mask_bi[:, None, :])
 
 
