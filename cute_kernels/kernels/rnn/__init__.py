@@ -38,7 +38,6 @@ def rnn_cute(
     weight: torch.Tensor,
     input_state: torch.Tensor | None = None,
     # BLOCK_SIZE_B: int = CutoTuneParameter(),
-    # BLOCK_SIZE_H: int = CutoTuneParameter(),
     BLOCK_SIZE_B: int = 16,
 ) -> torch.Tensor:
     return _RNN_Cute.apply(input, weight, input_state, BLOCK_SIZE_B)
