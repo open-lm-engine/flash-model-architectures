@@ -38,7 +38,7 @@ class ScatterMoETest(TestCommons):
         set_seed(_SEED)
 
         with torch.device(device):
-            rnn_cute = RNNTorch(
+            rnn_cute = RNNCute(
                 input_size=input_size,
                 state_size=state_size,
                 output_size=output_size,
