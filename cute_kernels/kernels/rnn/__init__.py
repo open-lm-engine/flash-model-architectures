@@ -28,7 +28,7 @@ class _RNN_Cute(torch.autograd.Function):
             BLOCK_SIZE_I=BLOCK_SIZE_I,
         )
 
-        return y
+        return output
 
     @staticmethod
     def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor]: ...
