@@ -45,7 +45,7 @@ def rnn_cute(
     BLOCK_SIZE_H: int = 32,
     BLOCK_SIZE_I: int = 8,
 ) -> torch.Tensor:
-    return _RNN_Cute.apply(input, weight, input_state, BLOCK_SIZE_B, BLOCK_SIZE_H)
+    return _RNN_Cute.apply(input, weight, input_state, BLOCK_SIZE_B, BLOCK_SIZE_H, BLOCK_SIZE_I)
 
 
 class RNNCute(RNNTorch):
