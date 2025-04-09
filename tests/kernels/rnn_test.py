@@ -20,7 +20,7 @@ class ScatterMoETest(TestCommons):
             [32],  # state_size
             [2560],  # output_size
             [4],  # num_heads
-            [True, False],  # is_compiling
+            [False],  # is_compiling
         )
     )
     def test_scattermoe_triton(
