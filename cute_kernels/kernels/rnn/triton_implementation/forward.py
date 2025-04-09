@@ -35,7 +35,10 @@ def _rnn_forward_triton_kernel(
     mask_h = indices_h < H
     mask_bh = mask_b[:, None] & mask_h[None, :]
 
-    if not has_input_state:
+    if has_input_state:
+        input_state_ptrs = input_ptr + indices_b[:, None] * N * H + pid_n * H + indices_h[None, :]
+        input_state = tl.load(input_state_ptrs, mask=mask_bh)
+    else:
         input_state = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=input_ptr.dtype.element_ty)
 
     for s in range(S):
