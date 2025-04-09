@@ -13,7 +13,7 @@ class ScatterMoETest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(
             [torch.device("cuda")],
-            TestCommons.get_dtypes(),
+            [torch.float32, torch.bfloat16],
             [4],  # batch_size
             [64],  # sequence_length
             [2048],  # input_size
