@@ -33,6 +33,7 @@ def tanh(x):
     x = x.to(tl.float32)
     x = clamp(x)
     x = tl.exp(-x)
+    x *= x
     x = (1 - x) / (1 + x)
 
     x = x.to(dtype)
