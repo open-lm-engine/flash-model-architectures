@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from ...math import divide_if_divisible
+
 
 def rnn_torch(input: torch.Tensor, weight: torch.Tensor, input_state: torch.Tensor | None = None) -> torch.Tensor:
     B, S, N, H = input.size()
@@ -45,16 +47,26 @@ class RNNTorch(nn.Module):
         self.output_size = output_size
         self.num_heads = num_heads
 
-        self.state_weight = nn.Parameter(torch.empty(self.num_heads, self.state_size, self.state_size))
-        self.input_projection = nn.Linear(self.input_size, self.num_heads * self.state_size, bias=add_bias)
-        self.output_projection = nn.Linear(self.num_heads * self.state_size, self.output_size, bias=False)
+        self.input_head_dim = divide_if_divisible(self.input_size, self.num_heads)
+        self.state_head_dim = divide_if_divisible(self.state_size, self.num_heads)
+
+        self.input_projection = nn.Linear(self.input_size, self.state_size, bias=add_bias)
+        self.output_projection = nn.Linear(self.state_size, self.output_size, bias=False)
+        self.state_weight = nn.Parameter(torch.empty(self.num_heads, self.state_head_dim, self.state_head_dim))
 
         self.reset_parameters()
 
     def forward(self, input: torch.Tensor, input_state: torch.Tensor | None = None) -> torch.Tensor:
+        batch_size, sequence_length, _ = input.size()
+
         input = self.input_projection(input)
-        input, _ = rnn_torch(input=input, weight=self.state_weight, input_state=input_state)
+        input = input.view(batch_size, sequence_length, self.num_heads, -1)
+
+        input = rnn_torch(input=input, weight=self.state_weight, input_state=input_state)
+
+        input = input.view(batch_size, sequence_length, -1)
         input = self.output_projection(input)
+
         return input
 
     @torch.no_grad()

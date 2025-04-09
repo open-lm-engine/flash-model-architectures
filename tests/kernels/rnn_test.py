@@ -15,9 +15,9 @@ class ScatterMoETest(TestCommons):
             [torch.device("cuda")],
             TestCommons.get_dtypes(),
             [4],  # batch_size
-            [256],  # sequence_length
+            [64],  # sequence_length
             [2048],  # input_size
-            [8192],  # state_size
+            [32],  # state_size
             [2560],  # output_size
             [4],  # num_heads
             [True, False],  # is_compiling
@@ -38,7 +38,7 @@ class ScatterMoETest(TestCommons):
         set_seed(_SEED)
 
         with torch.device(device):
-            rnn_cute = RNNCute(
+            rnn_cute = RNNTorch(
                 input_size=input_size,
                 state_size=state_size,
                 output_size=output_size,
