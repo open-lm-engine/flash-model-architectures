@@ -36,11 +36,11 @@ def _rnn_forward_triton_kernel(
 
     mask_b = indices_b < B
     mask_ho = indices_ho < H
-    mask_bi = mask_b[:, None] & mask_ho[None, :]
+    mask_bho = mask_b[:, None] & mask_ho[None, :]
 
     if has_input_state:
-        input_state_ptrs = input_state_ptr + indices_b[:, None] * H + indices_ho[None, :]
-        input_state = tl.load(input_state_ptrs, mask=mask_bi)
+        input_state_ptrs = input_state_ptr + indices_b[:, None] * N * H + pid_n * H + indices_ho[None, :]
+        input_state = tl.load(input_state_ptrs, mask=mask_bho)
     else:
         input_state = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_HO), dtype=input_ptr.dtype.element_ty)
 
@@ -57,7 +57,7 @@ def _rnn_forward_triton_kernel(
 
             indices = indices_b[:, None] * S * N * H + s * N * H + pid_n * H + indices_ho[None, :]
             input_ptrs = input_ptr + indices
-            input = tl.load(input_ptrs, mask=mask_bi).to(tl.float32)
+            input = tl.load(input_ptrs, mask=mask_bho).to(tl.float32)
 
             # weight -> (BLOCK_SIZE_HI, BLOCK_SIZE_HO)
             # input -> (BLOCK_SIZE_B, BLOCK_SIZE_HO)
@@ -69,7 +69,7 @@ def _rnn_forward_triton_kernel(
         output_ptrs = (
             output_ptr + indices_b[:, None, None] * S * N * H + s * N * H + pid_n * h + indices_ho[None, None, :]
         )
-        tl.store(output_ptrs, input_state[:, None, :], mask=mask_bi[:, None, :])
+        tl.store(output_ptrs, input_state[:, None, :], mask=mask_bho[:, None, :])
 
 
 @cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"output"})
