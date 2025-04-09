@@ -14,6 +14,8 @@ class ScatterMoETest(TestCommons):
         TestCommons.make_args_matrix(
             [torch.device("cuda")],
             TestCommons.get_dtypes(),
+            [4],  # batch_size
+            [256],  # sequence_length
             [2048],  # input_size
             [8192],  # state_size
             [2560],  # output_size
@@ -25,6 +27,8 @@ class ScatterMoETest(TestCommons):
         self,
         device: torch.device,
         dtype: torch.dtype,
+        batch_size: int,
+        sequence_length: int,
         input_size: int,
         state_size: int,
         output_size: int,
@@ -66,11 +70,11 @@ class ScatterMoETest(TestCommons):
 
         rnn_torch.load_state_dict(state_dict)
 
-        x_torch = torch.randn(input_size, device=device, dtype=dtype, requires_grad=True)
+        x_torch = torch.randn(batch_size, sequence_length, input_size, device=device, dtype=dtype, requires_grad=True)
         x_cute = x_torch.clone().detach().requires_grad_()
 
-        y_torch = rnn_torch(x_torch)[0]
-        y_cute = rnn_cute(x_cute)[0]
+        y_torch = rnn_torch(x_torch)
+        y_cute = rnn_cute(x_cute)
 
         self.assert_equal_tensors(
             y_cute,
