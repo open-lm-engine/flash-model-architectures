@@ -34,11 +34,7 @@ class _RNN_Cute(torch.autograd.Function):
 
 
 def rnn_cute(
-    input: torch.Tensor,
-    weight: torch.Tensor,
-    input_state: torch.Tensor | None = None,
-    # BLOCK_SIZE_B: int = CutoTuneParameter(),
-    BLOCK_SIZE_B: int = 16,
+    input: torch.Tensor, weight: torch.Tensor, input_state: torch.Tensor | None = None, BLOCK_SIZE_B: int = 16
 ) -> torch.Tensor:
     return _RNN_Cute.apply(input, weight, input_state, BLOCK_SIZE_B)
 
