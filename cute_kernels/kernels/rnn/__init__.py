@@ -13,7 +13,6 @@ class _RNN_Cute(torch.autograd.Function):
         weight: torch.Tensor,
         input_state: torch.Tensor | None,
         BLOCK_SIZE_B: int,
-        BLOCK_SIZE_H: int,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         output = torch.empty_like(input)
 
@@ -23,7 +22,6 @@ class _RNN_Cute(torch.autograd.Function):
             output=output,
             input_state=input_state,
             BLOCK_SIZE_B=BLOCK_SIZE_B,
-            BLOCK_SIZE_H=BLOCK_SIZE_H,
         )
 
         return output
