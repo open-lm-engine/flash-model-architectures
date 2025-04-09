@@ -38,6 +38,8 @@ class RNNTorch(nn.Module):
     def __init__(
         self, input_size: int, state_size: int, output_size: int, num_heads: int, add_bias: bool = True
     ) -> None:
+        super().__init__()
+
         self.input_size = input_size
         self.state_size = state_size
         self.output_size = output_size
