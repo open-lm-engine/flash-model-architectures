@@ -9,21 +9,21 @@ from ..test_commons import TestCommons
 _SEED = 42
 
 
-class ScatterMoETest(TestCommons):
+class RNNTest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(
             [torch.device("cuda")],
             [torch.float32, torch.bfloat16],
             [4],  # batch_size
-            [64],  # sequence_length
+            [1],  # sequence_length
             [2048],  # input_size
-            [32],  # state_size
+            [64],  # state_size
             [2560],  # output_size
             [4],  # num_heads
             [False],  # is_compiling
         )
     )
-    def test_scattermoe_triton(
+    def test_rnn(
         self,
         device: torch.device,
         dtype: torch.dtype,
