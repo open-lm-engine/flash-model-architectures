@@ -62,12 +62,15 @@ class RNNTorch(nn.Module):
         input = self.input_projection(input)
         input = input.view(batch_size, sequence_length, self.num_heads, -1)
 
-        input = rnn_torch(input=input, weight=self.state_weight, input_state=input_state)
+        input = self._rnn(input, input_state)
 
         input = input.view(batch_size, sequence_length, -1)
         input = self.output_projection(input)
 
         return input
+
+    def _rnn(self, input: torch.Tensor, input_state: torch.Tensor | None) -> torch.Tensor:
+        return rnn_torch(input=input, weight=self.state_weight, input_state=input_state)
 
     @torch.no_grad()
     def reset_parameters(self) -> None:
