@@ -3,7 +3,7 @@ import torch
 from ...cutotune import CutoTuneParameter
 from ...utils import ensure_contiguous
 from .torch_implementation import RNNTorch, rnn_torch
-from .triton_implementation import rnn_forward_triton
+from .triton_implementation import rnn_backward_triton, rnn_forward_triton
 
 
 class _RNN_Cute(torch.autograd.Function):
@@ -26,11 +26,21 @@ class _RNN_Cute(torch.autograd.Function):
             BLOCK_SIZE_B=BLOCK_SIZE_B,
         )
 
+        ctx.save_for_backward(input, weight, output)
+
         return output
 
     @staticmethod
     @ensure_contiguous
-    def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor]: ...
+    def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor]:
+        input, weight = ctx.saved_tensors
+
+        input_grad = torch.empty_like(input)
+        weight_grad = torch.empty_like(weight)
+
+        rnn_backward_triton(input=input, weight=weight)
+
+        return input_grad, weight_grad, None, None
 
 
 def rnn_cute(
