@@ -38,33 +38,25 @@ def _rnn_forward_triton_kernel(
     mask_ho = indices_ho < H
     mask_bho = mask_b[:, None] & mask_ho[None, :]
 
-    if has_input_state:
-        input_state_ptrs = input_state_ptr + indices_b[:, None] * N * H + pid_n * H + indices_ho[None, :]
-        input_state = tl.load(input_state_ptrs, mask=mask_bho)
-    else:
-        input_state = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_HO), dtype=input_ptr.dtype.element_ty)
+    if not has_input_state:
+        input_state = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_HI), dtype=input_ptr.dtype.element_ty)
 
     for s in range(S):
+        input_ptrs = input_ptr + indices_b[:, None] * S * N * H + s * N * H + pid_n * H + indices_ho[None, :]
+        input = tl.load(input_ptrs, mask=mask_bho).to(tl.float32)
+
         for h in range(tl.cdiv(H, BLOCK_SIZE_HI)):
             indices_hi = h * BLOCK_SIZE_HI + tl.arange(0, BLOCK_SIZE_HI)
             mask_hi = indices_hi < H
 
-            indices = pid_n * H * H + indices_hi[:, None] * H + indices_ho[None, :]
-            mask = mask_hi[:, None] & mask_ho[None, :]
+            weight_ptrs = weight_ptr + pid_n * H * H + indices_hi[:, None] * H + indices_ho[None, :]
+            weight = tl.load(weight_ptrs, mask=mask_hi[:, None] & mask_ho[None, :])
 
-            weight_ptrs = weight_ptr + indices
-            weight = tl.load(weight_ptrs, mask=mask)
+            input = tl.dot(input_state, weight, input, allow_tf32=allow_tf32, out_dtype=tl.float32)
 
-            indices = indices_b[:, None] * S * N * H + s * N * H + pid_n * H + indices_ho[None, :]
-            input_ptrs = input_ptr + indices
-            input = tl.load(input_ptrs, mask=mask_bho).to(tl.float32)
-
-            # weight -> (BLOCK_SIZE_HI, BLOCK_SIZE_HO)
-            # input -> (BLOCK_SIZE_B, BLOCK_SIZE_HO)
-
-            input_state = tl.dot(input_state, weight.T, input, allow_tf32=allow_tf32, out_dtype=tl.float32)
-            input_state = tanh(input_state)
-            input_state = input_state.to(input_ptr.dtype.element_ty)
+        input_state = input
+        input_state = tanh(input_state)
+        input_state = input_state.to(input_ptr.dtype.element_ty)
 
         output_ptrs = (
             output_ptr + indices_b[:, None, None] * S * N * H + s * N * H + pid_n * h + indices_ho[None, None, :]
