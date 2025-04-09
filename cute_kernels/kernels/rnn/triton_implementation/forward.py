@@ -3,7 +3,7 @@ import triton
 import triton.language as tl
 
 from ....constants import LIBRARY_NAME
-from ....math import ceil_divide
+from ....math import ceil_divide, get_next_power_of_2
 from ....triton_math import tanh
 from ....utils import cute_op
 
@@ -67,9 +67,10 @@ def rnn_forward_triton(
     output: torch.Tensor,
     input_state: torch.Tensor | None,
     BLOCK_SIZE_B: int,
-    BLOCK_SIZE_H: int,
 ) -> None:
     B, S, N, H = input.size()
+
+    BLOCK_SIZE_H = get_next_power_of_2(H)
 
     with torch.device(input.device):
         _rnn_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), N](
