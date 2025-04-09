@@ -1,12 +1,14 @@
 import torch
 
 from ...cutotune import CutoTuneParameter
+from ...utils import ensure_contiguous
 from .torch_implementation import RNNTorch, rnn_torch
 from .triton_implementation import rnn_forward_triton
 
 
 class _RNN_Cute(torch.autograd.Function):
     @staticmethod
+    @ensure_contiguous
     def forward(
         ctx,
         input: torch.Tensor,
@@ -27,6 +29,7 @@ class _RNN_Cute(torch.autograd.Function):
         return output
 
     @staticmethod
+    @ensure_contiguous
     def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor]: ...
 
 
