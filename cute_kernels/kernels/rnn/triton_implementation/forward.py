@@ -85,7 +85,7 @@ def rnn_forward_triton(
     B, S, N, H = input.size()
 
     with torch.device(input.device):
-        _rnn_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), N, ceil_divide(H, BLOCK_SIZE_I)](
+        _rnn_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), N, ceil_divide(H, BLOCK_SIZE_HO)](
             input_ptr=input,
             weight_ptr=weight,
             output_ptr=output,
