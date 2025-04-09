@@ -3,14 +3,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-def rnn_torch(
-    input: torch.Tensor, weight: torch.Tensor, input_state: torch.Tensor | None = None, return_all_states: bool = True
-) -> torch.Tensor:
+def rnn_torch(input: torch.Tensor, weight: torch.Tensor, input_state: torch.Tensor | None = None) -> torch.Tensor:
     B, S, N, H = input.size()
-
-    output = None
-    if return_all_states:
-        output = torch.empty_like(input)
+    output = torch.empty_like(input)
 
     if input_state is None:
         input_state = torch.zeros(B, N, H, device=input.device, dtype=torch.float32)
@@ -34,10 +29,9 @@ def rnn_torch(
         input_state = F.tanh(input_state)
         input_state = input_state.squeeze(-2)
 
-        if return_all_states:
-            output[:, s, ...] = input_state
+        output[:, s, ...] = input_state
 
-    return output, input_state
+    return output
 
 
 class RNNTorch(nn.Module):
@@ -57,7 +51,7 @@ class RNNTorch(nn.Module):
 
     def forward(self, input: torch.Tensor, input_state: torch.Tensor | None = None) -> torch.Tensor:
         input = self.input_projection(input)
-        input, _ = rnn_torch(input=input, weight=self.state_weight, input_state=input_state, return_all_states=True)
+        input, _ = rnn_torch(input=input, weight=self.state_weight, input_state=input_state)
         input = self.output_projection(input)
         return input
 
