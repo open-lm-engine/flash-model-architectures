@@ -11,6 +11,8 @@ from .inductor import init_inductor
 from .kernels import (
     MoE_Torch,
     MoE_Triton,
+    RNNCute,
+    RNNTorch,
     add_scalar_cute,
     add_scalar_torch,
     add_tensor_cute,
@@ -31,6 +33,8 @@ from .kernels import (
     linear_torch,
     rmsnorm_cute,
     rmsnorm_torch,
+    rnn_cute,
+    rnn_torch,
     softmax_cute,
     softmax_torch,
     swiglu_cute,
