@@ -15,7 +15,7 @@ class RNNTest(TestCommons):
             [torch.device("cuda")],
             [torch.float32, torch.bfloat16],
             [4],  # batch_size
-            [1],  # sequence_length
+            [64],  # sequence_length
             [2048],  # input_size
             [64],  # state_size
             [2560],  # output_size
