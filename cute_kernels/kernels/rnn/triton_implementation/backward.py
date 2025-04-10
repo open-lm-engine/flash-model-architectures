@@ -21,6 +21,7 @@ def _rnn_backward_triton_kernel(
     output_stride_n,
     output_grad_ptr,
     input_grad_ptr,
+    weight_grad_ptr,
     B,
     S,
     H,
@@ -38,6 +39,7 @@ def _rnn_backward_triton_kernel(
     mask_bh = mask_b[:, None] & mask_h[None, :]
 
     input_state_grad = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=weight_ptr.dtype.element_ty)
+    weight_grad = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
 
     weight_ptrs = weight_ptr + pid_n * weight_stride_n + indices_h[:, None] * weight_stride_h + indices_h[None, :]
     weight = tl.load(weight_ptrs, mask=mask_h[:, None] & mask_h[None, :], other=0)
@@ -75,13 +77,31 @@ def _rnn_backward_triton_kernel(
 
         input_state_grad = tl.dot(input_grad, weight.T).to(input_state_grad.dtype)
 
+        if s > 1:
+            output_ptrs = (
+                output_ptr
+                + indices_b[:, None] * output_stride_b
+                + (s - 1) * output_stride_s
+                + pid_n * output_stride_n
+                + indices_h[None, :]
+            )
+            output_prev = tl.load(output_ptrs, mask=mask_bh, other=0)
 
-@cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"input_grad"})
+            weight_grad = tl.dot(output_prev.T, input_grad, weight_grad)
+
+    weight_grad_ptrs = (
+        weight_grad_ptr + pid_n * weight_stride_n + indices_h[:, None] * weight_stride_h + indices_h[None, :]
+    )
+    tl.store(weight_grad_ptrs, weight_grad, mask=mask_h[:, None] & mask_h[None, :])
+
+
+@cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"input_grad", "weight_grad"})
 def rnn_backward_triton(
     weight: torch.Tensor,
     output: torch.Tensor,
     output_grad: torch.Tensor,
     input_grad: torch.Tensor,
+    weight_grad: torch.Tensor,
     BLOCK_SIZE_B: int,
 ) -> None:
     B, S, N, H = output.size()
@@ -100,6 +120,7 @@ def rnn_backward_triton(
             output_stride_n=output.stride(2),
             output_grad_ptr=output_grad,
             input_grad_ptr=input_grad,
+            weight_grad_ptr=weight_grad,
             B=B,
             S=S,
             H=H,
