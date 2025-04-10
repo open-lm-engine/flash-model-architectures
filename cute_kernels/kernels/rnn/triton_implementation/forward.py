@@ -62,12 +62,12 @@ def _rnn_forward_triton_kernel(
 
         output_ptrs = (
             output_ptr
-            + indices_b[:, None, None, None] * output_stride_b
+            + indices_b[:, None] * output_stride_b
             + s * output_stride_s
             + pid_n * output_stride_n
-            + indices_h[None, None, None, :]
+            + indices_h[None, :]
         )
-        tl.store(output_ptrs, input_state[:, None, None, :], mask=mask_bh[:, None, None, :])
+        tl.store(output_ptrs, input_state, mask=mask_bh)
 
 
 @cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"output"})
