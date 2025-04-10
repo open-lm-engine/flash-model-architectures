@@ -46,7 +46,7 @@ def _rnn_backward_triton_kernel(
     weight_ptrs = weight_ptr + pid_n * weight_stride_n + indices_h[:, None] * weight_stride_h + indices_h[None, :]
     weight = tl.load(weight_ptrs, mask=mask_h[:, None] & mask_h[None, :], other=0)
 
-    for s in range(S):
+    for s in range(S - 1, -1, -1):
         output_grad_ptrs = (
             output_grad_ptr
             + indices_b[:, None] * input_stride_b
@@ -65,7 +65,8 @@ def _rnn_backward_triton_kernel(
         )
         output = tl.load(output_ptrs, mask=mask_bh, other=0).to(tl.float32)
 
-        input_grad = (output_grad + input_state_grad) * (1 - output * output)
+        r = (1 - output * output).to(output_grad.dtype)
+        input_grad = (output_grad + input_state_grad) * r
 
         input_grad_ptrs = (
             input_grad_ptr
