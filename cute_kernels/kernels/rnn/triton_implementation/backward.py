@@ -77,7 +77,7 @@ def _rnn_backward_triton_kernel(
         )
         tl.store(input_grad_ptrs, input_grad, mask=mask_bh)
 
-        input_state_grad = tl.dot(input_grad, weight.T)
+        input_state_grad = tl.dot(input_grad, weight.T).to(input_state_grad.dtype)
 
 
 @cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"input_grad"})
