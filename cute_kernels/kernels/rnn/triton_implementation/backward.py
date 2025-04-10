@@ -24,6 +24,8 @@ def _rnn_backward_triton_kernel(
     output_stride_b,
     output_stride_s,
     output_stride_n,
+    output_grad_ptr,
+    input_grad_ptr,
     B,
     S,
     H,
@@ -40,42 +42,51 @@ def _rnn_backward_triton_kernel(
     mask_h = indices_h < H
     mask_bh = mask_b[:, None] & mask_h[None, :]
 
-    input_state = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=input_ptr.dtype.element_ty)
+    input_state_grad = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=input_ptr.dtype.element_ty)
 
     weight_ptrs = weight_ptr + pid_n * weight_stride_n + indices_h[:, None] * weight_stride_h + indices_h[None, :]
     weight = tl.load(weight_ptrs, mask=mask_h[:, None] & mask_h[None, :], other=0)
 
     for s in range(S):
-        input_state = tl.dot(input_state, weight).to(input_state.dtype)
-
-        input_ptrs = (
-            input_ptr
+        output_grad_ptrs = (
+            output_grad_ptr
             + indices_b[:, None] * input_stride_b
             + s * input_stride_s
             + pid_n * input_stride_n
             + indices_h[None, :]
         )
-        input = tl.load(input_ptrs, mask=mask_bh, other=0)
-
-        input_state += input
-        input_state = tanh(input_state)
+        output_grad = tl.load(output_grad_ptrs, mask=mask_bh, other=0)
 
         output_ptrs = (
             output_ptr
-            + indices_b[:, None, None, None] * output_stride_b
+            + indices_b[:, None] * output_stride_b
             + s * output_stride_s
             + pid_n * output_stride_n
-            + indices_h[None, None, None, :]
+            + indices_h[None, :]
         )
-        tl.store(output_ptrs, input_state[:, None, None, :], mask=mask_bh[:, None, None, :])
+        output = tl.load(output_ptrs, mask=mask_bh, other=0).to(tl.float32)
+
+        input_grad = (output_grad + input_state_grad) * (1 - output * output)
+
+        input_grad_ptrs = (
+            input_grad_ptr
+            + indices_b[:, None] * input_stride_b
+            + s * input_stride_s
+            + pid_n * input_stride_n
+            + indices_h[None, :]
+        )
+        tl.store(input_grad_ptrs, input_grad, mask=mask_bh)
+
+        input_state_grad = tl.dot(input_grad, weight.T)
 
 
-@cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"output"})
+@cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"input_grad"})
 def rnn_backward_triton(
     input: torch.Tensor,
     weight: torch.Tensor,
     output: torch.Tensor,
-    input_state: torch.Tensor | None,
+    output_grad: torch.Tensor,
+    input_grad: torch.Tensor,
     BLOCK_SIZE_B: int,
 ) -> None:
     B, S, N, H = input.size()
@@ -96,6 +107,8 @@ def rnn_backward_triton(
             output_stride_b=output.stride(0),
             output_stride_s=output.stride(1),
             output_stride_n=output.stride(2),
+            output_grad_ptr=output_grad,
+            input_grad_ptr=input_grad,
             B=B,
             S=S,
             H=H,

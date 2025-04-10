@@ -33,12 +33,12 @@ class _RNN_Cute(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
     def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor]:
-        input, weight = ctx.saved_tensors
+        input, weight, output = ctx.saved_tensors
 
         input_grad = torch.empty_like(input)
         weight_grad = torch.empty_like(weight)
 
-        rnn_backward_triton(input=input, weight=weight)
+        rnn_backward_triton(input=input, weight=weight, output=output, output_grad=output_grad, input_grad=input_grad)
 
         return input_grad, weight_grad, None, None
 
