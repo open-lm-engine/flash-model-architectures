@@ -78,7 +78,6 @@ def _rnn_backward_triton_kernel(
 
 @cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"input_grad"})
 def rnn_backward_triton(
-    input: torch.Tensor,
     weight: torch.Tensor,
     output: torch.Tensor,
     output_grad: torch.Tensor,
