@@ -12,10 +12,6 @@ _KERNEL_NAME = "rnn_backward_triton"
 
 @triton.jit
 def _rnn_backward_triton_kernel(
-    input_ptr,
-    input_stride_b,
-    input_stride_s,
-    input_stride_n,
     weight_ptr,
     weight_stride_n,
     weight_stride_h,
@@ -41,7 +37,7 @@ def _rnn_backward_triton_kernel(
     mask_h = indices_h < H
     mask_bh = mask_b[:, None] & mask_h[None, :]
 
-    input_state_grad = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=input_ptr.dtype.element_ty)
+    input_state_grad = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=weight_ptr.dtype.element_ty)
 
     weight_ptrs = weight_ptr + pid_n * weight_stride_n + indices_h[:, None] * weight_stride_h + indices_h[None, :]
     weight = tl.load(weight_ptrs, mask=mask_h[:, None] & mask_h[None, :], other=0)
@@ -49,9 +45,9 @@ def _rnn_backward_triton_kernel(
     for s in range(S - 1, -1, -1):
         output_grad_ptrs = (
             output_grad_ptr
-            + indices_b[:, None] * input_stride_b
-            + s * input_stride_s
-            + pid_n * input_stride_n
+            + indices_b[:, None] * output_stride_b
+            + s * output_stride_s
+            + pid_n * output_stride_n
             + indices_h[None, :]
         )
         output_grad = tl.load(output_grad_ptrs, mask=mask_bh, other=0)
@@ -70,9 +66,9 @@ def _rnn_backward_triton_kernel(
 
         input_grad_ptrs = (
             input_grad_ptr
-            + indices_b[:, None] * input_stride_b
-            + s * input_stride_s
-            + pid_n * input_stride_n
+            + indices_b[:, None] * output_stride_b
+            + s * output_stride_s
+            + pid_n * output_stride_n
             + indices_h[None, :]
         )
         tl.store(input_grad_ptrs, input_grad, mask=mask_bh)
@@ -96,10 +92,6 @@ def rnn_backward_triton(
 
     with torch.device(output.device):
         _rnn_backward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), N](
-            input_ptr=None,
-            input_stride_b=input.stride(0),
-            input_stride_s=input.stride(1),
-            input_stride_n=input.stride(2),
             weight_ptr=weight,
             weight_stride_n=weight.stride(0),
             weight_stride_h=weight.stride(1),
