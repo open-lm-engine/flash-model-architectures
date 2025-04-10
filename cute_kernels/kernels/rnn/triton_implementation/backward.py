@@ -89,14 +89,14 @@ def rnn_backward_triton(
     input_grad: torch.Tensor,
     BLOCK_SIZE_B: int,
 ) -> None:
-    B, S, N, H = input.size()
+    B, S, N, H = output.size()
 
     BLOCK_SIZE_H = get_next_power_of_2(H)
     BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
 
-    with torch.device(input.device):
+    with torch.device(output.device):
         _rnn_backward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), N](
-            input_ptr=input,
+            input_ptr=None,
             input_stride_b=input.stride(0),
             input_stride_s=input.stride(1),
             input_stride_n=input.stride(2),
