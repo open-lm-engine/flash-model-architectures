@@ -21,9 +21,6 @@ def _rnn_forward_triton_kernel(
     weight_stride_n,
     weight_stride_h,
     output_ptr,
-    output_stride_b,
-    output_stride_s,
-    output_stride_n,
     B,
     S,
     H,
@@ -45,29 +42,21 @@ def _rnn_forward_triton_kernel(
     weight_ptrs = weight_ptr + pid_n * weight_stride_n + indices_h[:, None] * weight_stride_h + indices_h[None, :]
     weight = tl.load(weight_ptrs, mask=mask_h[:, None] & mask_h[None, :], other=0)
 
-    for s in range(S):
+    indices = indices_b[:, None] * input_stride_b + pid_n * input_stride_n + indices_h[None, :]
+
+    for _ in range(S):
         input_state = tl.dot(input_state, weight).to(input_state.dtype)
 
-        input_ptrs = (
-            input_ptr
-            + indices_b[:, None] * input_stride_b
-            + s * input_stride_s
-            + pid_n * input_stride_n
-            + indices_h[None, :]
-        )
+        input_ptrs = input_ptr + indices
         input = tl.load(input_ptrs, mask=mask_bh, other=0)
 
         input_state += input
         input_state = tanh(input_state)
 
-        output_ptrs = (
-            output_ptr
-            + indices_b[:, None] * output_stride_b
-            + s * output_stride_s
-            + pid_n * output_stride_n
-            + indices_h[None, :]
-        )
+        output_ptrs = output_ptr + indices
         tl.store(output_ptrs, input_state, mask=mask_bh)
+
+        indices += input_stride_s
 
 
 @cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"output"})
@@ -93,9 +82,6 @@ def rnn_forward_triton(
             weight_stride_n=weight.stride(0),
             weight_stride_h=weight.stride(1),
             output_ptr=output,
-            output_stride_b=output.stride(0),
-            output_stride_s=output.stride(1),
-            output_stride_n=output.stride(2),
             B=B,
             S=S,
             H=H,
