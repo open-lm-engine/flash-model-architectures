@@ -48,7 +48,7 @@ def _rnn_backward_triton_kernel(
         indices_b[:, None] * output_stride_b + (S - 1) * output_stride_s + pid_n * output_stride_n + indices_h[None, :]
     )
 
-    for _ in range(S):
+    for s in range(S - 1, -1, -1):
         output_grad_ptrs = output_grad_ptr + indices
         output_grad = tl.load(output_grad_ptrs, mask=mask_bh, other=0)
 
