@@ -38,7 +38,13 @@ def rnn_torch(input: torch.Tensor, weight: torch.Tensor, input_state: torch.Tens
 
 class RNNTorch(nn.Module):
     def __init__(
-        self, input_size: int, state_size: int, output_size: int, num_heads: int, add_bias: bool = True
+        self,
+        input_size: int,
+        state_size: int,
+        output_size: int,
+        num_heads: int,
+        add_bias: bool = True,
+        std: float = 0.01,
     ) -> None:
         super().__init__()
 
@@ -49,6 +55,8 @@ class RNNTorch(nn.Module):
 
         self.input_head_dim = divide_if_divisible(self.input_size, self.num_heads)
         self.state_head_dim = divide_if_divisible(self.state_size, self.num_heads)
+
+        self.std = std
 
         self.input_projection = nn.Linear(self.input_size, self.state_size, bias=add_bias)
         self.output_projection = nn.Linear(self.state_size, self.output_size, bias=False)
@@ -74,4 +82,6 @@ class RNNTorch(nn.Module):
 
     @torch.no_grad()
     def reset_parameters(self) -> None:
-        nn.init.normal_(self.state_weight)
+        nn.init.normal_(self.state_weight, std=self.std)
+        nn.init.normal_(self.input_projection, std=self.std)
+        nn.init.normal_(self.output_projection, std=self.std)
