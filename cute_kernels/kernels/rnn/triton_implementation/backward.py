@@ -11,6 +11,17 @@ _KERNEL_NAME = "rnn_backward_triton"
 
 
 @triton.jit
+def _tanh_backward(y):
+    dtype = y.dtype
+
+    y = y.to(tl.float32)
+    y = 1 - y * y
+    y = y.to(dtype)
+
+    return y
+
+
+@triton.jit
 def _rnn_backward_triton_kernel(
     weight_ptr,
     weight_stride_n,
@@ -58,8 +69,7 @@ def _rnn_backward_triton_kernel(
         output_grad = tl.load(output_grad_ptrs, mask=mask_bh, other=0)
 
         output = output.to(tl.float32)
-        r = (1 - output * output).to(output_grad.dtype)
-        input_grad = (output_grad + input_state_grad) * r
+        input_grad = (output_grad + input_state_grad) * _tanh_backward(output)
 
         input_grad_ptrs = input_grad_ptr + indices
         tl.store(input_grad_ptrs, input_grad, mask=mask_bh)
