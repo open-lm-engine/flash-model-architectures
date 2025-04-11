@@ -58,8 +58,10 @@ class RNNTorch(nn.Module):
 
         self.std = std
 
-        self.input_projection = nn.Linear(self.input_size, self.state_size, bias=add_bias)
-        self.output_projection = nn.Linear(self.state_size, self.output_size, bias=False)
+        with torch.device("meta"):
+            self.input_projection = nn.Linear(self.input_size, self.state_size, bias=add_bias)
+            self.output_projection = nn.Linear(self.state_size, self.output_size, bias=False)
+
         self.state_weight = nn.Parameter(torch.empty(self.num_heads, self.state_head_dim, self.state_head_dim))
 
         self.reset_parameters()
@@ -83,5 +85,8 @@ class RNNTorch(nn.Module):
     @torch.no_grad()
     def reset_parameters(self) -> None:
         nn.init.normal_(self.state_weight, std=self.std)
-        nn.init.normal_(self.input_projection, std=self.std)
-        nn.init.normal_(self.output_projection, std=self.std)
+        nn.init.normal_(self.output_projection.weight, std=self.std)
+
+        nn.init.normal_(self.input_projection.weight, std=self.std)
+        if self.input_projection.bias is not None:
+            nn.init.zeros_(self.input_projection.bias)
