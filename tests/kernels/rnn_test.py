@@ -15,7 +15,7 @@ class RNNTest(TestCommons):
             [torch.device("cuda")],
             [torch.float32, torch.bfloat16],
             [4],  # batch_size
-            [64],  # sequence_length
+            [1024],  # sequence_length
             [2048],  # input_size
             [64],  # state_size
             [2560],  # output_size
@@ -45,6 +45,9 @@ class RNNTest(TestCommons):
                 num_heads=num_heads,
                 add_bias=False,
             ).to(dtype=dtype)
+
+            with torch.no_grad():
+                rnn_cute.state_weight.normal_(mean=0, std=0.01)
 
             rnn_torch = RNNTorch(
                 input_size=input_size,
@@ -88,17 +91,28 @@ class RNNTest(TestCommons):
             rtol_float32=0,
         )
 
-        # y_torch.sum().backward()
-        # y_cute.sum().backward()
+        y_torch.sum().backward()
+        y_cute.sum().backward()
 
-        # self.assert_equal_tensors(
-        #     x_cute.grad,
-        #     x_torch.grad,
-        #     False,
-        #     atol_float16=4e-3,
-        #     rtol_float16=0,
-        #     atol_bfloat16=4e-2,
-        #     rtol_bfloat16=0,
-        #     atol_float32=6e-3,
-        #     rtol_float32=0,
-        # )
+        self.assert_equal_tensors(
+            x_cute.grad,
+            x_torch.grad,
+            False,
+            atol_float16=4e-3,
+            rtol_float16=0,
+            atol_bfloat16=4e-2,
+            rtol_bfloat16=0,
+            atol_float32=6e-3,
+            rtol_float32=0,
+        )
+
+        # print(x_cute.grad - x_torch.grad)
+        # print((x_cute.grad - x_torch.grad).abs().max())
+        # print(x_cute.grad)
+        # print(x_torch.grad)
+
+        print(rnn_cute.state_weight.grad - rnn_torch.state_weight.grad)
+        print((rnn_cute.state_weight.grad - rnn_torch.state_weight.grad).abs().max())
+        print(rnn_cute.state_weight.grad)
+        print(rnn_torch.state_weight.grad)
+        assert False
