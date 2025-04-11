@@ -27,7 +27,7 @@ class _RNN_Cute(torch.autograd.Function):
             BLOCK_SIZE_B=BLOCK_SIZE_B_forward,
         )
 
-        ctx.save_for_backward(weight, output)
+        ctx.save_for_backward(weight, output, input_state)
         ctx.BLOCK_SIZE_B_backward = BLOCK_SIZE_B_backward
 
         return output
@@ -35,7 +35,7 @@ class _RNN_Cute(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
     def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor]:
-        weight, output = ctx.saved_tensors
+        weight, output, input_state = ctx.saved_tensors
 
         input_grad = torch.empty_like(output)
         weight_grad = torch.empty_like(weight)
@@ -43,6 +43,7 @@ class _RNN_Cute(torch.autograd.Function):
         rnn_backward_triton(
             weight=weight,
             output=output,
+            input_state=input_state,
             output_grad=output_grad,
             input_grad=input_grad,
             weight_grad=weight_grad,

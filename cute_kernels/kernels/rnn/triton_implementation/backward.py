@@ -16,6 +16,8 @@ def _rnn_backward_triton_kernel(
     weight_stride_n,
     weight_stride_h,
     output_ptr,
+    has_input_state: tl.constexpr,
+    input_state_ptr,
     output_stride_b,
     output_stride_s,
     output_stride_n,
@@ -64,11 +66,11 @@ def _rnn_backward_triton_kernel(
 
         input_state_grad = tl.dot(input_grad, weight.T).to(input_state_grad.dtype)
 
-        if s == 0:
-            output_prev = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=weight.dtype)
-        else:
+        if s > 0 or has_input_state:
             output_ptrs -= output_stride_s
             output_prev = tl.load(output_ptrs, mask=mask_bh, other=0)
+        else:
+            output_prev = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=weight.dtype)
 
         weight_grad = tl.dot(output_prev.T, input_grad, weight_grad)
         output = output_prev
@@ -85,6 +87,7 @@ def _rnn_backward_triton_kernel(
 def rnn_backward_triton(
     weight: torch.Tensor,
     output: torch.Tensor,
+    input_state: torch.Tensor | None,
     output_grad: torch.Tensor,
     input_grad: torch.Tensor,
     weight_grad: torch.Tensor,
@@ -101,6 +104,8 @@ def rnn_backward_triton(
             weight_stride_n=weight.stride(0),
             weight_stride_h=weight.stride(1),
             output_ptr=output,
+            has_input_state=input_state is not None,
+            input_state_ptr=input_state,
             output_stride_b=output.stride(0),
             output_stride_s=output.stride(1),
             output_stride_n=output.stride(2),
