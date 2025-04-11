@@ -68,7 +68,6 @@ def _rnn_backward_triton_kernel(
         output_grad_ptrs = output_grad_ptr + indices
         output_grad = tl.load(output_grad_ptrs, mask=mask_bh, other=0)
 
-        output = output.to(tl.float32)
         input_grad = (output_grad + input_state_grad) * _tanh_backward(output)
 
         input_grad_ptrs = input_grad_ptr + indices
