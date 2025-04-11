@@ -58,10 +58,8 @@ class RNNTorch(nn.Module):
 
         self.std = std
 
-        with torch.device("meta"):
-            self.input_projection = nn.Linear(self.input_size, self.state_size, bias=add_bias)
-            self.output_projection = nn.Linear(self.state_size, self.output_size, bias=False)
-
+        self.input_projection = nn.Linear(self.input_size, self.state_size, bias=add_bias)
+        self.output_projection = nn.Linear(self.state_size, self.output_size, bias=False)
         self.state_weight = nn.Parameter(torch.empty(self.num_heads, self.state_head_dim, self.state_head_dim))
 
         self.reset_parameters()
