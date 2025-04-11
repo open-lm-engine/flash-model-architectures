@@ -117,14 +117,3 @@ class RNNTest(TestCommons):
             atol_float32=6e-3,
             rtol_float32=0,
         )
-
-        # print(x_cute.grad - x_torch.grad)
-        # print((x_cute.grad - x_torch.grad).abs().max())
-        # print(x_cute.grad)
-        # print(x_torch.grad)
-
-        print(rnn_cute.state_weight.grad - rnn_torch.state_weight.grad)
-        print((rnn_cute.state_weight.grad - rnn_torch.state_weight.grad).abs().max())
-        print(rnn_cute.state_weight.grad)
-        print(rnn_torch.state_weight.grad)
-        assert False
