@@ -40,6 +40,7 @@ def _rnn_backward_triton_kernel(
     B,
     S,
     H,
+    allow_tf32: tl.constexpr,
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
@@ -75,7 +76,7 @@ def _rnn_backward_triton_kernel(
         input_grad_ptrs = input_grad_ptr + indices
         tl.store(input_grad_ptrs, input_grad, mask=mask_bh)
 
-        input_state_grad = tl.dot(input_grad, weight.T).to(input_state_grad.dtype)
+        input_state_grad = tl.dot(input_grad, weight.T, allow_tf32=allow_tf32).to(input_state_grad.dtype)
 
         if s == 0:
             if has_input_state:
@@ -92,7 +93,7 @@ def _rnn_backward_triton_kernel(
             output_ptrs -= output_stride_s
             output_prev = tl.load(output_ptrs, mask=mask_bh, other=0)
 
-        weight_grad = tl.dot(output_prev.T, input_grad, weight_grad)
+        weight_grad = tl.dot(output_prev.T, input_grad, weight_grad, allow_tf32=allow_tf32)
         output = output_prev
 
         indices -= output_stride_s
@@ -111,6 +112,7 @@ def rnn_backward_triton(
     output_grad: torch.Tensor,
     input_grad: torch.Tensor,
     weight_grad: torch.Tensor,
+    allow_tf32: bool,
     BLOCK_SIZE_B: int,
 ) -> None:
     B, S, N, H = output.size()
@@ -137,6 +139,7 @@ def rnn_backward_triton(
             B=B,
             S=S,
             H=H,
+            allow_tf32=allow_tf32,
             BLOCK_SIZE_B=BLOCK_SIZE_B,
             BLOCK_SIZE_H=BLOCK_SIZE_H,
         )

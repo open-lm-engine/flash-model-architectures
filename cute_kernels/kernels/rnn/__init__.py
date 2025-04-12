@@ -24,6 +24,7 @@ class _RNN_Cute(torch.autograd.Function):
             weight=weight,
             output=output,
             input_state=input_state,
+            allow_tf32=True,
             BLOCK_SIZE_B=BLOCK_SIZE_B_forward,
         )
 
@@ -47,6 +48,7 @@ class _RNN_Cute(torch.autograd.Function):
             output_grad=output_grad,
             input_grad=input_grad,
             weight_grad=weight_grad,
+            allow_tf32=True,
             BLOCK_SIZE_B=ctx.BLOCK_SIZE_B_backward,
         )
 
