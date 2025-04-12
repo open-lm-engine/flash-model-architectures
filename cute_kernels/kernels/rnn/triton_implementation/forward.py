@@ -26,6 +26,7 @@ def _rnn_forward_triton_kernel(
     B,
     S,
     H,
+    allow_tf32: tl.constexpr,
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
@@ -51,7 +52,7 @@ def _rnn_forward_triton_kernel(
         input_state = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=input_ptr.dtype.element_ty)
 
     for _ in range(S):
-        input_state = tl.dot(input_state, weight).to(input_state.dtype)
+        input_state = tl.dot(input_state, weight, allow_tf32=allow_tf32).to(input_state.dtype)
 
         input_ptrs = input_ptr + indices
         input = tl.load(input_ptrs, mask=mask_bh, other=0)
@@ -71,6 +72,7 @@ def rnn_forward_triton(
     weight: torch.Tensor,
     output: torch.Tensor,
     input_state: torch.Tensor | None,
+    allow_tf32: bool,
     BLOCK_SIZE_B: int,
 ) -> None:
     B, S, N, H = input.size()
@@ -93,6 +95,7 @@ def rnn_forward_triton(
             B=B,
             S=S,
             H=H,
+            allow_tf32=allow_tf32,
             BLOCK_SIZE_B=BLOCK_SIZE_B,
             BLOCK_SIZE_H=BLOCK_SIZE_H,
         )
