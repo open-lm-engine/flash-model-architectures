@@ -48,38 +48,6 @@ class RNNTest(TestCommons):
         y_kernel.sum().backward()
         y_expected.sum().backward()
 
-        self.assert_equal_tensors(
-            y_kernel,
-            y_expected,
-            False,
-            atol_float16=4e-3,
-            rtol_float16=0,
-            atol_bfloat16=2e-2,
-            rtol_bfloat16=0,
-            atol_float32=6e-3,
-            rtol_float32=0,
-        )
-
-        self.assert_equal_tensors(
-            x_kernel.grad,
-            x_expected.grad,
-            False,
-            atol_float16=4e-3,
-            rtol_float16=0,
-            atol_bfloat16=4e-2,
-            rtol_bfloat16=0,
-            atol_float32=6e-3,
-            rtol_float32=0,
-        )
-
-        self.assert_equal_tensors(
-            weight_kernel.grad,
-            weight_expected.grad,
-            False,
-            atol_float16=4e-3,
-            rtol_float16=0,
-            atol_bfloat16=4e-2,
-            rtol_bfloat16=0,
-            atol_float32=6e-3,
-            rtol_float32=0,
-        )
+        self.assert_equal_tensors(y_kernel, y_expected, False, atol_float32=6e-3, rtol_float32=0)
+        self.assert_equal_tensors(x_kernel.grad, x_expected.grad, False, atol_float32=6e-3, rtol_float32=0)
+        self.assert_equal_tensors(weight_kernel.grad, weight_expected.grad, False, atol_float32=6e-3, rtol_float32=0)
