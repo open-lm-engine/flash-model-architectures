@@ -1,7 +1,9 @@
+from typing import Callable
+
 import torch
 from parameterized import parameterized
 
-from cute_kernels import RNNCute, RNNTorch, set_seed
+from cute_kernels import rnn_cute, rnn_torch, set_seed
 
 from ..test_commons import TestCommons
 
@@ -16,11 +18,9 @@ class RNNTest(TestCommons):
             [torch.float32],
             [4],  # batch_size
             [1024],  # sequence_length
-            [2048],  # input_size
             [64],  # state_size
-            [2560],  # output_size
             [4],  # num_heads
-            [False],  # is_compiling
+            [rnn_cute, torch.compile(rnn_cute, fullgraph=True)],  # function
         )
     )
     def test_rnn(
@@ -29,59 +29,28 @@ class RNNTest(TestCommons):
         dtype: torch.dtype,
         batch_size: int,
         sequence_length: int,
-        input_size: int,
         state_size: int,
-        output_size: int,
         num_heads: int,
-        is_compiling: bool,
+        function: Callable,
     ) -> None:
         set_seed(_SEED)
 
-        with torch.device(device):
-            rnn_cute = RNNCute(
-                input_size=input_size,
-                state_size=state_size,
-                output_size=output_size,
-                num_heads=num_heads,
-                add_bias=False,
-            ).to(dtype=dtype)
+        x_kernel, x_expected = self.get_random_duplicated_tensors(
+            (batch_size, sequence_length, num_heads, state_size), device=device, dtype=dtype
+        )
+        weight_kernel, weight_expected = self.get_random_duplicated_tensors(
+            (num_heads, state_size, state_size), device=device, dtype=dtype
+        )
 
-            with torch.no_grad():
-                rnn_cute.state_weight.normal_(mean=0, std=0.01)
+        y_kernel = function(x_kernel, weight_kernel)
+        y_expected = rnn_torch(x_expected, weight_expected)
 
-            rnn_torch = RNNTorch(
-                input_size=input_size,
-                state_size=state_size,
-                output_size=output_size,
-                num_heads=num_heads,
-                add_bias=False,
-            ).to(dtype=dtype)
-
-        if is_compiling:
-            rnn_cute = torch.compile(rnn_cute, fullgraph=True)
-
-        state_dict = rnn_cute.state_dict()
-
-        if is_compiling:
-            new_state_dict = {}
-            for key in state_dict:
-                new_key = key.split("_orig_mod.")[1]
-                new_state_dict[new_key] = state_dict[key]
-
-            state_dict = new_state_dict
-            del new_state_dict
-
-        rnn_torch.load_state_dict(state_dict)
-
-        x_torch = torch.randn(batch_size, sequence_length, input_size, device=device, dtype=dtype, requires_grad=True)
-        x_cute = x_torch.clone().detach().requires_grad_()
-
-        y_torch = rnn_torch(x_torch)
-        y_cute = rnn_cute(x_cute)
+        y_kernel.sum().backward()
+        y_expected.sum().backward()
 
         self.assert_equal_tensors(
-            y_cute,
-            y_torch,
+            y_kernel,
+            y_expected,
             False,
             atol_float16=4e-3,
             rtol_float16=0,
@@ -91,12 +60,9 @@ class RNNTest(TestCommons):
             rtol_float32=0,
         )
 
-        y_torch.sum().backward()
-        y_cute.sum().backward()
-
         self.assert_equal_tensors(
-            x_cute.grad,
-            x_torch.grad,
+            x_kernel.grad,
+            x_expected.grad,
             False,
             atol_float16=4e-3,
             rtol_float16=0,
@@ -107,8 +73,8 @@ class RNNTest(TestCommons):
         )
 
         self.assert_equal_tensors(
-            rnn_cute.state_weight.grad,
-            rnn_torch.state_weight.grad,
+            weight_kernel.grad,
+            weight_expected.grad,
             False,
             atol_float16=4e-3,
             rtol_float16=0,

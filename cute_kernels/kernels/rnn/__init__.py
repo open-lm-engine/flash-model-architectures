@@ -2,7 +2,7 @@ import torch
 
 from ...cutotune import CutoTuneParameter
 from ...utils import ensure_contiguous
-from .torch_implementation import RNNTorch, rnn_torch
+from .torch_implementation import rnn_torch
 from .triton_implementation import rnn_backward_triton, rnn_forward_triton
 
 
@@ -61,8 +61,3 @@ def rnn_cute(
     BLOCK_SIZE_B_backward: int = 32,
 ) -> torch.Tensor:
     return _RNN_Cute.apply(input, weight, input_state, BLOCK_SIZE_B_forward, BLOCK_SIZE_B_backward)
-
-
-class RNNCute(RNNTorch):
-    def _rnn(self, input: torch.Tensor, input_state: torch.Tensor | None) -> torch.Tensor:
-        return rnn_cute(input=input, weight=self.state_weight, input_state=input_state)
