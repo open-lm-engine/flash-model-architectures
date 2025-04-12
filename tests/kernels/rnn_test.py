@@ -36,7 +36,7 @@ class RNNTest(TestCommons):
         set_seed(_SEED)
 
         x_kernel, x_expected = self.get_random_duplicated_tensors(
-            (batch_size, sequence_length, num_heads, state_size), device=device, dtype=dtype, std=0.1
+            (batch_size, sequence_length, num_heads, state_size), device=device, dtype=dtype, std=0.01
         )
         weight_kernel, weight_expected = self.get_random_duplicated_tensors(
             (num_heads, state_size, state_size), device=device, dtype=dtype, std=0.01
