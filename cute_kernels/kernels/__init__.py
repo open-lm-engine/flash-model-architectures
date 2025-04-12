@@ -8,7 +8,7 @@ from .fused_residual_add_rmsnorm import fused_residual_add_rmsnorm_cute, fused_r
 from .gemm import gemm_cute, gemm_torch
 from .linear import linear_cute, linear_torch
 from .rmsnorm import rmsnorm_cute, rmsnorm_torch
-from .rnn import RNNCute, RNNTorch, rnn_cute, rnn_torch
+from .rnn import rnn_cute, rnn_torch
 from .scattermoe import MoE_Torch, MoE_Triton
 from .softmax import softmax_cute, softmax_torch
 from .swiglu import swiglu_cute, swiglu_torch
