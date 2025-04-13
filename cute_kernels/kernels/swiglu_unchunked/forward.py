@@ -15,7 +15,7 @@ def _forward(x: torch.Tensor, kernel_backend: str, BLOCK_SIZE_B: int, BLOCK_SIZE
     if kernel_backend == "triton":
         B, H = get_num_elements_and_hidden_size(x)
 
-        with torch.device(x.device):
+        with torch.cuda.device(x.device):
             _swiglu_unchunked_forward_triton_kernel[(ceil_divide(B, BLOCK_SIZE_B), ceil_divide(H, BLOCK_SIZE_H))](
                 x_ptr=x,
                 output_ptr=output,

@@ -1,6 +1,8 @@
 import torch
 
 from ...cutotune import cutotune
+from ...math import ceil_divide
+from ...utils import get_num_elements_and_hidden_size
 from .parameters import get_cutotune_parameters
 from .triton_implementation import _swiglu_unchunked_backward_triton_kernel
 
@@ -18,7 +20,7 @@ def _backward(
     if kernel_backend == "triton":
         B, H = get_num_elements_and_hidden_size(x)
 
-        with torch.device(x.device):
+        with torch.cuda.device(x.device):
             _swiglu_unchunked_backward_triton_kernel[(ceil_divide(B, BLOCK_SIZE_B), ceil_divide(H, BLOCK_SIZE_H))](
                 x_ptr=x,
                 output_grad_ptr=output_grad,
