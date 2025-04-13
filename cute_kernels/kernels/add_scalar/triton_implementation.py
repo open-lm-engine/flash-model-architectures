@@ -23,7 +23,7 @@ def _add_scalar_triton_kernel(x_ptr, y, output_ptr, num_elements, BLOCK_SIZE: tl
     tl.store(output_ptr + indices, output, mask=mask)
 
 
-@cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"output"})
+# @cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"output"})
 def add_scalar_triton(x: torch.Tensor, y: float, output: torch.Tensor, BLOCK_SIZE: int) -> None:
     num_elements = x.numel()
     num_programs = ceil_divide(num_elements, BLOCK_SIZE)
