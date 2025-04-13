@@ -87,7 +87,7 @@ def softmax_forward_triton(
 ) -> None:
     num_elements, hidden_size = get_num_elements_and_hidden_size(x)
 
-    with torch.device(x.device):
+    with torch.cuda.device(x.device):
         _softmax_forward_triton_kernel[(ceil_divide(num_elements, BLOCK_SIZE_B),)](
             x_ptr=x,
             output_ptr=output,
