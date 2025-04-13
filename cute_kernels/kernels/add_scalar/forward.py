@@ -14,8 +14,10 @@ def _forward(
     kernel_backend: str,
     BLOCK_SIZE: int,
 ) -> torch.Tensor:
+    output = torch.empty_like(x)
+
     if kernel_backend == "cuda":
-        function = add_scalar_cuda
+        add_scalar_cuda(x=x, y=y, output=output, BLOCK_SIZE=BLOCK_SIZE)
     elif kernel_backend == "triton":
         num_elements = x.numel()
         num_programs = ceil_divide(num_elements, BLOCK_SIZE)
@@ -26,8 +28,5 @@ def _forward(
             )
     else:
         raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
-
-    output = torch.empty_like(x)
-    function(x=x, y=y, output=output, BLOCK_SIZE=BLOCK_SIZE)
 
     return output
