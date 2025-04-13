@@ -2,10 +2,13 @@ import torch
 import triton
 import triton.language as tl
 
-from ....constants import MAX_TRITON_BLOCK_SIZE
+from ....constants import LIBRARY_NAME, MAX_TRITON_BLOCK_SIZE
 from ....cutotune import CutoTuneConfig, cutotune, get_cartesian_product_cutotune_configs
 from ....math import ceil_divide, get_powers_of_2
-from ....utils import get_num_elements_and_hidden_size
+from ....utils import cute_op, get_num_elements_and_hidden_size
+
+
+_KERNEL_NAME = "softmax_forward_triton"
 
 
 @triton.jit
@@ -82,12 +85,13 @@ def _softmax_forward_triton_kernel(
     default_config=CutoTuneConfig({"BLOCK_SIZE_B": 64, "BLOCK_SIZE_H": 64}),
     triggers={"x.dtype"},
 )
+@cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"output"})
 def softmax_forward_triton(
     x: torch.Tensor, output: torch.Tensor, logits_multiplier: float, BLOCK_SIZE_B: int, BLOCK_SIZE_H: int
 ) -> None:
     num_elements, hidden_size = get_num_elements_and_hidden_size(x)
 
-    with torch.cuda.device(x.device):
+    with torch.device(x.device):
         _softmax_forward_triton_kernel[(ceil_divide(num_elements, BLOCK_SIZE_B),)](
             x_ptr=x,
             output_ptr=output,
