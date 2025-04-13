@@ -24,7 +24,7 @@ def _forward(
 
         with torch.cuda.device(x.device):
             _add_tensor_triton_kernel[(num_programs,)](
-                x_ptr=x, y=y, output_ptr=output, num_elements=num_elements, BLOCK_SIZE=BLOCK_SIZE
+                x_ptr=x, y_ptr=y, output_ptr=output, num_elements=num_elements, BLOCK_SIZE=BLOCK_SIZE
             )
     else:
         raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
