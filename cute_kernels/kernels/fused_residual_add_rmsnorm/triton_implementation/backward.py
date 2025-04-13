@@ -130,7 +130,7 @@ def fused_residual_add_rmsnorm_backward_triton(
     sm_count = get_sm_count(added_x_residual.device)
     num_programs = min(sm_count, ceil_divide(num_elements, BLOCK_SIZE_B))
 
-    with torch.device(added_x_residual.device):
+    with torch.cuda.device(added_x_residual.device):
         _fused_residual_add_rmsnorm_backward_triton_kernel[(num_programs,)](
             added_x_residual_ptr=added_x_residual,
             has_weight=weight is not None,
