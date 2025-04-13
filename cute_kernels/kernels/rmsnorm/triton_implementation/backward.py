@@ -112,7 +112,7 @@ def rmsnorm_backward_triton(
     sm_count = get_sm_count(x.device)
     num_programs = min(sm_count, ceil_divide(num_elements, BLOCK_SIZE_B))
 
-    with torch.device(x.device):
+    with torch.cuda.device(x.device):
         _rmsnorm_backward_triton_kernel[(num_programs,)](
             x_ptr=x,
             has_weight=weight is not None,
