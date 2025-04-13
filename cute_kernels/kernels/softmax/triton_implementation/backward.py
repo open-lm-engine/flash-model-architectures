@@ -2,13 +2,10 @@ import torch
 import triton
 import triton.language as tl
 
-from ....constants import LIBRARY_NAME, MAX_TRITON_BLOCK_SIZE
+from ....constants import MAX_TRITON_BLOCK_SIZE
 from ....cutotune import CutoTuneConfig, cutotune, get_cartesian_product_cutotune_configs
 from ....math import ceil_divide, get_powers_of_2
-from ....utils import cute_op, get_num_elements_and_hidden_size
-
-
-_KERNEL_NAME = "softmax_backward_triton"
+from ....utils import get_num_elements_and_hidden_size
 
 
 @triton.jit
@@ -90,7 +87,6 @@ def _softmax_backward_triton_kernel(
     default_config=CutoTuneConfig({"BLOCK_SIZE_B": 64, "BLOCK_SIZE_H": 64}),
     triggers={"output.dtype"},
 )
-@cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"x_grad"})
 def softmax_backward_triton(
     output: torch.Tensor,
     output_grad: torch.Tensor,
@@ -101,7 +97,7 @@ def softmax_backward_triton(
 ) -> None:
     num_elements, hidden_size = get_num_elements_and_hidden_size(x_grad)
 
-    with torch.device(x_grad.device):
+    with torch.cuda.device(x_grad.device):
         _softmax_backward_triton_kernel[(ceil_divide(num_elements, BLOCK_SIZE_B),)](
             output_ptr=output,
             output_grad_ptr=output_grad,
