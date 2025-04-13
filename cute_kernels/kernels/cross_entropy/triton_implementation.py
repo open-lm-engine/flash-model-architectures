@@ -2,13 +2,9 @@ import torch
 import triton
 import triton.language as tl
 
-from ...constants import LIBRARY_NAME, MAX_TRITON_BLOCK_SIZE
+from ...constants import MAX_TRITON_BLOCK_SIZE
 from ...cutotune import CutoTuneConfig, cutotune, get_cartesian_product_cutotune_configs
 from ...math import ceil_divide, get_powers_of_2
-from ...utils import cute_op
-
-
-_KERNEL_NAME = "cross_entropy_forward_backward_triton"
 
 
 @triton.jit
@@ -107,7 +103,6 @@ def _cross_entropy_forward_backward_triton_kernel(
     triggers={"x.dtype"},
     reset_to_zero={"loss": lambda **kwargs: True},
 )
-@cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"loss", "x_grad"})
 def cross_entropy_forward_backward_triton(
     x: torch.Tensor,
     labels: torch.Tensor,
@@ -120,7 +115,7 @@ def cross_entropy_forward_backward_triton(
 ) -> None:
     num_elements, vocab_size = x.size()
 
-    with torch.device(x.device):
+    with torch.cuda.device(x.device):
         _cross_entropy_forward_backward_triton_kernel[(ceil_divide(num_elements, BLOCK_SIZE_B),)](
             x_ptr=x,
             labels_ptr=labels,

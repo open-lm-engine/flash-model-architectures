@@ -2,14 +2,10 @@ import torch
 import triton
 import triton.language as tl
 
-from ....constants import LIBRARY_NAME
 from ....cutotune import cutotune
 from ....math import ceil_divide
-from ....utils import cute_op, get_num_elements_and_hidden_size, get_sm_count
+from ....utils import get_num_elements_and_hidden_size, get_sm_count
 from .parameters import get_cutotune_parameters
-
-
-_KERNEL_NAME = "rmsnorm_backward_triton"
 
 
 @triton.jit
@@ -97,7 +93,6 @@ def _rmsnorm_backward_triton_kernel(
 @cutotune(
     **get_cutotune_parameters(), reset_to_zero={"weight_grad": lambda **kwargs: kwargs["weight_grad"] is not None}
 )
-@cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"x_grad", "weight_grad"})
 def rmsnorm_backward_triton(
     x: torch.Tensor,
     weight: torch.Tensor,

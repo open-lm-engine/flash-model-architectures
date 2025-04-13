@@ -2,14 +2,10 @@ import torch
 import triton
 import triton.language as tl
 
-from ....constants import LIBRARY_NAME
 from ....cutotune import cutotune
 from ....math import ceil_divide
-from ....utils import cute_op, get_num_elements_and_hidden_size, get_sm_count
+from ....utils import get_num_elements_and_hidden_size, get_sm_count
 from ...rmsnorm.triton_implementation.parameters import get_cutotune_parameters
-
-
-_KERNEL_NAME = "fused_residual_add_rmsnorm_backward_triton"
 
 
 @triton.jit
@@ -112,7 +108,6 @@ def _fused_residual_add_rmsnorm_backward_triton_kernel(
     **get_cutotune_parameters(triggers={"added_x_residual.dtype", "BLOCK_SIZE_H"}),
     reset_to_zero={"weight_grad": lambda **kwargs: kwargs["weight_grad"] is not None},
 )
-@cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"x_grad", "residual_grad", "weight_grad"})
 def fused_residual_add_rmsnorm_backward_triton(
     added_x_residual: torch.Tensor,
     weight: torch.Tensor,

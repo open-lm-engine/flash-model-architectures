@@ -2,13 +2,8 @@ import torch
 import triton
 import triton.language as tl
 
-from ...constants import LIBRARY_NAME
 from ...cutotune import CutoTuneConfig, cutotune, get_cartesian_product_cutotune_configs
 from ...math import ceil_divide, get_powers_of_2
-from ...utils import cute_op
-
-
-_KERNEL_NAME = "gemm_triton"
 
 
 @triton.jit
@@ -111,7 +106,6 @@ def _condition(A: torch.Tensor, BLOCK_SIZE_M: int, BLOCK_SIZE_K: int, BLOCK_SIZE
     ),
     triggers={"A.dtype", "is_A_transposed", "is_B_transposed"},
 )
-@cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"output"})
 def gemm_triton(
     A: torch.Tensor,
     B: torch.Tensor,
@@ -131,7 +125,7 @@ def gemm_triton(
     num_warps: int,
     num_stages: int,
 ) -> None:
-    with torch.device(A.device):
+    with torch.cuda.device(A.device):
         _gemm_triton_kernel[(ceil_divide(M, BLOCK_SIZE_M) * ceil_divide(N, BLOCK_SIZE_N),)](
             A_ptr=A,
             B_ptr=B,

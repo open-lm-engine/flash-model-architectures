@@ -2,14 +2,10 @@ import torch
 import triton
 import triton.language as tl
 
-from ....constants import LIBRARY_NAME
 from ....cutotune import cutotune
 from ....math import ceil_divide
-from ....utils import cute_op, get_num_elements_and_hidden_size
+from ....utils import get_num_elements_and_hidden_size
 from ...rmsnorm.triton_implementation.parameters import get_cutotune_parameters
-
-
-_KERNEL_NAME = "fused_residual_add_rmsnorm_forward_triton"
 
 
 @triton.jit
@@ -72,7 +68,6 @@ def _fused_residual_add_rmsnorm_forward_triton_kernel(
 
 
 @cutotune(**get_cutotune_parameters())
-@cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"output", "added_x_residual", "rmsnorm_denominator"})
 def fused_residual_add_rmsnorm_forward_triton(
     x: torch.Tensor,
     residual: torch.Tensor,
@@ -90,7 +85,7 @@ def fused_residual_add_rmsnorm_forward_triton(
     if BLOCK_SIZE_H < hidden_size:
         raise ValueError(f"hidden_size should be more than the BLOCK_SIZE_H")
 
-    with torch.device(x.device):
+    with torch.cuda.device(x.device):
         _fused_residual_add_rmsnorm_forward_triton_kernel[(ceil_divide(num_elements, BLOCK_SIZE_B),)](
             x_ptr=x,
             residual_ptr=residual,
