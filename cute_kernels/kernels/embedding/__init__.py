@@ -19,6 +19,9 @@ class _Embedding_Cute(torch.autograd.Function):
         num_elements = input_ids.numel()
         hidden_size = weight.size(-1)
 
+        BLOCK_SIZE_B = 128
+        BLOCK_SIZE_H = 128
+
         with torch.device(input_ids.device):
             _embedding_forward_triton_kernel[
                 (ceil_divide(num_elements, BLOCK_SIZE_B), ceil_divide(hidden_size, BLOCK_SIZE_H))
@@ -50,6 +53,9 @@ class _Embedding_Cute(torch.autograd.Function):
         accumulate_in_fp32 = weight_grad.dtype == torch.bfloat16
         if accumulate_in_fp32:
             weight_grad = weight_grad.float()
+
+        BLOCK_SIZE_B = 128
+        BLOCK_SIZE_H = 128
 
         with torch.device(input_ids.device):
             _embedding_backward_triton_kernel[
