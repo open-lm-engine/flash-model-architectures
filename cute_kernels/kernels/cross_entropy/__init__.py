@@ -1,6 +1,5 @@
 import torch
 
-from ...cutotune import CutoTuneParameter
 from ...math import ceil_divide
 from ...utils import ensure_contiguous
 from .torch_implementation import cross_entropy_torch

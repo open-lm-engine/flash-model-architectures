@@ -1,12 +1,9 @@
 import torch
 
-from ...cutotune import cutotune
 from ...math import ceil_divide
-from .parameters import get_cutotune_parameters
 from .triton_implementation import _embedding_forward_triton_kernel
 
 
-@cutotune(**get_cutotune_parameters())
 def _forward(
     input_ids: torch.Tensor,
     weight: torch.Tensor,

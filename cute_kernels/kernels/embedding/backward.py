@@ -1,11 +1,8 @@
 import torch
 
-from ...cutotune import cutotune
-from .parameters import get_cutotune_parameters
 from .triton_implementation import embedding_backward_triton
 
 
-@cutotune(**get_cutotune_parameters())
 def _backward(
     input_ids: torch.Tensor,
     weight: torch.Tensor,
