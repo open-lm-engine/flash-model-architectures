@@ -1,6 +1,5 @@
 import torch
 
-from ...cutotune import CutoTuneParameter
 from ...math import ceil_divide, get_next_power_of_2
 from ...utils import ensure_contiguous
 from ..cross_entropy import _cross_entropy_forward_backward_triton_kernel
