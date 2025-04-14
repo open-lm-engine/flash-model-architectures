@@ -30,7 +30,7 @@ class AddTensorTest(TestCommons):
         y_kernel, y_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype)
 
         with enable_kernel_backend(kernel_backend):
-            z_kernel = function(x_kernel, y_kernel, kernel_backend=kernel_backend)
+            z_kernel = function(x_kernel, y_kernel)
         z_expected = add_tensor_torch(x_expected, y_expected)
 
         z_kernel.mean().backward()

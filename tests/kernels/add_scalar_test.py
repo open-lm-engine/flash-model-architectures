@@ -30,7 +30,7 @@ class AddTensorTest(TestCommons):
         y = 0.42
 
         with enable_kernel_backend(kernel_backend):
-            z_kernel = function(x_kernel, y, kernel_backend=kernel_backend)
+            z_kernel = function(x_kernel, y)
         z_expected = add_scalar_torch(x_expected, y)
 
         z_kernel.mean().backward()
