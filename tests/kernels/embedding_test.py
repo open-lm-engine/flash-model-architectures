@@ -15,12 +15,6 @@ class EmbeddingTest(TestCommons):
             [(7153, 937), (27153, 1937), (97153, 2937), (17153, 31937)],  # weight_size
             [torch.device("cuda")],  # device
             TestCommons.get_dtypes(),  # dtype
-            ["triton"],  # kernel_backend_forward
-            ["triton"],  # kernel_backend_backward
-            [64],  # BLOCK_SIZE_B_forward
-            [64],  # BLOCK_SIZE_B_backward
-            [64],  # BLOCK_SIZE_H_forward
-            [64],  # BLOCK_SIZE_H_backward
             [embedding_cute, torch.compile(embedding_cute)],  # function
         )
     )
@@ -30,12 +24,6 @@ class EmbeddingTest(TestCommons):
         weight_size: tuple[int],
         device: torch.device,
         dtype: torch.dtype,
-        kernel_backend_forward: str,
-        kernel_backend_backward: str,
-        BLOCK_SIZE_B_forward: int,
-        BLOCK_SIZE_B_backward: int,
-        BLOCK_SIZE_H_forward: int,
-        BLOCK_SIZE_H_backward: int,
         function: Callable,
     ) -> None:
         vocab_size = weight_size[0] - 1
@@ -43,16 +31,7 @@ class EmbeddingTest(TestCommons):
 
         weight_kernel, weight_expected = self.get_random_duplicated_tensors(weight_size, device=device, dtype=dtype)
 
-        z_kernel = function(
-            input_ids,
-            weight_kernel,
-            kernel_backend_forward=kernel_backend_forward,
-            kernel_backend_backward=kernel_backend_backward,
-            BLOCK_SIZE_B_forward=BLOCK_SIZE_B_forward,
-            BLOCK_SIZE_B_backward=BLOCK_SIZE_B_backward,
-            BLOCK_SIZE_H_forward=BLOCK_SIZE_H_forward,
-            BLOCK_SIZE_H_backward=BLOCK_SIZE_H_backward,
-        )
+        z_kernel = function(input_ids, weight_kernel)
         z_expected = embedding_torch(input_ids, weight_expected)
 
         z_kernel.mean().backward()

@@ -18,8 +18,6 @@ class _FusedResidualAddRMSNorm_Cute(torch.autograd.Function):
         eps: float | None,
         multiplier: float | None,
         memory_efficient: bool,
-        kernel_backend_forward: str,
-        kernel_backend_backward: str,
         BLOCK_SIZE_B_forward: int,
         BLOCK_SIZE_B_backward: int,
         BLOCK_SIZE_H_forward: int,
@@ -44,7 +42,6 @@ class _FusedResidualAddRMSNorm_Cute(torch.autograd.Function):
             eps=eps,
             multiplier=multiplier,
             memory_efficient=memory_efficient,
-            kernel_backend=kernel_backend_forward,
             BLOCK_SIZE_B=BLOCK_SIZE_B_forward,
             BLOCK_SIZE_H=BLOCK_SIZE_H_forward,
         )
@@ -56,7 +53,6 @@ class _FusedResidualAddRMSNorm_Cute(torch.autograd.Function):
             added_x_residual = added_x_residual.squeeze(0)
 
         ctx.is_x_1d = is_x_1d
-        ctx.kernel_backend_backward = kernel_backend_backward
         ctx.eps = eps
         ctx.multiplier = multiplier
         ctx.BLOCK_SIZE_B_backward = BLOCK_SIZE_B_backward
@@ -77,7 +73,6 @@ class _FusedResidualAddRMSNorm_Cute(torch.autograd.Function):
             rmsnorm_denominator=rmsnorm_denominator,
             output_grad=output_grad,
             added_x_residual_grad=added_x_residual_grad,
-            kernel_backend=ctx.kernel_backend_backward,
             BLOCK_SIZE_B=ctx.BLOCK_SIZE_B_backward,
             BLOCK_SIZE_H=ctx.BLOCK_SIZE_H_backward,
         )
