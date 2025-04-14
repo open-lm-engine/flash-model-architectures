@@ -24,18 +24,12 @@ class AddTensorTest(TestCommons):
         device: torch.device,
         dtype: torch.dtype,
         kernel_backend: str,
-        BLOCK_SIZE: int,
         function: Callable,
     ) -> None:
         x_kernel, x_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype)
         y_kernel, y_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype)
 
-        z_kernel = function(
-            x_kernel,
-            y_kernel,
-            kernel_backend=kernel_backend,
-            BLOCK_SIZE=BLOCK_SIZE,
-        )
+        z_kernel = function(x_kernel, y_kernel, kernel_backend=kernel_backend)
         z_expected = add_tensor_torch(x_expected, y_expected)
 
         z_kernel.mean().backward()
