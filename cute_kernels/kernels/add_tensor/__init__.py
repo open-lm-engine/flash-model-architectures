@@ -22,7 +22,7 @@ class _AddTensor_Cute(torch.autograd.Function):
             add_tensor_cuda(x=x, y=y, output=output, BLOCK_SIZE=BLOCK_SIZE)
         elif is_triton_kernel_backend_allowed():
             num_elements = x.numel()
-            num_programs = ceil_divide(num_elements, BLOCK_SIZE=BLOCK_SIZE)
+            num_programs = ceil_divide(num_elements, BLOCK_SIZE)
 
             with torch.cuda.device(x.device):
                 _add_tensor_triton_kernel[(num_programs,)](
