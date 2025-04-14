@@ -15,7 +15,6 @@ class AddTensorTest(TestCommons):
             [torch.device("cuda")],  # device
             TestCommons.get_dtypes(),  # dtype
             ["cuda", "triton"],  # kernel_backend
-            [1024],  # BLOCK_SIZE
             [add_tensor_cute, torch.compile(add_tensor_cute, fullgraph=True)],  # function
         )
     )
