@@ -1,9 +1,10 @@
 import torch
 
 from ...cutotune import CutoTuneParameter
+from ...math import ceil_divide
 from ...utils import ensure_contiguous
 from .torch_implementation import cross_entropy_torch
-from .triton_implementation import cross_entropy_forward_backward_triton
+from .triton_implementation import _cross_entropy_forward_backward_triton_kernel
 
 
 class _CrossEntropy_Cute(torch.autograd.Function):
@@ -26,16 +27,21 @@ class _CrossEntropy_Cute(torch.autograd.Function):
         loss = torch.tensor(0, device=x.device, dtype=torch.float32)
         x_grad = torch.empty_like(x)
 
-        cross_entropy_forward_backward_triton(
-            x=x,
-            labels=labels,
-            loss=loss,
-            x_grad=x_grad,
-            logits_multiplier=logits_multiplier,
-            BLOCK_SIZE_B=BLOCK_SIZE_B,
-            BLOCK_SIZE_V=BLOCK_SIZE_V,
-            reduction=reduction,
-        )
+        num_elements, vocab_size = x.size()
+
+        with torch.cuda.device(x.device):
+            _cross_entropy_forward_backward_triton_kernel[(ceil_divide(num_elements, BLOCK_SIZE_B),)](
+                x_ptr=x,
+                labels_ptr=labels,
+                loss_ptr=loss,
+                x_grad_ptr=x_grad,
+                logits_multiplier=logits_multiplier,
+                B=num_elements,
+                V=vocab_size,
+                BLOCK_SIZE_B=4,
+                BLOCK_SIZE_V=256,
+                reduction=reduction,
+            )
 
         # Meta is on fucking drugs
         # torch compiler doesn't work without this :/
