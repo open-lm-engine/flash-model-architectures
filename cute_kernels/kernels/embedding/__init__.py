@@ -21,7 +21,7 @@ class _Embedding_Cute(torch.autograd.Function):
         BLOCK_SIZE_B = 128
         BLOCK_SIZE_H = 128
 
-        with torch.device(input_ids.device):
+        with torch.cuda.device(input_ids.device):
             _embedding_forward_triton_kernel[
                 (ceil_divide(num_elements, BLOCK_SIZE_B), ceil_divide(hidden_size, BLOCK_SIZE_H))
             ](
@@ -56,7 +56,7 @@ class _Embedding_Cute(torch.autograd.Function):
         BLOCK_SIZE_B = 128
         BLOCK_SIZE_H = 128
 
-        with torch.device(input_ids.device):
+        with torch.cuda.device(input_ids.device):
             _embedding_backward_triton_kernel[
                 (ceil_divide(num_elements, BLOCK_SIZE_B), ceil_divide(hidden_size, BLOCK_SIZE_H))
             ](
