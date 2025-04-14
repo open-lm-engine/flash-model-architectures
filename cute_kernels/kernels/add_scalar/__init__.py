@@ -14,7 +14,7 @@ class _AddScalar_Cute(torch.autograd.Function):
         output = torch.empty_like(x)
         BLOCK_SIZE = 1024
 
-        if is_nvidia_gpu() and is_cuda_kernel_backend_allowed() and x.is_cuda:
+        if is_cuda_kernel_backend_allowed() and is_nvidia_gpu() and x.is_cuda:
             add_scalar_cuda(x=x, y=y, output=output, BLOCK_SIZE=BLOCK_SIZE)
         elif is_triton_kernel_backend_allowed():
             num_elements = x.numel()
