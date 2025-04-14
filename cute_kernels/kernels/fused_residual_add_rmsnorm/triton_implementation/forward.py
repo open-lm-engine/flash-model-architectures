@@ -1,15 +1,5 @@
-import torch
 import triton
 import triton.language as tl
-
-from ....constants import LIBRARY_NAME
-from ....cutotune import cutotune
-from ....math import ceil_divide
-from ....utils import cute_op, get_num_elements_and_hidden_size
-from ...rmsnorm.triton_implementation.parameters import get_cutotune_parameters
-
-
-_KERNEL_NAME = "fused_residual_add_rmsnorm_forward_triton"
 
 
 @triton.jit
@@ -69,42 +59,3 @@ def _fused_residual_add_rmsnorm_forward_triton_kernel(
 
     output_ptrs = output_ptr + indices_bh
     tl.store(output_ptrs, x, mask=mask_bh)
-
-
-@cutotune(**get_cutotune_parameters())
-@cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"output", "added_x_residual", "rmsnorm_denominator"})
-def fused_residual_add_rmsnorm_forward_triton(
-    x: torch.Tensor,
-    residual: torch.Tensor,
-    weight: torch.Tensor | None,
-    output: torch.Tensor,
-    eps: float,
-    multiplier: float | None,
-    added_x_residual: torch.Tensor,
-    rmsnorm_denominator: torch.Tensor | None,
-    BLOCK_SIZE_B: int,
-    BLOCK_SIZE_H: int,
-) -> None:
-    num_elements, hidden_size = get_num_elements_and_hidden_size(x)
-
-    if BLOCK_SIZE_H < hidden_size:
-        raise ValueError(f"hidden_size should be more than the BLOCK_SIZE_H")
-
-    with torch.device(x.device):
-        _fused_residual_add_rmsnorm_forward_triton_kernel[(ceil_divide(num_elements, BLOCK_SIZE_B),)](
-            x_ptr=x,
-            residual_ptr=residual,
-            has_weight=weight is not None,
-            weight_ptr=weight,
-            output_ptr=output,
-            eps=eps,
-            has_multiplier=multiplier is not None and multiplier != 1,
-            multiplier=multiplier,
-            added_x_residual_ptr=added_x_residual,
-            has_rmsnorm_denominator=rmsnorm_denominator is not None,
-            rmsnorm_denominator_ptr=rmsnorm_denominator,
-            B=num_elements,
-            H=hidden_size,
-            BLOCK_SIZE_B=BLOCK_SIZE_B,
-            BLOCK_SIZE_H=BLOCK_SIZE_H,
-        )
