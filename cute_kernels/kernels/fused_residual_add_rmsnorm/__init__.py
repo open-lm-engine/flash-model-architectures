@@ -1,12 +1,13 @@
 import torch
 
 from ...constants import MAX_TRITON_BLOCK_SIZE
-from ...cutotune import CutoTuneParameter
 from ...math import ceil_divide, get_next_power_of_2
-from ...utils import ensure_contiguous
-from .backward import _backward
+from ...utils import ensure_contiguous, get_num_elements_and_hidden_size, get_sm_count
 from .torch_implementation import fused_residual_add_rmsnorm_torch
-from .triton_implementation import _fused_residual_add_rmsnorm_forward_triton_kernel
+from .triton_implementation import (
+    _fused_residual_add_rmsnorm_backward_triton_kernel,
+    _fused_residual_add_rmsnorm_forward_triton_kernel,
+)
 
 
 class _FusedResidualAddRMSNorm_Cute(torch.autograd.Function):
@@ -83,15 +84,47 @@ class _FusedResidualAddRMSNorm_Cute(torch.autograd.Function):
     def backward(ctx, output_grad: torch.Tensor, added_x_residual_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
         added_x_residual, weight, rmsnorm_denominator = ctx.saved_tensors
 
-        x_grad, residual_grad, weight_grad = _backward(
-            added_x_residual=added_x_residual,
-            weight=weight,
-            eps=ctx.eps,
-            multiplier=ctx.multiplier,
-            rmsnorm_denominator=rmsnorm_denominator,
-            output_grad=output_grad,
-            added_x_residual_grad=added_x_residual_grad,
-        )
+        hidden_size = added_x_residual.size(-1)
+
+        x_grad = torch.empty_like(added_x_residual)
+        residual_grad = torch.empty_like(added_x_residual)
+        weight_grad = None if weight is None else torch.zeros_like(weight, dtype=torch.float32)
+
+        BLOCK_SIZE_H = get_next_power_of_2(hidden_size)
+        assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
+
+        num_elements, hidden_size = get_num_elements_and_hidden_size(added_x_residual)
+
+        if BLOCK_SIZE_H < hidden_size:
+            raise ValueError(f"hidden_size should be more than the BLOCK_SIZE_H")
+
+        sm_count = get_sm_count(added_x_residual.device)
+        num_programs = min(sm_count, ceil_divide(num_elements, BLOCK_SIZE_B))
+        multiplier = ctx.multiplier
+
+        with torch.device(added_x_residual.device):
+            _fused_residual_add_rmsnorm_backward_triton_kernel[(num_programs,)](
+                added_x_residual_ptr=added_x_residual,
+                has_weight=weight is not None,
+                weight_ptr=weight,
+                output_grad_ptr=output_grad,
+                added_x_residual_grad_ptr=added_x_residual_grad,
+                x_grad_ptr=x_grad,
+                residual_grad_ptr=residual_grad,
+                weight_grad_ptr=weight_grad,
+                eps=ctx.eps,
+                has_multiplier=multiplier is not None and multiplier != 1,
+                multiplier=multiplier,
+                has_rmsnorm_denominator=rmsnorm_denominator is not None,
+                rmsnorm_denominator_ptr=rmsnorm_denominator,
+                B=num_elements,
+                H=hidden_size,
+                BLOCK_SIZE_B=BLOCK_SIZE_B,
+                BLOCK_SIZE_H=BLOCK_SIZE_H,
+            )
+
+        if weight_grad is not None:
+            weight_grad = weight_grad.type_as(weight)
 
         if ctx.is_x_1d:
             x_grad = x_grad.squeeze(0)
