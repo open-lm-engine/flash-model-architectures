@@ -10,15 +10,7 @@ from .triton_implementation import _cross_entropy_forward_backward_triton_kernel
 class _CrossEntropy_Cute(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
-    def forward(
-        ctx,
-        x: torch.Tensor,
-        labels: torch.Tensor,
-        reduction: str,
-        logits_multiplier: float,
-        BLOCK_SIZE_B: int,
-        BLOCK_SIZE_V: int,
-    ) -> torch.Tensor:
+    def forward(ctx, x: torch.Tensor, labels: torch.Tensor, reduction: str, logits_multiplier: float) -> torch.Tensor:
         assert reduction in ["sum", "mean"]
         assert x.dim() == 2, "x should be 2 dimensional"
         assert labels.dim() == 1, "labels should be 1 dimensional"
@@ -28,6 +20,8 @@ class _CrossEntropy_Cute(torch.autograd.Function):
         x_grad = torch.empty_like(x)
 
         num_elements, vocab_size = x.size()
+        BLOCK_SIZE_B = 4
+        BLOCK_SIZE_V = 256
 
         with torch.cuda.device(x.device):
             _cross_entropy_forward_backward_triton_kernel[(ceil_divide(num_elements, BLOCK_SIZE_B),)](
@@ -38,8 +32,8 @@ class _CrossEntropy_Cute(torch.autograd.Function):
                 logits_multiplier=logits_multiplier,
                 B=num_elements,
                 V=vocab_size,
-                BLOCK_SIZE_B=4,
-                BLOCK_SIZE_V=256,
+                BLOCK_SIZE_B=BLOCK_SIZE_B,
+                BLOCK_SIZE_V=BLOCK_SIZE_V,
                 reduction=reduction,
             )
 
@@ -61,18 +55,6 @@ class _CrossEntropy_Cute(torch.autograd.Function):
 
 
 def cross_entropy_cute(
-    x: torch.Tensor,
-    labels: torch.Tensor,
-    reduction: str = "mean",
-    logits_multiplier: float = 1,
-    BLOCK_SIZE_B: int = CutoTuneParameter(),
-    BLOCK_SIZE_V: int = CutoTuneParameter(),
+    x: torch.Tensor, labels: torch.Tensor, reduction: str = "mean", logits_multiplier: float = 1
 ) -> torch.Tensor:
-    return _CrossEntropy_Cute.apply(
-        x,
-        labels,
-        reduction,
-        logits_multiplier,
-        BLOCK_SIZE_B,
-        BLOCK_SIZE_V,
-    )
+    return _CrossEntropy_Cute.apply(x, labels, reduction, logits_multiplier)
