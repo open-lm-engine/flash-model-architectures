@@ -68,23 +68,5 @@ class _Embedding_Cute(torch.autograd.Function):
         return None, weight_grad, *[None] * 6
 
 
-def embedding_cute(
-    input_ids: torch.Tensor,
-    weight: torch.Tensor,
-    kernel_backend_forward: str = CutoTuneParameter(),
-    kernel_backend_backward: str = CutoTuneParameter(),
-    BLOCK_SIZE_B_forward: int = CutoTuneParameter(),
-    BLOCK_SIZE_B_backward: int = CutoTuneParameter(),
-    BLOCK_SIZE_H_forward: int = CutoTuneParameter(),
-    BLOCK_SIZE_H_backward: int = CutoTuneParameter(),
-) -> torch.Tensor:
-    return _Embedding_Cute.apply(
-        input_ids,
-        weight,
-        kernel_backend_forward,
-        kernel_backend_backward,
-        BLOCK_SIZE_B_forward,
-        BLOCK_SIZE_B_backward,
-        BLOCK_SIZE_H_forward,
-        BLOCK_SIZE_H_backward,
-    )
+def embedding_cute(input_ids: torch.Tensor, weight: torch.Tensor) -> torch.Tensor:
+    return _Embedding_Cute.apply(input_ids, weight)
