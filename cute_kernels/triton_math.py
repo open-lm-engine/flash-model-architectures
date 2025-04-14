@@ -31,11 +31,7 @@ def tanh(x):
     dtype = x.dtype
 
     x = x.to(tl.float32)
-    x = clamp(x)
-    x = tl.exp(-x)
-    x *= x
-    x = (1 - x) / (1 + x)
-
+    x = 2 * sigmoid(2 * x) - 1
     x = x.to(dtype)
 
     return x
