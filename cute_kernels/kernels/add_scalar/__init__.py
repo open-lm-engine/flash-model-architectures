@@ -13,7 +13,7 @@ class _AddScalar_Cute(torch.autograd.Function):
         output = torch.empty_like(x)
         BLOCK_SIZE = 1024
 
-        if kernel_backend == "cuda" or (is_nvidia_gpu() and x.is_cuda):
+        if is_nvidia_gpu() and x.is_cuda:
             add_scalar_cuda(x=x, y=y, output=output, BLOCK_SIZE=BLOCK_SIZE)
         else:
             num_elements = x.numel()
