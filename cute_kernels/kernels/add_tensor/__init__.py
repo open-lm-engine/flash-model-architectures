@@ -10,7 +10,7 @@ from .triton_implementation import _add_tensor_triton_kernel
 
 class _AddTensor_Cute(torch.autograd.Function):
     @staticmethod
-    def forward(ctx, x: torch.Tensor, y: torch.Tensor, kernel_backend: str) -> torch.Tensor:
+    def forward(ctx, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         assert x.size() == y.size(), "tensors x and y should have same shape"
         assert x.type() == y.type(), "tensors x and y should have same dtype"
 
@@ -35,8 +35,8 @@ class _AddTensor_Cute(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
-        return output_grad, output_grad, None
+        return output_grad, output_grad
 
 
-def add_tensor_cute(x: torch.Tensor, y: torch.Tensor, kernel_backend: str | None = None) -> torch.Tensor:
-    return _AddTensor_Cute.apply(x, y, kernel_backend)
+def add_tensor_cute(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    return _AddTensor_Cute.apply(x, y)
