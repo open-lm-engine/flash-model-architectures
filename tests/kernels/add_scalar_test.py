@@ -15,7 +15,6 @@ class AddTensorTest(TestCommons):
             [torch.device("cuda")],  # device
             TestCommons.get_dtypes(),  # dtype
             ["cuda", "triton"],  # kernel_backend
-            [1024],  # BLOCK_SIZE
             [add_scalar_cute, torch.compile(add_scalar_cute, fullgraph=True)],  # function
         )
     )
@@ -25,18 +24,12 @@ class AddTensorTest(TestCommons):
         device: torch.device,
         dtype: torch.dtype,
         kernel_backend: str,
-        BLOCK_SIZE: int,
         function: Callable,
     ) -> None:
         x_kernel, x_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype)
         y = 0.42
 
-        z_kernel = function(
-            x_kernel,
-            y,
-            kernel_backend=kernel_backend,
-            BLOCK_SIZE=BLOCK_SIZE,
-        )
+        z_kernel = function(x_kernel, y, kernel_backend=kernel_backend)
         z_expected = add_scalar_torch(x_expected, y)
 
         z_kernel.mean().backward()
