@@ -102,7 +102,7 @@ class _FusedResidualAddRMSNorm_Cute(torch.autograd.Function):
         num_programs = min(sm_count, ceil_divide(num_elements, BLOCK_SIZE_B))
         multiplier = ctx.multiplier
 
-        with torch.device(added_x_residual.device):
+        with torch.cuda.device(added_x_residual.device):
             _fused_residual_add_rmsnorm_backward_triton_kernel[(num_programs,)](
                 added_x_residual_ptr=added_x_residual,
                 has_weight=weight is not None,
@@ -130,7 +130,7 @@ class _FusedResidualAddRMSNorm_Cute(torch.autograd.Function):
             x_grad = x_grad.squeeze(0)
             residual_grad = residual_grad.squeeze(0)
 
-        return x_grad, residual_grad, weight_grad, *[None] * 9
+        return x_grad, residual_grad, weight_grad, *[None] * 3
 
 
 def fused_residual_add_rmsnorm_cute(
