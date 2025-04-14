@@ -11,14 +11,7 @@ class _FusedLinearCrossEntropy_Cute(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
     def forward(
-        ctx,
-        x: torch.Tensor,
-        weight: torch.Tensor,
-        labels: torch.Tensor,
-        reduction: str,
-        logits_multiplier: float,
-        BLOCK_SIZE_B: int,
-        BLOCK_SIZE_V: int,
+        ctx, x: torch.Tensor, weight: torch.Tensor, labels: torch.Tensor, reduction: str, logits_multiplier: float
     ) -> torch.Tensor:
         assert reduction in ["sum", "mean"]
         assert x.dim() == 2, "x should be 2 dimensional"
@@ -38,6 +31,9 @@ class _FusedLinearCrossEntropy_Cute(torch.autograd.Function):
         loss = torch.tensor(0, device=x.device, dtype=torch.float32)
         x_grad = torch.empty_like(x)
         weight_grad = torch.zeros_like(weight)
+
+        BLOCK_SIZE_B = 4
+        BLOCK_SIZE_V = 256
 
         for i in range(num_chunks):
             start = i * chunk_size
@@ -59,8 +55,8 @@ class _FusedLinearCrossEntropy_Cute(torch.autograd.Function):
                     logits_multiplier=logits_multiplier,
                     B=_logits.size(0),
                     V=vocab_size,
-                    BLOCK_SIZE_B=4,
-                    BLOCK_SIZE_V=256,
+                    BLOCK_SIZE_B=BLOCK_SIZE_B,
+                    BLOCK_SIZE_V=BLOCK_SIZE_V,
                     reduction="sum",
                 )
 
@@ -87,20 +83,6 @@ class _FusedLinearCrossEntropy_Cute(torch.autograd.Function):
 
 
 def fused_linear_cross_entropy_cute(
-    x: torch.Tensor,
-    weight: torch.Tensor,
-    labels: torch.Tensor,
-    reduction: str = "mean",
-    logits_multiplier: float = 1,
-    BLOCK_SIZE_B: int = CutoTuneParameter(),
-    BLOCK_SIZE_V: int = CutoTuneParameter(),
+    x: torch.Tensor, weight: torch.Tensor, labels: torch.Tensor, reduction: str = "mean", logits_multiplier: float = 1
 ) -> torch.Tensor:
-    return _FusedLinearCrossEntropy_Cute.apply(
-        x,
-        weight,
-        labels,
-        reduction,
-        logits_multiplier,
-        BLOCK_SIZE_B,
-        BLOCK_SIZE_V,
-    )
+    return _FusedLinearCrossEntropy_Cute.apply(x, weight, labels, reduction, logits_multiplier)
