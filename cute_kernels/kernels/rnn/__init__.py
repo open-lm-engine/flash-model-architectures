@@ -1,6 +1,5 @@
 import torch
 
-from ...cutotune import CutoTuneParameter
 from ...utils import ensure_contiguous
 from .torch_implementation import rnn_torch
 from .triton_implementation import rnn_backward_triton, rnn_forward_triton
