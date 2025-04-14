@@ -11,7 +11,7 @@ _KERNEL_BACKEND: KernelBackend | None = None
 
 
 @contextmanager
-def kernel_backend(backend: KernelBackend | None = None):
+def enable_kernel_backend(backend: KernelBackend | None = None):
     global _KERNEL_BACKEND
 
     current_backend = _KERNEL_BACKEND
