@@ -40,7 +40,6 @@ class _RMSNorm_Cute(torch.autograd.Function):
             weight=weight,
             eps=eps,
             memory_efficient=memory_efficient,
-            kernel_backend=kernel_backend_forward,
             BLOCK_SIZE_B=BLOCK_SIZE_B_forward,
             BLOCK_SIZE_H=BLOCK_SIZE_H_forward,
         )
