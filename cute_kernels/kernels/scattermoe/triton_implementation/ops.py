@@ -9,7 +9,7 @@ from .kernels import group_triton_kernel, groupXtY_triton_kernel, scatter2scatte
 
 
 BLOCK_M = 128
-torch._dynamo.config.capture_scalar_outputs = True
+# torch._dynamo.config.capture_scalar_outputs = True
 
 
 def _fake_bincount(x: torch.Tensor, minlength: int) -> torch.Tensor:
