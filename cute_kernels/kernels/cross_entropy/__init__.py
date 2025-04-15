@@ -45,7 +45,7 @@ class _CrossEntropy_Cute(torch.autograd.Function):
         x_grad = ctx.saved_tensors[0]
         x_grad *= output_grad
 
-        return x_grad, *[None] * 5
+        return x_grad, *[None] * 3
 
 
 def cross_entropy_cute(
