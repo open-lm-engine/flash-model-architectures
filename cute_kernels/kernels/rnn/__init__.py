@@ -62,7 +62,7 @@ class _RNN_Cute(torch.autograd.Function):
         BLOCK_SIZE_H = get_next_power_of_2(H)
         BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
 
-        with torch.device(output.device):
+        with torch.cuda.device(output.device):
             _rnn_backward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B_backward), N](
                 weight_ptr=weight,
                 weight_stride_n=weight.stride(0),
