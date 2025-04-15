@@ -108,7 +108,6 @@ def group_bwd_W(DY: torch.Tensor, X: torch.Tensor, expert_offsets: torch.Tensor,
         )
 
 
-@cute_op(f"{LIBRARY_NAME}::group", mutates_args={"out"})
 def group(
     A: torch.Tensor,
     sorted_expert_idxs: torch.Tensor,
@@ -122,7 +121,7 @@ def group(
 
     grid = lambda meta: (triton.cdiv(meta["N"], meta["BLOCK_N"]),)
 
-    with torch.device(A.device):
+    with torch.cuda.device(A.device):
         group_triton_kernel[grid](
             # A_ptr, stride_an, stride_ai,
             A,
