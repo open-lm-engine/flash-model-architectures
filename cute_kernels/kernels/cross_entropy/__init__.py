@@ -13,14 +13,15 @@ class _CrossEntropy_Cute(torch.autograd.Function):
         assert reduction in ["sum", "mean"]
         assert x.dim() == 2, "x should be 2 dimensional"
         assert labels.dim() == 1, "labels should be 1 dimensional"
-        assert x.size(0) == labels.size(0), "x and labels have different number of elements along dim 0"
+
+        B, V = x.size()
+        assert labels.size(0) == B, "x and labels have different number of elements along dim 0"
+
+        BLOCK_SIZE_B = 4
+        BLOCK_SIZE_V = 256
 
         loss = torch.tensor(0, device=x.device, dtype=torch.float32)
         x_grad = torch.empty_like(x)
-
-        num_elements, vocab_size = x.size()
-        BLOCK_SIZE_B = 4
-        BLOCK_SIZE_V = 256
 
         with torch.cuda.device(x.device):
             _cross_entropy_forward_backward_triton_kernel[(ceil_divide(num_elements, BLOCK_SIZE_B),)](
@@ -29,8 +30,8 @@ class _CrossEntropy_Cute(torch.autograd.Function):
                 loss_ptr=loss,
                 x_grad_ptr=x_grad,
                 logits_multiplier=logits_multiplier,
-                B=num_elements,
-                V=vocab_size,
+                B=B,
+                V=V,
                 BLOCK_SIZE_B=BLOCK_SIZE_B,
                 BLOCK_SIZE_V=BLOCK_SIZE_V,
                 reduction=reduction,

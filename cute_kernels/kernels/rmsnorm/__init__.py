@@ -1,7 +1,6 @@
 import torch
 
 from ...constants import MAX_TRITON_BLOCK_SIZE
-from ...cutotune import CutoTuneParameter
 from ...math import ceil_divide, get_next_power_of_2
 from ...utils import ensure_contiguous, get_num_elements_and_hidden_size, get_sm_count
 from .torch_implementation import rmsnorm_torch
@@ -27,16 +26,12 @@ class _RMSNorm_Cute(torch.autograd.Function):
             eps = torch.finfo(x.dtype).eps
 
         B, H = get_num_elements_and_hidden_size(x)
-
-        output = torch.empty_like(x)
-        rmsnorm_denominator = None if memory_efficient else torch.empty(B, device=x.device, dtype=torch.float32)
-
         BLOCK_SIZE_B = 1
         BLOCK_SIZE_H = get_next_power_of_2(H)
         assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
 
-        if BLOCK_SIZE_H < H:
-            raise ValueError(f"hidden_size should be more than the BLOCK_SIZE_H")
+        output = torch.empty_like(x)
+        rmsnorm_denominator = None if memory_efficient else torch.empty(B, device=x.device, dtype=torch.float32)
 
         with torch.cuda.device(x.device):
             _rmsnorm_forward_triton_kernel[(ceil_divide(B, BLOCK_SIZE_B),)](
@@ -68,22 +63,12 @@ class _RMSNorm_Cute(torch.autograd.Function):
         x, weight, rmsnorm_denominator = ctx.saved_tensors
 
         B, H = get_num_elements_and_hidden_size(x)
-
         BLOCK_SIZE_B = 1
         BLOCK_SIZE_H = get_next_power_of_2(H)
         assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
 
-        if BLOCK_SIZE_H < H:
-            raise ValueError(f"hidden_size should be more than the BLOCK_SIZE_H")
-
         x_grad = torch.empty_like(x)
         weight_grad = None if weight is None else torch.zeros_like(weight, dtype=torch.float32)
-
-        BLOCK_SIZE_H = get_next_power_of_2(H)
-        assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
-
-        if BLOCK_SIZE_H < H:
-            raise ValueError(f"hidden_size should be more than the BLOCK_SIZE_H")
 
         sm_count = get_sm_count(x.device)
         num_programs = min(sm_count, ceil_divide(B, BLOCK_SIZE_B))

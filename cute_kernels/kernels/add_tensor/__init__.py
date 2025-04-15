@@ -14,9 +14,10 @@ class _AddTensor_Cute(torch.autograd.Function):
         assert x.size() == y.size(), "tensors x and y should have same shape"
         assert x.type() == y.type(), "tensors x and y should have same dtype"
 
+        BLOCK_SIZE = 1024
+
         x, y = ensure_same_strides(x, y)
         output = torch.empty_like(x)
-        BLOCK_SIZE = 1024
 
         if is_cuda_kernel_backend_allowed() and is_nvidia_gpu() and x.is_cuda and y.is_cuda:
             add_tensor_cuda(x=x, y=y, output=output, BLOCK_SIZE=BLOCK_SIZE)
