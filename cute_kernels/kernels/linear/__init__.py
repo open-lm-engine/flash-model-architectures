@@ -16,21 +16,12 @@ class _Linear_Cute(torch.autograd.Function):
         bias: torch.Tensor | None,
         use_tf32: bool,
         kernel_backend_forward: str,
-        BLOCK_SIZE_M_forward: int,
-        BLOCK_SIZE_K_forward: int,
-        BLOCK_SIZE_N_forward: int,
         kernel_backend_backward: str,
-        BLOCK_SIZE_M_backward: int,
-        BLOCK_SIZE_K_backward: int,
-        BLOCK_SIZE_N_backward: int,
     ) -> torch.Tensor:
         ctx.save_for_backward(input, weight)
         ctx.has_bias = bias is not None
         ctx.use_tf32 = use_tf32
         ctx.kernel_backend_backward = kernel_backend_backward
-        ctx.BLOCK_SIZE_M_backward = BLOCK_SIZE_M_backward
-        ctx.BLOCK_SIZE_K_backward = BLOCK_SIZE_K_backward
-        ctx.BLOCK_SIZE_N_backward = BLOCK_SIZE_N_backward
 
         if kernel_backend_forward == "triton":
             # NOTE this can be a single kernel but I am lazy
@@ -44,9 +35,6 @@ class _Linear_Cute(torch.autograd.Function):
                 beta=0,
                 use_tf32=use_tf32,
                 kernel_backend=kernel_backend_forward,
-                BLOCK_SIZE_M=BLOCK_SIZE_M_forward,
-                BLOCK_SIZE_K=BLOCK_SIZE_K_forward,
-                BLOCK_SIZE_N=BLOCK_SIZE_N_forward,
             )
 
             if bias is not None:
@@ -63,9 +51,6 @@ class _Linear_Cute(torch.autograd.Function):
 
         use_tf32 = ctx.use_tf32
         kernel_backend_backward = ctx.kernel_backend_backward
-        BLOCK_SIZE_M_backward = ctx.BLOCK_SIZE_M_backward
-        BLOCK_SIZE_K_backward = ctx.BLOCK_SIZE_K_backward
-        BLOCK_SIZE_N_backward = ctx.BLOCK_SIZE_N_backward
 
         if kernel_backend_backward == "triton":
             # NOTE this can be a single kernel but I am lazy
@@ -79,9 +64,6 @@ class _Linear_Cute(torch.autograd.Function):
                 beta=0,
                 use_tf32=use_tf32,
                 kernel_backend=kernel_backend_backward,
-                BLOCK_SIZE_M=BLOCK_SIZE_M_backward,
-                BLOCK_SIZE_K=BLOCK_SIZE_K_backward,
-                BLOCK_SIZE_N=BLOCK_SIZE_N_backward,
             )
 
             weight_grad = gemm_cute(
@@ -94,9 +76,6 @@ class _Linear_Cute(torch.autograd.Function):
                 beta=0,
                 use_tf32=use_tf32,
                 kernel_backend=kernel_backend_backward,
-                BLOCK_SIZE_M=BLOCK_SIZE_M_backward,
-                BLOCK_SIZE_K=BLOCK_SIZE_K_backward,
-                BLOCK_SIZE_N=BLOCK_SIZE_N_backward,
             )
 
             bias_grad = output_grad.sum(dim=0) if ctx.has_bias else None
@@ -112,25 +91,6 @@ def linear_cute(
     bias: torch.Tensor | None = None,
     use_tf32: bool = True,
     kernel_backend_forward: str = "triton",
-    BLOCK_SIZE_M_forward: int = CutoTuneParameter(),
-    BLOCK_SIZE_K_forward: int = CutoTuneParameter(),
-    BLOCK_SIZE_N_forward: int = CutoTuneParameter(),
     kernel_backend_backward: str = "triton",
-    BLOCK_SIZE_M_backward: int = CutoTuneParameter(),
-    BLOCK_SIZE_K_backward: int = CutoTuneParameter(),
-    BLOCK_SIZE_N_backward: int = CutoTuneParameter(),
 ) -> torch.Tensor:
-    return _Linear_Cute.apply(
-        input,
-        weight,
-        bias,
-        use_tf32,
-        kernel_backend_forward,
-        BLOCK_SIZE_M_forward,
-        BLOCK_SIZE_K_forward,
-        BLOCK_SIZE_N_forward,
-        kernel_backend_backward,
-        BLOCK_SIZE_M_backward,
-        BLOCK_SIZE_K_backward,
-        BLOCK_SIZE_N_backward,
-    )
+    return _Linear_Cute.apply(input, weight, bias, use_tf32, kernel_backend_forward, kernel_backend_backward)
