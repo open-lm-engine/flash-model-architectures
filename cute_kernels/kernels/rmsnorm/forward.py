@@ -2,10 +2,10 @@ import torch
 
 from ...constants import MAX_TRITON_BLOCK_SIZE
 from ...cutotune import cutotune
-from ...math import get_next_power_of_2
+from ...math import ceil_divide, get_next_power_of_2
 from ...utils import get_num_elements_and_hidden_size
 from .parameters import get_cutotune_parameters
-from .triton_implementation import rmsnorm_forward_triton
+from .triton_implementation import _rmsnorm_forward_triton_kernel
 
 
 @cutotune(**get_cutotune_parameters())
@@ -27,15 +27,25 @@ def _forward(
         BLOCK_SIZE_H = get_next_power_of_2(hidden_size)
         assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
 
-        rmsnorm_forward_triton(
-            x=x,
-            weight=weight,
-            output=output,
-            eps=eps,
-            rmsnorm_denominator=rmsnorm_denominator,
-            BLOCK_SIZE_B=BLOCK_SIZE_B,
-            BLOCK_SIZE_H=BLOCK_SIZE_H,
-        )
+        num_elements, hidden_size = get_num_elements_and_hidden_size(x)
+
+        if BLOCK_SIZE_H < hidden_size:
+            raise ValueError(f"hidden_size should be more than the BLOCK_SIZE_H")
+
+        with torch.cuda.device(x.device):
+            _rmsnorm_forward_triton_kernel[(ceil_divide(num_elements, BLOCK_SIZE_B),)](
+                x_ptr=x,
+                has_weight=weight is not None,
+                weight_ptr=weight,
+                output_ptr=output,
+                eps=eps,
+                has_rmsnorm_denominator=rmsnorm_denominator is not None,
+                rmsnorm_denominator_ptr=rmsnorm_denominator,
+                B=num_elements,
+                H=hidden_size,
+                BLOCK_SIZE_B=BLOCK_SIZE_B,
+                BLOCK_SIZE_H=BLOCK_SIZE_H,
+            )
     else:
         raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
