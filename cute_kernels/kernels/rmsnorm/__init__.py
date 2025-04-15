@@ -34,7 +34,7 @@ class _RMSNorm_Cute(torch.autograd.Function):
         rmsnorm_denominator = None if memory_efficient else torch.empty(B, device=x.device, dtype=torch.float32)
 
         with torch.cuda.device(x.device):
-            _rmsnorm_forward_triton_kernel[(ceil_divide(B, BLOCK_SIZE_B),)](
+            _rmsnorm_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](
                 x_ptr=x,
                 has_weight=weight is not None,
                 weight_ptr=weight,
@@ -74,7 +74,7 @@ class _RMSNorm_Cute(torch.autograd.Function):
         num_programs = min(sm_count, ceil_divide(B, BLOCK_SIZE_B))
 
         with torch.cuda.device(x.device):
-            _rmsnorm_backward_triton_kernel[(num_programs,)](
+            _rmsnorm_backward_triton_kernel[num_programs,](
                 x_ptr=x,
                 has_weight=weight is not None,
                 weight_ptr=weight,

@@ -25,7 +25,7 @@ class _Softmax_Cute(torch.autograd.Function):
         BLOCK_SIZE_H = 8192
 
         with torch.cuda.device(x.device):
-            _softmax_forward_triton_kernel[(ceil_divide(B, BLOCK_SIZE_B),)](
+            _softmax_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](
                 x_ptr=x,
                 output_ptr=output,
                 logits_multiplier=logits_multiplier,

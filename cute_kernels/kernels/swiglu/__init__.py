@@ -29,7 +29,7 @@ class _Swiglu_Cute(torch.autograd.Function):
             BLOCK_SIZE = 1024
 
             with torch.cuda.device(gate.device):
-                _swiglu_forward_triton_kernel[(ceil_divide(num_elements, BLOCK_SIZE),)](
+                _swiglu_forward_triton_kernel[ceil_divide(num_elements, BLOCK_SIZE),](
                     gate_ptr=gate,
                     up_ptr=up,
                     output_ptr=output,
@@ -58,7 +58,7 @@ class _Swiglu_Cute(torch.autograd.Function):
             BLOCK_SIZE = 1024
 
             with torch.cuda.device(gate.device):
-                _swiglu_backward_triton_kernel[(ceil_divide(num_elements, BLOCK_SIZE),)](
+                _swiglu_backward_triton_kernel[ceil_divide(num_elements, BLOCK_SIZE),](
                     gate_ptr=gate,
                     up_ptr=up,
                     output_grad_ptr=output_grad,

@@ -46,7 +46,7 @@ class _FusedLinearCrossEntropy_Cute(torch.autograd.Function):
             _labels = labels[start:end].contiguous()
 
             with torch.cuda.device(x.device):
-                _cross_entropy_forward_backward_triton_kernel[(ceil_divide(_logits.size(0), BLOCK_SIZE_B),)](
+                _cross_entropy_forward_backward_triton_kernel[ceil_divide(_logits.size(0), BLOCK_SIZE_B),](
                     x_ptr=_logits,
                     labels_ptr=_labels,
                     loss_ptr=loss,

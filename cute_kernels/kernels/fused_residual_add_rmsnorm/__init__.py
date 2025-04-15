@@ -44,7 +44,7 @@ class _FusedResidualAddRMSNorm_Cute(torch.autograd.Function):
         rmsnorm_denominator = None if memory_efficient else torch.empty(B, device=x.device, dtype=torch.float32)
 
         with torch.cuda.device(x.device):
-            _fused_residual_add_rmsnorm_forward_triton_kernel[(ceil_divide(B, H),)](
+            _fused_residual_add_rmsnorm_forward_triton_kernel[ceil_divide(B, H),](
                 x_ptr=x,
                 residual_ptr=residual,
                 has_weight=weight is not None,
@@ -93,7 +93,7 @@ class _FusedResidualAddRMSNorm_Cute(torch.autograd.Function):
         multiplier = ctx.multiplier
 
         with torch.cuda.device(added_x_residual.device):
-            _fused_residual_add_rmsnorm_backward_triton_kernel[(num_programs,)](
+            _fused_residual_add_rmsnorm_backward_triton_kernel[num_programs,](
                 added_x_residual_ptr=added_x_residual,
                 has_weight=weight is not None,
                 weight_ptr=weight,
