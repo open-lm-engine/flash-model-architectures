@@ -1,6 +1,5 @@
 import torch
 
-from ...cutotune import CutoTuneParameter
 from ...math import ceil_divide
 from ...utils import ensure_contiguous, get_num_elements_and_hidden_size
 from .torch_implementation import softmax_torch
