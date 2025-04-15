@@ -10,21 +10,17 @@ class _RNN_Cute(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
     def forward(
-        ctx,
-        input: torch.Tensor,
-        weight: torch.Tensor,
-        input_state: torch.Tensor | None,
-        BLOCK_SIZE_B_forward: int,
-        BLOCK_SIZE_B_backward: int,
+        ctx, input: torch.Tensor, weight: torch.Tensor, input_state: torch.Tensor | None
     ) -> tuple[torch.Tensor, torch.Tensor]:
         output = torch.empty_like(input)
         B, S, N, H = input.size()
 
+        BLOCK_SIZE_B = 32
         BLOCK_SIZE_H = get_next_power_of_2(H)
         BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
 
         with torch.cuda.device(input.device):
-            _rnn_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B_forward), N](
+            _rnn_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), N](
                 input_ptr=input,
                 input_stride_b=input.stride(0),
                 input_stride_s=input.stride(1),
@@ -39,12 +35,11 @@ class _RNN_Cute(torch.autograd.Function):
                 S=S,
                 H=H,
                 allow_tf32=True,
-                BLOCK_SIZE_B=BLOCK_SIZE_B_forward,
+                BLOCK_SIZE_B=BLOCK_SIZE_B,
                 BLOCK_SIZE_H=BLOCK_SIZE_H,
             )
 
         ctx.save_for_backward(weight, output, input_state)
-        ctx.BLOCK_SIZE_B_backward = BLOCK_SIZE_B_backward
 
         return output
 
@@ -52,18 +47,17 @@ class _RNN_Cute(torch.autograd.Function):
     @ensure_contiguous
     def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor]:
         weight, output, input_state = ctx.saved_tensors
-        BLOCK_SIZE_B_backward = ctx.BLOCK_SIZE_B_backward
-
         input_grad = torch.empty_like(output)
         weight_grad = torch.empty_like(weight)
 
         B, S, N, H = output.size()
 
+        BLOCK_SIZE_B = 32
         BLOCK_SIZE_H = get_next_power_of_2(H)
         BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
 
         with torch.cuda.device(output.device):
-            _rnn_backward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B_backward), N](
+            _rnn_backward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), N](
                 weight_ptr=weight,
                 weight_stride_n=weight.stride(0),
                 weight_stride_h=weight.stride(1),
@@ -82,18 +76,12 @@ class _RNN_Cute(torch.autograd.Function):
                 S=S,
                 H=H,
                 allow_tf32=True,
-                BLOCK_SIZE_B=BLOCK_SIZE_B_backward,
+                BLOCK_SIZE_B=BLOCK_SIZE_B,
                 BLOCK_SIZE_H=BLOCK_SIZE_H,
             )
 
-        return input_grad, weight_grad, *[None] * 3
+        return input_grad, weight_grad, None
 
 
-def rnn_cute(
-    input: torch.Tensor,
-    weight: torch.Tensor,
-    input_state: torch.Tensor | None = None,
-    BLOCK_SIZE_B_forward: int = 32,
-    BLOCK_SIZE_B_backward: int = 32,
-) -> torch.Tensor:
-    return _RNN_Cute.apply(input, weight, input_state, BLOCK_SIZE_B_forward, BLOCK_SIZE_B_backward)
+def rnn_cute(input: torch.Tensor, weight: torch.Tensor, input_state: torch.Tensor | None = None) -> torch.Tensor:
+    return _RNN_Cute.apply(input, weight, input_state)
