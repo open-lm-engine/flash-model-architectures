@@ -1,10 +1,12 @@
 import torch
 
+from ...constants import MAX_TRITON_BLOCK_SIZE
 from ...cutotune import CutoTuneParameter
-from ...utils import ensure_contiguous
+from ...math import ceil_divide, get_next_power_of_2
+from ...utils import ensure_contiguous, get_num_elements_and_hidden_size
 from .backward import _backward
-from .forward import _forward
 from .torch_implementation import rmsnorm_torch
+from .triton_implementation import _rmsnorm_forward_triton_kernel
 
 
 class _RMSNorm_Cute(torch.autograd.Function):
@@ -16,11 +18,8 @@ class _RMSNorm_Cute(torch.autograd.Function):
         weight: torch.Tensor | None,
         eps: float | None,
         memory_efficient: bool,
-        kernel_backend_forward: str,
         kernel_backend_backward: str,
-        BLOCK_SIZE_B_forward: int,
         BLOCK_SIZE_B_backward: int,
-        BLOCK_SIZE_H_forward: int,
         BLOCK_SIZE_H_backward: int,
     ) -> torch.Tensor:
         if weight is not None:
@@ -35,14 +34,36 @@ class _RMSNorm_Cute(torch.autograd.Function):
         if eps is None:
             eps = torch.finfo(x.dtype).eps
 
-        output, rmsnorm_denominator = _forward(
-            x=x,
-            weight=weight,
-            eps=eps,
-            memory_efficient=memory_efficient,
-            BLOCK_SIZE_B=BLOCK_SIZE_B_forward,
-            BLOCK_SIZE_H=BLOCK_SIZE_H_forward,
+        num_elements, hidden_size = get_num_elements_and_hidden_size(x)
+
+        output = torch.empty_like(x)
+        rmsnorm_denominator = (
+            None if memory_efficient else torch.empty(num_elements, device=x.device, dtype=torch.float32)
         )
+
+        BLOCK_SIZE_B = 1
+        BLOCK_SIZE_H = get_next_power_of_2(hidden_size)
+        assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
+
+        num_elements, hidden_size = get_num_elements_and_hidden_size(x)
+
+        if BLOCK_SIZE_H < hidden_size:
+            raise ValueError(f"hidden_size should be more than the BLOCK_SIZE_H")
+
+        with torch.cuda.device(x.device):
+            _rmsnorm_forward_triton_kernel[(ceil_divide(num_elements, BLOCK_SIZE_B),)](
+                x_ptr=x,
+                has_weight=weight is not None,
+                weight_ptr=weight,
+                output_ptr=output,
+                eps=eps,
+                has_rmsnorm_denominator=rmsnorm_denominator is not None,
+                rmsnorm_denominator_ptr=rmsnorm_denominator,
+                B=num_elements,
+                H=hidden_size,
+                BLOCK_SIZE_B=BLOCK_SIZE_B,
+                BLOCK_SIZE_H=BLOCK_SIZE_H,
+            )
 
         if is_x_1d:
             output = output.squeeze(0)
@@ -83,11 +104,8 @@ def rmsnorm_cute(
     weight: torch.Tensor | None,
     eps: float | None,
     memory_efficient: bool = False,
-    kernel_backend_forward: str = CutoTuneParameter(),
     kernel_backend_backward: str = CutoTuneParameter(),
-    BLOCK_SIZE_B_forward: int = CutoTuneParameter(),
     BLOCK_SIZE_B_backward: int = CutoTuneParameter(),
-    BLOCK_SIZE_H_forward: int = CutoTuneParameter(),
     BLOCK_SIZE_H_backward: int = CutoTuneParameter(),
 ) -> torch.Tensor:
     return _RMSNorm_Cute.apply(
@@ -95,10 +113,7 @@ def rmsnorm_cute(
         weight,
         eps,
         memory_efficient,
-        kernel_backend_forward,
         kernel_backend_backward,
-        BLOCK_SIZE_B_forward,
         BLOCK_SIZE_B_backward,
-        BLOCK_SIZE_H_forward,
         BLOCK_SIZE_H_backward,
     )
