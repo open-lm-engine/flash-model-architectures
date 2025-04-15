@@ -3,10 +3,9 @@ import torch
 from ...constants import MAX_TRITON_BLOCK_SIZE
 from ...cutotune import CutoTuneParameter
 from ...math import ceil_divide, get_next_power_of_2
-from ...utils import ensure_contiguous, get_num_elements_and_hidden_size
-from .backward import _backward
+from ...utils import ensure_contiguous, get_num_elements_and_hidden_size, get_sm_count
 from .torch_implementation import rmsnorm_torch
-from .triton_implementation import _rmsnorm_forward_triton_kernel
+from .triton_implementation import _rmsnorm_backward_triton_kernel, _rmsnorm_forward_triton_kernel
 
 
 class _RMSNorm_Cute(torch.autograd.Function):
@@ -76,15 +75,46 @@ class _RMSNorm_Cute(torch.autograd.Function):
     def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
         x, weight, rmsnorm_denominator = ctx.saved_tensors
 
-        x_grad, weight_grad = _backward(
-            x=x,
-            weight=weight,
-            eps=ctx.eps,
-            rmsnorm_denominator=rmsnorm_denominator,
-            output_grad=output_grad,
-            BLOCK_SIZE_B=ctx.BLOCK_SIZE_B_backward,
-            BLOCK_SIZE_H=ctx.BLOCK_SIZE_H_backward,
-        )
+        B, H = get_num_elements_and_hidden_size(x)
+
+        BLOCK_SIZE_B = 1
+        BLOCK_SIZE_H = get_next_power_of_2(H)
+        assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
+
+        if BLOCK_SIZE_H < H:
+            raise ValueError(f"hidden_size should be more than the BLOCK_SIZE_H")
+
+        x_grad = torch.empty_like(x)
+        weight_grad = None if weight is None else torch.zeros_like(weight, dtype=torch.float32)
+
+        BLOCK_SIZE_H = get_next_power_of_2(H)
+        assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
+
+        if BLOCK_SIZE_H < H:
+            raise ValueError(f"hidden_size should be more than the BLOCK_SIZE_H")
+
+        sm_count = get_sm_count(x.device)
+        num_programs = min(sm_count, ceil_divide(B, BLOCK_SIZE_B))
+
+        with torch.cuda.device(x.device):
+            _rmsnorm_backward_triton_kernel[(num_programs,)](
+                x_ptr=x,
+                has_weight=weight is not None,
+                weight_ptr=weight,
+                output_grad_ptr=output_grad,
+                x_grad_ptr=x_grad,
+                weight_grad_ptr=weight_grad,
+                eps=ctx.eps,
+                has_rmsnorm_denominator=rmsnorm_denominator is not None,
+                rmsnorm_denominator_ptr=rmsnorm_denominator,
+                B=B,
+                H=H,
+                BLOCK_SIZE_B=BLOCK_SIZE_B,
+                BLOCK_SIZE_H=BLOCK_SIZE_H,
+            )
+
+        if weight_grad is not None:
+            weight_grad = weight_grad.type_as(weight)
 
         if ctx.is_x_1d:
             x_grad = x_grad.squeeze(0)
