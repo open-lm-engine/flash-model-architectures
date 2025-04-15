@@ -2,7 +2,15 @@ import torch
 import torch.nn.functional as F
 
 
-def rnn_torch(input: torch.Tensor, weight: torch.Tensor, input_state: torch.Tensor | None = None) -> torch.Tensor:
+def rnn_torch(
+    input: torch.Tensor,
+    weight: torch.Tensor,
+    input_state: torch.Tensor | None = None,
+    gradient_clipping: float | None = None,
+) -> torch.Tensor:
+    if gradient_clipping is not None:
+        raise NotImplementedError("rnn_torch doesn't support gradient_clipping")
+
     B, S, N, H = input.size()
     output = torch.empty_like(input)
 
