@@ -28,6 +28,7 @@ def expert_boundaries(sorted_experts_idxs: torch.Tensor, k: int) -> torch.Tensor
     return expert_boundaries_end
 
 
+@cute_op(f"{LIBRARY_NAME}::scatter2scatter", mutates_args={"out"})
 def scatter2scatter(
     X: torch.Tensor,
     W: torch.Tensor,
@@ -47,7 +48,7 @@ def scatter2scatter(
         ceil_divide(sorted_expert_idxs.size(0), meta["BLOCK_M"]) * ceil_divide(meta["N"], meta["BLOCK_N"]),
     )
 
-    with torch.cuda.device(X.device):
+    with torch.device(X.device):
         scatter2scatter_triton_kernel[grid](
             # X_ptr, stride_xm, stride_xk,
             X,
