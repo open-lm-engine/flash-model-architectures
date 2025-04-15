@@ -14,8 +14,6 @@ class SwigluUnchunkedTest(TestCommons):
             TestCommons.get_2d_tensor_sizes(),  # size
             [torch.device("cuda")],  # device
             TestCommons.get_dtypes(),  # dtype
-            ["triton"],  # kernel_backend_forward
-            ["triton"],  # kernel_backend_backward
             [64],  # BLOCK_SIZE_B_forward
             [64],  # BLOCK_SIZE_B_forward
             [64],  # BLOCK_SIZE_H_backward
@@ -28,8 +26,6 @@ class SwigluUnchunkedTest(TestCommons):
         size: tuple[int],
         device: torch.device,
         dtype: torch.dtype,
-        kernel_backend_forward: str,
-        kernel_backend_backward: str,
         BLOCK_SIZE_B_forward: int,
         BLOCK_SIZE_H_forward: int,
         BLOCK_SIZE_B_backward: int,
@@ -41,8 +37,6 @@ class SwigluUnchunkedTest(TestCommons):
 
         z_kernel = function(
             x_kernel,
-            kernel_backend_forward=kernel_backend_forward,
-            kernel_backend_backward=kernel_backend_backward,
             BLOCK_SIZE_B_forward=BLOCK_SIZE_B_forward,
             BLOCK_SIZE_H_forward=BLOCK_SIZE_H_forward,
             BLOCK_SIZE_B_backward=BLOCK_SIZE_B_backward,
