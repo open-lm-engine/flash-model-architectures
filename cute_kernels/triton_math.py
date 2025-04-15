@@ -9,9 +9,11 @@ MIN_EXP_FP32: tl.constexpr = -88.3762626647949
 @triton.jit
 def clamp(x, min_value, max_value):
     dtype = x.dtype
+
     x = max(min_value, x)
     x = min(max_value, x)
     x = x.to(dtype)
+
     return x
 
 
