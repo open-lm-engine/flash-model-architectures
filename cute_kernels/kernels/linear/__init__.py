@@ -1,6 +1,5 @@
 import torch
 
-from ...cutotune import CutoTuneParameter
 from ...utils import ensure_contiguous
 from ..gemm import gemm_cute
 from .torch_implementation import linear_torch
