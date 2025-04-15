@@ -56,14 +56,16 @@ class _Softmax_Cute(torch.autograd.Function):
         else:
             output = ctx.saved_tensors[0]
             x_grad = torch.empty_like(output)
+            BLOCK_SIZE_B = 1
+            BLOCK_SIZE_H = 8192
 
             softmax_backward_triton(
                 output=output,
                 output_grad=output_grad,
                 x_grad=x_grad,
                 logits_multiplier=ctx.logits_multiplier,
-                BLOCK_SIZE_B=ctx.BLOCK_SIZE_B_backward,
-                BLOCK_SIZE_H=ctx.BLOCK_SIZE_H_backward,
+                BLOCK_SIZE_B=BLOCK_SIZE_B,
+                BLOCK_SIZE_H=BLOCK_SIZE_H,
             )
 
         return x_grad, *[None] * 8
