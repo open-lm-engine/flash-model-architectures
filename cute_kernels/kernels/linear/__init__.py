@@ -53,7 +53,6 @@ class _Linear_Cute(torch.autograd.Function):
         kernel_backend_backward = ctx.kernel_backend_backward
 
         if kernel_backend_backward == "triton":
-            # NOTE this can be a single kernel but I am lazy
             input_grad = gemm_cute(
                 A=output_grad,
                 B=weight,
