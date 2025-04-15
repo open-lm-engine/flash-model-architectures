@@ -18,7 +18,6 @@ class _RMSNorm_Cute(torch.autograd.Function):
         weight: torch.Tensor | None,
         eps: float | None,
         memory_efficient: bool,
-        kernel_backend_backward: str,
         BLOCK_SIZE_B_backward: int,
         BLOCK_SIZE_H_backward: int,
     ) -> torch.Tensor:
@@ -66,7 +65,6 @@ class _RMSNorm_Cute(torch.autograd.Function):
 
         ctx.save_for_backward(x, weight, rmsnorm_denominator)
         ctx.is_x_1d = is_x_1d
-        ctx.kernel_backend_backward = kernel_backend_backward
         ctx.eps = eps
         ctx.BLOCK_SIZE_B_backward = BLOCK_SIZE_B_backward
         ctx.BLOCK_SIZE_H_backward = BLOCK_SIZE_H_backward
@@ -84,7 +82,6 @@ class _RMSNorm_Cute(torch.autograd.Function):
             eps=ctx.eps,
             rmsnorm_denominator=rmsnorm_denominator,
             output_grad=output_grad,
-            kernel_backend=ctx.kernel_backend_backward,
             BLOCK_SIZE_B=ctx.BLOCK_SIZE_B_backward,
             BLOCK_SIZE_H=ctx.BLOCK_SIZE_H_backward,
         )
@@ -100,7 +97,6 @@ def rmsnorm_cute(
     weight: torch.Tensor | None,
     eps: float | None,
     memory_efficient: bool = False,
-    kernel_backend_backward: str = CutoTuneParameter(),
     BLOCK_SIZE_B_backward: int = CutoTuneParameter(),
     BLOCK_SIZE_H_backward: int = CutoTuneParameter(),
 ) -> torch.Tensor:
@@ -109,7 +105,6 @@ def rmsnorm_cute(
         weight,
         eps,
         memory_efficient,
-        kernel_backend_backward,
         BLOCK_SIZE_B_backward,
         BLOCK_SIZE_H_backward,
     )
