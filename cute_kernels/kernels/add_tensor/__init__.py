@@ -26,7 +26,7 @@ class _AddTensor_Cute(torch.autograd.Function):
             num_programs = ceil_divide(num_elements, BLOCK_SIZE)
 
             with torch.cuda.device(x.device):
-                _add_tensor_triton_kernel[(num_programs,)](
+                _add_tensor_triton_kernel[num_programs,](
                     x_ptr=x, y_ptr=y, output_ptr=output, num_elements=num_elements, BLOCK_SIZE=BLOCK_SIZE
                 )
         else:

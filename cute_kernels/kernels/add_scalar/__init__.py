@@ -21,7 +21,7 @@ class _AddScalar_Cute(torch.autograd.Function):
             num_programs = ceil_divide(num_elements, BLOCK_SIZE)
 
             with torch.cuda.device(x.device):
-                _add_scalar_triton_kernel[(num_programs,)](
+                _add_scalar_triton_kernel[num_programs,](
                     x_ptr=x, y=y, output_ptr=output, num_elements=num_elements, BLOCK_SIZE=BLOCK_SIZE
                 )
         else:
