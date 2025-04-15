@@ -1,7 +1,9 @@
 install:
+	git submodule update --init --recursive
 	pip install .
 
 install-dev:
+	git submodule update --init --recursive
 	pip install -e .
 
 test:

@@ -13,7 +13,7 @@ torch._dynamo.config.capture_scalar_outputs = True
 
 
 def _fake_bincount(x: torch.Tensor, minlength: int) -> torch.Tensor:
-    return torch.empty(minlength, dtype=torch.int)
+    return torch.empty(minlength, device=x.device, dtype=torch.int)
 
 
 @cute_op(f"{LIBRARY_NAME}::bincount", mutates_args={}, fake_func=_fake_bincount)
