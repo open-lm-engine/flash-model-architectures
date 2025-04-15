@@ -10,9 +10,7 @@ from .triton_implementation import _softmax_forward_triton_kernel, softmax_backw
 class _Softmax_Cute(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
-    def forward(
-        ctx, x: torch.Tensor, logits_multiplier: float, BLOCK_SIZE_B_backward: int, BLOCK_SIZE_H_backward: int
-    ) -> torch.Tensor:
+    def forward(ctx, x: torch.Tensor, logits_multiplier: float) -> torch.Tensor:
         if x.size(-1) == 1:
             return torch.ones_like(x)
 
@@ -43,8 +41,6 @@ class _Softmax_Cute(torch.autograd.Function):
 
         ctx.save_for_backward(output)
         ctx.logits_multiplier = logits_multiplier
-        ctx.BLOCK_SIZE_B_backward = BLOCK_SIZE_B_backward
-        ctx.BLOCK_SIZE_H_backward = BLOCK_SIZE_H_backward
 
         return output
 
@@ -71,10 +67,5 @@ class _Softmax_Cute(torch.autograd.Function):
         return x_grad, *[None] * 8
 
 
-def softmax_cute(
-    x: torch.Tensor,
-    logits_multiplier: float = 1,
-    BLOCK_SIZE_B_backward: int = CutoTuneParameter(),
-    BLOCK_SIZE_H_backward: int = CutoTuneParameter(),
-) -> torch.Tensor:
-    return _Softmax_Cute.apply(x, logits_multiplier, BLOCK_SIZE_B_backward, BLOCK_SIZE_H_backward)
+def softmax_cute(x: torch.Tensor, logits_multiplier: float = 1) -> torch.Tensor:
+    return _Softmax_Cute.apply(x, logits_multiplier)
