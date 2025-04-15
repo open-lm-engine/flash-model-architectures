@@ -40,7 +40,7 @@ class _Embedding_Cute(torch.autograd.Function):
         input_ids, weight = ctx.saved_tensors
 
         B = input_ids.numel()
-        H = weight_grad.size(-1)
+        H = weight.size(-1)
         BLOCK_SIZE_B = 128
         BLOCK_SIZE_H = 128
 
