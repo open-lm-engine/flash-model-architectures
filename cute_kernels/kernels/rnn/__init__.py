@@ -10,8 +10,15 @@ class _RNN_Cute(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
     def forward(
-        ctx, input: torch.Tensor, weight: torch.Tensor, input_state: torch.Tensor | None
+        ctx,
+        input: torch.Tensor,
+        weight: torch.Tensor,
+        input_state: torch.Tensor | None,
+        gradient_clipping: float | None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
+        if gradient_clipping is not None:
+            assert gradient_clipping > 0, "gradient_clipping should be a positive number"
+
         output = torch.empty_like(input)
         B, S, N, H = input.size()
 
@@ -83,5 +90,10 @@ class _RNN_Cute(torch.autograd.Function):
         return input_grad, weight_grad, None
 
 
-def rnn_cute(input: torch.Tensor, weight: torch.Tensor, input_state: torch.Tensor | None = None) -> torch.Tensor:
-    return _RNN_Cute.apply(input, weight, input_state)
+def rnn_cute(
+    input: torch.Tensor,
+    weight: torch.Tensor,
+    input_state: torch.Tensor | None = None,
+    gradient_clipping: float | None = None,
+) -> torch.Tensor:
+    return _RNN_Cute.apply(input, weight, input_state, gradient_clipping)

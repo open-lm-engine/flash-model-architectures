@@ -1,6 +1,8 @@
 import triton
 import triton.language as tl
 
+from ....triton_math import clamp
+
 
 @triton.jit
 def _tanh_backward(y):
@@ -29,6 +31,8 @@ def _rnn_backward_triton_kernel(
     output_grad_ptr,
     input_grad_ptr,
     weight_grad_ptr,
+    has_gradient_clipping: tl.constexpr,
+    gradient_clipping,
     B,
     S,
     H,
@@ -62,6 +66,9 @@ def _rnn_backward_triton_kernel(
     for s in range(S - 1, -1, -1):
         output_grad_ptrs = output_grad_ptr + indices
         output_grad = tl.load(output_grad_ptrs, mask=mask_bh, other=0)
+
+        if has_gradient_clipping:
+            input_state_grad = clamp(input_state_grad, min_value=-gradient_clipping, max_value=gradient_clipping)
 
         input_grad = (output_grad + input_state_grad) * _tanh_backward(output)
 

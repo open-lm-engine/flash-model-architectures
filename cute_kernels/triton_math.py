@@ -3,9 +3,13 @@ import triton.language as tl
 
 
 @triton.jit
-def clamp(x, MAX_EXP_FP32: tl.constexpr = 88.3762626647949, MIN_EXP_FP32: tl.constexpr = -88.3762626647949):
-    x = max(MIN_EXP_FP32, x)
-    x = min(MAX_EXP_FP32, x)
+def clamp(x, min_value, max_value):
+    dtype = x.dtype
+
+    x = max(min_value, x)
+    x = min(max_value, x)
+    x = x.to(dtype)
+
     return x
 
 
@@ -14,7 +18,7 @@ def sigmoid(x):
     dtype = x.dtype
 
     x = x.to(tl.float32)
-    x = clamp(x)
+    x = clamp(x, min_value=MIN_EXP_FP32, max_value=MAX_EXP_FP32)
     x = 1 / (1 + tl.exp(-x))
 
     x = x.to(dtype)
