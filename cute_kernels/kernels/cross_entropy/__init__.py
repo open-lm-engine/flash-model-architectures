@@ -24,7 +24,7 @@ class _CrossEntropy_Cute(torch.autograd.Function):
         x_grad = torch.empty_like(x)
 
         with torch.cuda.device(x.device):
-            _cross_entropy_forward_backward_triton_kernel[(ceil_divide(num_elements, BLOCK_SIZE_B),)](
+            _cross_entropy_forward_backward_triton_kernel[(ceil_divide(B, BLOCK_SIZE_B),)](
                 x_ptr=x,
                 labels_ptr=labels,
                 loss_ptr=loss,
