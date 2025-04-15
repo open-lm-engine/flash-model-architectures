@@ -8,10 +8,6 @@ from ....utils import cute_op
 from .kernels import group_triton_kernel, groupXtY_triton_kernel, scatter2scatter_triton_kernel
 
 
-BLOCK_M = 128
-# torch._dynamo.config.capture_scalar_outputs = True
-
-
 def _fake_bincount(x: torch.Tensor, minlength: int) -> torch.Tensor:
     return torch.empty(minlength, device=x.device, dtype=torch.int)
 
@@ -47,6 +43,8 @@ def scatter2scatter(
     grid = lambda meta: (
         ceil_divide(sorted_expert_idxs.size(0), meta["BLOCK_M"]) * ceil_divide(meta["N"], meta["BLOCK_N"]),
     )
+
+    BLOCK_M = 128
 
     with torch.device(X.device):
         scatter2scatter_triton_kernel[grid](
