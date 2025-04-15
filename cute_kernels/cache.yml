@@ -1187,25 +1187,19 @@ kernels/swiglu_unchunked/backward.py->_backward:
   '''x.dtype = torch.bfloat16''':
     BLOCK_SIZE_B: 64
     BLOCK_SIZE_H: 64
-    kernel_backend: triton
   '''x.dtype = torch.float16''':
     BLOCK_SIZE_B: 64
     BLOCK_SIZE_H: 64
-    kernel_backend: triton
   '''x.dtype = torch.float32''':
     BLOCK_SIZE_B: 64
     BLOCK_SIZE_H: 64
-    kernel_backend: triton
 kernels/swiglu_unchunked/forward.py->_forward:
   '''x.dtype = torch.bfloat16''':
     BLOCK_SIZE_B: 128
     BLOCK_SIZE_H: 64
-    kernel_backend: triton
   '''x.dtype = torch.float16''':
     BLOCK_SIZE_B: 64
     BLOCK_SIZE_H: 64
-    kernel_backend: triton
   '''x.dtype = torch.float32''':
     BLOCK_SIZE_B: 64
     BLOCK_SIZE_H: 64
-    kernel_backend: triton
