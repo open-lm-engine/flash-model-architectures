@@ -89,6 +89,9 @@ def gemm_cute(
             BLOCK_SIZE=BLOCK_SIZE,
         )
     elif kernel_backend == "naive_cuda":
+        BLOCK_SIZE_M = 16
+        BLOCK_SIZE_N = 16
+
         naive_gemm_cuda(
             A=A,
             B=B,
