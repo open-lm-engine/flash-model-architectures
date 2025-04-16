@@ -1,6 +1,5 @@
 import torch
 
-from ...cutotune import CutoTuneParameter
 from ...math import ceil_divide
 from ...utils import ensure_contiguous, get_num_elements_and_hidden_size
 from .cuda_implementation import (
@@ -23,7 +22,7 @@ def gemm_cute(
     alpha: float = 1,
     beta: float = 1,
     use_tf32: bool = True,
-    kernel_backend: str = CutoTuneParameter(),
+    kernel_backend: str | None = None,
 ) -> torch.Tensor:
     if is_A_transposed:
         assert A.dim() == 2, "only 2 dimensional a tensor is supported when a is transposed"
