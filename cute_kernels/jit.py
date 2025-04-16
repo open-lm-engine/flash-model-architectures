@@ -48,9 +48,10 @@ def compile_cpp(name: str) -> None:
         ],
         extra_cuda_cflags=[
             "-lineinfo",
-            "-DCUTLASS_NVCC_ARCHS='100a'",
-            "-gencode=arch=compute_120,code=sm_120",
-            "-gencode=arch=compute_100,code=compute_100",
+            "--use_fast_math",
+            # "-DCUTLASS_NVCC_ARCHS='100a'",
+            # "-gencode=arch=compute_120,code=sm_120",
+            # "-gencode=arch=compute_100,code=compute_100",
         ],
         extra_include_paths=[
             os.path.dirname(__file__),
