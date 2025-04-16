@@ -46,7 +46,12 @@ def compile_cpp(name: str) -> None:
             "-fPIC",
             "-fdiagnostics-color",
         ],
-        extra_cuda_cflags=["-lineinfo"],
+        extra_cuda_cflags=[
+            "-lineinfo",
+            "-DCUTLASS_NVCC_ARCHS='100a'",
+            "-gencode=arch=compute_120,code=sm_120",
+            "-gencode=arch=compute_100,code=compute_100",
+        ],
         extra_include_paths=[
             os.path.dirname(__file__),
             os.path.dirname(os.path.dirname(__file__)) + "/cutlass/include",
