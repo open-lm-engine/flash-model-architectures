@@ -3,9 +3,11 @@ import torch
 from ...constants import MAX_TRITON_BLOCK_SIZE
 from ...math import ceil_divide, get_next_power_of_2
 from ...utils import ensure_contiguous, get_num_elements_and_hidden_size, get_sm_count
-from .forward import _forward
 from .torch_implementation import fused_residual_add_rmsnorm_torch
-from .triton_implementation import _fused_residual_add_rmsnorm_backward_triton_kernel
+from .triton_implementation import (
+    _fused_residual_add_rmsnorm_backward_triton_kernel,
+    fused_residual_add_rmsnorm_forward_triton,
+)
 
 
 class _FusedResidualAddRMSNorm_Cute(torch.autograd.Function):
@@ -32,13 +34,29 @@ class _FusedResidualAddRMSNorm_Cute(torch.autograd.Function):
         if eps is None:
             eps = torch.finfo(x.dtype).eps
 
-        output, added_x_residual, rmsnorm_denominator = _forward(
+        num_elements, hidden_size = get_num_elements_and_hidden_size(x)
+
+        output = torch.empty_like(x)
+        added_x_residual = torch.empty_like(x)
+        rmsnorm_denominator = (
+            None if memory_efficient else torch.empty(num_elements, device=x.device, dtype=torch.float32)
+        )
+
+        BLOCK_SIZE_B = 1
+        BLOCK_SIZE_H = get_next_power_of_2(hidden_size)
+        assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
+
+        fused_residual_add_rmsnorm_forward_triton(
             x=x,
             residual=residual,
             weight=weight,
+            output=output,
             eps=eps,
             multiplier=multiplier,
-            memory_efficient=memory_efficient,
+            added_x_residual=added_x_residual,
+            rmsnorm_denominator=rmsnorm_denominator,
+            BLOCK_SIZE_B=BLOCK_SIZE_B,
+            BLOCK_SIZE_H=BLOCK_SIZE_H,
         )
 
         ctx.save_for_backward(added_x_residual, weight, rmsnorm_denominator)
