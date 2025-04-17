@@ -1,9 +1,11 @@
 import torch
 
+from ...constants import MAX_TRITON_BLOCK_SIZE
+from ...math import get_next_power_of_2
 from ...utils import ensure_contiguous
-from .backward import _backward
 from .forward import _forward
 from .torch_implementation import fused_residual_add_rmsnorm_torch
+from .triton_implementation import fused_residual_add_rmsnorm_backward_triton
 
 
 class _FusedResidualAddRMSNorm_Cute(torch.autograd.Function):
@@ -56,21 +58,35 @@ class _FusedResidualAddRMSNorm_Cute(torch.autograd.Function):
     def backward(ctx, output_grad: torch.Tensor, added_x_residual_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
         added_x_residual, weight, rmsnorm_denominator = ctx.saved_tensors
 
-        x_grad, residual_grad, weight_grad = _backward(
+        hidden_size = added_x_residual.size(-1)
+
+        x_grad = torch.empty_like(added_x_residual)
+        residual_grad = torch.empty_like(added_x_residual)
+        weight_grad = None if weight is None else torch.zeros_like(weight, dtype=torch.float32)
+
+        BLOCK_SIZE_B = 1
+        BLOCK_SIZE_H = get_next_power_of_2(hidden_size)
+        assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
+
+        fused_residual_add_rmsnorm_backward_triton(
             added_x_residual=added_x_residual,
             weight=weight,
-            eps=ctx.eps,
-            multiplier=ctx.multiplier,
-            rmsnorm_denominator=rmsnorm_denominator,
             output_grad=output_grad,
             added_x_residual_grad=added_x_residual_grad,
+            rmsnorm_denominator=rmsnorm_denominator,
+            x_grad=x_grad,
+            residual_grad=residual_grad,
+            weight_grad=weight_grad,
+            eps=ctx.eps,
+            multiplier=ctx.multiplier,
+            BLOCK_SIZE_B=BLOCK_SIZE_B,
+            BLOCK_SIZE_H=BLOCK_SIZE_H,
         )
 
-        if ctx.is_x_1d:
-            x_grad = x_grad.squeeze(0)
-            residual_grad = residual_grad.squeeze(0)
+        if weight_grad is not None:
+            weight_grad = weight_grad.type_as(weight)
 
-        return x_grad, residual_grad, weight_grad, *[None] * 9
+        return x_grad, residual_grad, weight_grad, *[None] * 3
 
 
 def fused_residual_add_rmsnorm_cute(
