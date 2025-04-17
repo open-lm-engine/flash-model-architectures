@@ -6,7 +6,7 @@ from ...utils import ensure_contiguous, get_num_elements_and_hidden_size, get_sm
 from .torch_implementation import fused_residual_add_rmsnorm_torch
 from .triton_implementation import (
     _fused_residual_add_rmsnorm_backward_triton_kernel,
-    fused_residual_add_rmsnorm_forward_triton,
+    _fused_residual_add_rmsnorm_forward_triton_kernel,
 )
 
 
@@ -46,18 +46,29 @@ class _FusedResidualAddRMSNorm_Cute(torch.autograd.Function):
         BLOCK_SIZE_H = get_next_power_of_2(hidden_size)
         assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
 
-        fused_residual_add_rmsnorm_forward_triton(
-            x=x,
-            residual=residual,
-            weight=weight,
-            output=output,
-            eps=eps,
-            multiplier=multiplier,
-            added_x_residual=added_x_residual,
-            rmsnorm_denominator=rmsnorm_denominator,
-            BLOCK_SIZE_B=BLOCK_SIZE_B,
-            BLOCK_SIZE_H=BLOCK_SIZE_H,
-        )
+        num_elements, hidden_size = get_num_elements_and_hidden_size(x)
+
+        if BLOCK_SIZE_H < hidden_size:
+            raise ValueError(f"hidden_size should be more than the BLOCK_SIZE_H")
+
+        with torch.cuda.device(x.device):
+            _fused_residual_add_rmsnorm_forward_triton_kernel[(ceil_divide(num_elements, BLOCK_SIZE_B),)](
+                x_ptr=x,
+                residual_ptr=residual,
+                has_weight=weight is not None,
+                weight_ptr=weight,
+                output_ptr=output,
+                eps=eps,
+                has_multiplier=multiplier is not None and multiplier != 1,
+                multiplier=multiplier,
+                added_x_residual_ptr=added_x_residual,
+                has_rmsnorm_denominator=rmsnorm_denominator is not None,
+                rmsnorm_denominator_ptr=rmsnorm_denominator,
+                B=num_elements,
+                H=hidden_size,
+                BLOCK_SIZE_B=BLOCK_SIZE_B,
+                BLOCK_SIZE_H=BLOCK_SIZE_H,
+            )
 
         ctx.save_for_backward(added_x_residual, weight, rmsnorm_denominator)
 
