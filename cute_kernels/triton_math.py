@@ -14,7 +14,7 @@ def clamp(x, min_value, max_value):
 
 
 @triton.jit
-def sigmoid(x):
+def sigmoid(x, MIN_EXP_FP32: tl.constexpr = -88.3762626647949, MAX_EXP_FP32: tl.constexpr = 88.3762626647949):
     dtype = x.dtype
 
     x = x.to(tl.float32)
