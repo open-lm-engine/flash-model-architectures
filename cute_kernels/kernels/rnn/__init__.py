@@ -47,6 +47,7 @@ class _RNN_Cute(torch.autograd.Function):
             )
 
         ctx.save_for_backward(weight, output, input_state)
+        ctx.gradient_clipping = gradient_clipping
 
         return output
 
@@ -62,6 +63,8 @@ class _RNN_Cute(torch.autograd.Function):
         BLOCK_SIZE_B = 32
         BLOCK_SIZE_H = get_next_power_of_2(H)
         BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
+
+        gradient_clipping = ctx.gradient_clipping
 
         with torch.cuda.device(output.device):
             _rnn_backward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), N](
@@ -79,6 +82,8 @@ class _RNN_Cute(torch.autograd.Function):
                 output_grad_ptr=output_grad,
                 input_grad_ptr=input_grad,
                 weight_grad_ptr=weight_grad,
+                has_gradient_clipping=gradient_clipping is not None,
+                gradient_clipping=gradient_clipping,
                 B=B,
                 S=S,
                 H=H,
