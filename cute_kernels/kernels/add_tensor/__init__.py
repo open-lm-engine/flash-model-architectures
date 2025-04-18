@@ -56,7 +56,7 @@ def add_tensor_cute(
     *,
     kernel_backend: KernelBackend = KernelBackend.cuda,
     # cuda
-    BLOCK_SIZE_CUDA: int,
+    BLOCK_SIZE_CUDA: int = 1024,
     # triton
     BLOCK_SIZE_TRITON: int = 4096,
     NUM_WARPS_TRITON: int = 32,
