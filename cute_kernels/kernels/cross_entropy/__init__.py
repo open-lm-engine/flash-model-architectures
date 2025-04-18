@@ -74,7 +74,7 @@ def cross_entropy_cute(
         BLOCK_SIZE_V (int, optional): block size along the vocabulary dimension. Defaults to 256.
 
     Returns:
-        torch.Tensor: _description_
+        torch.Tensor: loss
     """
 
     return _CrossEntropy_Cute.apply(x, labels, reduction, logits_multiplier, BLOCK_SIZE_B, BLOCK_SIZE_V)
