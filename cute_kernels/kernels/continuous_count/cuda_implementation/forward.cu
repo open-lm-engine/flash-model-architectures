@@ -65,9 +65,11 @@ inline __device__ void _update_local_count(const scalar_t *x,
     }
 }
 
-template <typename scalar_t>
-__global__ void _continuous_count_cuda_kernel(
-    const scalar_t *x, uint32 *output, const uint64 num_elements, const uint32 C, const bool initialize_output) {
+template <typename scalar_t, bool initialize_output>
+__global__ void _continuous_count_cuda_kernel(const scalar_t *x,
+                                              uint32 *output,
+                                              const uint64 num_elements,
+                                              const uint32 C) {
     const uint32 global_thread_id = blockIdx.x * blockDim.x + threadIdx.x;
 
     extern __shared__ uint32 shared_memory[];
@@ -125,7 +127,10 @@ void continuous_count_cuda(const torch::Tensor &x,
         ck::chunk_array<uint32>(output.data_ptr<uint32>(), total_elements);
 
     AT_DISPATCH_CUSTOM_INT_TYPES(x.scalar_type(), "continuous_count_cuda_kernel", ([&] {
-                                     cudaFuncSetAttribute(_continuous_count_cuda_kernel<scalar_t>,
+                                     cudaFuncSetAttribute(_continuous_count_cuda_kernel<scalar_t, true>,
+                                                          cudaFuncAttributeMaxDynamicSharedMemorySize,
+                                                          MAX_ALLOWED_C * sizeof(uint32));
+                                     cudaFuncSetAttribute(_continuous_count_cuda_kernel<scalar_t, false>,
                                                           cudaFuncAttributeMaxDynamicSharedMemorySize,
                                                           MAX_ALLOWED_C * sizeof(uint32));
 
@@ -160,13 +165,21 @@ void continuous_count_cuda(const torch::Tensor &x,
                                          launch_config.attrs = attributes;
                                          launch_config.numAttrs = 2;
 
-                                         cudaLaunchKernelEx(&launch_config,
-                                                            _continuous_count_cuda_kernel<scalar_t>,
-                                                            x_chunk.array,
-                                                            output_chunk.array,
-                                                            num_elements,
-                                                            C,
-                                                            i == 0);
+                                         if (i == 0) {
+                                             cudaLaunchKernelEx(&launch_config,
+                                                                _continuous_count_cuda_kernel<scalar_t, true>,
+                                                                x_chunk.array,
+                                                                output_chunk.array,
+                                                                num_elements,
+                                                                C);
+                                         } else {
+                                             cudaLaunchKernelEx(&launch_config,
+                                                                _continuous_count_cuda_kernel<scalar_t, false>,
+                                                                x_chunk.array,
+                                                                output_chunk.array,
+                                                                num_elements,
+                                                                C);
+                                         }
                                      }
                                  }));
 }
