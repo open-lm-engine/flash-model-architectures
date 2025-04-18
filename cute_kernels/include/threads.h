@@ -14,7 +14,7 @@
 namespace cute_kernels {
     inline __device__ uint32 get_num_blocks() { return gridDim.x * gridDim.y * gridDim.z; }
 
-    inline __host__ int get_max_thread_blocks(const int &sm_count, const int &thread_block_cluster_size) {
+    inline __host__ int get_max_thread_blocks(const uint32 &sm_count, const uint32 &thread_block_cluster_size) {
         int max_num_blocks = sm_count;
         if (max_num_blocks % thread_block_cluster_size != 0) {
             max_num_blocks = thread_block_cluster_size * (max_num_blocks / thread_block_cluster_size);
