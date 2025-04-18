@@ -25,8 +25,8 @@ table = []
 for dtype in [torch.float32]:
     row = [str(dtype)]
     for kernel in kernels:
-        x = torch.randn(999, device=torch.cuda.current_device(), dtype=dtype)
-        y = torch.randn(999, device=torch.cuda.current_device(), dtype=dtype)
+        x = torch.randn(10485760, device=torch.cuda.current_device(), dtype=dtype)
+        y = torch.randn(10485760, device=torch.cuda.current_device(), dtype=dtype)
 
         for i in range(n):
             z = kernel(x, y)
