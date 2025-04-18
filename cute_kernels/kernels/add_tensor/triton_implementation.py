@@ -6,10 +6,7 @@ import triton.language as tl
 def _add_tensor_triton(x_ptr, y_ptr, output_ptr, indices, mask):
     x = tl.load(x_ptr + indices, mask=mask)
     y = tl.load(y_ptr + indices, mask=mask)
-
-    output = x + y
-
-    tl.store(output_ptr + indices, output, mask=mask)
+    tl.store(output_ptr + indices, x + y, mask=mask)
 
 
 @triton.jit
