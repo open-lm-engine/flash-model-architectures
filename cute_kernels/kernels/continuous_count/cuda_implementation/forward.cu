@@ -165,21 +165,13 @@ void continuous_count_cuda(const torch::Tensor &x,
                                          launch_config.attrs = attributes;
                                          launch_config.numAttrs = 2;
 
-                                         if (i == 0) {
-                                             cudaLaunchKernelEx(&launch_config,
-                                                                _continuous_count_cuda_kernel<scalar_t, true>,
-                                                                x_chunk.array,
-                                                                output_chunk.array,
-                                                                num_elements,
-                                                                C);
-                                         } else {
-                                             cudaLaunchKernelEx(&launch_config,
-                                                                _continuous_count_cuda_kernel<scalar_t, false>,
-                                                                x_chunk.array,
-                                                                output_chunk.array,
-                                                                num_elements,
-                                                                C);
-                                         }
+                                         cudaLaunchKernelEx(&launch_config,
+                                                            (i == 0) ? _continuous_count_cuda_kernel<scalar_t, true>
+                                                                     : _continuous_count_cuda_kernel<scalar_t, false>,
+                                                            x_chunk.array,
+                                                            output_chunk.array,
+                                                            num_elements,
+                                                            C);
                                      }
                                  }));
 }
