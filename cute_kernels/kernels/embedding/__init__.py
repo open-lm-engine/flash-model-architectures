@@ -10,12 +10,18 @@ class _Embedding_Cute(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
     def forward(
-        ctx, input_ids: torch.Tensor, weight: torch.Tensor, BLOCK_SIZE_B_forward: int, BLOCK_SIZE_H_forward: int
+        ctx,
+        input_ids: torch.Tensor,
+        weight: torch.Tensor,
+        BLOCK_SIZE_B_forward: int,
+        BLOCK_SIZE_H_forward: int,
+        BLOCK_SIZE_B_backward: int,
+        BLOCK_SIZE_H_backward: int,
     ) -> torch.Tensor:
         B = input_ids.numel()
         H = weight.size(-1)
 
-        output = torch.empty(B, H, dtype=weight.dtype, device=input_ids.device)
+        output = torch.empty(*input_ids.size(), H, dtype=weight.dtype, device=input_ids.device)
 
         with torch.cuda.device(input_ids.device):
             _embedding_forward_triton_kernel[
@@ -30,9 +36,9 @@ class _Embedding_Cute(torch.autograd.Function):
                 BLOCK_SIZE_H=BLOCK_SIZE_H_forward,
             )
 
-        output = output.view(*input_ids.size(), H)
-
         ctx.save_for_backward(input_ids, weight)
+        ctx.BLOCK_SIZE_B_backward = BLOCK_SIZE_B_backward
+        ctx.BLOCK_SIZE_H_backward = BLOCK_SIZE_H_backward
 
         return output
 
@@ -43,8 +49,8 @@ class _Embedding_Cute(torch.autograd.Function):
 
         B = input_ids.numel()
         H = weight.size(-1)
-        BLOCK_SIZE_B = 128
-        BLOCK_SIZE_H = 128
+        BLOCK_SIZE_B = ctx.BLOCK_SIZE_B_backward
+        BLOCK_SIZE_H = ctx.BLOCK_SIZE_H_backward
 
         weight_grad = torch.zeros_like(weight)
 
@@ -64,7 +70,7 @@ class _Embedding_Cute(torch.autograd.Function):
                 BLOCK_SIZE_H=BLOCK_SIZE_H,
             )
 
-        return None, weight_grad, *[None] * 6
+        return None, weight_grad, *[None] * 4
 
 
 def embedding_cute(
@@ -77,6 +83,8 @@ def embedding_cute(
         weight (torch.Tensor): embedding matrix
         BLOCK_SIZE_B_forward (int, optional): block size for forward along batch dimension. Defaults to 128.
         BLOCK_SIZE_H_forward (int, optional): block size for forward along vocabulary dimension. Defaults to 128.
+        BLOCK_SIZE_B_backward (int, optional): block size for backward along batch dimension. Defaults to 128.
+        BLOCK_SIZE_H_backward (int, optional): block size for backward along vocabulary dimension. Defaults to 128.
 
     Returns:
         torch.Tensor: _description_
