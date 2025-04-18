@@ -5,7 +5,9 @@ from .torch_implementation import continuous_count_torch
 
 
 @torch.no_grad()
-def continuous_count_cute(x: torch.Tensor, size: int) -> torch.Tensor:
+def continuous_count_cute(
+    x: torch.Tensor, size: int, *, BLOCK_SIZE: int = 1024, THREAD_BLOCK_CLUSTER_SIZE: int = 8
+) -> torch.Tensor:
     """counts the number of occurances of the values [0, 1, ..., `size`) in the input tensor
     (`size` is excluded). NOTE: the user is responsible for ensuring that the values lie in
     the valid range, any values outside this range are ignored and not counted.
@@ -13,6 +15,10 @@ def continuous_count_cute(x: torch.Tensor, size: int) -> torch.Tensor:
     Args:
         x (torch.Tensor): input tensor
         size (int): values [0, 1, ..., `size`) are counted (`size` is excluded)
+        BLOCK_SIZE (int, optional): BLOCK_SIZE for CUDA backend. Defaults to 1024.
+        THREAD_BLOCK_CLUSTER_SIZE (int, optional): THREAD_BLOCK_CLUSTER_SIZE refers to the
+            size of the cluster for hierarchical accumulation, 1 means no thread block
+            clusters. Defaults to 8.
 
     Returns:
         torch.Tensor: output tensor
@@ -23,9 +29,6 @@ def continuous_count_cute(x: torch.Tensor, size: int) -> torch.Tensor:
 
     assert x.dim() == 1, "x should be 1-dimensional"
     assert x.dtype in [torch.int32, torch.long]
-
-    BLOCK_SIZE = 1024
-    THREAD_BLOCK_CLUSTER_SIZE = 8
 
     output = torch.empty(size, dtype=torch.uint32, device=x.device)
 
