@@ -108,8 +108,8 @@ __global__ void _continuous_count_cuda_kernel(const scalar_t *x,
 
 void continuous_count_cuda(const torch::Tensor &x,
                            torch::Tensor &output,
-                           const uint32 &thread_block_cluster_size,
                            const uint32 &C,
+                           const uint32 &THREAD_BLOCK_CLUSTER_SIZE,
                            const uint32 &BLOCK_SIZE) {
     CHECK_CUDA_TENSOR(x);
     CHECK_CUDA_TENSOR(output);
@@ -121,7 +121,7 @@ void continuous_count_cuda(const torch::Tensor &x,
     const uint64 total_elements = x.numel();
 
     const uint32 num_SMs = ck::get_num_SMs();
-    const int max_num_blocks = ck::get_max_thread_blocks(num_SMs, thread_block_cluster_size);
+    const int max_num_blocks = ck::get_max_thread_blocks(num_SMs, THREAD_BLOCK_CLUSTER_SIZE);
 
     std::vector<ck::ChunkedArray<uint32>> output_chunks =
         ck::chunk_array<uint32>(output.data_ptr<uint32>(), total_elements);
@@ -144,7 +144,7 @@ void continuous_count_cuda(const torch::Tensor &x,
                                          const uint64 num_elements = x_chunk.num_elements;
 
                                          auto [NUM_BLOCKS, cluster_size] = ck::get_num_blocks(
-                                             num_elements, BLOCK_SIZE, max_num_blocks, thread_block_cluster_size);
+                                             num_elements, BLOCK_SIZE, max_num_blocks, THREAD_BLOCK_CLUSTER_SIZE);
 
                                          // dynamically sized clusters need this stupid way of launching the kernel
                                          cudaLaunchConfig_t launch_config = {0};
