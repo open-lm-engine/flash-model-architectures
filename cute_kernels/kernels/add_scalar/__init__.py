@@ -25,7 +25,7 @@ class _AddScalar_Cute(torch.autograd.Function):
 
             with torch.cuda.device(x.device):
                 _add_scalar_triton_kernel[num_programs,](
-                    x_ptr=x, y=y, output_ptr=output, N=N, BLOCK_SIZE=BLOCK_SIZE, NUM_WARPS=NUM_WARPS
+                    x_ptr=x, y=y, output_ptr=output, N=N, BLOCK_SIZE=BLOCK_SIZE, num_warps=NUM_WARPS
                 )
         else:
             raise ValueError("unexpected kernel_backend")
