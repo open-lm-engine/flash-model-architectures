@@ -1,6 +1,5 @@
 import torch
 
-from ...utils import get_sm_count
 from .cuda_implementation import continuous_count_cuda
 from .torch_implementation import continuous_count_torch
 
