@@ -67,9 +67,9 @@ def add_tensor_cute(
         x (torch.Tensor): first tensor
         y (torch.Tensor): second tensor
         kernel_backend (KernelBackend, optional): kernel backend to prioritize. Defaults to KernelBackend.cuda.
-        BLOCK_SIZE_CUDA (int, optional): BLOCK_SIZE for CUDA backend. Defaults to 1024.
-        BLOCK_SIZE_TRITON (int, optional): BLOCK_SIZE for triton backend. Defaults to 4096.
-        NUM_WARPS_TRITON (int, optional): num_warps for triton backend. Defaults to 32.
+        BLOCK_SIZE_CUDA (int, optional): block size for CUDA backend. Defaults to 1024.
+        BLOCK_SIZE_TRITON (int, optional): block size for triton backend. Defaults to 4096.
+        NUM_WARPS_TRITON (int, optional): warps for triton backend. Defaults to 32.
 
     Returns:
         torch.Tensor: output tensor

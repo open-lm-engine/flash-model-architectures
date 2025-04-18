@@ -15,8 +15,8 @@ def continuous_count_cute(
     Args:
         x (torch.Tensor): input tensor
         size (int): values [0, 1, ..., `size`) are counted (`size` is excluded)
-        BLOCK_SIZE (int, optional): BLOCK_SIZE for CUDA backend. Defaults to 1024.
-        THREAD_BLOCK_CLUSTER_SIZE (int, optional): THREAD_BLOCK_CLUSTER_SIZE refers to the
+        BLOCK_SIZE (int, optional): block size for CUDA backend. Defaults to 1024.
+        THREAD_BLOCK_CLUSTER_SIZE (int, optional): thread block cluster size refers to the
             size of the cluster for hierarchical accumulation, 1 means no thread block
             clusters. Defaults to 8.
 

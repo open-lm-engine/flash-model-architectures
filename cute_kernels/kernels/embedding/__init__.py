@@ -76,7 +76,7 @@ class _Embedding_Cute(torch.autograd.Function):
 def embedding_cute(
     input_ids: torch.Tensor, weight: torch.Tensor, *, BLOCK_SIZE_B_forward: int = 128, BLOCK_SIZE_H_forward: int = 128
 ) -> torch.Tensor:
-    """_summary_
+    """computes word embeddings
 
     Args:
         input_ids (torch.Tensor): input ids
@@ -87,7 +87,7 @@ def embedding_cute(
         BLOCK_SIZE_H_backward (int, optional): block size for backward along vocabulary dimension. Defaults to 128.
 
     Returns:
-        torch.Tensor: _description_
+        torch.Tensor: word embeddings
     """
 
     return _Embedding_Cute.apply(input_ids, weight, BLOCK_SIZE_B_forward, BLOCK_SIZE_H_forward)
