@@ -15,17 +15,17 @@ def _cross_entropy_forward_backward_triton_kernel(
     BLOCK_SIZE_V: tl.constexpr,
     reduction: tl.constexpr,
 ):
-    pid = tl.program_id(axis=0)
+    BLOCK_ID = tl.program_id(axis=0)
 
-    indices_b = pid * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
+    indices_b = BLOCK_ID * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
     mask_b = indices_b < B
 
     Z = tl.zeros((BLOCK_SIZE_B, 1), dtype=tl.float32)
     M = tl.full((BLOCK_SIZE_B, 1), -float("inf"), dtype=tl.float32)
 
-    num_blocks_v = tl.cdiv(V, BLOCK_SIZE_V)
+    NUM_BLOCKS_V = tl.cdiv(V, BLOCK_SIZE_V)
 
-    for v in range(num_blocks_v):
+    for v in range(NUM_BLOCKS_V):
         indices_v = v * BLOCK_SIZE_V + tl.arange(0, BLOCK_SIZE_V)
         mask_v = indices_v < V
 
@@ -49,7 +49,7 @@ def _cross_entropy_forward_backward_triton_kernel(
     labels_ptrs = labels_ptr + indices_b
     labels = tl.load(labels_ptrs, mask=mask_b)
 
-    for v in range(num_blocks_v):
+    for v in range(NUM_BLOCKS_V):
         indices_v = v * BLOCK_SIZE_V + tl.arange(0, BLOCK_SIZE_V)
         mask_v = indices_v < V
 
