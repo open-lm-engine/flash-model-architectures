@@ -8,10 +8,6 @@ from ....utils import cute_op
 from .kernels import group_triton_kernel, groupXtY_triton_kernel, scatter2scatter_triton_kernel
 
 
-BLOCK_M = 128
-torch._dynamo.config.capture_scalar_outputs = True
-
-
 def _fake_bincount(x: torch.Tensor, minlength: int) -> torch.Tensor:
     return torch.empty(minlength, device=x.device, dtype=torch.int)
 
@@ -48,6 +44,8 @@ def scatter2scatter(
         ceil_divide(sorted_expert_idxs.size(0), meta["BLOCK_M"]) * ceil_divide(meta["N"], meta["BLOCK_N"]),
     )
 
+    BLOCK_M = 128
+
     with torch.device(X.device):
         scatter2scatter_triton_kernel[grid](
             # X_ptr, stride_xm, stride_xk,
@@ -78,11 +76,10 @@ def scatter2scatter(
         )
 
 
-@cute_op(f"{LIBRARY_NAME}::group_bwd_W", mutates_args={"DW"})
 def group_bwd_W(DY: torch.Tensor, X: torch.Tensor, expert_offsets: torch.Tensor, DW: torch.Tensor, E: int) -> None:
     grid = lambda meta: (E * ceil_divide(meta["K"], meta["BLOCK_K"]), ceil_divide(meta["N"], meta["BLOCK_N"]))
 
-    with torch.device(X.device):
+    with torch.cuda.device(X.device):
         groupXtY_triton_kernel[grid](
             # DY_ptr, stride_dym, stride_dyk,
             DY,
@@ -108,7 +105,6 @@ def group_bwd_W(DY: torch.Tensor, X: torch.Tensor, expert_offsets: torch.Tensor,
         )
 
 
-@cute_op(f"{LIBRARY_NAME}::group", mutates_args={"out"})
 def group(
     A: torch.Tensor,
     sorted_expert_idxs: torch.Tensor,
@@ -122,7 +118,7 @@ def group(
 
     grid = lambda meta: (triton.cdiv(meta["N"], meta["BLOCK_N"]),)
 
-    with torch.device(A.device):
+    with torch.cuda.device(A.device):
         group_triton_kernel[grid](
             # A_ptr, stride_an, stride_ai,
             A,

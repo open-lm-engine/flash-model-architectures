@@ -14,40 +14,16 @@ class SwigluUnchunkedTest(TestCommons):
             TestCommons.get_2d_tensor_sizes(),  # size
             [torch.device("cuda")],  # device
             TestCommons.get_dtypes(),  # dtype
-            ["triton"],  # kernel_backend_forward
-            ["triton"],  # kernel_backend_backward
-            [64],  # BLOCK_SIZE_B_forward
-            [64],  # BLOCK_SIZE_B_forward
-            [64],  # BLOCK_SIZE_H_backward
-            [64],  # BLOCK_SIZE_H_backward
             [swiglu_unchunked_cute, torch.compile(swiglu_unchunked_cute, fullgraph=True)],  # function
         )
     )
     def test_swiglu_unchunked(
-        self,
-        size: tuple[int],
-        device: torch.device,
-        dtype: torch.dtype,
-        kernel_backend_forward: str,
-        kernel_backend_backward: str,
-        BLOCK_SIZE_B_forward: int,
-        BLOCK_SIZE_H_forward: int,
-        BLOCK_SIZE_B_backward: int,
-        BLOCK_SIZE_H_backward: int,
-        function: Callable,
+        self, size: tuple[int], device: torch.device, dtype: torch.dtype, function: Callable
     ) -> None:
         size = (size[0], ceil_divide(size[-1], 2) * 2)
         x_kernel, x_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype)
 
-        z_kernel = function(
-            x_kernel,
-            kernel_backend_forward=kernel_backend_forward,
-            kernel_backend_backward=kernel_backend_backward,
-            BLOCK_SIZE_B_forward=BLOCK_SIZE_B_forward,
-            BLOCK_SIZE_H_forward=BLOCK_SIZE_H_forward,
-            BLOCK_SIZE_B_backward=BLOCK_SIZE_B_backward,
-            BLOCK_SIZE_H_backward=BLOCK_SIZE_H_backward,
-        )
+        z_kernel = function(x_kernel)
         z_expected = swiglu_unchunked_torch(x_expected)
 
         z_kernel.mean().backward()

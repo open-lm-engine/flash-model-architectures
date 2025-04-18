@@ -65,9 +65,11 @@ inline __device__ void _update_local_count(const scalar_t *x,
     }
 }
 
-template <typename scalar_t>
-__global__ void _continuous_count_cuda_kernel(
-    const scalar_t *x, uint32 *output, const uint64 num_elements, const uint32 C, const bool initialize_output) {
+template <typename scalar_t, bool initialize_output>
+__global__ void _continuous_count_cuda_kernel(const scalar_t *x,
+                                              uint32 *output,
+                                              const uint64 num_elements,
+                                              const uint32 C) {
     const uint32 global_thread_id = blockIdx.x * blockDim.x + threadIdx.x;
 
     extern __shared__ uint32 shared_memory[];
@@ -106,9 +108,8 @@ __global__ void _continuous_count_cuda_kernel(
 
 void continuous_count_cuda(const torch::Tensor &x,
                            torch::Tensor &output,
-                           const uint32 &sm_count,
-                           const uint32 &thread_block_cluster_size,
                            const uint32 &C,
+                           const uint32 &THREAD_BLOCK_CLUSTER_SIZE,
                            const uint32 &BLOCK_SIZE) {
     CHECK_CUDA_TENSOR(x);
     CHECK_CUDA_TENSOR(output);
@@ -118,13 +119,18 @@ void continuous_count_cuda(const torch::Tensor &x,
     TORCH_CHECK(C <= MAX_ALLOWED_C);
 
     const uint64 total_elements = x.numel();
-    const int max_num_blocks = ck::get_max_thread_blocks(sm_count, thread_block_cluster_size);
+
+    const uint32 num_SMs = ck::get_num_SMs();
+    const uint32 max_num_blocks = ck::get_max_thread_blocks(num_SMs, THREAD_BLOCK_CLUSTER_SIZE);
 
     std::vector<ck::ChunkedArray<uint32>> output_chunks =
         ck::chunk_array<uint32>(output.data_ptr<uint32>(), total_elements);
 
     AT_DISPATCH_CUSTOM_INT_TYPES(x.scalar_type(), "continuous_count_cuda_kernel", ([&] {
-                                     cudaFuncSetAttribute(_continuous_count_cuda_kernel<scalar_t>,
+                                     cudaFuncSetAttribute(_continuous_count_cuda_kernel<scalar_t, true>,
+                                                          cudaFuncAttributeMaxDynamicSharedMemorySize,
+                                                          MAX_ALLOWED_C * sizeof(uint32));
+                                     cudaFuncSetAttribute(_continuous_count_cuda_kernel<scalar_t, false>,
                                                           cudaFuncAttributeMaxDynamicSharedMemorySize,
                                                           MAX_ALLOWED_C * sizeof(uint32));
 
@@ -138,7 +144,7 @@ void continuous_count_cuda(const torch::Tensor &x,
                                          const uint64 num_elements = x_chunk.num_elements;
 
                                          auto [NUM_BLOCKS, cluster_size] = ck::get_num_blocks(
-                                             num_elements, BLOCK_SIZE, max_num_blocks, thread_block_cluster_size);
+                                             num_elements, BLOCK_SIZE, max_num_blocks, THREAD_BLOCK_CLUSTER_SIZE);
 
                                          // dynamically sized clusters need this stupid way of launching the kernel
                                          cudaLaunchConfig_t launch_config = {0};
@@ -160,12 +166,12 @@ void continuous_count_cuda(const torch::Tensor &x,
                                          launch_config.numAttrs = 2;
 
                                          cudaLaunchKernelEx(&launch_config,
-                                                            _continuous_count_cuda_kernel<scalar_t>,
+                                                            (i == 0) ? _continuous_count_cuda_kernel<scalar_t, true>
+                                                                     : _continuous_count_cuda_kernel<scalar_t, false>,
                                                             x_chunk.array,
                                                             output_chunk.array,
                                                             num_elements,
-                                                            C,
-                                                            i == 0);
+                                                            C);
                                      }
                                  }));
 }

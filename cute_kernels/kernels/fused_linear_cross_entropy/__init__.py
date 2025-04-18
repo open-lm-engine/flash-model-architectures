@@ -1,9 +1,8 @@
 import torch
 
-from ...cutotune import CutoTuneParameter
 from ...math import ceil_divide, get_next_power_of_2
 from ...utils import ensure_contiguous
-from ..cross_entropy import cross_entropy_forward_backward_triton
+from ..cross_entropy import _cross_entropy_forward_backward_triton_kernel
 from .torch_implementation import fused_linear_cross_entropy_torch
 
 
@@ -11,14 +10,7 @@ class _FusedLinearCrossEntropy_Cute(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
     def forward(
-        ctx,
-        x: torch.Tensor,
-        weight: torch.Tensor,
-        labels: torch.Tensor,
-        reduction: str,
-        logits_multiplier: float,
-        BLOCK_SIZE_B: int,
-        BLOCK_SIZE_V: int,
+        ctx, x: torch.Tensor, weight: torch.Tensor, labels: torch.Tensor, reduction: str, logits_multiplier: float
     ) -> torch.Tensor:
         assert reduction in ["sum", "mean"]
         assert x.dim() == 2, "x should be 2 dimensional"
@@ -39,6 +31,9 @@ class _FusedLinearCrossEntropy_Cute(torch.autograd.Function):
         x_grad = torch.empty_like(x)
         weight_grad = torch.zeros_like(weight)
 
+        BLOCK_SIZE_B = 4
+        BLOCK_SIZE_V = 256
+
         for i in range(num_chunks):
             start = i * chunk_size
             end = (i + 1) * chunk_size
@@ -50,16 +45,19 @@ class _FusedLinearCrossEntropy_Cute(torch.autograd.Function):
             _logits_grad = torch.empty_like(_logits)
             _labels = labels[start:end].contiguous()
 
-            cross_entropy_forward_backward_triton(
-                x=_logits,
-                labels=_labels,
-                loss=loss,
-                x_grad=_logits_grad,
-                logits_multiplier=logits_multiplier,
-                BLOCK_SIZE_B=BLOCK_SIZE_B,
-                BLOCK_SIZE_V=BLOCK_SIZE_V,
-                reduction="sum",
-            )
+            with torch.cuda.device(x.device):
+                _cross_entropy_forward_backward_triton_kernel[ceil_divide(_logits.size(0), BLOCK_SIZE_B),](
+                    x_ptr=_logits,
+                    labels_ptr=_labels,
+                    loss_ptr=loss,
+                    x_grad_ptr=_logits_grad,
+                    logits_multiplier=logits_multiplier,
+                    B=_logits.size(0),
+                    V=vocab_size,
+                    BLOCK_SIZE_B=BLOCK_SIZE_B,
+                    BLOCK_SIZE_V=BLOCK_SIZE_V,
+                    reduction="sum",
+                )
 
             x_grad[start:end] = _logits_grad @ weight
             torch.addmm(weight_grad, _logits_grad.T, _x, alpha=1, beta=1, out=weight_grad)
@@ -80,24 +78,10 @@ class _FusedLinearCrossEntropy_Cute(torch.autograd.Function):
         x_grad *= output_grad
         weight_grad *= output_grad
 
-        return x_grad, weight_grad, *[None] * 5
+        return x_grad, weight_grad, *[None] * 3
 
 
 def fused_linear_cross_entropy_cute(
-    x: torch.Tensor,
-    weight: torch.Tensor,
-    labels: torch.Tensor,
-    reduction: str = "mean",
-    logits_multiplier: float = 1,
-    BLOCK_SIZE_B: int = CutoTuneParameter(),
-    BLOCK_SIZE_V: int = CutoTuneParameter(),
+    x: torch.Tensor, weight: torch.Tensor, labels: torch.Tensor, reduction: str = "mean", logits_multiplier: float = 1
 ) -> torch.Tensor:
-    return _FusedLinearCrossEntropy_Cute.apply(
-        x,
-        weight,
-        labels,
-        reduction,
-        logits_multiplier,
-        BLOCK_SIZE_B,
-        BLOCK_SIZE_V,
-    )
+    return _FusedLinearCrossEntropy_Cute.apply(x, weight, labels, reduction, logits_multiplier)
