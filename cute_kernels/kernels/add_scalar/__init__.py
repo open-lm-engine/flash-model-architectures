@@ -52,6 +52,20 @@ def add_scalar_cute(
     BLOCK_SIZE_TRITON: int = 4096,
     NUM_WARPS_TRITON: int = 32,
 ) -> torch.Tensor:
+    """adds a float value to a tensor
+
+    Args:
+        x (torch.Tensor): input tensor
+        y (float): float value to add to `x`
+        kernel_backend (KernelBackend, optional): kernel backend to prioritize. Defaults to KernelBackend.cuda.
+        BLOCK_SIZE_CUDA (int, optional): BLOCK_SIZE for CUDA backend. Defaults to 1024.
+        BLOCK_SIZE_TRITON (int, optional): BLOCK_SIZE for triton backend. Defaults to 4096.
+        NUM_WARPS_TRITON (int, optional): num_warps for triton backend. Defaults to 32.
+
+    Returns:
+        torch.Tensor: output tensor
+    """
+
     if y == 0:
         return x
 
