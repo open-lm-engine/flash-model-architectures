@@ -95,7 +95,7 @@ def fused_linear_cross_entropy_cute(
     BLOCK_SIZE_B: int = 4,
     BLOCK_SIZE_V: int = 256,
 ) -> torch.Tensor:
-    """compute cross entropy loss
+    """compute cross entropy loss without materializing the full output logits matrix
 
     Args:
         x (torch.Tensor): logits

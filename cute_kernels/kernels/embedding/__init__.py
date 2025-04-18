@@ -9,23 +9,25 @@ from .triton_implementation import _embedding_backward_triton_kernel, _embedding
 class _Embedding_Cute(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
-    def forward(ctx, input_ids: torch.Tensor, weight: torch.Tensor) -> torch.Tensor:
+    def forward(
+        ctx, input_ids: torch.Tensor, weight: torch.Tensor, BLOCK_SIZE_B_forward: int, BLOCK_SIZE_H_forward: int
+    ) -> torch.Tensor:
         B = input_ids.numel()
         H = weight.size(-1)
-        BLOCK_SIZE_B = 128
-        BLOCK_SIZE_H = 128
 
         output = torch.empty(B, H, dtype=weight.dtype, device=input_ids.device)
 
         with torch.cuda.device(input_ids.device):
-            _embedding_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), ceil_divide(H, BLOCK_SIZE_H)](
+            _embedding_forward_triton_kernel[
+                ceil_divide(B, BLOCK_SIZE_B_forward), ceil_divide(H, BLOCK_SIZE_H_forward)
+            ](
                 x_ptr=input_ids,
                 weight_ptr=weight,
                 output_ptr=output,
                 B=B,
                 H=H,
-                BLOCK_SIZE_B=BLOCK_SIZE_B,
-                BLOCK_SIZE_H=BLOCK_SIZE_H,
+                BLOCK_SIZE_B=BLOCK_SIZE_B_forward,
+                BLOCK_SIZE_H=BLOCK_SIZE_H_forward,
             )
 
         output = output.view(*input_ids.size(), H)
@@ -65,5 +67,19 @@ class _Embedding_Cute(torch.autograd.Function):
         return None, weight_grad, *[None] * 6
 
 
-def embedding_cute(input_ids: torch.Tensor, weight: torch.Tensor) -> torch.Tensor:
-    return _Embedding_Cute.apply(input_ids, weight)
+def embedding_cute(
+    input_ids: torch.Tensor, weight: torch.Tensor, *, BLOCK_SIZE_B_forward: int = 128, BLOCK_SIZE_H_forward: int = 128
+) -> torch.Tensor:
+    """_summary_
+
+    Args:
+        input_ids (torch.Tensor): input ids
+        weight (torch.Tensor): embedding matrix
+        BLOCK_SIZE_B_forward (int, optional): block size for forward along batch dimension. Defaults to 128.
+        BLOCK_SIZE_H_forward (int, optional): block size for forward along vocabulary dimension. Defaults to 128.
+
+    Returns:
+        torch.Tensor: _description_
+    """
+
+    return _Embedding_Cute.apply(input_ids, weight, BLOCK_SIZE_B_forward, BLOCK_SIZE_H_forward)
