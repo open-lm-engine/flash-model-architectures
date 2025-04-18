@@ -8,9 +8,6 @@ from ....utils import cute_op
 from .kernels import group_triton_kernel, groupXtY_triton_kernel, scatter2scatter_triton_kernel
 
 
-torch._dynamo.config.capture_scalar_outputs = True
-
-
 def _fake_bincount(x: torch.Tensor, minlength: int) -> torch.Tensor:
     return torch.empty(minlength, device=x.device, dtype=torch.int)
 
