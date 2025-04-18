@@ -3,7 +3,7 @@ from typing import Callable
 import torch
 from parameterized import parameterized
 
-from cute_kernels import KernelBackend, enable_kernel_backend, swiglu_cute, swiglu_torch
+from cute_kernels import KernelBackend, swiglu_cute, swiglu_torch
 
 from ..test_commons import TestCommons
 
