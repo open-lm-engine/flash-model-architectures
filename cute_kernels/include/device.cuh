@@ -5,9 +5,9 @@ namespace cute_kernels {
         int32 device_id;
         cudaGetDevice(&device_id);
 
-        cudaDeviceProp properties;
-        cudaGetDeviceProperties(&properties, device_id);
+        int32 num_SMs;
+        cudaDeviceGetAttribute(&num_SMs, cudaDevAttrMultiProcessorCount, device_id);
 
-        return properties.multiProcessorCount;
+        return num_SMs;
     }
 }  // namespace cute_kernels
