@@ -19,12 +19,7 @@ def continuous_count_cute(x: torch.Tensor, size: int) -> torch.Tensor:
     output = torch.empty(size, dtype=torch.uint32, device=x.device)
 
     continuous_count_cuda(
-        x=x,
-        output=output,
-        sm_count=get_sm_count(x.device),
-        thread_block_cluster_size=THREAD_BLOCK_CLUSTER_SIZE,
-        size=size,
-        BLOCK_SIZE=BLOCK_SIZE,
+        x=x, output=output, thread_block_cluster_size=THREAD_BLOCK_CLUSTER_SIZE, size=size, BLOCK_SIZE=BLOCK_SIZE
     )
 
     return output

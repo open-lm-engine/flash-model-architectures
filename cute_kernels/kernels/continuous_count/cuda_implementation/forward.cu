@@ -106,7 +106,6 @@ __global__ void _continuous_count_cuda_kernel(
 
 void continuous_count_cuda(const torch::Tensor &x,
                            torch::Tensor &output,
-                           const uint32 &sm_count,
                            const uint32 &thread_block_cluster_size,
                            const uint32 &C,
                            const uint32 &BLOCK_SIZE) {
@@ -118,6 +117,8 @@ void continuous_count_cuda(const torch::Tensor &x,
     TORCH_CHECK(C <= MAX_ALLOWED_C);
 
     const uint64 total_elements = x.numel();
+
+    const uint32 sm_count = ck::get_num_SMs();
     const int max_num_blocks = ck::get_max_thread_blocks(sm_count, thread_block_cluster_size);
 
     std::vector<ck::ChunkedArray<uint32>> output_chunks =
