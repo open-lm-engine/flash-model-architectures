@@ -24,15 +24,15 @@ class _AddTensor_Cute(torch.autograd.Function):
             BLOCK_SIZE = 4096
             NUM_WARPS = 32
 
-            B = x.numel()
-            num_programs = ceil_divide(B, BLOCK_SIZE)
+            N = x.numel()
+            num_programs = ceil_divide(N, BLOCK_SIZE)
 
             with torch.cuda.device(x.device):
                 _add_tensor_triton_kernel[num_programs,](
                     x_ptr=x,
                     y_ptr=y,
                     output_ptr=output,
-                    num_elements=B,
+                    N=N,
                     BLOCK_SIZE=BLOCK_SIZE,
                     num_warps=NUM_WARPS,
                 )
