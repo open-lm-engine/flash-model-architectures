@@ -110,8 +110,8 @@ def gemm_cute(
         BLOCK_SIZE_M = 128
         BLOCK_SIZE_K = 64
         BLOCK_SIZE_N = 128
-        num_warps = 8
-        num_stages = 2
+        NUM_WARPS = 8
+        NUM_STAGES = 2
 
         with torch.cuda.device(A.device):
             _gemm_triton_kernel[ceil_divide(M, BLOCK_SIZE_M) * ceil_divide(N, BLOCK_SIZE_N),](
@@ -130,8 +130,8 @@ def gemm_cute(
                 BLOCK_SIZE_M=BLOCK_SIZE_M,
                 BLOCK_SIZE_K=BLOCK_SIZE_K,
                 BLOCK_SIZE_N=BLOCK_SIZE_N,
-                num_warps=num_warps,
-                num_stages=num_stages,
+                num_warps=NUM_WARPS,
+                num_stages=NUM_STAGES,
             )
     else:
         raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
