@@ -3,7 +3,7 @@ import torch.nn.functional as F
 
 
 def cross_entropy_torch(
-    x: torch.Tensor, labels: torch.Tensor, reduction: str = "mean", logits_multiplier: float = 1
+    x: torch.Tensor, labels: torch.Tensor, reduction: str = "mean", logits_multiplier: float | None = None
 ) -> torch.Tensor:
     x = x.float()
     if logits_multiplier is not None:
