@@ -72,6 +72,7 @@ class _Softmax_Cute(torch.autograd.Function):
 def softmax_cute(
     x: torch.Tensor,
     logits_multiplier: float | None = None,
+    *,
     BLOCK_SIZE_B_forward: int = 1,
     BLOCK_SIZE_H_forward: int = 8192,
     BLOCK_SIZE_B_backward: int = 1,
