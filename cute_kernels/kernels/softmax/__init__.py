@@ -66,7 +66,7 @@ class _Softmax_Cute(torch.autograd.Function):
                 BLOCK_SIZE_H=ctx.BLOCK_SIZE_H_backward,
             )
 
-        return x_grad, *[None] * 8
+        return x_grad, *[None] * 5
 
 
 def softmax_cute(
