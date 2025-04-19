@@ -74,7 +74,7 @@ class _Swiglu_Cute(torch.autograd.Function):
         else:
             raise ValueError("unexpected kernel_backend")
 
-        return gate_grad, up_grad, *[None] * 3
+        return gate_grad, up_grad, *[None] * 4
 
 
 def swiglu_cute(
@@ -102,4 +102,4 @@ def swiglu_cute(
         torch.Tensor: output tensor
     """
 
-    return _Swiglu_Cute.apply(gate, up, BLOCK_SIZE_CUDA, BLOCK_SIZE_TRITON, NUM_WARPS_TRITON)
+    return _Swiglu_Cute.apply(gate, up, kernel_backend, BLOCK_SIZE_CUDA, BLOCK_SIZE_TRITON, NUM_WARPS_TRITON)
