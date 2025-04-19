@@ -22,7 +22,7 @@ def gemm_cute(
     alpha: float = 1,
     beta: float = 1,
     *,
-    kernel_backend: str | None = None,
+    kernel_backend: str = "triton",
 ) -> torch.Tensor:
     """computes `alpha` * (`A` @ `B`) + `beta` * `C`
 
@@ -34,7 +34,7 @@ def gemm_cute(
         is_B_transposed (bool, optional): whether B has shape N x K. Defaults to False.
         alpha (float, optional): alpha. Defaults to 1.
         beta (float, optional): beta. Defaults to 1.
-        kernel_backend (str | None, optional): kernel backend to use. Defaults to None.
+        kernel_backend (str, optional): kernel backend to use. Defaults to triton.
 
     Raises:
         ValueError: if unexpected `kernel_backend` is passed
