@@ -11,7 +11,9 @@ from .triton_implementation import _swiglu_backward_triton_kernel, _swiglu_forwa
 class _Swiglu_Cute(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
-    def forward(ctx, gate: torch.Tensor, up: torch.Tensor) -> torch.Tensor:
+    def forward(
+        ctx, gate: torch.Tensor, up: torch.Tensor, BLOCK_SIZE_CUDA: int, BLOCK_SIZE_TRITON: int, NUM_WARPS_TRITON: int
+    ) -> torch.Tensor:
         assert gate.size() == up.size(), "tensors gate and up should have same shape"
         assert gate.type() == up.type(), "tensors gate and up should have same dtype"
 
@@ -22,19 +24,18 @@ class _Swiglu_Cute(torch.autograd.Function):
         output = torch.empty_like(gate)
 
         if ctx.use_cuda_backend:
-            BLOCK_SIZE = 1024
-            swiglu_forward_cuda(gate=gate, up=up, output=output, BLOCK_SIZE=BLOCK_SIZE)
+            swiglu_forward_cuda(gate=gate, up=up, output=output, BLOCK_SIZE=BLOCK_SIZE_CUDA)
         elif ctx.use_triton_backend:
-            num_elements = gate.numel()
-            BLOCK_SIZE = 1024
+            B = gate.numel()
 
             with torch.cuda.device(gate.device):
-                _swiglu_forward_triton_kernel[ceil_divide(num_elements, BLOCK_SIZE),](
+                _swiglu_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_TRITON),](
                     gate_ptr=gate,
                     up_ptr=up,
                     output_ptr=output,
-                    num_elements=num_elements,
-                    BLOCK_SIZE=BLOCK_SIZE,
+                    B=B,
+                    BLOCK_SIZE=BLOCK_SIZE_TRITON,
+                    num_warps=NUM_WARPS_TRITON,
                 )
         else:
             raise ValueError("unexpected kernel_backend")
@@ -70,18 +71,30 @@ class _Swiglu_Cute(torch.autograd.Function):
         else:
             raise ValueError("unexpected kernel_backend")
 
-        return gate_grad, up_grad
+        return gate_grad, up_grad, *[None] * 3
 
 
-def swiglu_cute(gate: torch.Tensor, up: torch.Tensor) -> torch.Tensor:
+def swiglu_cute(
+    gate: torch.Tensor,
+    up: torch.Tensor,
+    *,
+    # cuda
+    BLOCK_SIZE_CUDA: int = 1024,
+    # triton
+    BLOCK_SIZE_TRITON: int = 4096,
+    NUM_WARPS_TRITON: int = 32,
+) -> torch.Tensor:
     """computes swiglu activation as `up` * `gate` * sigmoid(`gate`)
 
     Args:
         gate (torch.Tensor): `gate` activation tensor
         up (torch.Tensor): `up` activation tensor
+        BLOCK_SIZE_CUDA (int, optional): block size for CUDA backend. Defaults to 1024.
+        BLOCK_SIZE_TRITON (int, optional): block size for triton backend. Defaults to 4096.
+        NUM_WARPS_TRITON (int, optional): warps for triton backend. Defaults to 32.
 
     Returns:
         torch.Tensor: output tensor
     """
 
-    return _Swiglu_Cute.apply(gate, up)
+    return _Swiglu_Cute.apply(gate, up, BLOCK_SIZE_CUDA, BLOCK_SIZE_TRITON, NUM_WARPS_TRITON)
