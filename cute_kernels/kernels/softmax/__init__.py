@@ -67,14 +67,15 @@ class _Softmax_Cute(torch.autograd.Function):
 
 
 def softmax_cute(x: torch.Tensor, logits_multiplier: float = 1) -> torch.Tensor:
-    """_summary_
+    """computes softmax activation
 
     Args:
-        x (torch.Tensor): _description_
-        logits_multiplier (float, optional): _description_. Defaults to 1.
+        x (torch.Tensor): input activation tensor
+        logits_multiplier (float, optional): pre-multiplies `x` with `logits_multiplier` before computing softmax.
+            Defaults to 1.
 
     Returns:
-        torch.Tensor: _description_
+        torch.Tensor: output tensor
     """
 
     return _Softmax_Cute.apply(x, logits_multiplier)
