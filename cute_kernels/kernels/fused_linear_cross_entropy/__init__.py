@@ -99,13 +99,6 @@ def fused_linear_cross_entropy_cute(
 
     Args:
         x (torch.Tensor): logits
-        labels (torch.Tensor): labels
-        reduction (str, optional): reduction should be either sum or mean. Defaults to "mean".
-    """
-    """_summary_
-
-    Args:
-        x (torch.Tensor): logits
         weight (torch.Tensor): vocab weight
         labels (torch.Tensor): labels
         reduction (str, optional): reduction should be either sum or mean. Defaults to "mean".
