@@ -15,7 +15,7 @@ class _FusedLinearCrossEntropy_Cute(torch.autograd.Function):
         weight: torch.Tensor,
         labels: torch.Tensor,
         reduction: str,
-        logits_multiplier: float,
+        logits_multiplier: float | None,
         BLOCK_SIZE_B: int,
         BLOCK_SIZE_V: int,
     ) -> torch.Tensor:
@@ -55,6 +55,7 @@ class _FusedLinearCrossEntropy_Cute(torch.autograd.Function):
                     labels_ptr=_labels,
                     loss_ptr=loss,
                     x_grad_ptr=_logits_grad,
+                    has_logits_multiplier=logits_multiplier is not None,
                     logits_multiplier=logits_multiplier,
                     B=_logits.size(0),
                     V=vocab_size,
@@ -90,7 +91,7 @@ def fused_linear_cross_entropy_cute(
     weight: torch.Tensor,
     labels: torch.Tensor,
     reduction: str = "mean",
-    logits_multiplier: float = 1,
+    logits_multiplier: float | None = None,
     *,
     BLOCK_SIZE_B: int = 4,
     BLOCK_SIZE_V: int = 256,
@@ -102,7 +103,8 @@ def fused_linear_cross_entropy_cute(
         weight (torch.Tensor): vocab weight
         labels (torch.Tensor): labels
         reduction (str, optional): reduction should be either sum or mean. Defaults to "mean".
-        logits_multiplier (float, optional): logits multiplier pre-multiplies logits. Defaults to 1.
+        logits_multiplier (float | None, optional): logits multiplier pre-multiplies logits, None implies 1.
+            Defaults to None.
         BLOCK_SIZE_B (int, optional): block size along the token dimension. Defaults to 4.
         BLOCK_SIZE_V (int, optional): block size along the vocabulary dimension. Defaults to 256.
 
