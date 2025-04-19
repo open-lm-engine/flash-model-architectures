@@ -3,7 +3,7 @@ from typing import Callable
 import torch
 from parameterized import parameterized
 
-from cute_kernels import KernelBackend, add_scalar_cute, add_scalar_torch, enable_kernel_backend
+from cute_kernels import KernelBackend, add_scalar_cute, add_scalar_torch
 
 from ..test_commons import TestCommons
 
@@ -29,8 +29,7 @@ class AddTensorTest(TestCommons):
         x_kernel, x_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype)
         y = 0.42
 
-        with enable_kernel_backend(kernel_backend):
-            z_kernel = function(x_kernel, y)
+        z_kernel = function(x_kernel, y, kernel_backend=kernel_backend)
         z_expected = add_scalar_torch(x_expected, y)
 
         z_kernel.mean().backward()

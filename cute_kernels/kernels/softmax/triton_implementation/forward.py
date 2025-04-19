@@ -20,6 +20,7 @@ def _load_x(x_ptr, h, H, BLOCK_SIZE_H, indices_b, mask_b, other=None):
 def _softmax_forward_triton_kernel(
     x_ptr,
     output_ptr,
+    has_logits_multiplier: tl.constexpr,
     logits_multiplier,
     B,
     H,
@@ -42,7 +43,8 @@ def _softmax_forward_triton_kernel(
         )
 
         x = x.to(tl.float32)
-        x *= logits_multiplier
+        if has_logits_multiplier:
+            x *= logits_multiplier
 
         prev_m = M
         m = tl.max(x, axis=1, keep_dims=True)
@@ -58,7 +60,9 @@ def _softmax_forward_triton_kernel(
         )
 
         x = x.to(tl.float32)
-        x *= logits_multiplier
+        if has_logits_multiplier:
+            x *= logits_multiplier
+
         x -= M
         x = tl.exp(x)
         x /= Z

@@ -10,7 +10,14 @@ class _FusedLinearCrossEntropy_Cute(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
     def forward(
-        ctx, x: torch.Tensor, weight: torch.Tensor, labels: torch.Tensor, reduction: str, logits_multiplier: float
+        ctx,
+        x: torch.Tensor,
+        weight: torch.Tensor,
+        labels: torch.Tensor,
+        reduction: str,
+        logits_multiplier: float | None,
+        BLOCK_SIZE_B: int,
+        BLOCK_SIZE_V: int,
     ) -> torch.Tensor:
         assert reduction in ["sum", "mean"]
         assert x.dim() == 2, "x should be 2 dimensional"
@@ -31,9 +38,6 @@ class _FusedLinearCrossEntropy_Cute(torch.autograd.Function):
         x_grad = torch.empty_like(x)
         weight_grad = torch.zeros_like(weight)
 
-        BLOCK_SIZE_B = 4
-        BLOCK_SIZE_V = 256
-
         for i in range(num_chunks):
             start = i * chunk_size
             end = (i + 1) * chunk_size
@@ -51,6 +55,7 @@ class _FusedLinearCrossEntropy_Cute(torch.autograd.Function):
                     labels_ptr=_labels,
                     loss_ptr=loss,
                     x_grad_ptr=_logits_grad,
+                    has_logits_multiplier=logits_multiplier is not None,
                     logits_multiplier=logits_multiplier,
                     B=_logits.size(0),
                     V=vocab_size,
@@ -78,10 +83,35 @@ class _FusedLinearCrossEntropy_Cute(torch.autograd.Function):
         x_grad *= output_grad
         weight_grad *= output_grad
 
-        return x_grad, weight_grad, *[None] * 3
+        return x_grad, weight_grad, *[None] * 5
 
 
 def fused_linear_cross_entropy_cute(
-    x: torch.Tensor, weight: torch.Tensor, labels: torch.Tensor, reduction: str = "mean", logits_multiplier: float = 1
+    x: torch.Tensor,
+    weight: torch.Tensor,
+    labels: torch.Tensor,
+    reduction: str = "mean",
+    logits_multiplier: float | None = None,
+    *,
+    BLOCK_SIZE_B: int = 4,
+    BLOCK_SIZE_V: int = 256,
 ) -> torch.Tensor:
-    return _FusedLinearCrossEntropy_Cute.apply(x, weight, labels, reduction, logits_multiplier)
+    """compute cross entropy loss without materializing the full output logits matrix
+
+    Args:
+        x (torch.Tensor): logits
+        weight (torch.Tensor): vocab weight
+        labels (torch.Tensor): labels
+        reduction (str, optional): reduction should be either sum or mean. Defaults to "mean".
+        logits_multiplier (float | None, optional): logits multiplier pre-multiplies logits, None implies 1.
+            Defaults to None.
+        BLOCK_SIZE_B (int, optional): block size along the token dimension. Defaults to 4.
+        BLOCK_SIZE_V (int, optional): block size along the vocabulary dimension. Defaults to 256.
+
+    Returns:
+        torch.Tensor: loss
+    """
+
+    return _FusedLinearCrossEntropy_Cute.apply(
+        x, weight, labels, reduction, logits_multiplier, BLOCK_SIZE_B, BLOCK_SIZE_V
+    )

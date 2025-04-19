@@ -11,7 +11,13 @@ class _RMSNorm_Cute(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
     def forward(
-        ctx, x: torch.Tensor, weight: torch.Tensor | None, eps: float | None, memory_efficient: bool
+        ctx,
+        x: torch.Tensor,
+        weight: torch.Tensor | None,
+        eps: float | None,
+        memory_efficient: bool,
+        BLOCK_SIZE_B_forward: int,
+        BLOCK_SIZE_B_backward: int,
     ) -> torch.Tensor:
         if weight is not None:
             assert weight.dim() == 1, "weight should be 1D"
@@ -26,7 +32,6 @@ class _RMSNorm_Cute(torch.autograd.Function):
             eps = torch.finfo(x.dtype).eps
 
         B, H = get_num_elements_and_hidden_size(x)
-        BLOCK_SIZE_B = 1
         BLOCK_SIZE_H = get_next_power_of_2(H)
         assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
 
@@ -34,7 +39,7 @@ class _RMSNorm_Cute(torch.autograd.Function):
         rmsnorm_denominator = None if memory_efficient else torch.empty(B, device=x.device, dtype=torch.float32)
 
         with torch.cuda.device(x.device):
-            _rmsnorm_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](
+            _rmsnorm_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B_forward),](
                 x_ptr=x,
                 has_weight=weight is not None,
                 weight_ptr=weight,
@@ -44,7 +49,7 @@ class _RMSNorm_Cute(torch.autograd.Function):
                 rmsnorm_denominator_ptr=rmsnorm_denominator,
                 B=B,
                 H=H,
-                BLOCK_SIZE_B=BLOCK_SIZE_B,
+                BLOCK_SIZE_B=BLOCK_SIZE_B_forward,
                 BLOCK_SIZE_H=BLOCK_SIZE_H,
             )
 
@@ -54,6 +59,7 @@ class _RMSNorm_Cute(torch.autograd.Function):
         ctx.save_for_backward(x, weight, rmsnorm_denominator)
         ctx.is_x_1d = is_x_1d
         ctx.eps = eps
+        ctx.BLOCK_SIZE_B_backward = BLOCK_SIZE_B_backward
 
         return output
 
@@ -63,7 +69,7 @@ class _RMSNorm_Cute(torch.autograd.Function):
         x, weight, rmsnorm_denominator = ctx.saved_tensors
 
         B, H = get_num_elements_and_hidden_size(x)
-        BLOCK_SIZE_B = 1
+        BLOCK_SIZE_B = ctx.BLOCK_SIZE_B_backward
         BLOCK_SIZE_H = get_next_power_of_2(H)
         assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
 
@@ -96,10 +102,31 @@ class _RMSNorm_Cute(torch.autograd.Function):
         if ctx.is_x_1d:
             x_grad = x_grad.squeeze(0)
 
-        return x_grad, weight_grad, *[None] * 2
+        return x_grad, weight_grad, *[None] * 4
 
 
 def rmsnorm_cute(
-    x: torch.Tensor, weight: torch.Tensor | None, eps: float | None, memory_efficient: bool = False
+    x: torch.Tensor,
+    weight: torch.Tensor | None,
+    eps: float | None,
+    memory_efficient: bool = False,
+    *,
+    BLOCK_SIZE_B_forward: int = 1,
+    BLOCK_SIZE_B_backward: int = 1,
 ) -> torch.Tensor:
-    return _RMSNorm_Cute.apply(x, weight, eps, memory_efficient)
+    """RMSNorm computation
+
+    Args:
+        x (torch.Tensor): input activation
+        weight (torch.Tensor | None): RMSNorm weight
+        eps (float | None): epsilon
+        memory_efficient (bool, optional): memory efficient = False caches RMSNorm's denominator in the forward.
+            Defaults to False.
+        BLOCK_SIZE_B_forward (int, optional): block size along the batch dimension for forward. Defaults to 1.
+        BLOCK_SIZE_B_backward (int, optional): block size along the batch dimension for backward. Defaults to 1.
+
+    Returns:
+        torch.Tensor: output tensor
+    """
+
+    return _RMSNorm_Cute.apply(x, weight, eps, memory_efficient, BLOCK_SIZE_B_forward, BLOCK_SIZE_B_backward)

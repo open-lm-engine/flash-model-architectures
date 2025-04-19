@@ -1,6 +1,6 @@
 from .cute_inductor import CuteInductor
 from .inductor import init_inductor
-from .kernel_backend import KernelBackend, enable_kernel_backend
+from .kernel_backend import KernelBackend
 from .kernels import (
     MoE_Torch,
     MoE_Triton,

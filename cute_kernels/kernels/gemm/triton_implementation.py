@@ -12,7 +12,6 @@ def _gemm_triton_kernel(
     beta,
     is_A_transposed: tl.constexpr,
     is_B_transposed: tl.constexpr,
-    use_tf32: tl.constexpr,
     M,
     K,
     N,
@@ -66,7 +65,7 @@ def _gemm_triton_kernel(
         if is_B_transposed:
             B = B.T
 
-        accumulator = tl.dot(A, B, accumulator, allow_tf32=use_tf32)
+        accumulator = tl.dot(A, B, accumulator, allow_tf32=True)
 
     accumulator = accumulator.to(A_ptr.dtype.element_ty)
     accumulator *= alpha
