@@ -9,7 +9,7 @@ from .triton_implementation import _softmax_forward_triton_kernel, softmax_backw
 class _Softmax_Cute(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
-    def forward(ctx, x: torch.Tensor, logits_multiplier: float) -> torch.Tensor:
+    def forward(ctx, x: torch.Tensor, logits_multiplier: float | None) -> torch.Tensor:
         if x.size(-1) == 1:
             return torch.ones_like(x)
 
@@ -28,7 +28,7 @@ class _Softmax_Cute(torch.autograd.Function):
             _softmax_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](
                 x_ptr=x,
                 output_ptr=output,
-                logits_multiplier=logits_multiplier,
+                logits_multiplier=1 if logits_multiplier is None else logits_multiplier,
                 B=B,
                 H=H,
                 BLOCK_SIZE_B=BLOCK_SIZE_B,
@@ -58,7 +58,7 @@ class _Softmax_Cute(torch.autograd.Function):
                 output=output,
                 output_grad=output_grad,
                 x_grad=x_grad,
-                logits_multiplier=ctx.logits_multiplier,
+                logits_multiplier=1 if ctx.logits_multiplier is None else ctx.logits_multiplier,
                 BLOCK_SIZE_B=BLOCK_SIZE_B,
                 BLOCK_SIZE_H=BLOCK_SIZE_H,
             )
@@ -66,13 +66,13 @@ class _Softmax_Cute(torch.autograd.Function):
         return x_grad, *[None] * 8
 
 
-def softmax_cute(x: torch.Tensor, logits_multiplier: float = 1) -> torch.Tensor:
+def softmax_cute(x: torch.Tensor, logits_multiplier: float | None = None) -> torch.Tensor:
     """computes softmax activation
 
     Args:
         x (torch.Tensor): input activation tensor
         logits_multiplier (float, optional): pre-multiplies `x` with `logits_multiplier` before computing softmax.
-            Defaults to 1.
+            Defaults to None.
 
     Returns:
         torch.Tensor: output tensor
