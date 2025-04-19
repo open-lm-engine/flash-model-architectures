@@ -145,7 +145,7 @@ def fused_residual_add_rmsnorm_cute(
         residual (torch.Tensor): residual activation
         weight (torch.Tensor | None): RMSNorm weight
         eps (float | None): epsilon
-        multiplier (float | None, optional): _description_. Defaults to None.
+        multiplier (float | None, optional): if not None, pre-multiplies `x` with `multiplier`. Defaults to None.
         memory_efficient (bool, optional): _description_. Defaults to False.
         BLOCK_SIZE_B_forward (int, optional): _description_. Defaults to 1.
         BLOCK_SIZE_B_backward (int, optional): _description_. Defaults to 1.
