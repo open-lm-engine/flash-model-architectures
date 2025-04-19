@@ -32,6 +32,7 @@ def _softmax_backward_triton_kernel(
     output_ptr,
     output_grad_ptr,
     x_grad_ptr,
+    has_logits_multiplier: tl.constexpr,
     logits_multiplier,
     B,
     H,
@@ -74,7 +75,8 @@ def _softmax_backward_triton_kernel(
 
         output_grad -= accumulator
         output *= output_grad
-        output *= logits_multiplier
+        if has_logits_multiplier:
+            output *= logits_multiplier
 
         x_grad_ptrs = x_grad_ptr + indices
         tl.store(x_grad_ptrs, output, mask=mask_bh)
@@ -96,6 +98,7 @@ def softmax_backward_triton(
             output_ptr=output,
             output_grad_ptr=output_grad,
             x_grad_ptr=x_grad,
+            has_logits_multiplier=logits_multiplier is not None,
             logits_multiplier=logits_multiplier,
             B=num_elements,
             H=hidden_size,
