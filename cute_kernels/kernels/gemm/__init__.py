@@ -21,8 +21,28 @@ def gemm_cute(
     is_B_transposed: bool = False,
     alpha: float = 1,
     beta: float = 1,
+    *,
     kernel_backend: str | None = None,
 ) -> torch.Tensor:
+    """computes `alpha` * (`A` @ `B`) + `beta` * `C`
+
+    Args:
+        A (torch.Tensor): `A` matrix
+        B (torch.Tensor): `B` matrix
+        C (torch.Tensor | None): `C` matrix, function returns `A` @ `B` if C is None
+        is_A_transposed (bool, optional): whether A has shape K x M. Defaults to False.
+        is_B_transposed (bool, optional): whether B has shape N x K. Defaults to False.
+        alpha (float, optional): alpha. Defaults to 1.
+        beta (float, optional): beta. Defaults to 1.
+        kernel_backend (str | None, optional): kernel backend to use. Defaults to None.
+
+    Raises:
+        ValueError: _description_
+
+    Returns:
+        torch.Tensor: _description_
+    """
+
     if is_A_transposed:
         assert A.dim() == 2, "only 2 dimensional a tensor is supported when a is transposed"
         K, M = A.size()
