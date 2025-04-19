@@ -102,7 +102,7 @@ class _RMSNorm_Cute(torch.autograd.Function):
         if ctx.is_x_1d:
             x_grad = x_grad.squeeze(0)
 
-        return x_grad, weight_grad, *[None] * 2
+        return x_grad, weight_grad, *[None] * 4
 
 
 def rmsnorm_cute(

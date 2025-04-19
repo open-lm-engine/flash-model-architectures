@@ -9,23 +9,32 @@ from .triton_implementation import _swiglu_unchunked_backward_triton_kernel, _sw
 class _SwigluUnchunked_Cute(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
-    def forward(ctx, x: torch.Tensor) -> torch.Tensor:
+    def forward(
+        ctx,
+        x: torch.Tensor,
+        BLOCK_SIZE_B_forward: int,
+        BLOCK_SIZE_H_forward: int,
+        BLOCK_SIZE_B_backward: int,
+        BLOCK_SIZE_H_backward: int,
+    ) -> torch.Tensor:
         ctx.save_for_backward(x)
+        ctx.BLOCK_SIZE_B_backward = BLOCK_SIZE_B_backward
+        ctx.BLOCK_SIZE_H_backward = BLOCK_SIZE_H_backward
 
         B, H = get_num_elements_and_hidden_size(x)
-        BLOCK_SIZE_B = 64
-        BLOCK_SIZE_H = 64
 
         output = torch.empty(*x.size()[:-1], divide_if_divisible(H, 2), device=x.device, dtype=x.dtype)
 
         with torch.cuda.device(x.device):
-            _swiglu_unchunked_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), ceil_divide(H, BLOCK_SIZE_H)](
+            _swiglu_unchunked_forward_triton_kernel[
+                ceil_divide(B, BLOCK_SIZE_B_forward), ceil_divide(H, BLOCK_SIZE_H_forward)
+            ](
                 x_ptr=x,
                 output_ptr=output,
                 B=B,
                 H=H,
-                BLOCK_SIZE_B=BLOCK_SIZE_B,
-                BLOCK_SIZE_H=BLOCK_SIZE_H,
+                BLOCK_SIZE_B=BLOCK_SIZE_B_forward,
+                BLOCK_SIZE_H=BLOCK_SIZE_H_forward,
             )
 
         return output
@@ -37,8 +46,8 @@ class _SwigluUnchunked_Cute(torch.autograd.Function):
         x_grad = torch.empty_like(x)
 
         B, H = get_num_elements_and_hidden_size(x)
-        BLOCK_SIZE_B = 64
-        BLOCK_SIZE_H = 64
+        BLOCK_SIZE_B = ctx.BLOCK_SIZE_B_backward
+        BLOCK_SIZE_H = ctx.BLOCK_SIZE_H_backward
 
         with torch.cuda.device(x.device):
             _swiglu_unchunked_backward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), ceil_divide(H, BLOCK_SIZE_H)](
@@ -54,14 +63,31 @@ class _SwigluUnchunked_Cute(torch.autograd.Function):
         return x_grad
 
 
-def swiglu_unchunked_cute(x: torch.Tensor) -> torch.Tensor:
+def swiglu_unchunked_cute(
+    x: torch.Tensor,
+    *,
+    BLOCK_SIZE_B_forward: int = 64,
+    BLOCK_SIZE_H_forward: int = 64,
+    BLOCK_SIZE_B_backward: int = 64,
+    BLOCK_SIZE_H_backward: int = 64,
+) -> torch.Tensor:
     """computes swiglu activation by splitting the tensor `x` into 2 parts: gate and up activations
 
     Args:
         x (torch.Tensor): input activation
+        BLOCK_SIZE_B_forward (int, optional): block size for forward along batch dimension for forward. Defaults to
+            64.
+        BLOCK_SIZE_H_forward (int, optional): block size for forward along hidden dimension for forward. Defaults to
+            64.
+        BLOCK_SIZE_B_backward (int, optional): block size for forward along batch dimension for forward. Defaults to
+            64.
+        BLOCK_SIZE_H_backward (int, optional): block size for forward along hidden dimension for forward. Defaults to
+            64.
 
     Returns:
         torch.Tensor: output tensor
     """
 
-    return _SwigluUnchunked_Cute.apply(x)
+    return _SwigluUnchunked_Cute.apply(
+        x, BLOCK_SIZE_B_forward, BLOCK_SIZE_H_forward, BLOCK_SIZE_B_backward, BLOCK_SIZE_H_backward
+    )
