@@ -55,4 +55,13 @@ class _SwigluUnchunked_Cute(torch.autograd.Function):
 
 
 def swiglu_unchunked_cute(x: torch.Tensor) -> torch.Tensor:
+    """computes swiglu activation by splitting the tensor `x` into 2 parts: gate and up activations
+
+    Args:
+        x (torch.Tensor): input activation
+
+    Returns:
+        torch.Tensor: output tensor
+    """
+
     return _SwigluUnchunked_Cute.apply(x)

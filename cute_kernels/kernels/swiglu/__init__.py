@@ -74,4 +74,14 @@ class _Swiglu_Cute(torch.autograd.Function):
 
 
 def swiglu_cute(gate: torch.Tensor, up: torch.Tensor) -> torch.Tensor:
+    """computes swiglu activation as `up` * `gate` * sigmoid(`gate`)
+
+    Args:
+        gate (torch.Tensor): `gate` activation tensor
+        up (torch.Tensor): `up` activation tensor
+
+    Returns:
+        torch.Tensor: output tensor
+    """
+
     return _Swiglu_Cute.apply(gate, up)
