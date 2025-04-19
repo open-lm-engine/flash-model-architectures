@@ -90,7 +90,7 @@ class _Swiglu_Cute(torch.autograd.Function):
         else:
             raise ValueError("unexpected kernel_backend")
 
-        return gate_grad, up_grad, *[None] * 4
+        return gate_grad, up_grad, *[None] * 8
 
 
 def swiglu_cute(
