@@ -19,32 +19,32 @@ class _Softmax_Cute(torch.autograd.Function):
         BLOCK_SIZE_H_backward: int,
     ) -> torch.Tensor:
         if x.size(-1) == 1:
-            return torch.ones_like(x)
-
-        if x.dim() == 1:
-            B = 1
-            H = x.size(-1)
+            output = torch.ones_like(x)
         else:
-            B, H = get_num_elements_and_hidden_size(x)
+            if x.dim() == 1:
+                B = 1
+                H = x.size(-1)
+            else:
+                B, H = get_num_elements_and_hidden_size(x)
 
-        output = torch.empty_like(x)
+            output = torch.empty_like(x)
 
-        with torch.cuda.device(x.device):
-            _softmax_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B_forward),](
-                x_ptr=x,
-                output_ptr=output,
-                has_logits_multiplier=logits_multiplier is not None,
-                logits_multiplier=logits_multiplier,
-                B=B,
-                H=H,
-                BLOCK_SIZE_B=BLOCK_SIZE_B_forward,
-                BLOCK_SIZE_H=BLOCK_SIZE_H_forward,
-            )
+            with torch.cuda.device(x.device):
+                _softmax_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B_forward),](
+                    x_ptr=x,
+                    output_ptr=output,
+                    has_logits_multiplier=logits_multiplier is not None,
+                    logits_multiplier=logits_multiplier,
+                    B=B,
+                    H=H,
+                    BLOCK_SIZE_B=BLOCK_SIZE_B_forward,
+                    BLOCK_SIZE_H=BLOCK_SIZE_H_forward,
+                )
 
-        ctx.save_for_backward(output)
-        ctx.logits_multiplier = logits_multiplier
-        ctx.BLOCK_SIZE_B_backward = BLOCK_SIZE_B_backward
-        ctx.BLOCK_SIZE_H_backward = BLOCK_SIZE_H_backward
+            ctx.save_for_backward(output)
+            ctx.logits_multiplier = logits_multiplier
+            ctx.BLOCK_SIZE_B_backward = BLOCK_SIZE_B_backward
+            ctx.BLOCK_SIZE_H_backward = BLOCK_SIZE_H_backward
 
         return output
 
@@ -88,4 +88,6 @@ def softmax_cute(
         torch.Tensor: output tensor
     """
 
-    return _Softmax_Cute.apply(x, logits_multiplier)
+    return _Softmax_Cute.apply(
+        x, logits_multiplier, BLOCK_SIZE_B_forward, BLOCK_SIZE_H_forward, BLOCK_SIZE_B_backward, BLOCK_SIZE_H_backward
+    )
