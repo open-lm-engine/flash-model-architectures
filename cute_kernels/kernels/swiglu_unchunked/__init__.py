@@ -60,7 +60,7 @@ class _SwigluUnchunked_Cute(torch.autograd.Function):
                 BLOCK_SIZE_H=BLOCK_SIZE_H,
             )
 
-        return x_grad
+        return x_grad, *[None] * 4
 
 
 def swiglu_unchunked_cute(
