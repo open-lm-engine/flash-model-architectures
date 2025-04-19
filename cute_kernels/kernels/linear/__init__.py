@@ -83,4 +83,17 @@ def linear_cute(
     kernel_backend_forward: str = "triton",
     kernel_backend_backward: str = "triton",
 ) -> torch.Tensor:
+    """linear layer computation `input` @ `weight` + `bias`
+
+    Args:
+        input (torch.Tensor): input tensor
+        weight (torch.Tensor): weight tensor
+        bias (torch.Tensor | None, optional): bias tensor. Defaults to None.
+        kernel_backend_forward (str, optional): kernel backend for forward. Defaults to "triton".
+        kernel_backend_backward (str, optional): kernel backend for backward. Defaults to "triton".
+
+    Returns:
+        torch.Tensor: output tensor
+    """
+
     return _Linear_Cute.apply(input, weight, bias, kernel_backend_forward, kernel_backend_backward)

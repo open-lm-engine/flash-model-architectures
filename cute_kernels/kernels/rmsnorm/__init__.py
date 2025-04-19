@@ -102,4 +102,17 @@ class _RMSNorm_Cute(torch.autograd.Function):
 def rmsnorm_cute(
     x: torch.Tensor, weight: torch.Tensor | None, eps: float | None, memory_efficient: bool = False
 ) -> torch.Tensor:
+    """RMSNorm computation
+
+    Args:
+        x (torch.Tensor): input activation
+        weight (torch.Tensor | None): RMSNorm weight
+        eps (float | None): epsilon
+        memory_efficient (bool, optional): memory efficient = False caches RMSNorm's denominator in the forward.
+            Defaults to False.
+
+    Returns:
+        torch.Tensor: output tensor
+    """
+
     return _RMSNorm_Cute.apply(x, weight, eps, memory_efficient)

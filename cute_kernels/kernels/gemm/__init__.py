@@ -37,10 +37,10 @@ def gemm_cute(
         kernel_backend (str | None, optional): kernel backend to use. Defaults to None.
 
     Raises:
-        ValueError: _description_
+        ValueError: if unexpected `kernel_backend` is passed
 
     Returns:
-        torch.Tensor: _description_
+        torch.Tensor: output tensor
     """
 
     if is_A_transposed:

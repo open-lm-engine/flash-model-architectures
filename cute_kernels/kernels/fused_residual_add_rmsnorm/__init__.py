@@ -138,7 +138,7 @@ def fused_residual_add_rmsnorm_cute(
     BLOCK_SIZE_B_forward: int = 1,
     BLOCK_SIZE_B_backward: int = 1,
 ) -> tuple[torch.Tensor]:
-    """fused residual add RMSNorm
+    """fused residual add RMSNorm computation
 
     Args:
         x (torch.Tensor): input activation
