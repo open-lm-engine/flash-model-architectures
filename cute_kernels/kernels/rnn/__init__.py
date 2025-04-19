@@ -114,8 +114,10 @@ def rnn_cute(
             is 0 tensor. Defaults to None.
         gradient_clipping (float | None, optional): gradient clipping for the state gradient in backward, None
             implies no clipping. Defaults to None.
-        BLOCK_SIZE_B_forward (int, optional): block size for forward along batch dimension. Defaults to 32.
-        BLOCK_SIZE_B_backward (int, optional): block size for backward along batch dimension. Defaults to 32.
+        BLOCK_SIZE_B_forward (int, optional): block size for forward along batch dimension for forward. Defaults to
+            32.
+        BLOCK_SIZE_B_backward (int, optional): block size for backward along batch dimension for backward. Defaults to
+            32.
 
     Returns:
         torch.Tensor: output tensor of shape (B, S, N, H)

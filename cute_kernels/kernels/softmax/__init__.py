@@ -83,6 +83,12 @@ def softmax_cute(
         x (torch.Tensor): input activation tensor
         logits_multiplier (float, optional): pre-multiplies `x` with `logits_multiplier` before computing softmax.
             Defaults to None.
+        BLOCK_SIZE_B_forward (int, optional): block size for forward along batch dimension for forward. Defaults to 1.
+        BLOCK_SIZE_H_forward (int, optional): block size for forward along batch dimension for forward. Defaults to 1.
+        BLOCK_SIZE_B_backward (int, optional): block size for backward along batch dimension for backward. Defaults to
+            8192.
+        BLOCK_SIZE_H_backward (int, optional): block size for backward along batch dimension for backward. Defaults to
+            8192.
 
     Returns:
         torch.Tensor: output tensor
