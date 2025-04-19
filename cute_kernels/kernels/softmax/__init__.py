@@ -28,7 +28,8 @@ class _Softmax_Cute(torch.autograd.Function):
             _softmax_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](
                 x_ptr=x,
                 output_ptr=output,
-                logits_multiplier=1 if logits_multiplier is None else logits_multiplier,
+                has_logits_multiplier=logits_multiplier is not None,
+                logits_multiplier=logits_multiplier,
                 B=B,
                 H=H,
                 BLOCK_SIZE_B=BLOCK_SIZE_B,
