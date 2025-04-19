@@ -87,7 +87,7 @@ def softmax_backward_triton(
     output: torch.Tensor,
     output_grad: torch.Tensor,
     x_grad: torch.Tensor,
-    logits_multiplier: float,
+    logits_multiplier: float | None,
     BLOCK_SIZE_B: int,
     BLOCK_SIZE_H: int,
 ) -> None:
