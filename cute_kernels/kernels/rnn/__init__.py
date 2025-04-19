@@ -101,4 +101,19 @@ def rnn_cute(
     input_state: torch.Tensor | None = None,
     gradient_clipping: float | None = None,
 ) -> torch.Tensor:
+    """computes multihead RNN: tanh(`input_state` @ `weight` + `input`)
+
+    Args:
+        input (torch.Tensor): input tensor of shape (B, S, N, H) where N is the number of heads and H is the head
+            dimension
+        weight (torch.Tensor): weight tensor of shape (N, H, H)
+        input_state (torch.Tensor | None, optional): starting state of shape (B, N, H), None means starting state
+            is 0 tensor. Defaults to None.
+        gradient_clipping (float | None, optional): gradient clipping for the state gradient in backward, None
+            implies no clipping. Defaults to None.
+
+    Returns:
+        torch.Tensor: output tensor of shape (B, S, N, H)
+    """
+
     return _RNN_Cute.apply(input, weight, input_state, gradient_clipping)
