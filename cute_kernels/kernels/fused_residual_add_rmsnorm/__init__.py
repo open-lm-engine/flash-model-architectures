@@ -135,6 +135,7 @@ def fused_residual_add_rmsnorm_cute(
     eps: float | None,
     multiplier: float | None = None,
     memory_efficient: bool = False,
+    *,
     BLOCK_SIZE_B_forward: int = 1,
     BLOCK_SIZE_B_backward: int = 1,
 ) -> tuple[torch.Tensor]:

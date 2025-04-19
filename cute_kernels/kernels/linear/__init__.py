@@ -80,6 +80,7 @@ def linear_cute(
     input: torch.Tensor,
     weight: torch.Tensor,
     bias: torch.Tensor | None = None,
+    *,
     kernel_backend_forward: str = "triton",
     kernel_backend_backward: str = "triton",
 ) -> torch.Tensor:
