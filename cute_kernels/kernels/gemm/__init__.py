@@ -21,7 +21,6 @@ def gemm_cute(
     is_B_transposed: bool = False,
     alpha: float = 1,
     beta: float = 1,
-    use_tf32: bool = True,
     kernel_backend: str | None = None,
 ) -> torch.Tensor:
     if is_A_transposed:
@@ -123,7 +122,6 @@ def gemm_cute(
                 beta=beta,
                 is_A_transposed=is_A_transposed,
                 is_B_transposed=is_B_transposed,
-                use_tf32=use_tf32,
                 M=M,
                 K=K,
                 N=N,

@@ -13,13 +13,11 @@ class _Linear_Cute(torch.autograd.Function):
         input: torch.Tensor,
         weight: torch.Tensor,
         bias: torch.Tensor | None,
-        use_tf32: bool,
         kernel_backend_forward: str,
         kernel_backend_backward: str,
     ) -> torch.Tensor:
         ctx.save_for_backward(input, weight)
         ctx.has_bias = bias is not None
-        ctx.use_tf32 = use_tf32
         ctx.kernel_backend_backward = kernel_backend_backward
 
         if kernel_backend_forward == "triton":
@@ -32,7 +30,6 @@ class _Linear_Cute(torch.autograd.Function):
                 is_B_transposed=True,
                 alpha=1,
                 beta=0,
-                use_tf32=use_tf32,
                 kernel_backend=kernel_backend_forward,
             )
 
@@ -47,8 +44,6 @@ class _Linear_Cute(torch.autograd.Function):
     @ensure_contiguous
     def backward(ctx, output_grad: torch.Tensor) -> torch.Tensor:
         input, weight = ctx.saved_tensors
-
-        use_tf32 = ctx.use_tf32
         kernel_backend_backward = ctx.kernel_backend_backward
 
         if kernel_backend_backward == "triton":
@@ -60,7 +55,6 @@ class _Linear_Cute(torch.autograd.Function):
                 is_B_transposed=False,
                 alpha=1,
                 beta=0,
-                use_tf32=use_tf32,
                 kernel_backend=kernel_backend_backward,
             )
 
@@ -72,7 +66,6 @@ class _Linear_Cute(torch.autograd.Function):
                 is_B_transposed=False,
                 alpha=1,
                 beta=0,
-                use_tf32=use_tf32,
                 kernel_backend=kernel_backend_backward,
             )
 
@@ -87,8 +80,7 @@ def linear_cute(
     input: torch.Tensor,
     weight: torch.Tensor,
     bias: torch.Tensor | None = None,
-    use_tf32: bool = True,
     kernel_backend_forward: str = "triton",
     kernel_backend_backward: str = "triton",
 ) -> torch.Tensor:
-    return _Linear_Cute.apply(input, weight, bias, use_tf32, kernel_backend_forward, kernel_backend_backward)
+    return _Linear_Cute.apply(input, weight, bias, kernel_backend_forward, kernel_backend_backward)
