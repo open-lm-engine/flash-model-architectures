@@ -29,12 +29,13 @@ class _RNN_Cute(torch.autograd.Function):
 
         output = torch.empty_like(input)
 
+        N, H = input.size()[-2:]
+        BLOCK_SIZE_H = get_next_power_of_2(H)
+        BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
+
         if cu_seqlens is None:
             assert max_seqlen is None
-
-            B, S, N, H = input.size()
-            BLOCK_SIZE_H = get_next_power_of_2(H)
-            BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
+            B, S = input.size()[:2]
 
             with torch.cuda.device(input.device):
                 _rnn_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B_forward), N](
@@ -57,11 +58,7 @@ class _RNN_Cute(torch.autograd.Function):
                 )
         else:
             assert max_seqlen is not None
-
             B = cu_seqlens.numel() - 1
-            _, N, H = input.size()
-            BLOCK_SIZE_H = get_next_power_of_2(H)
-            BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
 
             with torch.cuda.device(input.device):
                 _rnn_varlen_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B_forward), N](
