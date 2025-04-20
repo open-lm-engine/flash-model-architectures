@@ -33,16 +33,12 @@ class _FusedResidualAddRMSNorm_Cute(torch.autograd.Function):
             eps = torch.finfo(x.dtype).eps
 
         B, H = get_num_elements_and_hidden_size(x)
+        BLOCK_SIZE_H = get_next_power_of_2(H)
+        assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
 
         output = torch.empty_like(x)
         added_x_residual = torch.empty_like(x)
         rmsnorm_denominator = None if memory_efficient else torch.empty(B, device=x.device, dtype=torch.float32)
-
-        BLOCK_SIZE_H = get_next_power_of_2(H)
-        assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
-
-        if BLOCK_SIZE_H < H:
-            raise ValueError(f"hidden_size should be more than the BLOCK_SIZE_H")
 
         with torch.cuda.device(x.device):
             _fused_residual_add_rmsnorm_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B_forward),](
@@ -87,7 +83,7 @@ class _FusedResidualAddRMSNorm_Cute(torch.autograd.Function):
         num_programs = min(sm_count, ceil_divide(B, BLOCK_SIZE_B))
 
         with torch.cuda.device(added_x_residual.device):
-            _fused_residual_add_rmsnorm_backward_triton_kernel[(num_programs,)](
+            _fused_residual_add_rmsnorm_backward_triton_kernel[num_programs,](
                 added_x_residual_ptr=added_x_residual,
                 has_weight=weight is not None,
                 weight_ptr=weight,

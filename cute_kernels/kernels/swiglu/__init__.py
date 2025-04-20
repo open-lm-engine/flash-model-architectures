@@ -38,14 +38,14 @@ class _Swiglu_Cute(torch.autograd.Function):
         if is_cuda_kernel_backend_allowed(kernel_backend_forward) and is_nvidia_gpu() and gate.is_cuda and up.is_cuda:
             swiglu_forward_cuda(gate=gate, up=up, output=output, BLOCK_SIZE=BLOCK_SIZE_CUDA_forward)
         elif is_triton_kernel_backend_allowed(kernel_backend_forward):
-            B = gate.numel()
+            N = gate.numel()
 
             with torch.cuda.device(gate.device):
-                _swiglu_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_TRITON_forward),](
+                _swiglu_forward_triton_kernel[ceil_divide(N, BLOCK_SIZE_TRITON_forward),](
                     gate_ptr=gate,
                     up_ptr=up,
                     output_ptr=output,
-                    B=B,
+                    N=N,
                     BLOCK_SIZE=BLOCK_SIZE_TRITON_forward,
                     num_warps=NUM_WARPS_TRITON_forward,
                 )
@@ -73,17 +73,17 @@ class _Swiglu_Cute(torch.autograd.Function):
                 BLOCK_SIZE=ctx.BLOCK_SIZE_CUDA_backward,
             )
         elif is_triton_kernel_backend_allowed(kernel_backend_backward):
-            num_elements = gate.numel()
+            N = gate.numel()
             BLOCK_SIZE = ctx.BLOCK_SIZE_TRITON_backward
 
             with torch.cuda.device(gate.device):
-                _swiglu_backward_triton_kernel[ceil_divide(num_elements, BLOCK_SIZE),](
+                _swiglu_backward_triton_kernel[ceil_divide(N, BLOCK_SIZE),](
                     gate_ptr=gate,
                     up_ptr=up,
                     output_grad_ptr=output_grad,
                     gate_grad_ptr=gate_grad,
                     up_grad_ptr=up_grad,
-                    num_elements=num_elements,
+                    N=N,
                     BLOCK_SIZE=BLOCK_SIZE,
                     num_warps=ctx.NUM_WARPS_TRITON_backward,
                 )

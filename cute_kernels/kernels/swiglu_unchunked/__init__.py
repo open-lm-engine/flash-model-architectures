@@ -22,7 +22,6 @@ class _SwigluUnchunked_Cute(torch.autograd.Function):
         ctx.BLOCK_SIZE_H_backward = BLOCK_SIZE_H_backward
 
         B, H = get_num_elements_and_hidden_size(x)
-
         output = torch.empty(*x.size()[:-1], divide_if_divisible(H, 2), device=x.device, dtype=x.dtype)
 
         with torch.cuda.device(x.device):
