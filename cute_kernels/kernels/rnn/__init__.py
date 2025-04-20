@@ -101,7 +101,6 @@ class _RNN_Cute(torch.autograd.Function):
         BLOCK_SIZE_H = ctx.BLOCK_SIZE_H
 
         if cu_seqlens is None:
-            assert max_seqlen is None
             B, S = input.size()[:2]
 
             with torch.cuda.device(output.device):
@@ -129,7 +128,6 @@ class _RNN_Cute(torch.autograd.Function):
                     BLOCK_SIZE_H=BLOCK_SIZE_H,
                 )
         else:
-            assert max_seqlen is not None
             B = cu_seqlens.numel() - 1
 
             with torch.cuda.device(output.device):
