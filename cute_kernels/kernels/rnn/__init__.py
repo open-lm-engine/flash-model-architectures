@@ -66,9 +66,8 @@ class _RNN_Cute(torch.autograd.Function):
             with torch.cuda.device(input.device):
                 _rnn_varlen_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B_forward), N](
                     input_ptr=input,
-                    input_stride_b=input.stride(0),
-                    input_stride_s=input.stride(1),
-                    input_stride_n=input.stride(2),
+                    input_stride_s=input.stride(0),
+                    input_stride_n=input.stride(1),
                     weight_ptr=weight,
                     weight_stride_n=weight.stride(0),
                     weight_stride_h=weight.stride(1),

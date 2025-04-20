@@ -60,7 +60,6 @@ def _rnn_forward_triton_kernel(
 @triton.jit
 def _rnn_varlen_forward_triton_kernel(
     input_ptr,
-    input_stride_b,
     input_stride_s,
     input_stride_n,
     weight_ptr,
@@ -107,18 +106,21 @@ def _rnn_varlen_forward_triton_kernel(
     else:
         S = max_seqlen_ptr
 
-    for s in range(S):
-        offset = start + s
+    offset = start + indices
+
+    for _ in range(S):
         unfinished = offset < end
-        input_state = tl.dot(input_state, weight, allow_tf32=allow_tf32).to(input_state.dtype)
+        mask = unfinished[:, None] & mask_h[None, :]
 
-        input_ptrs = input_ptr + indices
-        input = tl.load(input_ptrs, mask=mask_bh, other=0)
+        input_ptrs = input_ptr + offset
+        input = tl.load(input_ptrs, mask=mask, other=0)
 
-        input_state += input
-        input_state = tanh(input_state)
+        new_state = tl.dot(input_state, weight, input, allow_tf32=allow_tf32).to(input_state.dtype)
+        new_state = tanh(new_state)
 
-        output_ptrs = output_ptr + indices
-        tl.store(output_ptrs, input_state, mask=mask_bh)
+        output_ptrs = output_ptr + offset
+        tl.store(output_ptrs, new_state, mask=mask)
 
-        indices += input_stride_s
+        input_state = new_state * unfinished[:, None] + input_state * (1 - unfinished)[:, None]
+
+        offset += input_stride_s
