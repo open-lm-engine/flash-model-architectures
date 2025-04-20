@@ -44,7 +44,7 @@ def rnn_torch(
             output[:, s, ...] = input_state
     else:
         assert max_seqlen is not None
-        B = max_seqlen.numel() - 1
+        B = cu_seqlens.numel() - 1
         _, N, H = input.size()
 
         if input_state is None:
