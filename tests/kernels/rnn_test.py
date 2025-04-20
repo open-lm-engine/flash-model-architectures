@@ -56,8 +56,7 @@ class RNNTest(TestCommons):
         TestCommons.make_args_matrix(
             [torch.device("cuda")],
             TestCommons.get_dtypes(),
-            [4],  # batch_size
-            [1024],  # sequence_length
+            [[7, 19, 27, 93]],  # cu_seqlens
             [64],  # state_size
             [4],  # num_heads
         )
@@ -66,18 +65,19 @@ class RNNTest(TestCommons):
         self,
         device: torch.device,
         dtype: torch.dtype,
-        batch_size: int,
-        sequence_length: int,
+        cu_seqlens: list[int],
         state_size: int,
         num_heads: int,
     ) -> None:
         set_seed(_SEED)
 
-        cu_seqlens = torch.arange(0, batch_size + 1, device=device) * sequence_length
-        max_seqlen = torch.tensor(sequence_length, device=device, dtype=torch.uint32)
+        batch_size = len(cu_seqlens)
+        total_length = sum(cu_seqlens)
+        cu_seqlens = torch.arange(cu_seqlens, device=device)
+        max_seqlen = cu_seqlens.max()
 
         x_kernel, x_expected = self.get_random_duplicated_tensors(
-            (batch_size, sequence_length, num_heads, state_size), device=device, dtype=dtype, std=0.01
+            (batch_size, total_length, num_heads, state_size), device=device, dtype=dtype, std=0.01
         )
         weight_kernel, weight_expected = self.get_random_duplicated_tensors(
             (num_heads, state_size, state_size), device=device, dtype=dtype, std=0.01
@@ -85,7 +85,11 @@ class RNNTest(TestCommons):
 
         x_kernel = x_kernel.view(-1, num_heads, state_size)
         y_kernel = rnn_torch(x_kernel, weight_kernel, cu_seqlens=cu_seqlens, max_seqlen=max_seqlen)
-        y_kernel = y_kernel.view(batch_size, sequence_length, num_heads, state_size)
+        y_kernel = y_kernel.view(batch_size, -1, num_heads, state_size)
 
-        y_expected = rnn_torch(x_expected, weight_expected)
+        y_expected = []
+        for i in range(batch_size):
+            y_expected.append(rnn_torch(x_expected[cu_seqlens[i] : cu_seqlens[i + 1]], weight_expected))
+        y_expected = torch.cat(y_expected)
+
         self.assert_equal_tensors(y_kernel, y_expected, False, atol_float32=6e-3, rtol_float32=0)
