@@ -61,11 +61,11 @@ def rnn_torch(
 
         for s in range(max_seqlen):
             mask = offset < cu_seqlens[1:]
-            input_state = input_state.unsqueeze(-2)
+            new_state = input_state.unsqueeze(-2)
 
             # don't update the finished sequences
             # (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
-            new_state = input_state[mask] @ weight + input[offset[mask], ...]
+            new_state = new_state[mask] @ weight + input[offset[mask], ...]
 
             new_state = new_state.float()
             new_state = F.tanh(new_state)
