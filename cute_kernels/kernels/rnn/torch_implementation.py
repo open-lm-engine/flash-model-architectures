@@ -58,27 +58,24 @@ def rnn_torch(
         # input_state -> (B, N, H)
 
         offset = cu_seqlens[:-1]
+        finished = torch.zeros_like(offset)
 
         for s in range(max_seqlen):
+            mask = offset < cu_seqlens[:-1]
             input_state = input_state.unsqueeze(-2)
 
-            # (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
-            new_state = input_state @ weight + input[offset, ...]
-
             # don't update the finished sequences
-            mask = offset >= cu_seqlens[:-1]
-            new_state[mask] = input_state[mask]
+            # (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
+            new_state = input_state[mask] @ weight + input[offset[mask], ...]
 
-            input_state = new_state
-            del new_state
+            new_state = new_state.float()
+            new_state = F.tanh(new_state)
+            new_state = new_state.type_as(input)
 
-            input_state = input_state.float()
-            input_state = F.tanh(input_state)
-            input_state = input_state.type_as(input)
+            new_state = new_state.squeeze(-2)
 
-            input_state = input_state.squeeze(-2)
-
-            output[offset, ...] = input_state
+            output[offset[mask], ...] = new_state
+            input_state[mask] = new_state
 
             offset = offset + 1
 
