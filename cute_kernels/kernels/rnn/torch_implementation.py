@@ -60,7 +60,7 @@ def rnn_torch(
         offset = cu_seqlens[:-1]
 
         for s in range(max_seqlen):
-            mask = offset < cu_seqlens[:-1]
+            mask = offset < cu_seqlens[1:]
             input_state = input_state.unsqueeze(-2)
 
             # don't update the finished sequences
