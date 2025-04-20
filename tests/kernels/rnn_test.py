@@ -56,7 +56,7 @@ class RNNTest(TestCommons):
         TestCommons.make_args_matrix(
             [torch.device("cuda")],
             TestCommons.get_dtypes(),
-            [[7, 19, 27, 93]],  # cu_seqlens
+            [[0, 7, 19, 27, 93]],  # cu_seqlens
             [64],  # state_size
             [4],  # num_heads
         )
@@ -71,7 +71,7 @@ class RNNTest(TestCommons):
     ) -> None:
         set_seed(_SEED)
 
-        batch_size = len(cu_seqlens)
+        batch_size = len(cu_seqlens) - 1
         total_length = sum(cu_seqlens)
         cu_seqlens = torch.tensor(cu_seqlens, device=device)
         max_seqlen = cu_seqlens.max()
