@@ -130,7 +130,7 @@ class _RNN_Cute(torch.autograd.Function):
                 BLOCK_SIZE_H=ctx.BLOCK_SIZE_H,
             )
 
-        return input_grad, weight_grad, *[None] * 4
+        return input_grad, weight_grad, *[None] * 6
 
 
 def rnn_cute(
