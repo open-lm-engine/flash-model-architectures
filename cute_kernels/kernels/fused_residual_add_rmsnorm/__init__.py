@@ -29,24 +29,16 @@ class _FusedResidualAddRMSNorm_Cute(torch.autograd.Function):
             assert weight.size(-1) == x.size(-1), "hidden size for x and weight tensor is different"
             assert weight.type() == x.type(), "tensors weight and y should have same dtype"
 
-        is_x_1d = x.dim() == 1
-        if is_x_1d:
-            x = x.unsqueeze(0)
-
         if eps is None:
             eps = torch.finfo(x.dtype).eps
 
         B, H = get_num_elements_and_hidden_size(x)
+        BLOCK_SIZE_H = get_next_power_of_2(H)
+        assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
 
         output = torch.empty_like(x)
         added_x_residual = torch.empty_like(x)
         rmsnorm_denominator = None if memory_efficient else torch.empty(B, device=x.device, dtype=torch.float32)
-
-        BLOCK_SIZE_H = get_next_power_of_2(H)
-        assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
-
-        if BLOCK_SIZE_H < H:
-            raise ValueError(f"hidden_size should be more than the BLOCK_SIZE_H")
 
         with torch.cuda.device(x.device):
             _fused_residual_add_rmsnorm_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B_forward),](
@@ -68,15 +60,10 @@ class _FusedResidualAddRMSNorm_Cute(torch.autograd.Function):
             )
 
         ctx.save_for_backward(added_x_residual, weight, rmsnorm_denominator)
-
-        if is_x_1d:
-            output = output.squeeze(0)
-            added_x_residual = added_x_residual.squeeze(0)
-
-        ctx.is_x_1d = is_x_1d
         ctx.eps = eps
         ctx.multiplier = multiplier
         ctx.BLOCK_SIZE_B_backward = BLOCK_SIZE_B_backward
+        ctx.BLOCK_SIZE_H = BLOCK_SIZE_H
 
         return output, added_x_residual
 
@@ -88,21 +75,15 @@ class _FusedResidualAddRMSNorm_Cute(torch.autograd.Function):
         residual_grad = torch.empty_like(added_x_residual)
         weight_grad = None if weight is None else torch.zeros_like(weight, dtype=torch.float32)
 
-        multiplier = ctx.multiplier
         B, H = get_num_elements_and_hidden_size(added_x_residual)
-
+        multiplier = ctx.multiplier
         BLOCK_SIZE_B = ctx.BLOCK_SIZE_B_backward
-        BLOCK_SIZE_H = get_next_power_of_2(H)
-        assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
-
-        if BLOCK_SIZE_H < H:
-            raise ValueError(f"hidden_size should be more than the BLOCK_SIZE_H")
 
         sm_count = get_sm_count(added_x_residual.device)
         num_programs = min(sm_count, ceil_divide(B, BLOCK_SIZE_B))
 
         with torch.cuda.device(added_x_residual.device):
-            _fused_residual_add_rmsnorm_backward_triton_kernel[(num_programs,)](
+            _fused_residual_add_rmsnorm_backward_triton_kernel[num_programs,](
                 added_x_residual_ptr=added_x_residual,
                 has_weight=weight is not None,
                 weight_ptr=weight,
@@ -119,7 +100,7 @@ class _FusedResidualAddRMSNorm_Cute(torch.autograd.Function):
                 B=B,
                 H=H,
                 BLOCK_SIZE_B=BLOCK_SIZE_B,
-                BLOCK_SIZE_H=BLOCK_SIZE_H,
+                BLOCK_SIZE_H=ctx.BLOCK_SIZE_H,
             )
 
         if weight_grad is not None:

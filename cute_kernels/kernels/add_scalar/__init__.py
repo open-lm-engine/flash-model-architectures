@@ -25,10 +25,9 @@ class _AddScalar_Cute(torch.autograd.Function):
             add_scalar_cuda(x=x, y=y, output=output, BLOCK_SIZE=BLOCK_SIZE_CUDA)
         elif is_triton_kernel_backend_allowed(kernel_backend):
             N = x.numel()
-            num_programs = ceil_divide(N, BLOCK_SIZE_TRITON)
 
             with torch.cuda.device(x.device):
-                _add_scalar_triton_kernel[num_programs,](
+                _add_scalar_triton_kernel[ceil_divide(N, BLOCK_SIZE_TRITON),](
                     x_ptr=x, y=y, output_ptr=output, N=N, BLOCK_SIZE=BLOCK_SIZE_TRITON, num_warps=NUM_WARPS_TRITON
                 )
         else:

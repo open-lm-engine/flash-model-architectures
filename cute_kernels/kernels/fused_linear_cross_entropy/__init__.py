@@ -26,10 +26,10 @@ class _FusedLinearCrossEntropy_Cute(torch.autograd.Function):
         assert x.size(-1) == weight.size(-1)
 
         batch_size, hidden_size = x.size()
-        vocab_size = weight.size(0)
+        V = weight.size(0)
 
         # NOTE chunking is copied from liger kernel
-        memory_increase_factor = ceil_divide(vocab_size, hidden_size)
+        memory_increase_factor = ceil_divide(V, hidden_size)
         # chunk_size needed to reduce memory increase back to 1
         chunk_size = get_next_power_of_2(ceil_divide(batch_size, memory_increase_factor))
         num_chunks = ceil_divide(batch_size, chunk_size)
@@ -45,6 +45,7 @@ class _FusedLinearCrossEntropy_Cute(torch.autograd.Function):
 
             _x = x[start:end]
             _logits = (_x @ weight.T).contiguous()
+            B = _logits.size(0)
 
             _logits_grad = torch.empty_like(_logits)
             _labels = labels[start:end].contiguous()
@@ -57,8 +58,8 @@ class _FusedLinearCrossEntropy_Cute(torch.autograd.Function):
                     x_grad_ptr=_logits_grad,
                     has_logits_multiplier=logits_multiplier is not None,
                     logits_multiplier=logits_multiplier,
-                    B=_logits.size(0),
-                    V=vocab_size,
+                    B=B,
+                    V=V,
                     BLOCK_SIZE_B=BLOCK_SIZE_B,
                     BLOCK_SIZE_V=BLOCK_SIZE_V,
                     reduction="sum",

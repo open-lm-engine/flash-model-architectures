@@ -24,10 +24,6 @@ class _RMSNorm_Cute(torch.autograd.Function):
             assert weight.size(-1) == x.size(-1), "hidden size for x and weight tensor is different"
             assert weight.type() == x.type(), "tensors weight and y should have same dtype"
 
-        is_x_1d = x.dim() == 1
-        if is_x_1d:
-            x = x.unsqueeze(0)
-
         if eps is None:
             eps = torch.finfo(x.dtype).eps
 
@@ -53,13 +49,10 @@ class _RMSNorm_Cute(torch.autograd.Function):
                 BLOCK_SIZE_H=BLOCK_SIZE_H,
             )
 
-        if is_x_1d:
-            output = output.squeeze(0)
-
         ctx.save_for_backward(x, weight, rmsnorm_denominator)
-        ctx.is_x_1d = is_x_1d
         ctx.eps = eps
         ctx.BLOCK_SIZE_B_backward = BLOCK_SIZE_B_backward
+        ctx.BLOCK_SIZE_H = BLOCK_SIZE_H
 
         return output
 
@@ -67,14 +60,11 @@ class _RMSNorm_Cute(torch.autograd.Function):
     @ensure_contiguous
     def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
         x, weight, rmsnorm_denominator = ctx.saved_tensors
+        x_grad = torch.empty_like(x)
+        weight_grad = None if weight is None else torch.zeros_like(weight, dtype=torch.float32)
 
         B, H = get_num_elements_and_hidden_size(x)
         BLOCK_SIZE_B = ctx.BLOCK_SIZE_B_backward
-        BLOCK_SIZE_H = get_next_power_of_2(H)
-        assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
-
-        x_grad = torch.empty_like(x)
-        weight_grad = None if weight is None else torch.zeros_like(weight, dtype=torch.float32)
 
         sm_count = get_sm_count(x.device)
         num_programs = min(sm_count, ceil_divide(B, BLOCK_SIZE_B))
@@ -93,14 +83,11 @@ class _RMSNorm_Cute(torch.autograd.Function):
                 B=B,
                 H=H,
                 BLOCK_SIZE_B=BLOCK_SIZE_B,
-                BLOCK_SIZE_H=BLOCK_SIZE_H,
+                BLOCK_SIZE_H=ctx.BLOCK_SIZE_H,
             )
 
         if weight_grad is not None:
             weight_grad = weight_grad.type_as(weight)
-
-        if ctx.is_x_1d:
-            x_grad = x_grad.squeeze(0)
 
         return x_grad, weight_grad, *[None] * 4
 

@@ -22,8 +22,8 @@ class _RNN_Cute(torch.autograd.Function):
             assert gradient_clipping > 0, "gradient_clipping should be a positive number"
 
         output = torch.empty_like(input)
-        B, S, N, H = input.size()
 
+        B, S, N, H = input.size()
         BLOCK_SIZE_H = get_next_power_of_2(H)
         BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
 
@@ -61,9 +61,9 @@ class _RNN_Cute(torch.autograd.Function):
         input_grad = torch.empty_like(output)
         weight_grad = torch.empty_like(weight)
 
-        B, S, N, H = output.size()
-
         gradient_clipping = ctx.gradient_clipping
+
+        B, S, N, H = output.size()
         BLOCK_SIZE_B = ctx.BLOCK_SIZE_B_backward
 
         with torch.cuda.device(output.device):

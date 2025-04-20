@@ -6,12 +6,12 @@ from ....triton_math import sigmoid
 
 @triton.jit
 def _swiglu_backward_triton_kernel(
-    gate_ptr, up_ptr, output_grad_ptr, gate_grad_ptr, up_grad_ptr, num_elements, BLOCK_SIZE: tl.constexpr
+    gate_ptr, up_ptr, output_grad_ptr, gate_grad_ptr, up_grad_ptr, N, BLOCK_SIZE: tl.constexpr
 ):
     pid = tl.program_id(axis=0)
 
     indices = pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
-    mask = indices < num_elements
+    mask = indices < N
 
     gate = tl.load(gate_ptr + indices, mask=mask).to(tl.float32)
     up = tl.load(up_ptr + indices, mask=mask)
