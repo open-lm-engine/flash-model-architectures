@@ -19,7 +19,6 @@ def _rnn_forward_triton_kernel(
     B,
     S,
     H,
-    allow_tf32: tl.constexpr,
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
@@ -48,7 +47,7 @@ def _rnn_forward_triton_kernel(
         input_ptrs = input_ptr + indices
         input = tl.load(input_ptrs, mask=mask_bh, other=0)
 
-        input_state = tl.dot(input_state, weight, input, allow_tf32=allow_tf32).to(input_state.dtype)
+        input_state = tl.dot(input_state, weight, input, allow_tf32=True).to(input_state.dtype)
         input_state = tanh(input_state)
 
         output_ptrs = output_ptr + indices
@@ -73,7 +72,6 @@ def _rnn_varlen_forward_triton_kernel(
     max_seqlen_ptr,
     B,
     H,
-    allow_tf32: tl.constexpr,
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
@@ -116,7 +114,7 @@ def _rnn_varlen_forward_triton_kernel(
         input_ptrs = input_ptr + offset
         input = tl.load(input_ptrs, mask=mask, other=0)
 
-        new_state = tl.dot(input_state, weight, input, allow_tf32=allow_tf32).to(input_state.dtype)
+        new_state = tl.dot(input_state, weight, input, allow_tf32=True).to(input_state.dtype)
         new_state = tanh(new_state)
 
         output_ptrs = output_ptr + offset
