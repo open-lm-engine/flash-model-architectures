@@ -74,7 +74,7 @@ class RNNTest(TestCommons):
         batch_size = len(cu_seqlens) - 1
         total_length = sum(cu_seqlens)
         cu_seqlens = torch.tensor(cu_seqlens, device=device)
-        max_seqlen = cu_seqlens.max()
+        max_seqlen = (cu_seqlens[1:] - cu_seqlens[:-1]).max()
 
         x_kernel, x_expected = self.get_random_duplicated_tensors(
             (batch_size, total_length, num_heads, state_size), device=device, dtype=dtype, std=0.01
