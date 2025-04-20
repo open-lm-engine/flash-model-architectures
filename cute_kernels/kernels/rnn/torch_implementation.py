@@ -58,7 +58,6 @@ def rnn_torch(
         # input_state -> (B, N, H)
 
         offset = cu_seqlens[:-1]
-        finished = torch.zeros_like(offset)
 
         for s in range(max_seqlen):
             mask = offset < cu_seqlens[:-1]
