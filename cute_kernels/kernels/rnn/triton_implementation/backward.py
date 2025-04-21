@@ -16,7 +16,7 @@ def _tanh_backward(y):
 
 
 @triton.jit
-def _rnn_backward_triton_kernel(
+def rnn_backward_triton(
     weight_ptr,
     weight_stride_n,
     weight_stride_h,
@@ -103,7 +103,7 @@ def _rnn_backward_triton_kernel(
 
 
 @triton.jit
-def _rnn_varlen_backward_triton_kernel(
+def rnn_varlen_backward_triton(
     weight_ptr,
     weight_stride_n,
     weight_stride_h,

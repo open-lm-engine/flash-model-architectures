@@ -5,7 +5,7 @@ from ....triton_math import tanh
 
 
 @triton.jit
-def _rnn_forward_triton_kernel(
+def rnn_forward_triton(
     input_ptr,
     input_stride_b,
     input_stride_s,
@@ -60,7 +60,7 @@ def _rnn_forward_triton_kernel(
 
 
 @triton.jit
-def _rnn_varlen_forward_triton_kernel(
+def rnn_varlen_forward_triton(
     input_ptr,
     input_stride_s,
     input_stride_n,
