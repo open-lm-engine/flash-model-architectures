@@ -4,7 +4,7 @@ from ...constants import MAX_TRITON_BLOCK_SIZE
 from ...math import ceil_divide, get_next_power_of_2
 from ...utils import ensure_contiguous, get_num_elements_and_hidden_size, get_sm_count
 from .torch_implementation import rmsnorm_torch
-from .triton_implementation import _rmsnorm_backward_triton_kernel, _rmsnorm_forward_triton_kernel
+from .triton_implementation import rmsnorm_backward_triton, rmsnorm_forward_triton
 
 
 class _RMSNorm_Cute(torch.autograd.Function):
@@ -35,7 +35,7 @@ class _RMSNorm_Cute(torch.autograd.Function):
         rmsnorm_denominator = None if memory_efficient else torch.empty(B, device=x.device, dtype=torch.float32)
 
         with torch.cuda.device(x.device):
-            _rmsnorm_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B_forward),](
+            rmsnorm_forward_triton[ceil_divide(B, BLOCK_SIZE_B_forward),](
                 x_ptr=x,
                 has_weight=weight is not None,
                 weight_ptr=weight,
@@ -70,7 +70,7 @@ class _RMSNorm_Cute(torch.autograd.Function):
         num_programs = min(sm_count, ceil_divide(B, BLOCK_SIZE_B))
 
         with torch.cuda.device(x.device):
-            _rmsnorm_backward_triton_kernel[num_programs,](
+            rmsnorm_backward_triton[num_programs,](
                 x_ptr=x,
                 has_weight=weight is not None,
                 weight_ptr=weight,

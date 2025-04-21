@@ -3,7 +3,7 @@ import triton.language as tl
 
 
 @triton.jit
-def _rmsnorm_backward_triton_kernel(
+def rmsnorm_backward_triton(
     x_ptr,
     has_weight: tl.constexpr,
     weight_ptr,
