@@ -75,7 +75,7 @@ void swiglu_forward_cuda(const torch::Tensor &gate,
     AT_DISPATCH_CUSTOM_FLOAT_TYPES(
         gate.scalar_type(), "swiglu_forward_cuda_kernel", ([&] {
             const uint32 num_elements_per_thread = 16 / sizeof(scalar_t);
-            const uint32 num_elements_per_block = BLOCK_SIZE * num_elements_per_thread;
+            const uint32 num_elements_per_block = num_elements_per_thread * BLOCK_SIZE;
 
             std::vector<ck::ChunkedArray<scalar_t>> gate_chunks =
                 ck::chunk_array<scalar_t>(gate.data_ptr<scalar_t>(), total_elements);
