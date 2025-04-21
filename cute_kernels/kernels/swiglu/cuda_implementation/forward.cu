@@ -91,7 +91,7 @@ void swiglu_forward_cuda(const torch::Tensor &gate,
 
                 const uint64 num_elements = gate_chunk.num_elements;
                 const bool has_trailing_elements =
-                    (i == x_chunks.size() - 1) && (num_elements % num_elements_per_thread != 0);
+                    (i == gate_chunks.size() - 1) && (num_elements % num_elements_per_thread != 0);
 
                 if (has_trailing_elements) {
                     const uint32 num_elements_per_warp = num_elements_per_thread << LOG_WARP_SIZE;
