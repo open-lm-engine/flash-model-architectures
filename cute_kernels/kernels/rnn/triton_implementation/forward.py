@@ -61,7 +61,6 @@ def rnn_varlen_forward_triton(
     input_stride_s,
     weight_ptr,
     weight_stride_n,
-    weight_stride_h,
     has_input_state: tl.constexpr,
     input_state_ptr,
     input_state_stride_b,
@@ -84,7 +83,7 @@ def rnn_varlen_forward_triton(
     mask_h = indices_h < H
     mask_bh = mask_b[:, None] & mask_h[None, :]
 
-    weight_ptrs = weight_ptr + pid_n * weight_stride_n + indices_h[:, None] * weight_stride_h + indices_h[None, :]
+    weight_ptrs = weight_ptr + pid_n * weight_stride_n + indices_h[:, None] * H + indices_h[None, :]
     weight = tl.load(weight_ptrs, mask=mask_h[:, None] & mask_h[None, :], other=0)
 
     if has_input_state:
@@ -114,9 +113,9 @@ def rnn_varlen_forward_triton(
         new_state = tl.dot(input_state, weight, input, allow_tf32=True).to(input_state.dtype)
         new_state = tanh(new_state)
 
+        input_state = new_state * unfinished[:, None] + input_state * (1 - unfinished)[:, None]
+
         output_ptrs = output_ptr + indices
         tl.store(output_ptrs, new_state, mask=mask)
-
-        input_state = new_state * unfinished[:, None] + input_state * (1 - unfinished)[:, None]
 
         indices += input_stride_s
