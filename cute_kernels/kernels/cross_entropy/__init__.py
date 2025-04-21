@@ -3,7 +3,7 @@ import torch
 from ...math import ceil_divide
 from ...utils import ensure_contiguous, get_num_elements_and_hidden_size
 from .torch_implementation import cross_entropy_torch
-from .triton_implementation import _cross_entropy_forward_backward_triton_kernel
+from .triton_implementation import cross_entropy_forward_backward_triton
 
 
 class _CrossEntropy_Cute(torch.autograd.Function):
@@ -29,7 +29,7 @@ class _CrossEntropy_Cute(torch.autograd.Function):
         x_grad = torch.empty_like(x)
 
         with torch.cuda.device(x.device):
-            _cross_entropy_forward_backward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](
+            cross_entropy_forward_backward_triton[ceil_divide(B, BLOCK_SIZE_B),](
                 x_ptr=x,
                 labels_ptr=labels,
                 loss_ptr=loss,

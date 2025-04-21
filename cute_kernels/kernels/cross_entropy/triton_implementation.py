@@ -3,7 +3,7 @@ import triton.language as tl
 
 
 @triton.jit
-def _cross_entropy_forward_backward_triton_kernel(
+def cross_entropy_forward_backward_triton(
     x_ptr,
     labels_ptr,
     loss_ptr,
