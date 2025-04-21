@@ -59,12 +59,12 @@ def rnn_forward_triton(
 def rnn_varlen_forward_triton(
     input_ptr,
     input_stride_s,
-    input_stride_n,
     weight_ptr,
     weight_stride_n,
     weight_stride_h,
     has_input_state: tl.constexpr,
     input_state_ptr,
+    input_state_stride_b,
     output_ptr,
     cu_seqlens_ptr,
     is_max_seqlen_tensor: tl.constexpr,
@@ -87,10 +87,8 @@ def rnn_varlen_forward_triton(
     weight_ptrs = weight_ptr + pid_n * weight_stride_n + indices_h[:, None] * weight_stride_h + indices_h[None, :]
     weight = tl.load(weight_ptrs, mask=mask_h[:, None] & mask_h[None, :], other=0)
 
-    indices = pid_n * input_stride_n + indices_h[None, :]
-
     if has_input_state:
-        input_state_ptrs = input_state_ptr + indices
+        input_state_ptrs = input_state_ptr + indices_b[:, None] * input_state_stride_b + pid_n * H + indices_h[None, :]
         input_state = tl.load(input_state_ptrs, mask=mask_bh)
     else:
         input_state = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=input_ptr.dtype.element_ty)
@@ -104,21 +102,21 @@ def rnn_varlen_forward_triton(
     else:
         max_seqlen = max_seqlen_ptr
 
-    offset = start + indices
+    indices = start * input_stride_s + pid_n * H + indices_h[None, :]
 
     for _ in range(max_seqlen):
-        unfinished = offset < end
+        unfinished = indices < end
         mask = unfinished[:, None] & mask_h[None, :]
 
-        input_ptrs = input_ptr + offset
+        input_ptrs = input_ptr + indices
         input = tl.load(input_ptrs, mask=mask, other=0)
 
         new_state = tl.dot(input_state, weight, input, allow_tf32=True).to(input_state.dtype)
         new_state = tanh(new_state)
 
-        output_ptrs = output_ptr + offset
+        output_ptrs = output_ptr + indices
         tl.store(output_ptrs, new_state, mask=mask)
 
         input_state = new_state * unfinished[:, None] + input_state * (1 - unfinished)[:, None]
 
-        offset += input_stride_s
+        indices += input_stride_s
