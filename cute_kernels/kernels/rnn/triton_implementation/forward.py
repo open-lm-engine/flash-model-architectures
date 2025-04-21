@@ -101,7 +101,7 @@ def rnn_varlen_forward_triton(
     else:
         max_seqlen = max_seqlen_ptr
 
-    indices = start * input_stride_s + pid_n * H + indices_h[None, :]
+    indices = start[:, None] * input_stride_s + pid_n * H + indices_h[None, :]
 
     for _ in range(max_seqlen):
         unfinished = indices < end
