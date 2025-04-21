@@ -49,6 +49,7 @@ class _RNN_Cute(torch.autograd.Function):
                     weight_stride_h=weight.stride(1),
                     has_input_state=input_state is not None,
                     input_state_ptr=input_state,
+                    input_state_stride_b=None if input_state is None else input_state.stride(0),
                     output_ptr=output,
                     B=B,
                     S=S,
