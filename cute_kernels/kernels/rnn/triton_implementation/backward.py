@@ -36,7 +36,6 @@ def _rnn_backward_triton_kernel(
     B,
     S,
     H,
-    allow_tf32: tl.constexpr,
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
@@ -92,7 +91,7 @@ def _rnn_backward_triton_kernel(
             output_ptrs -= output_stride_s
             output_prev = tl.load(output_ptrs, mask=mask_bh, other=0)
 
-        weight_grad = tl.dot(output_prev.T, input_grad, weight_grad, allow_tf32=allow_tf32)
+        weight_grad = tl.dot(output_prev.T, input_grad, weight_grad, allow_tf32=True)
         output = output_prev
 
         indices -= output_stride_s
