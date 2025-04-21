@@ -17,7 +17,7 @@ def _load_x(x_ptr, h, H, BLOCK_SIZE_H, indices_b, mask_b, other=None):
 
 
 @triton.jit
-def _softmax_forward_triton_kernel(
+def softmax_forward_triton(
     x_ptr,
     output_ptr,
     has_logits_multiplier: tl.constexpr,

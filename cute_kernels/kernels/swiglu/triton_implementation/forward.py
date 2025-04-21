@@ -14,7 +14,7 @@ def _swiglu(gate_ptr, up_ptr, output_ptr, indices, mask):
 
 
 @triton.jit
-def _swiglu_forward_triton_kernel(gate_ptr, up_ptr, output_ptr, N, BLOCK_SIZE: tl.constexpr):
+def swiglu_forward_triton(gate_ptr, up_ptr, output_ptr, N, BLOCK_SIZE: tl.constexpr):
     BLOCK_ID = tl.program_id(axis=0)
     NUM_BLOCKS = tl.num_programs(axis=0)
 
