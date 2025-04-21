@@ -24,7 +24,7 @@ inline __device__ scalar_t _swiglu_forward(const scalar_t &gate, const scalar_t 
     return dtype::downcast(_sigmoid);
 }
 
-template <typename scalar_t>
+template <typename scalar_t, bool has_trailing_elements>
 __global__ void _swiglu_forward_cuda_kernel(const scalar_t *gate,
                                             const scalar_t *up,
                                             scalar_t *output,
@@ -46,9 +46,17 @@ __global__ void _swiglu_forward_cuda_kernel(const scalar_t *gate,
         ck_mem::store_128_bits<scalar_t>(output_buffer, output, thread_id);
     }
 
-    const uint32 index = num_vector_elements * num_elements_per_thread + thread_id;
-    if (index < num_elements) {
-        output[index] = _swiglu_forward<scalar_t>(gate[index], up[index]);
+    if (has_trailing_elements) {
+        const uint32 warp_id = thread_id >> LOG_WARP_SIZE;
+        const uint32 num_warps = (gridDim.x * blockDim.x) >> LOG_WARP_SIZE;
+        const bool is_last_warp = warp_id == num_warps - 1;
+
+        if (is_last_warp) {
+            const uint32 index = num_vector_elements * num_elements_per_thread + (threadIdx.x % WARP_SIZE);
+            if (index < num_elements) {
+                output[index] = _swiglu_forward<scalar_t>(gate[index], up[index]);
+            }
+        }
     }
 }
 
@@ -64,28 +72,42 @@ void swiglu_forward_cuda(const torch::Tensor &gate,
 
     const uint64 total_elements = gate.numel();
 
-    AT_DISPATCH_CUSTOM_FLOAT_TYPES(gate.scalar_type(), "swiglu_forward_cuda_kernel", ([&] {
-                                       const uint32 num_elements_per_thread = 16 / sizeof(scalar_t);
-                                       const uint32 num_elements_per_block = BLOCK_SIZE * num_elements_per_thread;
+    AT_DISPATCH_CUSTOM_FLOAT_TYPES(
+        gate.scalar_type(), "swiglu_forward_cuda_kernel", ([&] {
+            const uint32 num_elements_per_thread = 16 / sizeof(scalar_t);
+            const uint32 num_elements_per_block = BLOCK_SIZE * num_elements_per_thread;
 
-                                       std::vector<ck::ChunkedArray<scalar_t>> gate_chunks =
-                                           ck::chunk_array<scalar_t>(gate.data_ptr<scalar_t>(), total_elements);
-                                       std::vector<ck::ChunkedArray<scalar_t>> up_chunks =
-                                           ck::chunk_array<scalar_t>(up.data_ptr<scalar_t>(), total_elements);
-                                       std::vector<ck::ChunkedArray<scalar_t>> output_chunks =
-                                           ck::chunk_array<scalar_t>(output.data_ptr<scalar_t>(), total_elements);
+            std::vector<ck::ChunkedArray<scalar_t>> gate_chunks =
+                ck::chunk_array<scalar_t>(gate.data_ptr<scalar_t>(), total_elements);
+            std::vector<ck::ChunkedArray<scalar_t>> up_chunks =
+                ck::chunk_array<scalar_t>(up.data_ptr<scalar_t>(), total_elements);
+            std::vector<ck::ChunkedArray<scalar_t>> output_chunks =
+                ck::chunk_array<scalar_t>(output.data_ptr<scalar_t>(), total_elements);
 
-                                       for (int i = 0; i < gate_chunks.size(); i++) {
-                                           ck::ChunkedArray<scalar_t> gate_chunk = gate_chunks[i];
-                                           ck::ChunkedArray<scalar_t> up_chunk = up_chunks[i];
-                                           ck::ChunkedArray<scalar_t> output_chunk = output_chunks[i];
+            for (int i = 0; i < gate_chunks.size(); i++) {
+                ck::ChunkedArray<scalar_t> gate_chunk = gate_chunks[i];
+                ck::ChunkedArray<scalar_t> up_chunk = up_chunks[i];
+                ck::ChunkedArray<scalar_t> output_chunk = output_chunks[i];
 
-                                           const uint64 num_elements = gate_chunk.num_elements;
-                                           const uint32 NUM_BLOCKS =
-                                               ck::ceil_divide<uint64>(num_elements, num_elements_per_block);
+                const uint64 num_elements = gate_chunk.num_elements;
+                const bool has_trailing_elements =
+                    (i == x_chunks.size() - 1) && (num_elements % num_elements_per_thread != 0);
 
-                                           _swiglu_forward_cuda_kernel<scalar_t><<<NUM_BLOCKS, BLOCK_SIZE>>>(
-                                               gate_chunk.array, up_chunk.array, output_chunk.array, num_elements);
-                                       }
-                                   }));
+                if (has_trailing_elements) {
+                    const uint32 num_elements_per_warp = num_elements_per_thread << LOG_WARP_SIZE;
+                    const uint32 num_warps_per_block = BLOCK_SIZE >> LOG_WARP_SIZE;
+                    // 1 extra warp to avoid thread divergence
+                    const uint32 NUM_WARPS = ck::ceil_divide<uint64>(num_elements, num_elements_per_warp) + 1;
+                    const uint32 NUM_BLOCKS = ck::ceil_divide<uint64>(NUM_WARPS, num_warps_per_block);
+
+                    _swiglu_forward_cuda_kernel<scalar_t, true><<<NUM_BLOCKS, BLOCK_SIZE>>>(
+                        gate_chunk.array, up_chunk.array, output_chunk.array, num_elements);
+                } else {
+                    const uint32 NUM_BLOCKS = ck::ceil_divide<uint64>(num_elements, num_elements_per_block);
+
+                    _swiglu_forward_cuda_kernel<scalar_t, false><<<NUM_BLOCKS, BLOCK_SIZE>>>(
+                        gate_chunk.array, up_chunk.array, output_chunk.array, num_elements);
+                }
+            }
+        }));
 }
