@@ -1,7 +1,7 @@
 import torch
 
 
-def pack_sequence(x: torch.Tensor, cu_seqlens: torch.Tensor, max_seqlen: torch.Tensor | int) -> torch.Tensor:
+def pack_sequence_torch(x: torch.Tensor, cu_seqlens: torch.Tensor, max_seqlen: torch.Tensor | int) -> torch.Tensor:
     batch_size = cu_seqlens.size(0) - 1
     other_dims = x.size()[1:]
 
