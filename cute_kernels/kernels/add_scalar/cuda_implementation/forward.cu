@@ -67,7 +67,7 @@ void add_scalar_cuda(const torch::Tensor &x, const fp32 &y, torch::Tensor &outpu
 
                 const uint64 num_elements = x_chunk.num_elements;
                 constexpr bool has_trailing_elements = ck::convert_bool_to_static_bool(
-                    i == x_chunks.size() - 1 && num_elements % num_elements_per_thread != 0);
+                    (i == x_chunks.size() - 1) && (num_elements % num_elements_per_thread != 0));
 
                 uint32 NUM_BLOCKS;
                 if (has_trailing_elements) {
