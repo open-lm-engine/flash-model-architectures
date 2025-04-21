@@ -66,23 +66,24 @@ void add_scalar_cuda(const torch::Tensor &x, const fp32 &y, torch::Tensor &outpu
                 ck::ChunkedArray<scalar_t> output_chunk = output_chunks[i];
 
                 const uint64 num_elements = x_chunk.num_elements;
-                const bool _has_trailing_elements =
+                const bool has_trailing_elements =
                     (i == x_chunks.size() - 1) && (num_elements % num_elements_per_thread != 0);
-                constexpr bool has_trailing_elements = ck::convert_bool_to_static_bool(_has_trailing_elements);
 
-                uint32 NUM_BLOCKS;
                 if (has_trailing_elements) {
                     const uint32 num_elements_per_warp = num_elements_per_thread << LOG_WARP_SIZE;
                     const uint32 num_warps_per_block = BLOCK_SIZE >> LOG_WARP_SIZE;
                     // 1 extra warp to avoid thread divergence
                     const uint32 NUM_WARPS = ck::ceil_divide<uint64>(num_elements, num_elements_per_warp) + 1;
-                    NUM_BLOCKS = ck::ceil_divide<uint64>(NUM_WARPS, num_warps_per_block);
-                } else {
-                    NUM_BLOCKS = ck::ceil_divide<uint64>(num_elements, num_elements_per_block);
-                }
+                    const uint32 NUM_BLOCKS = ck::ceil_divide<uint64>(NUM_WARPS, num_warps_per_block);
 
-                _add_scalar_cuda_kernel<scalar_t, has_trailing_elements>
-                    <<<NUM_BLOCKS, BLOCK_SIZE>>>(x_chunk.array, y, output_chunk.array, num_elements);
+                    _add_scalar_cuda_kernel<scalar_t, true>
+                        <<<NUM_BLOCKS, BLOCK_SIZE>>>(x_chunk.array, y, output_chunk.array, num_elements);
+                } else {
+                    const uint32 NUM_BLOCKS = ck::ceil_divide<uint64>(num_elements, num_elements_per_block);
+
+                    _add_scalar_cuda_kernel < scalar_t,
+                        false<<<NUM_BLOCKS, BLOCK_SIZE>>>(x_chunk.array, y, output_chunk.array, num_elements);
+                }
             }
         }));
 }
