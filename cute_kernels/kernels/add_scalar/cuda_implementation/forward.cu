@@ -31,7 +31,7 @@ __global__ void _add_scalar_cuda_kernel(const scalar_t *x, const fp32 y, scalar_
 
     if (has_trailing_elements) {
         const uint32 warp_id = thread_id >> LOG_WARP_SIZE;
-        const uint32 num_warps = gridDim.x * blockDim.x >> LOG_WARP_SIZE;
+        const uint32 num_warps = (gridDim.x * blockDim.x) >> LOG_WARP_SIZE;
         const bool is_last_warp = warp_id == num_warps - 1;
 
         if (is_last_warp) {
