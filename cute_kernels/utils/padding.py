@@ -5,19 +5,21 @@ from einops import rearrange, repeat
 
 class _IndexFirstAxis(torch.autograd.Function):
     @staticmethod
-    def forward(ctx, input, indices):
+    def forward(ctx, input: torch.Tensor, indices: torch.Tensor) -> torch.Tensor:
+        assert input.dim() >= 2
+
         ctx.save_for_backward(indices)
-        assert input.ndim >= 2
-        ctx.first_axis_dim, other_shape = input.shape[0], input.shape[1:]
+        ctx.first_axis_dim = input.size(0)
+        other_shape = input.size()[1:]
         second_dim = other_shape.numel()
-        # TD [2022-03-04] For some reason torch.gather is a bit faster than indexing.
-        # return input[indices]
-        return torch.gather(
-            rearrange(input, "b ... -> b (...)"), 0, repeat(indices, "z -> z d", d=second_dim)
-        ).reshape(-1, *other_shape)
+
+        input = rearrange(input, "b ... -> b (...)")
+        indices = repeat(indices, "z -> z d", d=second_dim)
+
+        return torch.gather(input, 0, indices).reshape(-1, *other_shape)
 
     @staticmethod
-    def backward(ctx, grad_output):
+    def backward(ctx, grad_output: torch.Tensor) -> tuple[torch.Tensor]:
         (indices,) = ctx.saved_tensors
         assert grad_output.ndim >= 2
         other_shape = grad_output.shape[1:]
@@ -27,8 +29,6 @@ class _IndexFirstAxis(torch.autograd.Function):
             device=grad_output.device,
             dtype=grad_output.dtype,
         )
-        # TD [2022-03-04] For some reason torch.scatter is a bit faster than indexing.
-        # grad_input[indices] = grad_output
         grad_input.scatter_(0, repeat(indices, "z -> z d", d=grad_output.shape[1]), grad_output)
         return grad_input.reshape(ctx.first_axis_dim, *other_shape), None
 
@@ -87,7 +87,7 @@ def unpad_input(hidden_states, attention_mask, unused_mask=None):
     )
 
 
-def pad_input(x: torch.Tensor, indices, batch, seqlen):
+def pad_input(x: torch.Tensor, indices: torch.Tensor, batch_size: int, sequence_length: int) -> torch.Tensor:
     """
     Arguments:
         hidden_states: (total_nnz, ...), where total_nnz = number of tokens in selected in attention_mask.
@@ -97,6 +97,6 @@ def pad_input(x: torch.Tensor, indices, batch, seqlen):
     Return:
         hidden_states: (batch, seqlen, ...)
     """
-    x = _IndexPutFirstAxis.apply(x, indices, batch * seqlen)
-    x = rearrange(x, "(b s) ... -> b s ...", b=batch)
+    x = _IndexPutFirstAxis.apply(x, indices, batch_size * sequence_length)
+    x = rearrange(x, "(b s) ... -> b s ...", b=batch_size)
     return x
