@@ -56,15 +56,18 @@ __global__ void _pack_sequence_cuda_kernel(const scalar_t *x,
 void pack_sequence_cuda(const torch::Tensor &x,
                         torch::Tensor &output,
                         const torch::Tensor &cu_seqlens,
-                        std::optional<const torch::Tensor> &max_seqlen_tensor,
-                        std::optional<const uint32> &max_seqlen,
+                        const std::optional<torch::Tensor> &max_seqlen_tensor,
+                        const std::optional<uint32> &max_seqlen,
+                        const string &padding_side,
                         const uint32 &BLOCK_SIZE) {
     CHECK_CUDA_TENSOR(x);
     CHECK_CUDA_TENSOR(output);
     CHECK_CUDA_TENSOR(cu_seqlens);
-    CHECK_CUDA_TENSOR(max_seqlen);
+    CHECK_CUDA_TENSOR(max_seqlen_tensor);
 
     CHECK_VALID_THREAD_BLOCK(BLOCK_SIZE);
+
+    TORCH_CHECK(padding_side == "left" || padding_side == "right");
 
     // only one of the 2 should contain a value
     if (max_seqlen_tensor.has_value()) {
@@ -73,42 +76,26 @@ void pack_sequence_cuda(const torch::Tensor &x,
         TORCH_CHECK(max_seqlen.has_value());
     }
 
-    const uint64 total_elements = x.numel();
+    const uint64 num_elements = x.numel();
+    // FIXME check this value
+    TORCH_CHECK(num_elements < 1000000000);
 
     AT_DISPATCH_CUSTOM_FLOAT_TYPES(
         x.scalar_type(), "pack_sequence_cuda_kernel", ([&] {
-            const uint32 num_elements_per_thread = 16 / sizeof(scalar_t);
+            constexpr uint32 num_elements_per_thread = ck_mem::get_num_elements_for_vector_load_stores<scalar_t>();
             const uint32 num_elements_per_block = num_elements_per_thread * BLOCK_SIZE;
 
-            std::vector<ck::ChunkedArray<scalar_t>> x_chunks =
-                ck::chunk_array<scalar_t>(x.data_ptr<scalar_t>(), total_elements);
-            std::vector<ck::ChunkedArray<scalar_t>> output_chunks =
-                ck::chunk_array<scalar_t>(output.data_ptr<scalar_t>(), total_elements);
+            TORCH_CHECK(num_elements % num_elements_per_thread == 0);
 
-            for (int i = 0; i < x_chunks.size(); i++) {
-                ck::ChunkedArray<scalar_t> x_chunk = x_chunks[i];
-                ck::ChunkedArray<scalar_t> y_chunk = y_chunks[i];
-                ck::ChunkedArray<scalar_t> output_chunk = output_chunks[i];
+            const uint32 NUM_BLOCKS = ck::ceil_divide<uint64>(num_elements, num_elements_per_block);
 
-                const uint64 num_elements = x_chunk.num_elements;
-                const bool has_trailing_elements =
-                    (i == x_chunks.size() - 1) && (num_elements % num_elements_per_thread != 0);
-
-                if (has_trailing_elements) {
-                    const uint32 num_elements_per_warp = num_elements_per_thread << LOG_WARP_SIZE;
-                    const uint32 num_warps_per_block = BLOCK_SIZE >> LOG_WARP_SIZE;
-                    // 1 extra warp to avoid thread divergence
-                    const uint32 NUM_WARPS = ck::ceil_divide<uint64>(num_elements, num_elements_per_warp) + 1;
-                    const uint32 NUM_BLOCKS = ck::ceil_divide<uint64>(NUM_WARPS, num_warps_per_block);
-
-                    _pack_sequence_cuda_kernel<scalar_t, uint32, true>
-                        <<<NUM_BLOCKS, BLOCK_SIZE>>>(x_chunk.array, y_chunk.array, output_chunk.array, num_elements);
-                } else {
-                    const uint32 NUM_BLOCKS = ck::ceil_divide<uint64>(num_elements, num_elements_per_block);
-
-                    _pack_sequence_cuda_kernel<scalar_t, uint32, false>
-                        <<<NUM_BLOCKS, BLOCK_SIZE>>>(x_chunk.array, y_chunk.array, output_chunk.array, num_elements);
-                }
-            }
+            _pack_sequence_cuda_kernel<scalar_t, uint32, false><<<NUM_BLOCKS, BLOCK_SIZE>>>(
+                x.data_ptr<scalar_t>(),
+                output.data_ptr<scalar_t>(),
+                cu_seqlens.data_ptr<uint32>(),
+                max_seqlen_tensor.has_value() ? max_seqlen_tensor.value().data_ptr<uint32>() : nullptr,
+                max_seqlen.has_value() ? max_seqlen.value() : nullptr,
+                B,
+                S);
         }));
 }
