@@ -9,7 +9,7 @@ def _add_scalar(x_ptr, y, output_ptr, indices, mask):
 
 
 @triton.jit
-def _add_scalar_triton_kernel(x_ptr, y, output_ptr, N, BLOCK_SIZE: tl.constexpr):
+def add_scalar_triton(x_ptr, y, output_ptr, N, BLOCK_SIZE: tl.constexpr):
     BLOCK_ID = tl.program_id(axis=0)
     NUM_BLOCKS = tl.num_programs(axis=0)
 

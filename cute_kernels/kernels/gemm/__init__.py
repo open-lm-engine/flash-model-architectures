@@ -9,7 +9,7 @@ from .cuda_implementation import (
     shared_memory_gemm_cuda,
 )
 from .torch_implementation import gemm_torch
-from .triton_implementation import _gemm_triton_kernel
+from .triton_implementation import gemm_triton
 
 
 @ensure_contiguous
@@ -133,7 +133,7 @@ def gemm_cute(
         NUM_STAGES = 2
 
         with torch.cuda.device(A.device):
-            _gemm_triton_kernel[ceil_divide(M, BLOCK_SIZE_M) * ceil_divide(N, BLOCK_SIZE_N),](
+            gemm_triton[ceil_divide(M, BLOCK_SIZE_M) * ceil_divide(N, BLOCK_SIZE_N),](
                 A_ptr=A,
                 B_ptr=B,
                 C_ptr=C,

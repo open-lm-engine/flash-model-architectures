@@ -3,7 +3,7 @@ import triton.language as tl
 
 
 @triton.jit
-def _embedding_forward_triton_kernel(
+def embedding_forward_triton(
     x_ptr,
     weight_ptr,
     output_ptr,
