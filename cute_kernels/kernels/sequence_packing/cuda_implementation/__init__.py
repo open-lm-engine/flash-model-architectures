@@ -1,8 +1,8 @@
 import torch
 
-from .....constants import LIBRARY_NAME
-from .....jit import cpp_jit
-from .....utils import cute_op
+from ....constants import LIBRARY_NAME
+from ....jit import cpp_jit
+from ....utils import cute_op
 
 
 _KERNEL_NAME = "pack_sequence_cuda"

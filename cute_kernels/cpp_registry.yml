@@ -40,3 +40,9 @@
     - kernels/gemm/cuda_implementation/cutlass_gemm.cu
     - kernels/gemm/cuda_implementation/cutlass_tensorcore_mma_gemm.cu
   build_path: gemm
+
+- functions:
+    - pack_sequence_cuda
+  sources:
+    - kernels/sequence_packing/cuda_implementation/ops.cpp
+    - kernels/sequence_packing/cuda_implementation/pack_kernel.cpp
