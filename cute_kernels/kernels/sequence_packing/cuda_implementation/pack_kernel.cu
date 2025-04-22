@@ -32,7 +32,7 @@ inline __device__ void _load_cu_seqlens(const integer_t *cu_seqlens, integer_t *
     }
 }
 
-template <typename scalar_t, typename integer_t, bool has_trailing_elements>
+template <typename scalar_t, typename integer_t>
 __global__ void _pack_sequence_cuda_kernel(const scalar_t *x,
                                            scalar_t *output,
                                            const uint32 *cu_seqlens,
@@ -89,7 +89,7 @@ void pack_sequence_cuda(const torch::Tensor &x,
 
             const uint32 NUM_BLOCKS = ck::ceil_divide<uint64>(num_elements, num_elements_per_block);
 
-            _pack_sequence_cuda_kernel<scalar_t, uint32, false><<<NUM_BLOCKS, BLOCK_SIZE>>>(
+            _pack_sequence_cuda_kernel<scalar_t, uint32><<<NUM_BLOCKS, BLOCK_SIZE>>>(
                 x.data_ptr<scalar_t>(),
                 output.data_ptr<scalar_t>(),
                 cu_seqlens.data_ptr<uint32>(),

@@ -46,3 +46,4 @@
   sources:
     - kernels/sequence_packing/cuda_implementation/ops.cpp
     - kernels/sequence_packing/cuda_implementation/pack_kernel.cpp
+  build_path: sequence_packing
