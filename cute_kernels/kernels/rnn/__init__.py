@@ -3,7 +3,7 @@ import torch
 from ...math import ceil_divide, get_next_power_of_2
 from ...utils import ensure_contiguous
 from .torch_implementation import rnn_torch
-from .triton_implementation import _rnn_backward_triton_kernel, _rnn_forward_triton_kernel
+from .triton_implementation import rnn_backward_triton, rnn_forward_triton
 
 
 class _RNN_Cute(torch.autograd.Function):
@@ -28,7 +28,7 @@ class _RNN_Cute(torch.autograd.Function):
         BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
 
         with torch.cuda.device(input.device):
-            _rnn_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B_forward), N](
+            rnn_forward_triton[ceil_divide(B, BLOCK_SIZE_B_forward), N](
                 input_ptr=input,
                 input_stride_b=input.stride(0),
                 input_stride_s=input.stride(1),
@@ -67,7 +67,7 @@ class _RNN_Cute(torch.autograd.Function):
         BLOCK_SIZE_B = ctx.BLOCK_SIZE_B_backward
 
         with torch.cuda.device(output.device):
-            _rnn_backward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), N](
+            rnn_backward_triton[ceil_divide(B, BLOCK_SIZE_B), N](
                 weight_ptr=weight,
                 weight_stride_n=weight.stride(0),
                 weight_stride_h=weight.stride(1),

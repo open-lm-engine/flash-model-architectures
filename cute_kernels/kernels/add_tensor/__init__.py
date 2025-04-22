@@ -5,7 +5,7 @@ from ...math import ceil_divide
 from ...utils import ensure_same_strides, is_nvidia_gpu
 from .cuda_implementation import add_tensor_cuda
 from .torch_implementation import add_tensor_torch
-from .triton_implementation import _add_tensor_triton_kernel
+from .triton_implementation import add_tensor_triton
 
 
 class _AddTensor_Cute(torch.autograd.Function):
@@ -31,7 +31,7 @@ class _AddTensor_Cute(torch.autograd.Function):
             N = x.numel()
 
             with torch.cuda.device(x.device):
-                _add_tensor_triton_kernel[ceil_divide(N, BLOCK_SIZE_TRITON),](
+                add_tensor_triton[ceil_divide(N, BLOCK_SIZE_TRITON),](
                     x_ptr=x,
                     y_ptr=y,
                     output_ptr=output,

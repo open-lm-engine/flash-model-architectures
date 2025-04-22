@@ -5,7 +5,7 @@ from ...math import ceil_divide
 from ...utils import ensure_contiguous, is_nvidia_gpu
 from .cuda_implementation import swiglu_backward_cuda, swiglu_forward_cuda
 from .torch_implementation import swiglu_torch
-from .triton_implementation import _swiglu_backward_triton_kernel, _swiglu_forward_triton_kernel
+from .triton_implementation import swiglu_backward_triton, swiglu_forward_triton
 
 
 class _Swiglu_Cute(torch.autograd.Function):
@@ -41,7 +41,7 @@ class _Swiglu_Cute(torch.autograd.Function):
             N = gate.numel()
 
             with torch.cuda.device(gate.device):
-                _swiglu_forward_triton_kernel[ceil_divide(N, BLOCK_SIZE_TRITON_forward),](
+                swiglu_forward_triton[ceil_divide(N, BLOCK_SIZE_TRITON_forward),](
                     gate_ptr=gate,
                     up_ptr=up,
                     output_ptr=output,
@@ -77,7 +77,7 @@ class _Swiglu_Cute(torch.autograd.Function):
             BLOCK_SIZE = ctx.BLOCK_SIZE_TRITON_backward
 
             with torch.cuda.device(gate.device):
-                _swiglu_backward_triton_kernel[ceil_divide(N, BLOCK_SIZE),](
+                swiglu_backward_triton[ceil_divide(N, BLOCK_SIZE),](
                     gate_ptr=gate,
                     up_ptr=up,
                     output_grad_ptr=output_grad,

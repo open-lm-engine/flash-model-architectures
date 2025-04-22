@@ -3,7 +3,7 @@ import torch
 from ...math import ceil_divide
 from ...utils import ensure_contiguous
 from .torch_implementation import embedding_torch
-from .triton_implementation import _embedding_backward_triton_kernel, _embedding_forward_triton_kernel
+from .triton_implementation import embedding_backward_triton, embedding_forward_triton
 
 
 class _Embedding_Cute(torch.autograd.Function):
@@ -24,9 +24,7 @@ class _Embedding_Cute(torch.autograd.Function):
         output = torch.empty(*input_ids.size(), H, dtype=weight.dtype, device=input_ids.device)
 
         with torch.cuda.device(input_ids.device):
-            _embedding_forward_triton_kernel[
-                ceil_divide(B, BLOCK_SIZE_B_forward), ceil_divide(H, BLOCK_SIZE_H_forward)
-            ](
+            embedding_forward_triton[ceil_divide(B, BLOCK_SIZE_B_forward), ceil_divide(H, BLOCK_SIZE_H_forward)](
                 x_ptr=input_ids,
                 weight_ptr=weight,
                 output_ptr=output,
@@ -59,7 +57,7 @@ class _Embedding_Cute(torch.autograd.Function):
             weight_grad = weight_grad.float()
 
         with torch.cuda.device(input_ids.device):
-            _embedding_backward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), ceil_divide(H, BLOCK_SIZE_H)](
+            embedding_backward_triton[ceil_divide(B, BLOCK_SIZE_B), ceil_divide(H, BLOCK_SIZE_H)](
                 x_ptr=input_ids,
                 output_grad_ptr=output_grad,
                 weight_grad_ptr=weight_grad,

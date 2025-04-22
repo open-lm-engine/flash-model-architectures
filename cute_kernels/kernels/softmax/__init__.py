@@ -3,7 +3,7 @@ import torch
 from ...math import ceil_divide
 from ...utils import ensure_contiguous, get_num_elements_and_hidden_size
 from .torch_implementation import softmax_torch
-from .triton_implementation import _softmax_forward_triton_kernel, softmax_backward_triton
+from .triton_implementation import softmax_backward_triton, softmax_forward_triton
 
 
 class _Softmax_Cute(torch.autograd.Function):
@@ -27,7 +27,7 @@ class _Softmax_Cute(torch.autograd.Function):
         output = torch.empty_like(x)
 
         with torch.cuda.device(x.device):
-            _softmax_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B_forward),](
+            softmax_forward_triton[ceil_divide(B, BLOCK_SIZE_B_forward),](
                 x_ptr=x,
                 output_ptr=output,
                 has_logits_multiplier=logits_multiplier is not None,
