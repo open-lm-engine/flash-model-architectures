@@ -11,13 +11,45 @@ using fp32 = ck::fp32;
 using uint32 = ck::uint32;
 using uint64 = ck::uint64;
 
+inline __device__ void _load_seqlens(const uint32 &seqlens, uint32 &seqlens_shared, const uint32 &B) {
+    const uint32 B4 = B >> 2;
+
+    for (uint32 i = threadIdx.x; i < B4; i += blockDim.x) {
+        const uint32 index = i << 2;
+        uint32 *seqlens_loaded = ck_mem::load_128_bits<uint32>(seqlens, i);
+
+        for (uint32 j = 0; j < sizeof(uint32); j++) {
+            seqlens_shared[index + j] = seqlens_loaded[j];
+        }
+    }
+
+    // load first warp to load remaining elements
+    const uint32 index = (B4 << 2) + threadIdx.x;
+    if (index < B) {
+        seqlens_shared[index] = 0;
+    }
+}
+
 template <typename scalar_t, bool has_trailing_elements>
 __global__ void _pack_sequence_cuda_kernel(const scalar_t *x,
                                            scalar_t *output,
-                                           const uint32 *cu_seqlens,
+                                           const uint32 *seqlens,
                                            const uint32 *max_seqlen_tensor,
                                            const uint32 max_seqlen,
-                                           const uint64 num_elements) {
+                                           const uint32 B,
+                                           const uint32 S) {
+    __shared__ uint32 max_seqlen_shared;
+    __shared__ uint32 seqlens_shared[B];
+
+    _load_seqlens(seqlens, seqlens_shared, B);
+
+    // load max_seqlen into shared memory using 1st thread of each threadblock
+    if (threadIdx.x == 0) {
+        max_seqlen_shared = max_seqlen_tensor[0];
+    }
+
+    __syncthreads();
+
     constexpr uint32 num_elements_per_thread = ck_mem::get_num_elements_for_vector_load_stores<scalar_t>();
     constexpr uint32 increment = num_elements_per_thread / 4;
 
@@ -66,7 +98,8 @@ __global__ void _pack_sequence_cuda_kernel(const scalar_t *x,
 void pack_sequence_cuda(const torch::Tensor &x,
                         torch::Tensor &output,
                         const torch::Tensor &cu_seqlens,
-                        torch::Tensor &max_seqlen,
+                        std::optional<const torch::Tensor> &max_seqlen_tensor,
+                        std::optional<const uint32> &max_seqlen,
                         const uint32 &BLOCK_SIZE) {
     CHECK_CUDA_TENSOR(x);
     CHECK_CUDA_TENSOR(output);
@@ -74,6 +107,13 @@ void pack_sequence_cuda(const torch::Tensor &x,
     CHECK_CUDA_TENSOR(max_seqlen);
 
     CHECK_VALID_THREAD_BLOCK(BLOCK_SIZE);
+
+    // only one of the 2 should contain a value
+    if (max_seqlen_tensor.has_value()) {
+        TORCH_CHECK(!max_seqlen.has_value());
+    } else {
+        TORCH_CHECK(max_seqlen.has_value());
+    }
 
     const uint64 total_elements = x.numel();
 
