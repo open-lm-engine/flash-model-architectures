@@ -11,37 +11,39 @@ using fp32 = ck::fp32;
 using uint32 = ck::uint32;
 using uint64 = ck::uint64;
 
-inline __device__ void _load_seqlens(const uint32 &seqlens, uint32 &seqlens_shared, const uint32 &B) {
-    const uint32 B4 = B >> 2;
+template <typename integer_t>
+inline __device__ void _load_cu_seqlens(const integer_t *cu_seqlens, integer_t *cu_seqlens_shared, const uint32 &B) {
+    constexpr uint32 num_elements_per_thread = sizeof(integer_t);
+    const uint32 B4 = B / num_elements_per_thread;
 
     for (uint32 i = threadIdx.x; i < B4; i += blockDim.x) {
-        const uint32 index = i << 2;
-        uint32 *seqlens_loaded = ck_mem::load_128_bits<uint32>(seqlens, i);
+        const uint32 index = i * num_elements_per_thread;
+        uint32 *cu_seqlens_loaded = ck_mem::load_128_bits<integer_t>(cu_seqlens, i);
 
-        for (uint32 j = 0; j < sizeof(uint32); j++) {
-            seqlens_shared[index + j] = seqlens_loaded[j];
+        for (uint32 j = 0; j < num_elements_per_thread; j++) {
+            cu_seqlens_shared[index + j] = cu_seqlens_loaded[j];
         }
     }
 
-    // load first warp to load remaining elements
-    const uint32 index = (B4 << 2) + threadIdx.x;
+    // use first warp to load remaining elements
+    const uint32 index = (B4 * num_elements_per_thread) + threadIdx.x;
     if (index < B) {
-        seqlens_shared[index] = 0;
+        cu_seqlens_shared[index] = cu_seqlens[index];
     }
 }
 
-template <typename scalar_t, bool has_trailing_elements>
+template <typename scalar_t, typename integer_t, bool has_trailing_elements>
 __global__ void _pack_sequence_cuda_kernel(const scalar_t *x,
                                            scalar_t *output,
-                                           const uint32 *seqlens,
+                                           const uint32 *cu_seqlens,
                                            const uint32 *max_seqlen_tensor,
                                            const uint32 max_seqlen,
                                            const uint32 B,
                                            const uint32 S) {
-    __shared__ uint32 max_seqlen_shared;
-    __shared__ uint32 seqlens_shared[B];
+    __shared__ integer_t max_seqlen_shared;
+    __shared__ integer_t cu_seqlens_shared[B];
 
-    _load_seqlens(seqlens, seqlens_shared, B);
+    _load_cu_seqlens<integer_t>(cu_seqlens, cu_seqlens_shared, B);
 
     // load max_seqlen into shared memory using 1st thread of each threadblock
     if (threadIdx.x == 0) {
@@ -49,50 +51,6 @@ __global__ void _pack_sequence_cuda_kernel(const scalar_t *x,
     }
 
     __syncthreads();
-
-    constexpr uint32 num_elements_per_thread = ck_mem::get_num_elements_for_vector_load_stores<scalar_t>();
-    constexpr uint32 increment = num_elements_per_thread / 4;
-
-    const uint32 thread_id = blockIdx.x * blockDim.x + threadIdx.x;
-    const uint32 num_vector_elements = num_elements / num_elements_per_thread;
-
-    if (thread_id < num_vector_elements) {
-        const scalar_t *x_vec = ck_mem::load_128_bits<const scalar_t>(x, thread_id);
-        const scalar_t *y_vec = ck_mem::load_128_bits<const scalar_t>(y, thread_id);
-        scalar_t output_buffer[num_elements_per_thread];
-
-        for (uint32 i = 0; i < num_elements_per_thread; i += increment) {
-            if constexpr (std::is_same_v<scalar_t, fp32>) {
-                output_buffer[i] = x_vec[i] + y_vec[i];
-            } else {
-                using dtype = ck::DType<scalar_t>;
-                using T2 = typename dtype::nv_dtype2;
-
-                const uint32 i1 = i + 1;
-                T2 x2 = dtype::make2(x_vec[i], x_vec[i1]);
-                T2 y2 = dtype::make2(y_vec[i], y_vec[i1]);
-                x2 = __hadd2(x2, y2);
-
-                output_buffer[i] = x2.x;
-                output_buffer[i1] = x2.y;
-            }
-        }
-
-        ck_mem::store_128_bits<scalar_t>(output_buffer, output, thread_id);
-    }
-
-    if (has_trailing_elements) {
-        const uint32 warp_id = thread_id >> LOG_WARP_SIZE;
-        const uint32 num_warps = (gridDim.x * blockDim.x) >> LOG_WARP_SIZE;
-        const bool is_last_warp = warp_id == num_warps - 1;
-
-        if (is_last_warp) {
-            const uint32 index = num_vector_elements * num_elements_per_thread + (threadIdx.x % WARP_SIZE);
-            if (index < num_elements) {
-                output[index] = x[index] + y[index];
-            }
-        }
-    }
 }
 
 void pack_sequence_cuda(const torch::Tensor &x,
@@ -143,12 +101,12 @@ void pack_sequence_cuda(const torch::Tensor &x,
                     const uint32 NUM_WARPS = ck::ceil_divide<uint64>(num_elements, num_elements_per_warp) + 1;
                     const uint32 NUM_BLOCKS = ck::ceil_divide<uint64>(NUM_WARPS, num_warps_per_block);
 
-                    _pack_sequence_cuda_kernel<scalar_t, true>
+                    _pack_sequence_cuda_kernel<scalar_t, uint32, true>
                         <<<NUM_BLOCKS, BLOCK_SIZE>>>(x_chunk.array, y_chunk.array, output_chunk.array, num_elements);
                 } else {
                     const uint32 NUM_BLOCKS = ck::ceil_divide<uint64>(num_elements, num_elements_per_block);
 
-                    _pack_sequence_cuda_kernel<scalar_t, false>
+                    _pack_sequence_cuda_kernel<scalar_t, uint32, false>
                         <<<NUM_BLOCKS, BLOCK_SIZE>>>(x_chunk.array, y_chunk.array, output_chunk.array, num_elements);
                 }
             }
