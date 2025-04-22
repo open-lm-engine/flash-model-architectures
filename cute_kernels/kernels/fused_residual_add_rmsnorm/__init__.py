@@ -5,8 +5,8 @@ from ...math import ceil_divide, get_next_power_of_2
 from ...utils import ensure_contiguous, get_num_elements_and_hidden_size, get_sm_count
 from .torch_implementation import fused_residual_add_rmsnorm_torch
 from .triton_implementation import (
-    _fused_residual_add_rmsnorm_backward_triton_kernel,
-    _fused_residual_add_rmsnorm_forward_triton_kernel,
+    fused_residual_add_rmsnorm_backward_triton,
+    fused_residual_add_rmsnorm_forward_triton,
 )
 
 
@@ -41,7 +41,7 @@ class _FusedResidualAddRMSNorm_Cute(torch.autograd.Function):
         rmsnorm_denominator = None if memory_efficient else torch.empty(B, device=x.device, dtype=torch.float32)
 
         with torch.cuda.device(x.device):
-            _fused_residual_add_rmsnorm_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B_forward),](
+            fused_residual_add_rmsnorm_forward_triton[ceil_divide(B, BLOCK_SIZE_B_forward),](
                 x_ptr=x,
                 residual_ptr=residual,
                 has_weight=weight is not None,
@@ -83,7 +83,7 @@ class _FusedResidualAddRMSNorm_Cute(torch.autograd.Function):
         num_programs = min(sm_count, ceil_divide(B, BLOCK_SIZE_B))
 
         with torch.cuda.device(added_x_residual.device):
-            _fused_residual_add_rmsnorm_backward_triton_kernel[num_programs,](
+            fused_residual_add_rmsnorm_backward_triton[num_programs,](
                 added_x_residual_ptr=added_x_residual,
                 has_weight=weight is not None,
                 weight_ptr=weight,

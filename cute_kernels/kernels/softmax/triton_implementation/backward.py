@@ -94,7 +94,7 @@ def softmax_backward_triton(
     num_elements, hidden_size = get_num_elements_and_hidden_size(x_grad)
 
     with torch.device(x_grad.device):
-        _softmax_backward_triton_kernel[(ceil_divide(num_elements, BLOCK_SIZE_B),)](
+        _softmax_backward_triton_kernel[ceil_divide(num_elements, BLOCK_SIZE_B),](
             output_ptr=output,
             output_grad_ptr=output_grad,
             x_grad_ptr=x_grad,

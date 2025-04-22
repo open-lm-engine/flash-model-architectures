@@ -3,7 +3,7 @@ import triton.language as tl
 
 
 @triton.jit
-def _gemm_triton_kernel(
+def gemm_triton(
     A_ptr,
     B_ptr,
     C_ptr,

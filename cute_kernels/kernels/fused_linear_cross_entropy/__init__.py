@@ -2,7 +2,7 @@ import torch
 
 from ...math import ceil_divide, get_next_power_of_2
 from ...utils import ensure_contiguous
-from ..cross_entropy import _cross_entropy_forward_backward_triton_kernel
+from ..cross_entropy import cross_entropy_forward_backward_triton
 from .torch_implementation import fused_linear_cross_entropy_torch
 
 
@@ -51,7 +51,7 @@ class _FusedLinearCrossEntropy_Cute(torch.autograd.Function):
             _labels = labels[start:end].contiguous()
 
             with torch.cuda.device(x.device):
-                _cross_entropy_forward_backward_triton_kernel[ceil_divide(_logits.size(0), BLOCK_SIZE_B),](
+                cross_entropy_forward_backward_triton[ceil_divide(_logits.size(0), BLOCK_SIZE_B),](
                     x_ptr=_logits,
                     labels_ptr=_labels,
                     loss_ptr=loss,

@@ -5,9 +5,7 @@ from ....triton_math import sigmoid
 
 
 @triton.jit
-def _swiglu_backward_triton_kernel(
-    gate_ptr, up_ptr, output_grad_ptr, gate_grad_ptr, up_grad_ptr, N, BLOCK_SIZE: tl.constexpr
-):
+def swiglu_backward_triton(gate_ptr, up_ptr, output_grad_ptr, gate_grad_ptr, up_grad_ptr, N, BLOCK_SIZE: tl.constexpr):
     pid = tl.program_id(axis=0)
 
     indices = pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)

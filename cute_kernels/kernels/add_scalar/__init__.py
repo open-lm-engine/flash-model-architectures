@@ -5,7 +5,7 @@ from ...math import ceil_divide
 from ...utils import is_nvidia_gpu
 from .cuda_implementation import add_scalar_cuda
 from .torch_implementation import add_scalar_torch
-from .triton_implementation import _add_scalar_triton_kernel
+from .triton_implementation import add_scalar_triton
 
 
 class _AddScalar_Cute(torch.autograd.Function):
@@ -27,7 +27,7 @@ class _AddScalar_Cute(torch.autograd.Function):
             N = x.numel()
 
             with torch.cuda.device(x.device):
-                _add_scalar_triton_kernel[ceil_divide(N, BLOCK_SIZE_TRITON),](
+                add_scalar_triton[ceil_divide(N, BLOCK_SIZE_TRITON),](
                     x_ptr=x, y=y, output_ptr=output, N=N, BLOCK_SIZE=BLOCK_SIZE_TRITON, num_warps=NUM_WARPS_TRITON
                 )
         else:
