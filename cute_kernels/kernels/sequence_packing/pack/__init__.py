@@ -18,9 +18,8 @@ class _PackSequence_Cute(torch.autograd.Function):
 
         seqlens = cu_seqlens[1:] - cu_seqlens[:-1]
         B = x.size(0)
-        dims = x.size()[1:]
 
-        output = torch.empty_like(cu_seqlens[-1], *dims, device=x.device, dtype=x.dtype)
+        output = torch.empty_like(cu_seqlens[-1], *x.size()[1:], device=x.device, dtype=x.dtype)
         is_max_seqlen_tensor = isinstance(max_seqlen, torch.Tensor)
 
         pack_sequence_cuda(
