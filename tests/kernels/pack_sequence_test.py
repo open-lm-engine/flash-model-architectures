@@ -15,7 +15,6 @@ class PackSequenceTest(TestCommons):
             [[0, 70, 170, 295, 393, 412, 515, 691]],  # cu_seqlens
             [torch.device("cuda")],  # device
             TestCommons.get_dtypes(),  # dtype
-            [KernelBackend.cuda, KernelBackend.triton],  # kernel_backend
             [pack_sequence_cute],  # , torch.compile(pack_sequence_cute, fullgraph=True)],  # function
         )
     )
@@ -25,7 +24,6 @@ class PackSequenceTest(TestCommons):
         cu_seqlens: list[int],
         device: torch.device,
         dtype: torch.dtype,
-        kernel_backend: KernelBackend,
         function: Callable,
     ) -> None:
         x_kernel, x_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype)
