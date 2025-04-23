@@ -15,7 +15,6 @@ _CPP_MODULE_PREFIX = "cute_kernels"
 _CPP_BUILD_DIRECTORY = "build"
 _CPP_FUNCTIONS = {}
 _CPP_REGISTRY_YAML = yaml.safe_load(open(os.path.join(os.path.dirname(__file__), "cpp_registry.yml"), "r"))
-_BUILD_ON_EVERY_NODE = get_boolean_env_variable("BUILD_ON_EVERY_NODE", True)
 
 
 @torch._dynamo.disable
