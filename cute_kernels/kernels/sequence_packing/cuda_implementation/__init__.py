@@ -14,7 +14,8 @@ def pack_sequence_cuda(
     x: torch.Tensor,
     output: torch.Tensor,
     cu_seqlens: torch.Tensor,
-    max_seqlen_tensor: torch.Tensor,
-    max_seqlen: int,
+    max_seqlen_tensor: torch.Tensor | None,
+    max_seqlen: int | None,
+    padding_side: str,
     BLOCK_SIZE: int,
 ) -> None: ...

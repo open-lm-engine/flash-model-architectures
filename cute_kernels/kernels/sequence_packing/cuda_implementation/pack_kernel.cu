@@ -32,7 +32,7 @@ inline __device__ void _load_cu_seqlens(const integer_t *cu_seqlens, integer_t *
     }
 }
 
-template <typename scalar_t, typename integer_t>
+template <typename scalar_t, typename integer_t, bool is_max_seqlen_tensor>
 __global__ void _pack_sequence_cuda_kernel(const scalar_t *x,
                                            scalar_t *output,
                                            const uint32 *cu_seqlens,
@@ -41,13 +41,17 @@ __global__ void _pack_sequence_cuda_kernel(const scalar_t *x,
                                            const uint32 B,
                                            const uint32 S) {
     __shared__ integer_t max_seqlen_shared;
-    __shared__ integer_t cu_seqlens_shared[B];
+    integer_t *cu_seqlens_shared = ck_mem::get_dynamic_shared_memory<integer_t>();
 
-    _load_cu_seqlens<integer_t>(cu_seqlens, cu_seqlens_shared, B);
+    // _load_cu_seqlens<integer_t>(cu_seqlens, cu_seqlens_shared, B);
 
     // load max_seqlen into shared memory using 1st thread of each threadblock
     if (threadIdx.x == 0) {
-        max_seqlen_shared = max_seqlen_tensor[0];
+        if (is_max_seqlen_tensor) {
+            max_seqlen_shared = max_seqlen_tensor[0];
+        } else {
+            max_seqlen_shared = max_seqlen;
+        }
     }
 
     __syncthreads();
@@ -58,12 +62,11 @@ void pack_sequence_cuda(const torch::Tensor &x,
                         const torch::Tensor &cu_seqlens,
                         const std::optional<torch::Tensor> &max_seqlen_tensor,
                         const std::optional<uint32> &max_seqlen,
-                        const string &padding_side,
+                        const std::string &padding_side,
                         const uint32 &BLOCK_SIZE) {
     CHECK_CUDA_TENSOR(x);
     CHECK_CUDA_TENSOR(output);
     CHECK_CUDA_TENSOR(cu_seqlens);
-    CHECK_CUDA_TENSOR(max_seqlen_tensor);
 
     CHECK_VALID_THREAD_BLOCK(BLOCK_SIZE);
 
@@ -71,10 +74,14 @@ void pack_sequence_cuda(const torch::Tensor &x,
 
     // only one of the 2 should contain a value
     if (max_seqlen_tensor.has_value()) {
+        CHECK_CUDA_TENSOR(max_seqlen_tensor.value());
         TORCH_CHECK(!max_seqlen.has_value());
     } else {
         TORCH_CHECK(max_seqlen.has_value());
     }
+
+    const uint32 B = x.size(0);
+    const uint32 S = x.size(1);
 
     const uint64 num_elements = x.numel();
     // FIXME check this value
@@ -88,14 +95,26 @@ void pack_sequence_cuda(const torch::Tensor &x,
             TORCH_CHECK(num_elements % num_elements_per_thread == 0);
 
             const uint32 NUM_BLOCKS = ck::ceil_divide<uint64>(num_elements, num_elements_per_block);
+            const uint32 shared_memory_size = (cu_seqlens.numel() + 1) * sizeof(uint32);
 
-            _pack_sequence_cuda_kernel<scalar_t, uint32><<<NUM_BLOCKS, BLOCK_SIZE>>>(
-                x.data_ptr<scalar_t>(),
-                output.data_ptr<scalar_t>(),
-                cu_seqlens.data_ptr<uint32>(),
-                max_seqlen_tensor.has_value() ? max_seqlen_tensor.value().data_ptr<uint32>() : nullptr,
-                max_seqlen.has_value() ? max_seqlen.value() : nullptr,
-                B,
-                S);
+            if (max_seqlen_tensor.has_value()) {
+                _pack_sequence_cuda_kernel<scalar_t, uint32, true>
+                    <<<NUM_BLOCKS, BLOCK_SIZE, shared_memory_size>>>(x.data_ptr<scalar_t>(),
+                                                                     output.data_ptr<scalar_t>(),
+                                                                     cu_seqlens.data_ptr<uint32>(),
+                                                                     max_seqlen_tensor.value().data_ptr<uint32>(),
+                                                                     0,
+                                                                     B,
+                                                                     S);
+            } else {
+                _pack_sequence_cuda_kernel<scalar_t, uint32, false>
+                    <<<NUM_BLOCKS, BLOCK_SIZE, shared_memory_size>>>(x.data_ptr<scalar_t>(),
+                                                                     output.data_ptr<scalar_t>(),
+                                                                     cu_seqlens.data_ptr<uint32>(),
+                                                                     nullptr,
+                                                                     max_seqlen.value(),
+                                                                     B,
+                                                                     S);
+            }
         }));
 }

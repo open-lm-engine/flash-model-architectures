@@ -45,5 +45,5 @@
     - pack_sequence_cuda
   sources:
     - kernels/sequence_packing/cuda_implementation/ops.cpp
-    - kernels/sequence_packing/cuda_implementation/pack_kernel.cpp
+    - kernels/sequence_packing/cuda_implementation/pack_kernel.cu
   build_path: sequence_packing

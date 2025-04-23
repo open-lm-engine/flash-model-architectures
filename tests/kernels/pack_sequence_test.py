@@ -14,9 +14,9 @@ class PackSequenceTest(TestCommons):
             [(7, 1000, 12, 14)],  # size
             [[0, 70, 170, 295, 393, 412, 515, 691]],  # cu_seqlens
             [torch.device("cuda")],  # device
-            [TestCommons.get_dtypes()],  # dtype
+            TestCommons.get_dtypes(),  # dtype
             [KernelBackend.cuda, KernelBackend.triton],  # kernel_backend
-            [pack_sequence_cute, torch.compile(pack_sequence_cute, fullgraph=True)],  # function
+            [pack_sequence_cute],  # , torch.compile(pack_sequence_cute, fullgraph=True)],  # function
         )
     )
     def test_pack_sequence(
@@ -29,10 +29,11 @@ class PackSequenceTest(TestCommons):
         function: Callable,
     ) -> None:
         x_kernel, x_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype)
-        cu_seqlens = torch.tensor(cu_seqlens, device=device)
-        max_seqlen = (cu_seqlens[1:] - cu_seqlens[:-1]).max()
+        cu_seqlens = torch.tensor(cu_seqlens, device=device, dtype=torch.uint32)
+        max_seqlen = (cu_seqlens.to(torch.int)[1:] - cu_seqlens.to(torch.int)[:-1]).max().to(torch.uint32)
 
         z_kernel = function(x_kernel, cu_seqlens, max_seqlen)
-        z_expected = pack_sequence_torch(x_expected, cu_seqlens, max_seqlen)
+        assert False
+        # z_expected = pack_sequence_torch(x_expected, cu_seqlens, max_seqlen)
 
-        self.assert_equal_tensors(z_kernel, z_expected, True)
+        # self.assert_equal_tensors(z_kernel, z_expected, True)
