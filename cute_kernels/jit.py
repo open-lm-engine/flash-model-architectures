@@ -19,70 +19,67 @@ _BUILD_ON_EVERY_NODE = get_boolean_env_variable("BUILD_ON_EVERY_NODE", True)
 
 
 @torch._dynamo.disable
-def compile_cpp(name: str) -> None:
-    function_map = []
-    all_functions = []
-    source_map = []
-    build_directories = []
-    for module in _CPP_REGISTRY_YAML:
-        function_map.append(module["functions"])
-        all_functions.extend(module["functions"])
-        source_map.append([os.path.join(os.path.dirname(__file__), source) for source in module["sources"]])
-        build_directories.append(module["build_path"])
-
-    assert len(all_functions) == len(set(all_functions)), "function names are not unique"
-
-    # find which files the function belongs to
-    for index, (functions, build_directory) in enumerate(zip(function_map, build_directories)):
-        if name in functions:
-            break
-
-    full_build_path = os.path.join(_CPP_BUILD_DIRECTORY, build_directory)
-    os.makedirs(full_build_path, exist_ok=True)
-
-    if _BUILD_ON_EVERY_NODE:
-        is_first_rank = torch.cuda.current_device() == 0
-    else:
-        is_first_rank = not torch.distributed.is_initialized() or torch.distributed.get_rank() == 0
-
-    if is_first_rank:
-        module = load_cpp_extension(
-            f"{_CPP_MODULE_PREFIX}_{build_directory}",
-            sources=source_map[index],
-            with_cuda=True,
-            extra_cflags=[
-                "-O3",
-                "-Wall",
-                "-shared",
-                "-fPIC",
-                "-fdiagnostics-color",
-            ],
-            extra_cuda_cflags=["-lineinfo"],
-            extra_include_paths=[
-                os.path.dirname(__file__),
-                os.path.dirname(os.path.dirname(__file__)) + "/cutlass/include",
-                os.path.dirname(os.path.dirname(__file__)) + "/cutlass/tools/util/include",
-            ],
-            build_directory=full_build_path,
-            verbose=True,
-        )
-
-    torch.distributed.barrier()
-
-    if not is_first_rank:
-        module = importlib.import_module(f"{_CPP_MODULE_PREFIX}_{build_directory}")
-
-    # populate all functions from the file
-    for function in function_map[index]:
-        _CPP_FUNCTIONS[function] = getattr(module, function)
-
-
 def get_cpp_function(name: str) -> Callable:
     function = _CPP_FUNCTIONS.get(name, None)
 
     # if kernel is compiled, we return the torch op since its compatible with torch compile
     if function is None:
-        compile_cpp(name)
+        function_map = []
+        all_functions = []
+        source_map = []
+        build_directories = []
+        for module in _CPP_REGISTRY_YAML:
+            function_map.append(module["functions"])
+            all_functions.extend(module["functions"])
+            source_map.append([os.path.join(os.path.dirname(__file__), source) for source in module["sources"]])
+            build_directories.append(module["build_path"])
+
+        assert len(all_functions) == len(set(all_functions)), "function names are not unique"
+
+        # find which files the function belongs to
+        for index, (functions, build_directory) in enumerate(zip(function_map, build_directories)):
+            if name in functions:
+                break
+
+        full_build_path = os.path.join(_CPP_BUILD_DIRECTORY, build_directory)
+        os.makedirs(full_build_path, exist_ok=True)
+
+        if _BUILD_ON_EVERY_NODE:
+            is_first_rank = torch.cuda.current_device() == 0
+        else:
+            is_first_rank = not torch.distributed.is_initialized() or torch.distributed.get_rank() == 0
+
+        if is_first_rank:
+            module = load_cpp_extension(
+                f"{_CPP_MODULE_PREFIX}_{build_directory}",
+                sources=source_map[index],
+                with_cuda=True,
+                extra_cflags=[
+                    "-O3",
+                    "-Wall",
+                    "-shared",
+                    "-fPIC",
+                    "-fdiagnostics-color",
+                ],
+                extra_cuda_cflags=["-lineinfo"],
+                extra_include_paths=[
+                    os.path.dirname(__file__),
+                    os.path.dirname(os.path.dirname(__file__)) + "/cutlass/include",
+                    os.path.dirname(os.path.dirname(__file__)) + "/cutlass/tools/util/include",
+                ],
+                build_directory=full_build_path,
+                verbose=True,
+            )
+
+        torch.distributed.barrier()
+
+        if not is_first_rank:
+            module = importlib.import_module(f"{_CPP_MODULE_PREFIX}_{build_directory}")
+
+        # populate all functions from the file
+        for function in function_map[index]:
+            _CPP_FUNCTIONS[function] = getattr(module, function)
+
         function = get_cpp_function(name)
 
     return function
