@@ -15,6 +15,7 @@ _CPP_MODULE_PREFIX = "cute_kernels"
 _CPP_BUILD_DIRECTORY = "build"
 _CPP_FUNCTIONS = {}
 _CPP_REGISTRY_YAML = yaml.safe_load(open(os.path.join(os.path.dirname(__file__), "cpp_registry.yml"), "r"))
+_GLOBAL_RANK = int(os.getenv("RANK", 0))
 
 
 @torch._dynamo.disable
@@ -45,7 +46,7 @@ def get_cpp_function(name: str) -> Callable:
 
         module_name = f"{_CPP_MODULE_PREFIX}_{build_directory}"
 
-        if not torch.distributed.is_initialized() or torch.distributed.get_rank() == 0:
+        if _GLOBAL_RANK == 0:
             module = load_cpp_extension(
                 module_name,
                 sources=source_map[index],
