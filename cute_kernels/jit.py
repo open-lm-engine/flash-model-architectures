@@ -44,14 +44,11 @@ def get_cpp_function(name: str) -> Callable:
         full_build_path = os.path.join(_CPP_BUILD_DIRECTORY, build_directory)
         os.makedirs(full_build_path, exist_ok=True)
 
-        if _BUILD_ON_EVERY_NODE:
-            is_first_rank = torch.cuda.current_device() == 0
-        else:
-            is_first_rank = not torch.distributed.is_initialized() or torch.distributed.get_rank() == 0
+        module_name = f"{_CPP_MODULE_PREFIX}_{build_directory}"
 
-        if is_first_rank:
+        if not torch.distributed.is_initialized() or torch.distributed.get_rank() == 0:
             module = load_cpp_extension(
-                f"{_CPP_MODULE_PREFIX}_{build_directory}",
+                module_name,
                 sources=source_map[index],
                 with_cuda=True,
                 extra_cflags=[
@@ -71,16 +68,15 @@ def get_cpp_function(name: str) -> Callable:
                 verbose=True,
             )
 
-        torch.distributed.barrier()
-
-        if not is_first_rank:
-            module = importlib.import_module(f"{_CPP_MODULE_PREFIX}_{build_directory}")
+        if torch.distributed.is_initialized():
+            torch.distributed.barrier()
+            module = importlib.import_module(module_name)
 
         # populate all functions from the file
         for function in function_map[index]:
             _CPP_FUNCTIONS[function] = getattr(module, function)
 
-        function = get_cpp_function(name)
+        function = _CPP_FUNCTIONS[name]
 
     return function
 
