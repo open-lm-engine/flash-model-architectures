@@ -90,8 +90,9 @@ def cpp_jit(function_name: str) -> Callable:
         return cpp_function(*full_args)
 
     def inner(function: Callable) -> Callable:
-        _run.__signature__ = inspect.signature(function)
+        _run.__doc__ = function.__doc__
         _run.__name__ = function.__name__
+        _run.__signature__ = inspect.signature(function)
 
         nonlocal args_spec
         args_spec = inspect.getfullargspec(function)
