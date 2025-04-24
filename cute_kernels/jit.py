@@ -50,6 +50,7 @@ def cpp_jit(
     function_name: str | None = None, extra_source_files: list[str] = [], build_directory: str | None = None
 ) -> Callable:
     cpp_function = None
+    args_spec = None
 
     source_files = []
     source_files.extend(extra_source_files)
@@ -71,9 +72,17 @@ def cpp_jit(
         if cpp_function is None:
             cpp_function = _get_cpp_function(_run.__name__, source_files, build_directory)
 
-        return cpp_function(*args, **kwargs)
+        full_args = []
+        full_args.extend(args)
+        for variable_name in args_spec.args[len(args) :]:
+            full_args.append(kwargs[variable_name])
+
+        return cpp_function(*full_args)
 
     def _wrapper(function: Callable) -> Callable:
+        nonlocal args_spec
+        args_spec = inspect.getfullargspec(function)
+
         _run.__doc__ = function.__doc__
         _run.__name__ = function.__name__ if function_name is None else function_name
         _run.__signature__ = inspect.signature(function)
