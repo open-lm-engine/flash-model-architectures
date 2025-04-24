@@ -48,9 +48,19 @@ def get_cpp_function(
     return getattr(module, function_name)
 
 
-def cpp_jit(function_name: str | None = None, source_files: list[str] | None = None) -> Callable:
+def cpp_jit(function_name: str | None = None, extra_source_files: list[str] = []) -> Callable:
     cpp_function = None
-    args_spec = None
+
+    source_files = []
+    source_files.extend(extra_source_files)
+
+    calling_filename = inspect.stack()[1].filename
+    calling_directory = os.path.dirname(calling_filename)
+
+    for dirname, _q, filenames in os.walk(calling_directory):
+        filenames = [os.path.join(dirname, f) for f in filenames]
+        filenames = filter(lambda f: os.path.splitext(f)[1] in [".cu", ".cpp"], filenames)
+        source_files.extend(filenames)
 
     def _run(*args, **kwargs):
         nonlocal cpp_function
@@ -58,20 +68,12 @@ def cpp_jit(function_name: str | None = None, source_files: list[str] | None = N
         if cpp_function is None:
             cpp_function = get_cpp_function(_run.__name__, source_files)
 
-        full_args = []
-        full_args.extend(args)
-        for variable_name in args_spec.args[len(args) :]:
-            full_args.append(kwargs[variable_name])
-
-        return cpp_function(*full_args)
+        return cpp_function(*args, **kwargs)
 
     def _wrapper(function: Callable) -> Callable:
         _run.__doc__ = function.__doc__
         _run.__name__ = function.__name__ if function_name is None else function_name
         _run.__signature__ = inspect.signature(function)
-
-        nonlocal args_spec
-        args_spec = inspect.getfullargspec(function)
 
         return _run
 
