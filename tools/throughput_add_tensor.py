@@ -1,18 +1,7 @@
 import torch
 from tabulate import tabulate
 
-from cute_kernels import (
-    KernelBackend,
-    add_tensor_cute,
-    add_tensor_torch,
-    device_synchronize,
-    enable_kernel_backend,
-    get_ptx_from_triton_kernel,
-)
-from cute_kernels.kernels.add_tensor import _add_tensor_triton_kernel
-
-
-enable_kernel_backend(KernelBackend.triton).__enter__()
+from cute_kernels import add_tensor_cute, add_tensor_torch, device_synchronize
 
 
 n = 100
@@ -46,5 +35,3 @@ for dtype in [torch.float32]:
 
 
 print(tabulate(table, headers=headers))
-
-get_ptx_from_triton_kernel(_add_tensor_triton_kernel, "tmp")
