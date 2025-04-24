@@ -15,7 +15,7 @@ _GLOBAL_RANK = int(os.getenv("RANK", 0))
 @torch._dynamo.disable
 def _get_cpp_function(function_name: str, source_files: list[str], build_directory: str) -> Callable:
     os.makedirs(build_directory, exist_ok=True)
-    module_name = f"{_CPP_MODULE_PREFIX}_{build_directory}"
+    module_name = f"{_CPP_MODULE_PREFIX}_{function_name}"
 
     if _GLOBAL_RANK == 0:
         module = load_cpp_extension(
