@@ -9,6 +9,7 @@ from torch.utils.cpp_extension import load as load_cpp_extension
 
 
 _CPP_MODULE_PREFIX = "cute_kernels"
+_GLOBAL_RANK = int(os.getenv("RANK", 0))
 
 
 @torch._dynamo.disable
@@ -34,7 +35,7 @@ def _get_cpp_function(function_name: str, source_files: list[str], build_directo
             os.path.dirname(os.path.dirname(__file__)) + "/cutlass/tools/util/include",  # cutlass
         ],
         build_directory=build_directory,
-        verbose=True,
+        verbose=_GLOBAL_RANK == 0,
     )
 
     rmtree(build_directory)
