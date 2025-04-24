@@ -57,7 +57,7 @@ def cpp_jit(function_name: str | None = None, extra_source_files: list[str] = []
     calling_filename = inspect.stack()[1].filename
     calling_directory = os.path.dirname(calling_filename)
 
-    for dirname, _q, filenames in os.walk(calling_directory):
+    for dirname, _, filenames in os.walk(calling_directory):
         filenames = [os.path.join(dirname, f) for f in filenames]
         filenames = filter(lambda f: os.path.splitext(f)[1] in [".cu", ".cpp"], filenames)
         source_files.extend(filenames)
