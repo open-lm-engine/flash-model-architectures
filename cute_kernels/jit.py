@@ -1,16 +1,14 @@
-import importlib
 import inspect
 import os
+from shutil import rmtree
 from typing import Callable
 from uuid import uuid4
 
 import torch
-import torch.distributed
 from torch.utils.cpp_extension import load as load_cpp_extension
 
 
 _CPP_MODULE_PREFIX = "cute_kernels"
-_GLOBAL_RANK = int(os.getenv("RANK", 0))
 
 
 @torch._dynamo.disable
@@ -39,7 +37,7 @@ def _get_cpp_function(function_name: str, source_files: list[str], build_directo
         verbose=True,
     )
 
-    os.rmdir(build_directory)
+    rmtree(build_directory)
 
     return getattr(module, function_name)
 
