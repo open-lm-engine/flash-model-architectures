@@ -2,6 +2,7 @@ import importlib
 import inspect
 import os
 from typing import Callable
+from uuid import uuid4
 
 import torch
 import torch.distributed
@@ -17,31 +18,28 @@ def _get_cpp_function(function_name: str, source_files: list[str], build_directo
     os.makedirs(build_directory, exist_ok=True)
     module_name = f"{_CPP_MODULE_PREFIX}_{function_name}"
 
-    if _GLOBAL_RANK == 0:
-        module = load_cpp_extension(
-            module_name,
-            sources=source_files,
-            with_cuda=True,
-            extra_cflags=[
-                "-O3",
-                "-Wall",
-                "-shared",
-                "-fPIC",
-                "-fdiagnostics-color",
-            ],
-            extra_cuda_cflags=["-lineinfo"],
-            extra_include_paths=[
-                os.path.dirname(__file__),  # cute_kernels/include
-                os.path.dirname(os.path.dirname(__file__)) + "/cutlass/include",  # cutlass
-                os.path.dirname(os.path.dirname(__file__)) + "/cutlass/tools/util/include",  # cutlass
-            ],
-            build_directory=build_directory,
-            verbose=True,
-        )
+    module = load_cpp_extension(
+        module_name,
+        sources=source_files,
+        with_cuda=True,
+        extra_cflags=[
+            "-O3",
+            "-Wall",
+            "-shared",
+            "-fPIC",
+            "-fdiagnostics-color",
+        ],
+        extra_cuda_cflags=["-lineinfo"],
+        extra_include_paths=[
+            os.path.dirname(__file__),  # cute_kernels/include
+            os.path.dirname(os.path.dirname(__file__)) + "/cutlass/include",  # cutlass
+            os.path.dirname(os.path.dirname(__file__)) + "/cutlass/tools/util/include",  # cutlass
+        ],
+        build_directory=build_directory,
+        verbose=True,
+    )
 
-    if torch.distributed.is_initialized():
-        torch.distributed.barrier()
-        module = importlib.import_module(module_name)
+    os.rmdir(build_directory)
 
     return getattr(module, function_name)
 
@@ -64,7 +62,7 @@ def cpp_jit(
         source_files.extend(filenames)
 
     if build_directory is None:
-        build_directory = os.path.join(os.path.dirname(os.path.dirname(__file__)), "build")
+        build_directory = os.path.join(os.path.dirname(os.path.dirname(__file__)), "build", str(uuid4()))
 
     def _run(*args, **kwargs):
         nonlocal cpp_function
