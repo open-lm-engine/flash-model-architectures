@@ -1,7 +1,7 @@
 import torch
 from tabulate import tabulate
 
-from cute_kernels import add_tensor_cute, add_tensor_torch, device_synchronize, get_ptx_from_triton_kernel
+from cute_kernels import add_tensor_cute, add_tensor_torch, device_synchronize
 
 
 n = 100
