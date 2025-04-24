@@ -12,7 +12,7 @@ _CUTLASS_TENSORCORE_MMA_KERNEL_NAME = "cutlass_tensorcore_mma_gemm_cuda"
 
 
 @cute_op(f"{LIBRARY_NAME}::{_NAIVE_KERNEL_NAME}", mutates_args={"output"})
-@cpp_jit(_NAIVE_KERNEL_NAME)
+@cpp_jit()
 def naive_gemm_cuda(
     A: torch.Tensor,
     B: torch.Tensor,
@@ -31,7 +31,7 @@ def naive_gemm_cuda(
 
 
 @cute_op(f"{LIBRARY_NAME}::{_SHARED_MEMORY_KERNEL_NAME}", mutates_args={"output"})
-@cpp_jit(_SHARED_MEMORY_KERNEL_NAME)
+@cpp_jit()
 def shared_memory_gemm_cuda(
     A: torch.Tensor,
     B: torch.Tensor,
@@ -49,7 +49,7 @@ def shared_memory_gemm_cuda(
 
 
 @cute_op(f"{LIBRARY_NAME}::{_CUTLASS_KERNEL_NAME}", mutates_args={"output"})
-@cpp_jit(_CUTLASS_KERNEL_NAME)
+@cpp_jit()
 def cutlass_gemm_cuda(
     A: torch.Tensor,
     B: torch.Tensor,
@@ -66,7 +66,7 @@ def cutlass_gemm_cuda(
 
 
 @cute_op(f"{LIBRARY_NAME}::{_CUTLASS_TENSORCORE_MMA_KERNEL_NAME}", mutates_args={"output"})
-@cpp_jit(_CUTLASS_TENSORCORE_MMA_KERNEL_NAME)
+@cpp_jit()
 def cutlass_tensorcore_mma_gemm_cuda(
     A: torch.Tensor,
     B: torch.Tensor,
