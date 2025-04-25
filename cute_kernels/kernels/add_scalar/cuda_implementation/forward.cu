@@ -63,17 +63,17 @@ void add_scalar_cuda(const torch::Tensor &x, const fp32 &y, torch::Tensor &outpu
                 ck::ChunkedArray<scalar_t> output_chunk = output_chunks[i];
 
                 const uint64 N = x_chunk.num_elements;
-
                 const uint32 N_per_thread = ck_mem::get_num_elements_for_vector_load_stores<scalar_t>();
                 const uint32 N_per_block = BLOCK_SIZE * N_per_thread;
 
                 const bool has_trailing_elements = (i == x_chunks.size() - 1) && (N % N_per_thread != 0);
 
                 if (has_trailing_elements) {
-                    const uint32 N_per_warp = N_per_thread << LOG_WARP_SIZE;
-                    const uint32 num_warps_per_block = BLOCK_SIZE >> LOG_WARP_SIZE;
                     // 1 extra warp to avoid thread divergence
+                    const uint32 N_per_warp = N_per_thread << LOG_WARP_SIZE;
                     const uint32 NUM_WARPS = ck::ceil_divide<uint64>(N, N_per_warp) + 1;
+
+                    const uint32 num_warps_per_block = BLOCK_SIZE >> LOG_WARP_SIZE;
                     const uint32 NUM_BLOCKS = ck::ceil_divide<uint64>(NUM_WARPS, num_warps_per_block);
 
                     add_scalar_cuda_kernel<scalar_t, true>
