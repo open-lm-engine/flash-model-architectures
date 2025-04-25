@@ -95,12 +95,12 @@ void add_scalar_cuda(const torch::Tensor &x, const fp32 &y, torch::Tensor &outpu
                         const uint32 NUM_WARPS = ck::ceil_divide<uint64>(num_elements, num_elements_per_warp) + 1;
                         const uint32 NUM_BLOCKS = ck::ceil_divide<uint64>(NUM_WARPS, num_warps_per_block);
 
-                        _add_scalar_cuda_kernel<scalar_t, true, bits>
+                        vectorized_add_scalar_cuda_kernel<scalar_t, true, bits>
                             <<<NUM_BLOCKS, BLOCK_SIZE>>>(x_chunk.array, y, output_chunk.array, num_elements);
                     } else {
                         const uint32 NUM_BLOCKS = ck::ceil_divide<uint64>(num_elements, num_elements_per_block);
 
-                        _add_scalar_cuda_kernel<scalar_t, false, bits>
+                        vectorized_add_scalar_cuda_kernel<scalar_t, false, bits>
                             <<<NUM_BLOCKS, BLOCK_SIZE>>>(x_chunk.array, y, output_chunk.array, num_elements);
                     }
                 }
