@@ -18,7 +18,7 @@ __global__ void add_scalar_cuda_kernel(const scalar_t *x, const fp32 y, scalar_t
     const uint32 thread_id = blockIdx.x * blockDim.x + threadIdx.x;
     const uint32 N_vector = N / num_elements_per_thread;
 
-    if (thread_id < NV) {
+    if (thread_id < N_vector) {
         const scalar_t *x_vec = ck_mem::vectorized_load<const scalar_t>(x, thread_id);
         scalar_t output_buffer[num_elements_per_thread];
 
