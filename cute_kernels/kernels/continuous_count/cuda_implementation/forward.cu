@@ -33,7 +33,7 @@ inline __device__ void _initialize_global_output(uint32 *output,
     uint32 init_value[] = {0, 0, 0, 0};
 
     for (uint32 i = global_thread_id; i < C4; i += total_threads) {
-        ck_mem::store_128_bits<uint32>(init_value, output, i);
+        ck_mem::vectorized_store<uint32>(init_value, output, i);
     }
 
     const uint32 index = (C4 << 2) + global_thread_id;
@@ -52,7 +52,7 @@ inline __device__ void _update_local_count(const scalar_t *x,
     const uint32 num_vector_elements = num_elements / num_elements_per_thread;
 
     for (uint32 i = global_thread_id; i < num_vector_elements; i += total_threads) {
-        const scalar_t *x_vec = ck_mem::load_128_bits<const scalar_t>(x, i);
+        const scalar_t *x_vec = ck_mem::vectorized_load<const scalar_t>(x, i);
 
         for (uint32 j = 0; j < num_elements_per_thread; j++) {
             atomicAdd(&shared_memory[x_vec[j]], 1);

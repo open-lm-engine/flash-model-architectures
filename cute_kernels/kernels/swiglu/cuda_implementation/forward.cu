@@ -35,15 +35,15 @@ __global__ void _swiglu_forward_cuda_kernel(const scalar_t *gate,
     const uint32 num_vector_elements = num_elements / num_elements_per_thread;
 
     if (thread_id < num_vector_elements) {
-        const scalar_t *gate_vec = ck_mem::load_128_bits<const scalar_t>(gate, thread_id);
-        const scalar_t *up_vec = ck_mem::load_128_bits<const scalar_t>(up, thread_id);
+        const scalar_t *gate_vec = ck_mem::vectorized_load<const scalar_t>(gate, thread_id);
+        const scalar_t *up_vec = ck_mem::vectorized_load<const scalar_t>(up, thread_id);
         scalar_t output_buffer[num_elements_per_thread];
 
         for (uint32 i = 0; i < num_elements_per_thread; i++) {
             output_buffer[i] = _swiglu_forward<scalar_t>(gate_vec[i], up_vec[i]);
         }
 
-        ck_mem::store_128_bits<scalar_t>(output_buffer, output, thread_id);
+        ck_mem::vectorized_store<scalar_t>(output_buffer, output, thread_id);
     }
 
     const uint32 index = num_vector_elements * num_elements_per_thread + thread_id;
