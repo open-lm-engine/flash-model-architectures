@@ -12,7 +12,7 @@ using uint32 = ck::uint32;
 using uint64 = ck::uint64;
 
 template <typename scalar_t, bool has_trailing_elements, uint32 bits>
-__global__ void vectorized_add_scalar_cuda_kernel(const scalar_t *x, const fp32 y, scalar_t *output, const uint64 N) {
+__global__ void add_scalar_cuda_kernel(const scalar_t *x, const fp32 y, scalar_t *output, const uint64 N) {
     constexpr uint32 num_elements_per_thread = ck_mem::get_num_elements_for_vector_load_stores<scalar_t, bits>();
 
     const uint32 thread_id = blockIdx.x * blockDim.x + threadIdx.x;
@@ -78,12 +78,12 @@ void add_scalar_cuda(const torch::Tensor &x, const fp32 &y, torch::Tensor &outpu
                     const uint32 NUM_WARPS = ck::ceil_divide<uint64>(num_elements, num_elements_per_warp) + 1;
                     const uint32 NUM_BLOCKS = ck::ceil_divide<uint64>(NUM_WARPS, num_warps_per_block);
 
-                    vectorized_add_scalar_cuda_kernel<scalar_t, true, bits>
+                    add_scalar_cuda_kernel<scalar_t, true, bits>
                         <<<NUM_BLOCKS, BLOCK_SIZE>>>(x_chunk.array, y, output_chunk.array, num_elements);
                 } else {
                     const uint32 NUM_BLOCKS = ck::ceil_divide<uint64>(num_elements, num_elements_per_block);
 
-                    vectorized_add_scalar_cuda_kernel<scalar_t, false, bits>
+                    add_scalar_cuda_kernel<scalar_t, false, bits>
                         <<<NUM_BLOCKS, BLOCK_SIZE>>>(x_chunk.array, y, output_chunk.array, num_elements);
                 }
             }
