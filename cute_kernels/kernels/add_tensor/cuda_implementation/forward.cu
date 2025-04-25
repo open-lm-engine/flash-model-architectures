@@ -83,7 +83,7 @@ void add_tensor_cuda(const torch::Tensor &x, const torch::Tensor &y, torch::Tens
                                            const uint32 NUM_BLOCKS = ck::ceil_divide<uint64>(N, N_per_block);
 
                                            add_tensor_cuda_kernel<scalar_t><<<NUM_BLOCKS, BLOCK_SIZE>>>(
-                                               x_chunk.array, y_chunk.array, output_chunk.array, num_elements);
+                                               x_chunk.array, y_chunk.array, output_chunk.array, N);
                                        }
                                    }));
 }
