@@ -79,7 +79,9 @@ void add_scalar_cuda(const torch::Tensor &x, const fp32 &y, torch::Tensor &outpu
                 const uint64 num_elements = x_chunk.num_elements;
 
                 if (num_elements < 132 * BLOCK_SIZE) {
-                    unvectorized_add_scalar_cuda_kernel<scalar_t>(x_chunk.array, y, output_chunk.array, num_elements);
+                    const uint32 NUM_BLOCKS = ceil_divide<uint64>(num_elements, BLOCK_SIZE);
+                    unvectorized_add_scalar_cuda_kernel<scalar_t>
+                        <<<NUM_BLOCKS, BLOCK_SIZE>>>(x_chunk.array, y, output_chunk.array, num_elements);
                 } else if (num_elements < 264 * BLOCK_SIZE) {
                     const bool has_trailing_elements =
                         (i == x_chunks.size() - 1) && (num_elements % num_elements_per_thread != 0);
