@@ -11,12 +11,23 @@ using fp32 = ck::fp32;
 using uint32 = ck::uint32;
 using uint64 = ck::uint64;
 
+template <typename scalar_t>
+__global__ void unvectorized_add_scalar_cuda_kernel(const scalar_t *x,
+                                                    const fp32 y,
+                                                    scalar_t *output,
+                                                    const uint64 N) {
+    const uint32 thread_id = blockIdx.x * blockDim.x + threadIdx.x;
+    if (thread_id < N) {
+        output[thread_id] = x[thread_id] + y;
+    }
+}
+
 template <typename scalar_t, bool has_trailing_elements, uint32 bits>
-__global__ void _add_scalar_cuda_kernel(const scalar_t *x, const fp32 y, scalar_t *output, const uint64 num_elements) {
+__global__ void vectorized_add_scalar_cuda_kernel(const scalar_t *x, const fp32 y, scalar_t *output, const uint64 N) {
     constexpr uint32 num_elements_per_thread = ck_mem::get_num_elements_for_vector_load_stores<scalar_t, bits>();
 
     const uint32 thread_id = blockIdx.x * blockDim.x + threadIdx.x;
-    const uint32 num_vector_elements = num_elements / num_elements_per_thread;
+    const uint32 num_vector_elements = N / num_elements_per_thread;
 
     if (thread_id < num_vector_elements) {
         const scalar_t *x_vec = ck_mem::vectorized_load<const scalar_t, bits>(x, thread_id);
@@ -36,7 +47,7 @@ __global__ void _add_scalar_cuda_kernel(const scalar_t *x, const fp32 y, scalar_
 
         if (is_last_warp) {
             const uint32 index = num_vector_elements * num_elements_per_thread + (threadIdx.x % WARP_SIZE);
-            if (index < num_elements) {
+            if (index < N) {
                 output[index] = x[index] + y;
             }
         }
@@ -66,25 +77,30 @@ void add_scalar_cuda(const torch::Tensor &x, const fp32 &y, torch::Tensor &outpu
                 ck::ChunkedArray<scalar_t> output_chunk = output_chunks[i];
 
                 const uint64 num_elements = x_chunk.num_elements;
-                const bool has_trailing_elements =
-                    (i == x_chunks.size() - 1) && (num_elements % num_elements_per_thread != 0);
 
-                constexpr uint32 bits = 128;
+                if (num_elements < 132 * BLOCK_SIZE) {
+                    unvectorized_add_scalar_cuda_kernel<scalar_t>(x_chunk.array, y, output_chunk.array, num_elements);
+                } else if (num_elements < 264 * BLOCK_SIZE) {
+                    const bool has_trailing_elements =
+                        (i == x_chunks.size() - 1) && (num_elements % num_elements_per_thread != 0);
 
-                if (has_trailing_elements) {
-                    const uint32 num_elements_per_warp = num_elements_per_thread << LOG_WARP_SIZE;
-                    const uint32 num_warps_per_block = BLOCK_SIZE >> LOG_WARP_SIZE;
-                    // 1 extra warp to avoid thread divergence
-                    const uint32 NUM_WARPS = ck::ceil_divide<uint64>(num_elements, num_elements_per_warp) + 1;
-                    const uint32 NUM_BLOCKS = ck::ceil_divide<uint64>(NUM_WARPS, num_warps_per_block);
+                    constexpr uint32 bits = 128;
 
-                    _add_scalar_cuda_kernel<scalar_t, true, bits>
-                        <<<NUM_BLOCKS, BLOCK_SIZE>>>(x_chunk.array, y, output_chunk.array, num_elements);
-                } else {
-                    const uint32 NUM_BLOCKS = ck::ceil_divide<uint64>(num_elements, num_elements_per_block);
+                    if (has_trailing_elements) {
+                        const uint32 num_elements_per_warp = num_elements_per_thread << LOG_WARP_SIZE;
+                        const uint32 num_warps_per_block = BLOCK_SIZE >> LOG_WARP_SIZE;
+                        // 1 extra warp to avoid thread divergence
+                        const uint32 NUM_WARPS = ck::ceil_divide<uint64>(num_elements, num_elements_per_warp) + 1;
+                        const uint32 NUM_BLOCKS = ck::ceil_divide<uint64>(NUM_WARPS, num_warps_per_block);
 
-                    _add_scalar_cuda_kernel<scalar_t, false, bits>
-                        <<<NUM_BLOCKS, BLOCK_SIZE>>>(x_chunk.array, y, output_chunk.array, num_elements);
+                        _add_scalar_cuda_kernel<scalar_t, true, bits>
+                            <<<NUM_BLOCKS, BLOCK_SIZE>>>(x_chunk.array, y, output_chunk.array, num_elements);
+                    } else {
+                        const uint32 NUM_BLOCKS = ck::ceil_divide<uint64>(num_elements, num_elements_per_block);
+
+                        _add_scalar_cuda_kernel<scalar_t, false, bits>
+                            <<<NUM_BLOCKS, BLOCK_SIZE>>>(x_chunk.array, y, output_chunk.array, num_elements);
+                    }
                 }
             }
         }));
