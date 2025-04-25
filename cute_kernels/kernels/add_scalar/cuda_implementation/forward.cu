@@ -16,7 +16,7 @@ __global__ void add_scalar_cuda_kernel(const scalar_t *x, const fp32 y, scalar_t
     constexpr uint32 num_elements_per_thread = ck_mem::get_num_elements_for_vector_load_stores<scalar_t>();
 
     const uint32 thread_id = blockIdx.x * blockDim.x + threadIdx.x;
-    const uint32 NV = N / num_elements_per_thread;
+    const uint32 N_vector = N / num_elements_per_thread;
 
     if (thread_id < NV) {
         const scalar_t *x_vec = ck_mem::vectorized_load<const scalar_t>(x, thread_id);
@@ -35,7 +35,7 @@ __global__ void add_scalar_cuda_kernel(const scalar_t *x, const fp32 y, scalar_t
         const bool is_last_warp = warp_id == num_warps - 1;
 
         if (is_last_warp) {
-            const uint32 index = NV * num_elements_per_thread + (threadIdx.x % WARP_SIZE);
+            const uint32 index = N_vector * num_elements_per_thread + (threadIdx.x % WARP_SIZE);
             if (index < N) {
                 output[index] = x[index] + y;
             }
