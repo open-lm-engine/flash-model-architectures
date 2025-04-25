@@ -53,9 +53,6 @@ void add_scalar_cuda(const torch::Tensor &x, const fp32 &y, torch::Tensor &outpu
 
     AT_DISPATCH_CUSTOM_FLOAT_TYPES(
         x.scalar_type(), "add_scalar_cuda_kernel", ([&] {
-            const uint32 num_elements_per_thread = 16 / sizeof(scalar_t);
-            const uint32 num_elements_per_block = BLOCK_SIZE * num_elements_per_thread;
-
             std::vector<ck::ChunkedArray<scalar_t>> x_chunks =
                 ck::chunk_array<scalar_t>(x.data_ptr<scalar_t>(), total_elements);
             std::vector<ck::ChunkedArray<scalar_t>> output_chunks =
@@ -66,10 +63,14 @@ void add_scalar_cuda(const torch::Tensor &x, const fp32 &y, torch::Tensor &outpu
                 ck::ChunkedArray<scalar_t> output_chunk = output_chunks[i];
 
                 const uint64 num_elements = x_chunk.num_elements;
+
+                constexpr uint32 bits = 32;
+                const uint32 num_elements_per_thread =
+                    ck_mem::get_num_elements_for_vector_load_stores<scalar_t, bits>();
+                const uint32 num_elements_per_block = BLOCK_SIZE * num_elements_per_thread;
+
                 const bool has_trailing_elements =
                     (i == x_chunks.size() - 1) && (num_elements % num_elements_per_thread != 0);
-
-                constexpr uint32 bits = 128;
 
                 if (has_trailing_elements) {
                     const uint32 num_elements_per_warp = num_elements_per_thread << LOG_WARP_SIZE;
