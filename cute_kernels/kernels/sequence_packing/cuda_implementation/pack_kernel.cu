@@ -31,14 +31,15 @@ inline __device__ void _load_seqlens(const integer_t *seqlens, integer_t *seqlen
     }
 }
 
-template <typename scalar_t, typename integer_t, bool is_max_seqlen_tensor>
-__global__ void _pack_sequence_cuda_kernel(const scalar_t *x,
-                                           scalar_t *output,
-                                           const uint32 *seqlens,
-                                           const uint32 *max_seqlen_tensor,
-                                           const uint32 max_seqlen,
-                                           const uint32 B,
-                                           const uint32 S) {
+template <typename scalar_t, typename integer_t, bool is_max_seqlen_tensor, std::string padding_side>
+__global__ void pack_sequence_cuda_kernel(const scalar_t *x,
+                                          scalar_t *output,
+                                          const uint32 *seqlens,
+                                          const uint32 *max_seqlen_tensor,
+                                          const uint32 max_seqlen,
+                                          const uint32 B,
+                                          const uint32 S,
+                                          const uint32 N) {
     __shared__ integer_t max_seqlen_shared;
     integer_t *seqlens_shared = ck_mem::get_dynamic_shared_memory<integer_t>();
 
@@ -54,6 +55,27 @@ __global__ void _pack_sequence_cuda_kernel(const scalar_t *x,
     _load_seqlens<integer_t>(seqlens, seqlens_shared, B);
 
     __syncthreads();
+
+    const uint32 s = blockIdx.x;
+    const uint32 b = blockIdx.y;
+    const uint32 seqlens_b = seqlens_shared[b];
+
+    bool is_pad_token = false;
+    if (padding_side == "left") {
+        if (s < S - seqlens_b) {
+            is_pad_token = true;
+        }
+    } else if (padding_side == "right") {
+        if (s > seqlens_b) {
+            is_pad_token = true;
+        }
+    }
+
+    if (is_pad_token) {
+        return;
+    }
+
+    for
 }
 
 void pack_sequence_cuda(const torch::Tensor &x,
@@ -81,6 +103,7 @@ void pack_sequence_cuda(const torch::Tensor &x,
 
     const uint32 B = x.size(0);
     const uint32 S = x.size(1);
+    const uint32 N = x.numel() / (B * S);
 
     const dim3 NUM_BLOCKS = dim3(S, B);
     const uint32 shared_memory_size = B * sizeof(uint32);
@@ -102,7 +125,8 @@ void pack_sequence_cuda(const torch::Tensor &x,
                                                                      max_seqlen_tensor.value().data_ptr<uint32>(),
                                                                      0,
                                                                      B,
-                                                                     S);
+                                                                     S,
+                                                                     N);
             } else {
                 pack_sequence_cuda_kernel<scalar_t, uint32, false>
                     <<<NUM_BLOCKS, BLOCK_SIZE, shared_memory_size>>>(x.data_ptr<scalar_t>(),
@@ -111,7 +135,8 @@ void pack_sequence_cuda(const torch::Tensor &x,
                                                                      nullptr,
                                                                      max_seqlen.value(),
                                                                      B,
-                                                                     S);
+                                                                     S,
+                                                                     N);
             }
         }));
 }
