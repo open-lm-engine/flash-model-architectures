@@ -2,7 +2,7 @@
 
 void pack_sequence_cuda(const torch::Tensor &x,
                         torch::Tensor &output,
-                        const torch::Tensor &cu_seqlens,
+                        const torch::Tensor &seqlens,
                         const std::optional<torch::Tensor> &max_seqlen_tensor,
                         const std::optional<uint> &max_seqlen,
                         const std::string &padding_side,
