@@ -19,14 +19,14 @@ __global__ void _add_scalar_cuda_kernel(const scalar_t *x, const fp32 y, scalar_
     const uint32 num_vector_elements = num_elements / num_elements_per_thread;
 
     if (thread_id < num_vector_elements) {
-        const scalar_t *x_vec = ck_mem::load_128_bits<const scalar_t>(x, thread_id);
+        const scalar_t *x_vec = ck_mem::vectorized_load<const scalar_t>(x, thread_id);
         scalar_t output_buffer[num_elements_per_thread];
 
         for (uint32 i = 0; i < num_elements_per_thread; i++) {
             output_buffer[i] = x_vec[i] + y;
         }
 
-        ck_mem::store_128_bits<scalar_t>(output_buffer, output, thread_id);
+        ck_mem::vectorized_store<scalar_t>(output_buffer, output, thread_id);
     }
 
     if (has_trailing_elements) {
