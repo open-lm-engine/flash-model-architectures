@@ -45,31 +45,28 @@ inline __device__ void _initialize_global_output(uint32 *output,
 template <typename scalar_t>
 inline __device__ void _update_local_count(const scalar_t *x,
                                            uint32 *shared_memory,
-                                           const uint64 &num_elements,
+                                           const uint64 &N,
                                            const uint32 &global_thread_id,
                                            const uint32 &total_threads) {
-    constexpr uint32 num_elements_per_thread = ck_mem::get_num_elements_for_vector_load_stores<scalar_t>();
-    const uint32 num_vector_elements = num_elements / num_elements_per_thread;
+    constexpr uint32 N_per_thread = ck_mem::get_num_elements_for_vector_load_stores<scalar_t>();
+    const uint32 N_vec = N / N_per_thread;
 
-    for (uint32 i = global_thread_id; i < num_vector_elements; i += total_threads) {
+    for (uint32 i = global_thread_id; i < N_vec; i += total_threads) {
         const scalar_t *x_vec = ck_mem::load_128_bits<const scalar_t>(x, i);
 
-        for (uint32 j = 0; j < num_elements_per_thread; j++) {
+        for (uint32 j = 0; j < N_per_thread; j++) {
             atomicAdd(&shared_memory[x_vec[j]], 1);
         }
     }
 
-    const uint32 index = (num_vector_elements * num_elements_per_thread) + global_thread_id;
-    if (index < num_elements) {
+    const uint32 index = (N_vec * N_per_thread) + global_thread_id;
+    if (index < N) {
         atomicAdd(&shared_memory[x[index]], 1);
     }
 }
 
 template <typename scalar_t, bool initialize_output>
-__global__ void _continuous_count_cuda_kernel(const scalar_t *x,
-                                              uint32 *output,
-                                              const uint64 num_elements,
-                                              const uint32 C) {
+__global__ void continuous_count_cuda_kernel(const scalar_t *x, uint32 *output, const uint64 N, const uint32 C) {
     const uint32 global_thread_id = blockIdx.x * blockDim.x + threadIdx.x;
 
     extern __shared__ uint32 shared_memory[];
@@ -87,7 +84,7 @@ __global__ void _continuous_count_cuda_kernel(const scalar_t *x,
         cg::this_grid().sync();
     }
 
-    _update_local_count<scalar_t>(x, shared_memory, num_elements, global_thread_id, grid_size);
+    _update_local_count<scalar_t>(x, shared_memory, N, global_thread_id, grid_size);
 
     cg::cluster_group cluster = cg::this_cluster();
     const bool is_first_cluster_block = cluster.block_rank() == 0;
@@ -127,10 +124,10 @@ void continuous_count_cuda(const torch::Tensor &x,
         ck::chunk_array<uint32>(output.data_ptr<uint32>(), total_elements);
 
     AT_DISPATCH_CUSTOM_INT_TYPES(x.scalar_type(), "continuous_count_cuda_kernel", ([&] {
-                                     cudaFuncSetAttribute(_continuous_count_cuda_kernel<scalar_t, true>,
+                                     cudaFuncSetAttribute(continuous_count_cuda_kernel<scalar_t, true>,
                                                           cudaFuncAttributeMaxDynamicSharedMemorySize,
                                                           MAX_ALLOWED_C * sizeof(uint32));
-                                     cudaFuncSetAttribute(_continuous_count_cuda_kernel<scalar_t, false>,
+                                     cudaFuncSetAttribute(continuous_count_cuda_kernel<scalar_t, false>,
                                                           cudaFuncAttributeMaxDynamicSharedMemorySize,
                                                           MAX_ALLOWED_C * sizeof(uint32));
 
@@ -141,10 +138,10 @@ void continuous_count_cuda(const torch::Tensor &x,
                                          ck::ChunkedArray<scalar_t> x_chunk = x_chunks[i];
                                          ck::ChunkedArray<uint32> output_chunk = output_chunks[i];
 
-                                         const uint64 num_elements = x_chunk.num_elements;
+                                         const uint64 N = x_chunk.num_elements;
 
                                          auto [NUM_BLOCKS, cluster_size] = ck::get_num_blocks(
-                                             num_elements, BLOCK_SIZE, max_num_blocks, THREAD_BLOCK_CLUSTER_SIZE);
+                                             N, BLOCK_SIZE, max_num_blocks, THREAD_BLOCK_CLUSTER_SIZE);
 
                                          // dynamically sized clusters need this stupid way of launching the kernel
                                          cudaLaunchConfig_t launch_config = {0};
@@ -166,11 +163,11 @@ void continuous_count_cuda(const torch::Tensor &x,
                                          launch_config.numAttrs = 2;
 
                                          cudaLaunchKernelEx(&launch_config,
-                                                            (i == 0) ? _continuous_count_cuda_kernel<scalar_t, true>
-                                                                     : _continuous_count_cuda_kernel<scalar_t, false>,
+                                                            (i == 0) ? continuous_count_cuda_kernel<scalar_t, true>
+                                                                     : continuous_count_cuda_kernel<scalar_t, false>,
                                                             x_chunk.array,
                                                             output_chunk.array,
-                                                            num_elements,
+                                                            N,
                                                             C);
                                      }
                                  }));
