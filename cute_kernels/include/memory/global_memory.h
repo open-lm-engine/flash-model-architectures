@@ -1,8 +1,12 @@
 #include "../dtypes.h"
 
+#define CHECK_POWER_OF_2(x) static_assert(bits == 128 || bits == 64 || bits == 32)
+
 namespace cute_kernels::memory {
     template <typename T, uint32 bits = 128>
     inline __device__ T *vectorized_load(T *array, const uint64 &index) {
+        CHECK_POWER_OF_2(bits);
+
         using V = std::conditional_t<bits == 128, int32_4, std::conditional_t<bits == 64, int32_2, int32>>;
         using vecT = std::conditional_t<std::is_const<T>::value, const V, V>;
 
@@ -15,6 +19,8 @@ namespace cute_kernels::memory {
 
     template <typename T, uint32 bits = 128>
     inline __device__ void vectorized_store(T *source, T *destination, const uint64 &index) {
+        CHECK_POWER_OF_2(bits);
+
         using V = std::conditional_t<bits == 128, int32_4, std::conditional_t<bits == 64, int32_2, int32>>;
         using vecT = std::conditional_t<std::is_const<T>::value, const V, V>;
 
@@ -23,8 +29,9 @@ namespace cute_kernels::memory {
         destination_vector_array[index] = source_vector;
     }
 
-    template <typename T>
+    template <typename T, uint32 bits>
     constexpr inline __device__ uint32 get_num_elements_for_vector_load_stores() {
-        return 16 / sizeof(T);
+        CHECK_POWER_OF_2(bits);
+        return (bits >> 3) / sizeof(T);
     }
 }  // namespace cute_kernels::memory
