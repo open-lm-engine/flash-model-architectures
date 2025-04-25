@@ -11,7 +11,7 @@ using fp32 = ck::fp32;
 using uint32 = ck::uint32;
 using uint64 = ck::uint64;
 
-template <typename scalar_t, bool has_trailing_elements, uint32 bits>
+template <typename scalar_t, bool has_trailing_elements>
 __global__ void add_scalar_cuda_kernel(const scalar_t *x, const fp32 y, scalar_t *output, const uint64 N) {
     constexpr uint32 num_elements_per_thread = ck_mem::get_num_elements_for_vector_load_stores<scalar_t, bits>();
 
@@ -19,14 +19,14 @@ __global__ void add_scalar_cuda_kernel(const scalar_t *x, const fp32 y, scalar_t
     const uint32 num_vector_elements = N / num_elements_per_thread;
 
     if (thread_id < num_vector_elements) {
-        const scalar_t *x_vec = ck_mem::vectorized_load<const scalar_t, bits>(x, thread_id);
+        const scalar_t *x_vec = ck_mem::vectorized_load<const scalar_t>(x, thread_id);
         scalar_t output_buffer[num_elements_per_thread];
 
         for (uint32 i = 0; i < num_elements_per_thread; i++) {
             output_buffer[i] = x_vec[i] + y;
         }
 
-        ck_mem::vectorized_store<scalar_t, bits>(output_buffer, output, thread_id);
+        ck_mem::vectorized_store<scalar_t>(output_buffer, output, thread_id);
     }
 
     if (has_trailing_elements) {
