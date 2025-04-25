@@ -29,7 +29,7 @@ namespace cute_kernels::memory {
         destination_vector_array[index] = source_vector;
     }
 
-    template <typename T, uint32 bits>
+    template <typename T, uint32 bits = 128>
     constexpr inline __device__ uint32 get_num_elements_for_vector_load_stores() {
         CHECK_VALID_LOAD_STORE_SIZE(bits);
         return (bits >> 3) / sizeof(T);
