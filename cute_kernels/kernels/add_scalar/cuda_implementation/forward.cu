@@ -79,7 +79,7 @@ void add_scalar_cuda(const torch::Tensor &x, const fp32 &y, torch::Tensor &outpu
                     add_scalar_cuda_kernel<scalar_t, true>
                         <<<NUM_BLOCKS, BLOCK_SIZE>>>(x_chunk.array, y, output_chunk.array, N);
                 } else {
-                    const uint32 NUM_BLOCKS = ck::ceil_divide<uint64>(N, num_elements_per_block);
+                    const uint32 NUM_BLOCKS = ck::ceil_divide<uint64>(N, N_per_block);
 
                     add_scalar_cuda_kernel<scalar_t, false>
                         <<<NUM_BLOCKS, BLOCK_SIZE>>>(x_chunk.array, y, output_chunk.array, N);
