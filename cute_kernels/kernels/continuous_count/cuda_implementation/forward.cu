@@ -124,10 +124,10 @@ void continuous_count_cuda(const torch::Tensor &x,
         ck::chunk_array<uint32>(output.data_ptr<uint32>(), total_elements);
 
     AT_DISPATCH_CUSTOM_INT_TYPES(x.scalar_type(), "continuous_count_cuda_kernel", ([&] {
-                                     cudaFuncSetAttribute(_continuous_count_cuda_kernel<scalar_t, true>,
+                                     cudaFuncSetAttribute(continuous_count_cuda_kernel<scalar_t, true>,
                                                           cudaFuncAttributeMaxDynamicSharedMemorySize,
                                                           MAX_ALLOWED_C * sizeof(uint32));
-                                     cudaFuncSetAttribute(_continuous_count_cuda_kernel<scalar_t, false>,
+                                     cudaFuncSetAttribute(continuous_count_cuda_kernel<scalar_t, false>,
                                                           cudaFuncAttributeMaxDynamicSharedMemorySize,
                                                           MAX_ALLOWED_C * sizeof(uint32));
 
@@ -163,8 +163,8 @@ void continuous_count_cuda(const torch::Tensor &x,
                                          launch_config.numAttrs = 2;
 
                                          cudaLaunchKernelEx(&launch_config,
-                                                            (i == 0) ? _continuous_count_cuda_kernel<scalar_t, true>
-                                                                     : _continuous_count_cuda_kernel<scalar_t, false>,
+                                                            (i == 0) ? continuous_count_cuda_kernel<scalar_t, true>
+                                                                     : continuous_count_cuda_kernel<scalar_t, false>,
                                                             x_chunk.array,
                                                             output_chunk.array,
                                                             N,
