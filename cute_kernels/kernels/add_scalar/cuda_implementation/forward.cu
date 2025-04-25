@@ -13,7 +13,7 @@ using uint64 = ck::uint64;
 
 template <typename scalar_t, bool has_trailing_elements>
 __global__ void add_scalar_cuda_kernel(const scalar_t *x, const fp32 y, scalar_t *output, const uint64 N) {
-    constexpr uint32 num_elements_per_thread = ck_mem::get_num_elements_for_vector_load_stores<scalar_t, bits>();
+    constexpr uint32 num_elements_per_thread = ck_mem::get_num_elements_for_vector_load_stores<scalar_t>();
 
     const uint32 thread_id = blockIdx.x * blockDim.x + threadIdx.x;
     const uint32 num_vector_elements = N / num_elements_per_thread;
