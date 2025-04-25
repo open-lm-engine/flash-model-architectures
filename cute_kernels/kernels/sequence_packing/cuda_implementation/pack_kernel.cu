@@ -82,7 +82,7 @@ void pack_sequence_cuda(const torch::Tensor &x,
     const uint32 B = x.size(0);
     const uint32 S = x.size(1);
 
-    const uint32 NUM_BLOCKS = B * S;
+    const dim3 NUM_BLOCKS = dim3(S, B);
     const uint32 shared_memory_size = B * sizeof(uint32);
 
     const uint64 N = x.numel();
