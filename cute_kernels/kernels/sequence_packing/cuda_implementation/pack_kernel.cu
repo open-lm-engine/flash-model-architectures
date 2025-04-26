@@ -71,7 +71,7 @@ __global__ void pack_sequence_cuda_kernel(const scalar_t *x,
 
 void pack_sequence_cuda(const torch::Tensor &x,
                         torch::Tensor &output,
-                        const torch::Tensor &seqlens,
+                        const torch::Tensor &cu_seqlens,
                         const std::optional<torch::Tensor> &max_seqlen_tensor,
                         const std::optional<uint32> &max_seqlen,
                         const std::string &padding_side,

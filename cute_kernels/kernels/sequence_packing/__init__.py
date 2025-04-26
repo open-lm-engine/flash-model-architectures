@@ -22,7 +22,7 @@ class _PackSequence_Cute(torch.autograd.Function):
         pack_sequence_cuda(
             x=x,
             output=output,
-            seqlens=cu_seqlens[1:] - cu_seqlens[:-1],
+            cu_seqlens=cu_seqlens,
             max_seqlen_tensor=max_seqlen if is_max_seqlen_tensor else None,
             max_seqlen=None if is_max_seqlen_tensor else max_seqlen,
             padding_side=padding_side,

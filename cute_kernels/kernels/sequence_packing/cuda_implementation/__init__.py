@@ -10,7 +10,7 @@ from ....utils import cute_op
 def pack_sequence_cuda(
     x: torch.Tensor,
     output: torch.Tensor,
-    seqlens: torch.Tensor,
+    cu_seqlens: torch.Tensor,
     max_seqlen_tensor: torch.Tensor | None,
     max_seqlen: int | None,
     padding_side: str,
