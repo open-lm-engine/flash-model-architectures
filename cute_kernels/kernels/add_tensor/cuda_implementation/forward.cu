@@ -41,7 +41,7 @@ __global__ void add_tensor_cuda_kernel(const scalar_t *x, const scalar_t *y, sca
             }
         }
 
-        ck_mem::store_128_bits<scalar_t>(output_buffer, output, thread_id);
+        ck_mem::store_128_bits<scalar_t, scalar_t>(output_buffer, output, thread_id);
     }
 
     const uint32 index = N_vec * N_per_thread + thread_id;
@@ -74,7 +74,7 @@ void add_tensor_cuda(const torch::Tensor &x, const torch::Tensor &y, torch::Tens
                                            ck_mem::get_num_elements_for_vector_load_stores<scalar_t>();
                                        const uint32 N_per_block = BLOCK_SIZE * N_per_thread;
 
-                                       for (int i = 0; i < x_chunks.size(); i++) {
+                                       for (uint32 i = 0; i < x_chunks.size(); i++) {
                                            ck::ChunkedArray<scalar_t> x_chunk = x_chunks[i];
                                            ck::ChunkedArray<scalar_t> y_chunk = y_chunks[i];
                                            ck::ChunkedArray<scalar_t> output_chunk = output_chunks[i];

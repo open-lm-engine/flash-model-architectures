@@ -53,7 +53,7 @@ void add_scalar_cuda(const torch::Tensor &x, const fp32 &y, torch::Tensor &outpu
             const uint32 N_per_thread = ck_mem::get_num_elements_for_vector_load_stores<scalar_t>();
             const uint32 N_per_block = BLOCK_SIZE * N_per_thread;
 
-            for (int i = 0; i < x_chunks.size(); i++) {
+            for (uint32 i = 0; i < x_chunks.size(); i++) {
                 ck::ChunkedArray<scalar_t> x_chunk = x_chunks[i];
                 ck::ChunkedArray<scalar_t> output_chunk = output_chunks[i];
 
