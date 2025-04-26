@@ -32,9 +32,7 @@ class _FusedResidualAddRMSNorm_Cute(torch.autograd.Function):
         if eps is None:
             eps = torch.finfo(x.dtype).eps
 
-        B, H = get_num_elements_and_hidden_size(x)
-        BLOCK_SIZE_H = get_next_power_of_2(H)
-        assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
+        B, _ = get_num_elements_and_hidden_size(x)
 
         output = torch.empty_like(x)
         added_x_residual = torch.empty_like(x)
@@ -56,7 +54,6 @@ class _FusedResidualAddRMSNorm_Cute(torch.autograd.Function):
         ctx.eps = eps
         ctx.multiplier = multiplier
         ctx.BLOCK_SIZE_B_backward = BLOCK_SIZE_B_backward
-        ctx.BLOCK_SIZE_H = BLOCK_SIZE_H
 
         return output, added_x_residual
 
