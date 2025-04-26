@@ -32,7 +32,7 @@ def add_scalar_triton(x: torch.Tensor, y: float, output: torch.Tensor, BLOCK_SIZ
     num_programs = ceil_divide(num_elements, BLOCK_SIZE)
 
     with torch.device(x.device):
-        add_scalar_triton_kernel[(num_programs,)](
+        add_scalar_triton_kernel[num_programs,](
             x_ptr=x,
             y=y,
             output_ptr=output,
