@@ -12,7 +12,7 @@ using uint32 = ck::uint32;
 using uint64 = ck::uint64;
 
 template <typename scalar_t>
-__device__ void _copy_array(const scalar *source,
+__device__ void _copy_array(const scalar_t *source,
                             scalar_t *destination,
                             const uint32 &b,
                             const uint32 &s,
