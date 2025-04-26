@@ -43,7 +43,7 @@ def swiglu_unchunked_forward_triton(
     B, H = get_num_elements_and_hidden_size(x)
 
     with torch.device(x.device):
-        swiglu_unchunked_forward_triton_kernel[(ceil_divide(B, BLOCK_SIZE_B), ceil_divide(H, BLOCK_SIZE_H))](
+        swiglu_unchunked_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), ceil_divide(H, BLOCK_SIZE_H)](
             x_ptr=x,
             output_ptr=output,
             B=B,
