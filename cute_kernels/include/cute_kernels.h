@@ -6,5 +6,6 @@
 #include "dtypes.h"
 #include "launch.h"
 #include "math.h"
-#include "memory.h"
+#include "memory/global_memory.h"
+#include "memory/shared_memory.h"
 #include "threads.h"

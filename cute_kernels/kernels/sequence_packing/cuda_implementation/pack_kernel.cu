@@ -6,28 +6,24 @@
 
 namespace ck = cute_kernels;
 namespace ck_mem = ck::memory;
+namespace ck_comm = ck::communication;
 
 using fp32 = ck::fp32;
 using uint32 = ck::uint32;
 using uint64 = ck::uint64;
 
-template <typename integer_t>
-inline __device__ void _load_seqlens(const integer_t *cu_seqlens, integer_t *cu_seqlens_shared, const uint32 &B) {
-    constexpr uint32 num_elements_per_thread = ck_mem::get_num_elements_for_vector_load_stores<integer_t>();
-    const uint32 B_vec = B / num_elements_per_thread;
+template <typename scalar_t>
+__device__ void _copy_array(const scalar *source,
+                            scalar_t *destination,
+                            const uint32 &b,
+                            const uint32 &s,
+                            const uint32 &offset,
+                            const uint32 &N) {
+    constexpr uint32 N_per_thread = ck_mem::get_num_elements_for_vector_load_stores<scalar_t>();
+    const uint32 N_vec = N / N_per_thread;
 
-    for (uint32 i = threadIdx.x; i < B_vec; i += blockDim.x) {
-        uint32 *cu_seqlens_loaded = ck_mem::load_128_bits<integer_t>(cu_seqlens, i);
-
-        for (uint32 j = 0; j < num_elements_per_thread; j++) {
-            cu_seqlens_shared[i * num_elements_per_thread + j] = cu_seqlens_loaded[j];
-        }
-    }
-
-    // use first warp to load remaining elements
-    const uint32 index = B_vec * num_elements_per_thread + threadIdx.x;
-    if (index < B) {
-        cu_seqlens_shared[index] = cu_seqlens[index];
+    for (uint32 i = 0; i < N_vec; i++) {
+        ck_mem::load_128_bits<const scalar_t>(source, threadIdx.x)
     }
 }
 
@@ -36,38 +32,26 @@ __global__ void pack_sequence_cuda_kernel(const scalar_t *x,
                                           scalar_t *output,
                                           const uint32 *cu_seqlens,
                                           const uint32 *max_seqlen_tensor,
-                                          const uint32 max_seqlen,
+                                          uint32 max_seqlen,  // not constant to be able to laod from max_seqlen_tensor
                                           const uint32 B,
                                           const uint32 S,
                                           const uint32 N) {
-    __shared__ integer_t max_seqlen_shared;
-    integer_t *cu_seqlens_shared = ck_mem::get_dynamic_shared_memory<integer_t>();
-
-    // load max_seqlen into shared memory using 1st thread of each threadblock
-    if (threadIdx.x == 0) {
-        if (is_max_seqlen_tensor) {
-            max_seqlen_shared = max_seqlen_tensor[0];
-        } else {
-            max_seqlen_shared = max_seqlen;
-        }
-    }
-
-    _load_cu_seqlens<integer_t>(seqlens, cu_seqlens_shared, B);
-
-    __syncthreads();
-
     const uint32 s = blockIdx.x;
     const uint32 b = blockIdx.y;
-    const uint32 seqlens_b = cu_seqlens_shared[b + 1] - cu_seqlens_shared[b];
+
+    const uint32 start = cu_seqlens[b];
+    const uint32 end = cu_seqlens[b + 1];
+    const uint32 seqlens = end - start;
 
     if (padding_side == "left") {
-        if (s < S - seqlens_b) {
-            return;
-        } else {
-            return;
+        const uint32 pad_tokens = S - seqlens;
+
+        if (s >= pad_tokens) {
+            offset = start + s - pad_tokens;
+            output[offset];
         }
     } else if (padding_side == "right") {
-        if (s >= seqlens_b) {
+        if (s >= seqlens) {
             return;
         } else {
             return;
