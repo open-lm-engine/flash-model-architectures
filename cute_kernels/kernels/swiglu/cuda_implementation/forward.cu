@@ -43,7 +43,7 @@ __global__ void swiglu_forward_cuda_kernel(const scalar_t *gate,
             output_buffer[i] = _swiglu_forward<scalar_t>(gate_vec[i], up_vec[i]);
         }
 
-        ck_mem::store_128_bits<scalar_t>(output_buffer, output, thread_id);
+        ck_mem::store_128_bits<scalar_t, scalar_t>(output_buffer, output, thread_id);
     }
 
     const uint32 index = N_vec * N_per_thread + thread_id;
