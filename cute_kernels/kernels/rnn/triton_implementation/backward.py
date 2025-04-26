@@ -106,7 +106,7 @@ def rnn_backward_triton_kernel(
     tl.store(weight_grad_ptrs, weight_grad, mask=mask_h[:, None] & mask_h[None, :])
 
 
-@cute_op(f"{LIBRARY_NAME}::rnn_forward_triton", mutates_args={"input_grad", "weight_grad"})
+@cute_op(f"{LIBRARY_NAME}::rnn_backward_triton", mutates_args={"input_grad", "weight_grad"})
 def rnn_backward_triton(
     weight: torch.Tensor,
     output: torch.Tensor,
