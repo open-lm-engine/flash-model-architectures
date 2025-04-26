@@ -14,7 +14,6 @@ _GLOBAL_RANK = int(os.getenv("RANK", 0))
 
 @torch._dynamo.disable
 def _get_cpp_function(function_name: str, source_files: list[str], build_directory: str) -> Callable:
-    os.makedirs(build_directory, exist_ok=True)
     module_name = f"{_CPP_MODULE_PREFIX}_{function_name}"
 
     extra_cflags = ["-O3", "-Wall", "-shared", "-fPIC", "-fdiagnostics-color"]
@@ -26,6 +25,8 @@ def _get_cpp_function(function_name: str, source_files: list[str], build_directo
     ]
 
     if torch.distributed.is_initialized():
+        os.makedirs(build_directory, exist_ok=True)
+
         if _GLOBAL_RANK == 0:
             module = load_cpp_extension(
                 module_name,
@@ -56,6 +57,7 @@ def _get_cpp_function(function_name: str, source_files: list[str], build_directo
         torch.distributed.barrier()
     else:
         build_directory = os.path.join(build_directory, str(uuid4()))
+        os.makedirs(build_directory, exist_ok=True)
 
         module = load_cpp_extension(
             module_name,
