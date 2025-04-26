@@ -109,17 +109,17 @@ def cross_entropy_forward_backward_triton(
     BLOCK_SIZE_V: int,
     reduction: str,
 ) -> None:
-    num_elements, vocab_size = x.size()
+    B, V = x.size()
 
     with torch.device(x.device):
-        cross_entropy_forward_backward_triton_kernel[ceil_divide(num_elements, BLOCK_SIZE_B),](
+        cross_entropy_forward_backward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](
             x_ptr=x,
             labels_ptr=labels,
             loss_ptr=loss,
             x_grad_ptr=x_grad,
             logits_multiplier=logits_multiplier,
-            B=num_elements,
-            V=vocab_size,
+            B=B,
+            V=V,
             BLOCK_SIZE_B=BLOCK_SIZE_B,
             BLOCK_SIZE_V=BLOCK_SIZE_V,
             reduction=reduction,
