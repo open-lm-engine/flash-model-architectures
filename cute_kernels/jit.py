@@ -17,28 +17,60 @@ def _get_cpp_function(function_name: str, source_files: list[str], build_directo
     os.makedirs(build_directory, exist_ok=True)
     module_name = f"{_CPP_MODULE_PREFIX}_{function_name}"
 
-    module = load_cpp_extension(
-        module_name,
-        sources=source_files,
-        with_cuda=True,
-        extra_cflags=[
-            "-O3",
-            "-Wall",
-            "-shared",
-            "-fPIC",
-            "-fdiagnostics-color",
-        ],
-        extra_cuda_cflags=["-lineinfo"],
-        extra_include_paths=[
-            os.path.dirname(__file__),  # cute_kernels/include
-            os.path.dirname(os.path.dirname(__file__)) + "/cutlass/include",  # cutlass
-            os.path.dirname(os.path.dirname(__file__)) + "/cutlass/tools/util/include",  # cutlass
-        ],
-        build_directory=build_directory,
-        verbose=_GLOBAL_RANK == 0,
-    )
+    extra_cflags = ["-O3", "-Wall", "-shared", "-fPIC", "-fdiagnostics-color"]
+    extra_cuda_cflags = ["-lineinfo"]
+    extra_include_paths = [
+        os.path.dirname(__file__),  # cute_kernels/include
+        os.path.dirname(os.path.dirname(__file__)) + "/cutlass/include",  # cutlass
+        os.path.dirname(os.path.dirname(__file__)) + "/cutlass/tools/util/include",  # cutlass
+    ]
 
-    rmtree(build_directory)
+    is_distributed_enabled = torch.distributed.is_initialized()
+
+    if is_distributed_enabled:
+        if _GLOBAL_RANK == 0:
+            module = load_cpp_extension(
+                module_name,
+                sources=source_files,
+                with_cuda=True,
+                extra_cflags=extra_cflags,
+                extra_cuda_cflags=extra_cuda_cflags,
+                extra_include_paths=extra_include_paths,
+                build_directory=build_directory,
+                verbose=True,
+            )
+
+            torch.distributed.barrier()
+        else:
+            torch.distributed.barrier()
+
+            module = load_cpp_extension(
+                module_name,
+                sources=source_files,
+                with_cuda=True,
+                extra_cflags=extra_cflags,
+                extra_cuda_cflags=extra_cuda_cflags,
+                extra_include_paths=extra_include_paths,
+                build_directory=build_directory,
+                verbose=False,
+            )
+
+        torch.distributed.barrier()
+    else:
+        build_directory = os.path.join(build_directory, str(uuid4()))
+
+        module = load_cpp_extension(
+            module_name,
+            sources=source_files,
+            with_cuda=True,
+            extra_cflags=extra_cflags,
+            extra_cuda_cflags=extra_cuda_cflags,
+            extra_include_paths=extra_include_paths,
+            build_directory=build_directory,
+            verbose=True,
+        )
+
+    rmtree(build_directory, ignore_errors=True)
 
     return getattr(module, function_name)
 
@@ -61,7 +93,7 @@ def cpp_jit(
         source_files.extend(filenames)
 
     if build_directory is None:
-        build_directory = os.path.join(os.path.dirname(os.path.dirname(__file__)), "build", str(uuid4()))
+        build_directory = os.path.join(os.path.dirname(os.path.dirname(__file__)), "build")
 
     def _run(*args, **kwargs):
         nonlocal cpp_function
