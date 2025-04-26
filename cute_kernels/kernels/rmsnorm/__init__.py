@@ -34,20 +34,15 @@ class _RMSNorm_Cute(torch.autograd.Function):
         output = torch.empty_like(x)
         rmsnorm_denominator = None if memory_efficient else torch.empty(B, device=x.device, dtype=torch.float32)
 
-        with torch.cuda.device(x.device):
-            rmsnorm_forward_triton[ceil_divide(B, BLOCK_SIZE_B_forward),](
-                x_ptr=x,
-                has_weight=weight is not None,
-                weight_ptr=weight,
-                output_ptr=output,
-                eps=eps,
-                has_rmsnorm_denominator=rmsnorm_denominator is not None,
-                rmsnorm_denominator_ptr=rmsnorm_denominator,
-                B=B,
-                H=H,
-                BLOCK_SIZE_B=BLOCK_SIZE_B_forward,
-                BLOCK_SIZE_H=BLOCK_SIZE_H,
-            )
+        rmsnorm_forward_triton(
+            x=x,
+            weight=weight,
+            output=output,
+            eps=eps,
+            rmsnorm_denominator=rmsnorm_denominator,
+            BLOCK_SIZE_B=BLOCK_SIZE_B_forward,
+            BLOCK_SIZE_H=BLOCK_SIZE_H,
+        )
 
         ctx.save_for_backward(x, weight, rmsnorm_denominator)
         ctx.eps = eps
