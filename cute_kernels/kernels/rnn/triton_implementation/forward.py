@@ -75,7 +75,7 @@ def rnn_forward_triton(
     BLOCK_SIZE_H = get_next_power_of_2(H)
     BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
 
-    with torch.cuda.device(input.device):
+    with torch.device(input.device):
         rnn_forward_triton[ceil_divide(B, BLOCK_SIZE_B), N](
             input_ptr=input,
             input_stride_b=input.stride(0),
