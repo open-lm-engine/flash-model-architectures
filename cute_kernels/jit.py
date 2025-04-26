@@ -39,10 +39,9 @@ def _get_cpp_function(function_name: str, source_files: list[str], build_directo
                 verbose=True,
             )
 
-            torch.distributed.barrier()
-        else:
-            torch.distributed.barrier()
+        torch.distributed.barrier()
 
+        if _GLOBAL_RANK != 0:
             module = load_cpp_extension(
                 module_name,
                 sources=source_files,
