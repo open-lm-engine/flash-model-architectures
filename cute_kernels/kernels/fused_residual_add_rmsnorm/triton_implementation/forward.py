@@ -93,7 +93,7 @@ def fused_residual_add_rmsnorm_forward_triton(
             weight_ptr=weight,
             output_ptr=output,
             eps=eps,
-            has_multiplier=multiplier is not None and multiplier != 1,
+            has_multiplier=multiplier not in [None, 1],
             multiplier=multiplier,
             added_x_residual_ptr=added_x_residual,
             has_rmsnorm_denominator=rmsnorm_denominator is not None,

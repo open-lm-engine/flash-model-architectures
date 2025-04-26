@@ -109,10 +109,10 @@ def fused_residual_add_rmsnorm_backward_triton_kernel(
 )
 def fused_residual_add_rmsnorm_backward_triton(
     added_x_residual: torch.Tensor,
-    weight: torch.Tensor,
+    weight: torch.Tensor | None,
     output_grad: torch.Tensor,
     added_x_residual_grad: torch.Tensor,
-    rmsnorm_denominator: torch.Tensor,
+    rmsnorm_denominator: torch.Tensor | None,
     x_grad: torch.Tensor,
     residual_grad: torch.Tensor,
     weight_grad: torch.Tensor | None,
@@ -138,7 +138,7 @@ def fused_residual_add_rmsnorm_backward_triton(
             residual_grad_ptr=residual_grad,
             weight_grad_ptr=weight_grad,
             eps=eps,
-            has_multiplier=multiplier is not None and multiplier != 1,
+            has_multiplier=multiplier not in [None, 1],
             multiplier=multiplier,
             has_rmsnorm_denominator=rmsnorm_denominator is not None,
             rmsnorm_denominator_ptr=rmsnorm_denominator,
