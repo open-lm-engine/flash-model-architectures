@@ -41,7 +41,7 @@ __global__ void add_tensor_cuda_kernel(const scalar_t *x, const scalar_t *y, sca
             }
         }
 
-        ck_mem::store_128_bits<scalar_t, scalar_t>(output_buffer, output, thread_id);
+        ck_mem::store_128_bits<scalar_t>(output_buffer, output, thread_id);
     }
 
     const uint32 index = N_vec * N_per_thread + thread_id;

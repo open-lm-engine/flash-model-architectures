@@ -62,8 +62,8 @@ __global__ void swiglu_backward_cuda_kernel(const scalar_t *gate,
                 gate_vec[i], up_vec[i], output_grad_vec[i], gate_grad_buffer, up_grad_buffer, i);
         }
 
-        ck_mem::store_128_bits<scalar_t, scalar_t>(gate_grad_buffer, gate_grad, thread_id);
-        ck_mem::store_128_bits<scalar_t, scalar_t>(up_grad_buffer, up_grad, thread_id);
+        ck_mem::store_128_bits<scalar_t>(gate_grad_buffer, gate_grad, thread_id);
+        ck_mem::store_128_bits<scalar_t>(up_grad_buffer, up_grad, thread_id);
     }
 
     const uint32 index = N_vec * N_per_thread + thread_id;
