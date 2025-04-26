@@ -121,6 +121,7 @@ def fused_residual_add_rmsnorm_backward_triton(
     BLOCK_SIZE_B: int,
 ) -> None:
     B, H = get_num_elements_and_hidden_size(added_x_residual)
+
     BLOCK_SIZE_H = get_next_power_of_2(H)
     assert BLOCK_SIZE_H < MAX_TRITON_BLOCK_SIZE
 

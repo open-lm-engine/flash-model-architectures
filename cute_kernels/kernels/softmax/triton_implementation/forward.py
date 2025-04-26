@@ -90,6 +90,7 @@ def softmax_forward_triton(
         softmax_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](
             x_ptr=x,
             output_ptr=output,
+            has_logits_multiplier=logits_multiplier not in [None, 1],
             logits_multiplier=logits_multiplier,
             B=B,
             H=H,

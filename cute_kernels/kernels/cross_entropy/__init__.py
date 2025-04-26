@@ -21,9 +21,9 @@ class _CrossEntropy_Cute(torch.autograd.Function):
         assert reduction in ["sum", "mean"]
         assert x.dim() == 2, "x should be 2 dimensional"
         assert labels.dim() == 1, "labels should be 1 dimensional"
-
-        B, _ = get_num_elements_and_hidden_size(x)
-        assert labels.size(0) == B, "x and labels have different number of elements along dim 0"
+        assert (
+            labels.size(0) == get_num_elements_and_hidden_size(x)[0]
+        ), "x and labels have different number of elements along batch dimension"
 
         loss = torch.tensor(0, device=x.device, dtype=torch.float32)
         x_grad = torch.empty_like(x)
