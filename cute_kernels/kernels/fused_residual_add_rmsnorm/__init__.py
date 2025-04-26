@@ -40,6 +40,18 @@ class _FusedResidualAddRMSNorm_Cute(torch.autograd.Function):
         added_x_residual = torch.empty_like(x)
         rmsnorm_denominator = None if memory_efficient else torch.empty(B, device=x.device, dtype=torch.float32)
 
+        fused_residual_add_rmsnorm_forward_triton(
+            x=x,
+            residual=residual,
+            weight=weight,
+            output=output,
+            eps=eps,
+            multiplier=multiplier,
+            added_x_residual=added_x_residual,
+            rmsnorm_denominator=rmsnorm_denominator,
+            BLOCK_SIZE_B=BLOCK_SIZE_B_forward,
+        )
+
         with torch.cuda.device(x.device):
             fused_residual_add_rmsnorm_forward_triton[ceil_divide(B, BLOCK_SIZE_B_forward),](
                 x_ptr=x,
