@@ -50,22 +50,20 @@ def embedding_backward_triton(
     BLOCK_SIZE_B: int,
     BLOCK_SIZE_H: int,
 ) -> None:
-    num_elements = input_ids.numel()
-    hidden_size = weight_grad.size(-1)
+    B = input_ids.numel()
+    H = weight_grad.size(-1)
 
     accumulate_in_fp32 = weight_grad.dtype == torch.bfloat16
     if accumulate_in_fp32:
         weight_grad = weight_grad.float()
 
     with torch.device(input_ids.device):
-        embedding_backward_triton_kernel[
-            ceil_divide(num_elements, BLOCK_SIZE_B), ceil_divide(hidden_size, BLOCK_SIZE_H)
-        ](
+        embedding_backward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), ceil_divide(H, BLOCK_SIZE_H)](
             x_ptr=input_ids,
             output_grad_ptr=output_grad,
             weight_grad_ptr=weight_grad,
-            B=num_elements,
-            H=hidden_size,
+            B=B,
+            H=H,
             accumulate_in_fp32=accumulate_in_fp32,
             BLOCK_SIZE_B=BLOCK_SIZE_B,
             BLOCK_SIZE_H=BLOCK_SIZE_H,

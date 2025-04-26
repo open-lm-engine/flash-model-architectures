@@ -44,18 +44,16 @@ def embedding_forward_triton(
     BLOCK_SIZE_B: int,
     BLOCK_SIZE_H: int,
 ) -> None:
-    num_elements = input_ids.numel()
-    hidden_size = weight.size(-1)
+    B = input_ids.numel()
+    H = weight.size(-1)
 
     with torch.device(input_ids.device):
-        embedding_forward_triton_kernel[
-            ceil_divide(num_elements, BLOCK_SIZE_B), ceil_divide(hidden_size, BLOCK_SIZE_H)
-        ](
+        embedding_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), ceil_divide(H, BLOCK_SIZE_H)](
             x_ptr=input_ids,
             weight_ptr=weight,
             output_ptr=output,
-            B=num_elements,
-            H=hidden_size,
+            B=B,
+            H=H,
             BLOCK_SIZE_B=BLOCK_SIZE_B,
             BLOCK_SIZE_H=BLOCK_SIZE_H,
         )

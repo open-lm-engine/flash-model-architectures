@@ -117,7 +117,7 @@ def cross_entropy_forward_backward_triton(
             labels_ptr=labels,
             loss_ptr=loss,
             x_grad_ptr=x_grad,
-            has_logits_multiplier=logits_multiplier is not None,
+            has_logits_multiplier=logits_multiplier not in [None, 1],
             logits_multiplier=logits_multiplier,
             B=B,
             V=V,
