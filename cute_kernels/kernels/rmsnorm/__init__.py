@@ -58,28 +58,17 @@ class _RMSNorm_Cute(torch.autograd.Function):
         x_grad = torch.empty_like(x)
         weight_grad = None if weight is None else torch.zeros_like(weight, dtype=torch.float32)
 
-        B, H = get_num_elements_and_hidden_size(x)
-        BLOCK_SIZE_B = ctx.BLOCK_SIZE_B_backward
-
-        sm_count = get_sm_count(x.device)
-        num_programs = min(sm_count, ceil_divide(B, BLOCK_SIZE_B))
-
-        with torch.cuda.device(x.device):
-            rmsnorm_backward_triton[num_programs,](
-                x_ptr=x,
-                has_weight=weight is not None,
-                weight_ptr=weight,
-                output_grad_ptr=output_grad,
-                x_grad_ptr=x_grad,
-                weight_grad_ptr=weight_grad,
-                eps=ctx.eps,
-                has_rmsnorm_denominator=rmsnorm_denominator is not None,
-                rmsnorm_denominator_ptr=rmsnorm_denominator,
-                B=B,
-                H=H,
-                BLOCK_SIZE_B=BLOCK_SIZE_B,
-                BLOCK_SIZE_H=ctx.BLOCK_SIZE_H,
-            )
+        rmsnorm_backward_triton(
+            x=x,
+            weight=weight,
+            output_grad=output_grad,
+            rmsnorm_denominator=rmsnorm_denominator,
+            x_grad=x_grad,
+            weight_grad=weight_grad,
+            eps=ctx.eps,
+            BLOCK_SIZE_B=ctx.BLOCK_SIZE_B_backward,
+            BLOCK_SIZE_H=ctx.BLOCK_SIZE_H,
+        )
 
         if weight_grad is not None:
             weight_grad = weight_grad.type_as(weight)

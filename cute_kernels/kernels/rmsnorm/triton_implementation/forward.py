@@ -61,13 +61,13 @@ def rmsnorm_forward_triton(
     BLOCK_SIZE_B: int,
     BLOCK_SIZE_H: int,
 ) -> None:
-    num_elements, hidden_size = get_num_elements_and_hidden_size(x)
+    B, H = get_num_elements_and_hidden_size(x)
 
-    if BLOCK_SIZE_H < hidden_size:
+    if BLOCK_SIZE_H < H:
         raise ValueError(f"hidden_size should be more than the BLOCK_SIZE_H")
 
     with torch.device(x.device):
-        rmsnorm_forward_triton_kernel[ceil_divide(num_elements, BLOCK_SIZE_B),](
+        rmsnorm_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](
             x_ptr=x,
             has_weight=weight is not None,
             weight_ptr=weight,
@@ -75,8 +75,8 @@ def rmsnorm_forward_triton(
             eps=eps,
             has_rmsnorm_denominator=rmsnorm_denominator is not None,
             rmsnorm_denominator_ptr=rmsnorm_denominator,
-            B=num_elements,
-            H=hidden_size,
+            B=B,
+            H=H,
             BLOCK_SIZE_B=BLOCK_SIZE_B,
             BLOCK_SIZE_H=BLOCK_SIZE_H,
         )
