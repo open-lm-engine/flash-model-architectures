@@ -2,7 +2,7 @@
 
 namespace cute_kernels::memory {
     template <typename T>
-    inline __device__ T *load_128_bits(T *array, const uint64 &index) {
+    inline __device__ T *load_128_bits(const T *array, const uint64 &index) {
         using vecT = std::conditional_t<std::is_const<T>::value, const int32_4, int32_4>;
         vecT *vector_array = reinterpret_cast<vecT *>(array);
         vecT vector_element = vector_array[index];
