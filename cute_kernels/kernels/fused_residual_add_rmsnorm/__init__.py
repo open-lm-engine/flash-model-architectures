@@ -52,25 +52,6 @@ class _FusedResidualAddRMSNorm_Cute(torch.autograd.Function):
             BLOCK_SIZE_B=BLOCK_SIZE_B_forward,
         )
 
-        with torch.cuda.device(x.device):
-            fused_residual_add_rmsnorm_forward_triton[ceil_divide(B, BLOCK_SIZE_B_forward),](
-                x_ptr=x,
-                residual_ptr=residual,
-                has_weight=weight is not None,
-                weight_ptr=weight,
-                output_ptr=output,
-                eps=eps,
-                has_multiplier=multiplier is not None and multiplier != 1,
-                multiplier=multiplier,
-                added_x_residual_ptr=added_x_residual,
-                has_rmsnorm_denominator=rmsnorm_denominator is not None,
-                rmsnorm_denominator_ptr=rmsnorm_denominator,
-                B=B,
-                H=H,
-                BLOCK_SIZE_B=BLOCK_SIZE_B_forward,
-                BLOCK_SIZE_H=BLOCK_SIZE_H,
-            )
-
         ctx.save_for_backward(added_x_residual, weight, rmsnorm_denominator)
         ctx.eps = eps
         ctx.multiplier = multiplier
