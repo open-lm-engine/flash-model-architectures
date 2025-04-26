@@ -27,7 +27,7 @@ def add_scalar_triton_kernel(x_ptr, y, output_ptr, N, BLOCK_SIZE: tl.constexpr):
 
 
 @cute_op(f"{LIBRARY_NAME}::add_scalar_triton", mutates_args={"output"})
-def add_scalar_triton(x: torch.Tensor, y: float, output: torch.Tensor, BLOCK_SIZE: int, NUM_WARPS_TRITON: int) -> None:
+def add_scalar_triton(x: torch.Tensor, y: float, output: torch.Tensor, BLOCK_SIZE: int, NUM_WARPS: int) -> None:
     N = x.numel()
 
     with torch.device(x.device):
@@ -37,5 +37,5 @@ def add_scalar_triton(x: torch.Tensor, y: float, output: torch.Tensor, BLOCK_SIZ
             output_ptr=output,
             N=N,
             BLOCK_SIZE=BLOCK_SIZE,
-            num_warps=NUM_WARPS_TRITON,
+            num_warps=NUM_WARPS,
         )

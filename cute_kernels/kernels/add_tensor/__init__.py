@@ -28,7 +28,7 @@ class _AddTensor_Cute(torch.autograd.Function):
         if is_cuda_kernel_backend_allowed(kernel_backend) and is_nvidia_gpu() and x.is_cuda and y.is_cuda:
             add_tensor_cuda(x=x, y=y, output=output, BLOCK_SIZE=BLOCK_SIZE_CUDA)
         elif is_triton_kernel_backend_allowed(kernel_backend):
-            add_tensor_triton(x=x, y=y, output=output, BLOCK_SIZE=BLOCK_SIZE_TRITON, NUM_WARPS_TRITON=NUM_WARPS_TRITON)
+            add_tensor_triton(x=x, y=y, output=output, BLOCK_SIZE=BLOCK_SIZE_TRITON, NUM_WARPS=NUM_WARPS_TRITON)
         else:
             raise ValueError("unexpected kernel_backend")
 

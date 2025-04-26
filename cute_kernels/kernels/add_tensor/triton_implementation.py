@@ -28,9 +28,7 @@ def add_tensor_triton_kernel(x_ptr, y_ptr, output_ptr, N, BLOCK_SIZE: tl.constex
 
 
 @cute_op(f"{LIBRARY_NAME}::add_tensor_triton", mutates_args={"output"})
-def add_tensor_triton(
-    x: torch.Tensor, y: torch.Tensor, output: torch.Tensor, BLOCK_SIZE: int, NUM_WARPS_TRITON: int
-) -> None:
+def add_tensor_triton(x: torch.Tensor, y: torch.Tensor, output: torch.Tensor, BLOCK_SIZE: int, NUM_WARPS: int) -> None:
     N = x.numel()
 
     with torch.device(x.device):
@@ -40,5 +38,5 @@ def add_tensor_triton(
             output_ptr=output,
             N=N,
             BLOCK_SIZE=BLOCK_SIZE,
-            num_warps=NUM_WARPS_TRITON,
+            num_warps=NUM_WARPS,
         )
