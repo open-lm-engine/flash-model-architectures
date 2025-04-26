@@ -6,7 +6,6 @@
 
 namespace ck = cute_kernels;
 namespace ck_mem = ck::memory;
-namespace ck_comm = ck::communication;
 
 using fp32 = ck::fp32;
 using uint32 = ck::uint32;
