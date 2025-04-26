@@ -43,7 +43,7 @@ __global__ void swiglu_forward_cuda_kernel(const scalar_t *gate,
             output_buffer[i] = _swiglu_forward<scalar_t>(gate_vec[i], up_vec[i]);
         }
 
-        ck_mem::store_128_bits<scalar_t>(output_buffer, output, thread_id);
+        ck_mem::store_128_bits<scalar_t, scalar_t>(output_buffer, output, thread_id);
     }
 
     const uint32 index = N_vec * N_per_thread + thread_id;
@@ -76,7 +76,7 @@ void swiglu_forward_cuda(const torch::Tensor &gate,
                                        std::vector<ck::ChunkedArray<scalar_t>> output_chunks =
                                            ck::chunk_array<scalar_t>(output.data_ptr<scalar_t>(), total_elements);
 
-                                       for (int i = 0; i < gate_chunks.size(); i++) {
+                                       for (uint32 i = 0; i < gate_chunks.size(); i++) {
                                            ck::ChunkedArray<scalar_t> gate_chunk = gate_chunks[i];
                                            ck::ChunkedArray<scalar_t> up_chunk = up_chunks[i];
                                            ck::ChunkedArray<scalar_t> output_chunk = output_chunks[i];
