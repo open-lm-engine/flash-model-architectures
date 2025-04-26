@@ -1,8 +1,8 @@
 import torch
 
 from ...constants import MAX_TRITON_BLOCK_SIZE
-from ...math import ceil_divide, get_next_power_of_2
-from ...utils import ensure_contiguous, get_num_elements_and_hidden_size, get_sm_count
+from ...math import get_next_power_of_2
+from ...utils import ensure_contiguous, get_num_elements_and_hidden_size
 from .torch_implementation import rmsnorm_torch
 from .triton_implementation import rmsnorm_backward_triton, rmsnorm_forward_triton
 
