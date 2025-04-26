@@ -27,14 +27,14 @@ def swiglu_forward_triton_kernel(gate_ptr, up_ptr, output_ptr, N, BLOCK_SIZE: tl
 def swiglu_forward_triton(
     gate: torch.Tensor, up: torch.Tensor, output: torch.Tensor, BLOCK_SIZE: int, NUM_WARPS: int
 ) -> None:
-    num_elements = gate.numel()
+    N = gate.numel()
 
     with torch.device(gate.device):
-        swiglu_forward_triton_kernel[ceil_divide(num_elements, BLOCK_SIZE),](
+        swiglu_forward_triton_kernel[ceil_divide(N, BLOCK_SIZE),](
             gate_ptr=gate,
             up_ptr=up,
             output_ptr=output,
-            num_elements=num_elements,
+            N=N,
             BLOCK_SIZE=BLOCK_SIZE,
             num_warps=NUM_WARPS,
         )
