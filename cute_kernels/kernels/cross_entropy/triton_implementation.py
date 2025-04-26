@@ -104,7 +104,7 @@ def cross_entropy_forward_backward_triton(
     labels: torch.Tensor,
     loss: torch.Tensor,
     x_grad: torch.Tensor,
-    logits_multiplier: float,
+    logits_multiplier: float | None,
     BLOCK_SIZE_B: int,
     BLOCK_SIZE_V: int,
     reduction: str,
