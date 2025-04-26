@@ -25,9 +25,7 @@ def _get_cpp_function(function_name: str, source_files: list[str], build_directo
         os.path.dirname(os.path.dirname(__file__)) + "/cutlass/tools/util/include",  # cutlass
     ]
 
-    is_distributed_enabled = torch.distributed.is_initialized()
-
-    if is_distributed_enabled:
+    if torch.distributed.is_initialized():
         if _GLOBAL_RANK == 0:
             module = load_cpp_extension(
                 module_name,
