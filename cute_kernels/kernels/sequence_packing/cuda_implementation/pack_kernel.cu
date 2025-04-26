@@ -66,12 +66,6 @@ __global__ void pack_sequence_cuda_kernel(const scalar_t *x,
         if (s >= pad_tokens) {
             _copy_array(x, output, b, s, start + s - pad_tokens, S, N);
         }
-    } else if (padding_side == "right") {
-        if (s >= seqlens) {
-            return;
-        } else {
-            return;
-        }
     }
 }
 
