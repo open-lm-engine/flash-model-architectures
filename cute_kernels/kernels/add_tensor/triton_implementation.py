@@ -31,15 +31,14 @@ def add_tensor_triton_kernel(x_ptr, y_ptr, output_ptr, N, BLOCK_SIZE: tl.constex
 def add_tensor_triton(
     x: torch.Tensor, y: torch.Tensor, output: torch.Tensor, BLOCK_SIZE: int, NUM_WARPS_TRITON: int
 ) -> None:
-    num_elements = x.numel()
-    num_programs = ceil_divide(num_elements, BLOCK_SIZE)
+    N = x.numel()
 
     with torch.device(x.device):
-        add_tensor_triton_kernel[num_programs,](
+        add_tensor_triton_kernel[ceil_divide(N, BLOCK_SIZE),](
             x_ptr=x,
             y_ptr=y,
             output_ptr=output,
-            num_elements=num_elements,
+            N=N,
             BLOCK_SIZE=BLOCK_SIZE,
             num_warps=NUM_WARPS_TRITON,
         )
