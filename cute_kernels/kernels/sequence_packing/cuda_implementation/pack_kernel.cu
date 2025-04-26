@@ -30,7 +30,7 @@ __device__ void _copy_array(const scalar_t *source,
     uint32 store_offset = output_index * N_vec;
 
     for (uint32 i = threadIdx.x; i < N_vec; i += blockDim.x) {
-        const scalar_t *source_vec = ck_mem::load_128_bits<const scalar_t>(source, load_offset + i);
+        const scalar_t *source_vec = ck_mem::load_128_bits<scalar_t>(source, load_offset + i);
         ck_mem::store_128_bits<scalar_t>(source_vec, destination, store_offset + i);
     }
 

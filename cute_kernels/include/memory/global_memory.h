@@ -4,8 +4,8 @@ namespace cute_kernels::memory {
     template <typename T>
     inline __device__ T *load_128_bits(const T *array, const uint64 &index) {
         const int32_4 *vector_array = reinterpret_cast<const int32_4 *>(array);
-        const int32_4 vector_element = vector_array[index];
-        T *output = reinterpret_cast<const T *>(&vector_element);
+        int32_4 vector_element = vector_array[index];
+        T *output = reinterpret_cast<T *>(&vector_element);
         return output;
     }
 
