@@ -34,13 +34,13 @@ __device__ void _copy_array(const scalar_t *source,
         ck_mem::store_128_bits<scalar_t>(source_vec, destination, store_offset + i);
     }
 
-    load_offset += N_vec;
-    load_offset *= N_per_thread;
-
-    store_offset += N_vec;
-    store_offset *= N_per_thread;
-
     if (threadIdx.x < N) {
+        load_offset += N_vec;
+        load_offset *= N_per_thread;
+
+        store_offset += N_vec;
+        store_offset *= N_per_thread;
+
         destination[store_offset + threadIdx.x] = source[load_offset + threadIdx.x];
     }
 }
