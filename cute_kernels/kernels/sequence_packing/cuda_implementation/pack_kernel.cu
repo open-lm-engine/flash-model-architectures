@@ -17,13 +17,30 @@ __device__ void _copy_array(const scalar *source,
                             scalar_t *destination,
                             const uint32 &b,
                             const uint32 &s,
-                            const uint32 &offset,
+                            const uint32 &output_index,
+                            const uint32 &S,
                             const uint32 &N) {
     constexpr uint32 N_per_thread = ck_mem::get_num_elements_for_vector_load_stores<scalar_t>();
     const uint32 N_vec = N / N_per_thread;
 
-    for (uint32 i = 0; i < N_vec; i++) {
-        ck_mem::load_128_bits<const scalar_t>(source, threadIdx.x)
+    // start = b * stride_b + s * stride_s for N_per_thread = 1
+    // start = (b * stride_b + s * stride_s) / N_per_thread for N_per_thread != 1
+    uint32 load_offset = (b * S + s) * N_vec;
+    uint32 store_offset = output_index * N_vec;
+
+    for (uint32 i = threadIdx.x; i < N_vec; i += blockDim.x) {
+        const scalar_t *source_vec = ck_mem::load_128_bits<const scalar_t>(source, load_offset + i);
+        ck_mem::store_128_bits<scalar_t>(source_vec, destination, store_offset + i);
+    }
+
+    load_offset += N_vec;
+    load_offset *= N_per_thread;
+
+    store_offset += N_vec;
+    store_offset *= N_per_thread;
+
+    if (threadIdx.x < N) {
+        destination[store_offset + threadIdx.x] = source[load_offset + threadIdx.x];
     }
 }
 
@@ -47,8 +64,7 @@ __global__ void pack_sequence_cuda_kernel(const scalar_t *x,
         const uint32 pad_tokens = S - seqlens;
 
         if (s >= pad_tokens) {
-            offset = start + s - pad_tokens;
-            output[offset];
+            _copy_array(x, output, b, s, start + s - pad_tokens, S, N);
         }
     } else if (padding_side == "right") {
         if (s >= seqlens) {
