@@ -103,7 +103,7 @@ void pack_sequence_cuda(const torch::Tensor &x,
     AT_DISPATCH_CUSTOM_FLOAT_TYPES(
         x.scalar_type(), "pack_sequence_cuda_kernel", ([&] {
             constexpr uint32 N_per_thread = ck_mem::get_num_elements_for_vector_load_stores<scalar_t>();
-            TORCH_CHECK(num_elements % N_per_thread == 0);
+            TORCH_CHECK(N % N_per_thread == 0);
 
             if (max_seqlen_tensor.has_value()) {
                 pack_sequence_cuda_kernel<scalar_t, uint32, true, PaddingSide::left>
