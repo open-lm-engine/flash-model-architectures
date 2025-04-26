@@ -11,6 +11,8 @@ using fp32 = ck::fp32;
 using uint32 = ck::uint32;
 using uint64 = ck::uint64;
 
+enum class PaddingSide { left, right };
+
 template <typename scalar_t>
 __device__ void _copy_array(const scalar_t *source,
                             scalar_t *destination,
@@ -43,7 +45,7 @@ __device__ void _copy_array(const scalar_t *source,
     }
 }
 
-template <typename scalar_t, typename integer_t, bool is_max_seqlen_tensor, std::string padding_side>
+template <typename scalar_t, typename integer_t, bool is_max_seqlen_tensor, PaddingSide padding_side>
 __global__ void pack_sequence_cuda_kernel(const scalar_t *x,
                                           scalar_t *output,
                                           const uint32 *cu_seqlens,
@@ -59,7 +61,7 @@ __global__ void pack_sequence_cuda_kernel(const scalar_t *x,
     const uint32 end = cu_seqlens[b + 1];
     const uint32 seqlens = end - start;
 
-    if (padding_side == "left") {
+    if (padding_side == PaddingSide::left) {
         const uint32 pad_tokens = S - seqlens;
 
         if (s >= pad_tokens) {
@@ -108,7 +110,7 @@ void pack_sequence_cuda(const torch::Tensor &x,
             TORCH_CHECK(num_elements % N_per_thread == 0);
 
             if (max_seqlen_tensor.has_value()) {
-                pack_sequence_cuda_kernel<scalar_t, uint32, true, "left">
+                pack_sequence_cuda_kernel<scalar_t, uint32, true, PaddingSide::left>
                     <<<NUM_BLOCKS, BLOCK_SIZE, shared_memory_size>>>(x.data_ptr<scalar_t>(),
                                                                      output.data_ptr<scalar_t>(),
                                                                      seqlens.data_ptr<uint32>(),
@@ -118,7 +120,7 @@ void pack_sequence_cuda(const torch::Tensor &x,
                                                                      S,
                                                                      N);
             } else {
-                pack_sequence_cuda_kernel<scalar_t, uint32, false, "left">
+                pack_sequence_cuda_kernel<scalar_t, uint32, false, PaddingSide::left>
                     <<<NUM_BLOCKS, BLOCK_SIZE, shared_memory_size>>>(x.data_ptr<scalar_t>(),
                                                                      output.data_ptr<scalar_t>(),
                                                                      seqlens.data_ptr<uint32>(),
