@@ -104,7 +104,7 @@ void swiglu_backward_cuda(const torch::Tensor &gate,
             std::vector<ck::ChunkedArray<scalar_t>> up_grad_chunks =
                 ck::chunk_array<scalar_t>(up_grad.data_ptr<scalar_t>(), total_elements);
 
-            for (int i = 0; i < gate_chunks.size(); i++) {
+            for (uint32 i = 0; i < gate_chunks.size(); i++) {
                 ck::ChunkedArray<scalar_t> gate_chunk = gate_chunks[i];
                 ck::ChunkedArray<scalar_t> up_chunk = up_chunks[i];
                 ck::ChunkedArray<scalar_t> output_grad_chunk = output_grad_chunks[i];
