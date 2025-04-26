@@ -2,8 +2,8 @@ import torch
 import triton
 import triton.language as tl
 
-from ....constants import LIBRARY_NAME
-from ....math import ceil_divide
+from ....constants import LIBRARY_NAME, MAX_TRITON_BLOCK_SIZE
+from ....math import ceil_divide, get_next_power_of_2
 from ....utils import cute_op, get_num_elements_and_hidden_size, get_sm_count
 
 
@@ -99,12 +99,11 @@ def rmsnorm_backward_triton(
     weight_grad: torch.Tensor | None,
     eps: float,
     BLOCK_SIZE_B: int,
-    BLOCK_SIZE_H: int,
 ) -> None:
     B, H = get_num_elements_and_hidden_size(x)
 
-    if BLOCK_SIZE_H < H:
-        raise ValueError(f"hidden_size should be more than the BLOCK_SIZE_H")
+    BLOCK_SIZE_H = get_next_power_of_2(H)
+    assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
 
     sm_count = get_sm_count(x.device)
     num_programs = min(sm_count, ceil_divide(B, BLOCK_SIZE_B))

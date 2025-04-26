@@ -2,8 +2,8 @@ import torch
 import triton
 import triton.language as tl
 
-from ....constants import LIBRARY_NAME
-from ....math import ceil_divide
+from ....constants import LIBRARY_NAME, MAX_TRITON_BLOCK_SIZE
+from ....math import ceil_divide, get_next_power_of_2
 from ....utils import cute_op, get_num_elements_and_hidden_size
 
 
@@ -59,12 +59,11 @@ def rmsnorm_forward_triton(
     eps: float,
     rmsnorm_denominator: torch.Tensor | None,
     BLOCK_SIZE_B: int,
-    BLOCK_SIZE_H: int,
 ) -> None:
     B, H = get_num_elements_and_hidden_size(x)
 
-    if BLOCK_SIZE_H < H:
-        raise ValueError(f"hidden_size should be more than the BLOCK_SIZE_H")
+    BLOCK_SIZE_H = get_next_power_of_2(H)
+    assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
 
     with torch.device(x.device):
         rmsnorm_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](

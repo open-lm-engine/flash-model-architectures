@@ -1,7 +1,5 @@
 import torch
 
-from ...constants import MAX_TRITON_BLOCK_SIZE
-from ...math import get_next_power_of_2
 from ...utils import ensure_contiguous, get_num_elements_and_hidden_size
 from .torch_implementation import rmsnorm_torch
 from .triton_implementation import rmsnorm_backward_triton, rmsnorm_forward_triton
@@ -27,9 +25,7 @@ class _RMSNorm_Cute(torch.autograd.Function):
         if eps is None:
             eps = torch.finfo(x.dtype).eps
 
-        B, H = get_num_elements_and_hidden_size(x)
-        BLOCK_SIZE_H = get_next_power_of_2(H)
-        assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
+        B, _ = get_num_elements_and_hidden_size(x)
 
         output = torch.empty_like(x)
         rmsnorm_denominator = None if memory_efficient else torch.empty(B, device=x.device, dtype=torch.float32)
@@ -41,13 +37,11 @@ class _RMSNorm_Cute(torch.autograd.Function):
             eps=eps,
             rmsnorm_denominator=rmsnorm_denominator,
             BLOCK_SIZE_B=BLOCK_SIZE_B_forward,
-            BLOCK_SIZE_H=BLOCK_SIZE_H,
         )
 
         ctx.save_for_backward(x, weight, rmsnorm_denominator)
         ctx.eps = eps
         ctx.BLOCK_SIZE_B_backward = BLOCK_SIZE_B_backward
-        ctx.BLOCK_SIZE_H = BLOCK_SIZE_H
 
         return output
 
@@ -67,7 +61,6 @@ class _RMSNorm_Cute(torch.autograd.Function):
             weight_grad=weight_grad,
             eps=ctx.eps,
             BLOCK_SIZE_B=ctx.BLOCK_SIZE_B_backward,
-            BLOCK_SIZE_H=ctx.BLOCK_SIZE_H,
         )
 
         if weight_grad is not None:

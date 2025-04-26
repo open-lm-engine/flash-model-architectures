@@ -49,6 +49,10 @@ class _RNN_Cute(torch.autograd.Function):
         B, S, N, H = output.size()
         BLOCK_SIZE_B = ctx.BLOCK_SIZE_B_backward
 
+        rnn_backward_triton(
+            input=input, weight=weight, input_state=input_state, output=output, BLOCK_SIZE_B=BLOCK_SIZE_B
+        )
+
         with torch.cuda.device(output.device):
             rnn_backward_triton[ceil_divide(B, BLOCK_SIZE_B), N](
                 weight_ptr=weight,
