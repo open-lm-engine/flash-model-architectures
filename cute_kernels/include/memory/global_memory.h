@@ -20,6 +20,6 @@ namespace cute_kernels::memory {
 
     template <typename T>
     constexpr inline __device__ uint32 get_num_elements_for_vector_load_stores() {
-        return 16 / sizeof(T);
+        return sizeof(int32_4) / sizeof(T);
     }
 }  // namespace cute_kernels::memory
