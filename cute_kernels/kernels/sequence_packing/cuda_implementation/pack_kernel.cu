@@ -79,7 +79,7 @@ void pack_sequence_cuda(const torch::Tensor &x,
                         const uint32 &BLOCK_SIZE) {
     CHECK_CUDA_TENSOR(x);
     CHECK_CUDA_TENSOR(output);
-    CHECK_CUDA_TENSOR(seqlens);
+    CHECK_CUDA_TENSOR(cu_seqlens);
 
     CHECK_VALID_THREAD_BLOCK(BLOCK_SIZE);
 
