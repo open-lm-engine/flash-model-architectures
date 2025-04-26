@@ -35,20 +35,13 @@ class _SwigluUnchunked_Cute(torch.autograd.Function):
         x = ctx.saved_tensors[0]
         x_grad = torch.empty_like(x)
 
-        B, H = get_num_elements_and_hidden_size(x)
-        BLOCK_SIZE_B = ctx.BLOCK_SIZE_B_backward
-        BLOCK_SIZE_H = ctx.BLOCK_SIZE_H_backward
-
-        with torch.cuda.device(x.device):
-            swiglu_unchunked_backward_triton[ceil_divide(B, BLOCK_SIZE_B), ceil_divide(H, BLOCK_SIZE_H)](
-                x_ptr=x,
-                output_grad_ptr=output_grad,
-                x_grad_ptr=x_grad,
-                B=B,
-                H=H,
-                BLOCK_SIZE_B=BLOCK_SIZE_B,
-                BLOCK_SIZE_H=BLOCK_SIZE_H,
-            )
+        swiglu_unchunked_backward_triton(
+            x=x,
+            output_grad=output_grad,
+            x_grad=x_grad,
+            BLOCK_SIZE_B=ctx.BLOCK_SIZE_B_backward,
+            BLOCK_SIZE_H=ctx.BLOCK_SIZE_H_backward,
+        )
 
         return x_grad, *[None] * 4
 
