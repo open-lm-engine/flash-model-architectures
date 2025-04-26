@@ -18,21 +18,15 @@ class _Embedding_Cute(torch.autograd.Function):
         BLOCK_SIZE_B_backward: int,
         BLOCK_SIZE_H_backward: int,
     ) -> torch.Tensor:
-        B = input_ids.numel()
-        H = weight.size(-1)
+        output = torch.empty(*input_ids.size(), weight.size(-1), dtype=weight.dtype, device=input_ids.device)
 
-        output = torch.empty(*input_ids.size(), H, dtype=weight.dtype, device=input_ids.device)
-
-        with torch.cuda.device(input_ids.device):
-            embedding_forward_triton[ceil_divide(B, BLOCK_SIZE_B_forward), ceil_divide(H, BLOCK_SIZE_H_forward)](
-                x_ptr=input_ids,
-                weight_ptr=weight,
-                output_ptr=output,
-                B=B,
-                H=H,
-                BLOCK_SIZE_B=BLOCK_SIZE_B_forward,
-                BLOCK_SIZE_H=BLOCK_SIZE_H_forward,
-            )
+        embedding_forward_triton(
+            input_ids=input_ids,
+            weight=weight,
+            output=output,
+            BLOCK_SIZE_B=BLOCK_SIZE_B_forward,
+            BLOCK_SIZE_H=BLOCK_SIZE_H_forward,
+        )
 
         ctx.save_for_backward(input_ids, weight)
         ctx.BLOCK_SIZE_B_backward = BLOCK_SIZE_B_backward
