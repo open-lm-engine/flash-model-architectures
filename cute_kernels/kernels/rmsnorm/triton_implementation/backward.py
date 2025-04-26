@@ -109,7 +109,7 @@ def rmsnorm_backward_triton(
     num_programs = min(sm_count, ceil_divide(B, BLOCK_SIZE_B))
 
     with torch.device(x.device):
-        rmsnorm_backward_triton_kernel[(num_programs,)](
+        rmsnorm_backward_triton_kernel[num_programs,](
             x_ptr=x,
             has_weight=weight is not None,
             weight_ptr=weight,
