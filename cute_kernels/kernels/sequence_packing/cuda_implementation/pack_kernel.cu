@@ -100,10 +100,6 @@ void pack_sequence_cuda(const torch::Tensor &x,
     const dim3 NUM_BLOCKS = dim3(S, B);
     const uint32 shared_memory_size = B * sizeof(uint32);
 
-    const uint64 N = x.numel();
-    // FIXME check this value
-    TORCH_CHECK(N < 1000000000);
-
     AT_DISPATCH_CUSTOM_FLOAT_TYPES(
         x.scalar_type(), "pack_sequence_cuda_kernel", ([&] {
             constexpr uint32 N_per_thread = ck_mem::get_num_elements_for_vector_load_stores<scalar_t>();
