@@ -69,7 +69,7 @@ def _get_cpp_function(function_name: str, source_files: list[str], build_directo
             verbose=True,
         )
 
-    rmtree(build_directory, ignore_errors=True)
+        rmtree(build_directory, ignore_errors=True)
 
     return getattr(module, function_name)
 
