@@ -52,8 +52,6 @@ def _get_cpp_function(function_name: str, source_files: list[str], build_directo
                 build_directory=build_directory,
                 verbose=False,
             )
-
-        torch.distributed.barrier()
     else:
         build_directory = os.path.join(build_directory, str(uuid4()))
         os.makedirs(build_directory, exist_ok=True)
