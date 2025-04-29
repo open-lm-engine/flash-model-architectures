@@ -7,9 +7,6 @@ from ....math import ceil_divide
 from ....utils import cute_op, get_num_elements_and_hidden_size
 
 
-_KERNEL_NAME = "softmax_backward_triton"
-
-
 @triton.jit
 def _load_output_output_grad(output_ptr, output_grad_ptr, h, H, BLOCK_SIZE_H, indices_b, mask_b):
     indices_h = h * BLOCK_SIZE_H + tl.arange(0, BLOCK_SIZE_H)
@@ -28,7 +25,7 @@ def _load_output_output_grad(output_ptr, output_grad_ptr, h, H, BLOCK_SIZE_H, in
 
 
 @triton.jit
-def _softmax_backward_triton_kernel(
+def softmax_backward_triton_kernel(
     output_ptr,
     output_grad_ptr,
     x_grad_ptr,
@@ -82,7 +79,7 @@ def _softmax_backward_triton_kernel(
         tl.store(x_grad_ptrs, output, mask=mask_bh)
 
 
-@cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"x_grad"})
+@cute_op(f"{LIBRARY_NAME}::softmax_backward_triton", mutates_args={"x_grad"})
 def softmax_backward_triton(
     output: torch.Tensor,
     output_grad: torch.Tensor,
@@ -94,11 +91,11 @@ def softmax_backward_triton(
     num_elements, hidden_size = get_num_elements_and_hidden_size(x_grad)
 
     with torch.device(x_grad.device):
-        _softmax_backward_triton_kernel[ceil_divide(num_elements, BLOCK_SIZE_B),](
+        softmax_backward_triton_kernel[ceil_divide(num_elements, BLOCK_SIZE_B),](
             output_ptr=output,
             output_grad_ptr=output_grad,
             x_grad_ptr=x_grad,
-            has_logits_multiplier=logits_multiplier is not None,
+            has_logits_multiplier=logits_multiplier not in [None, 1],
             logits_multiplier=logits_multiplier,
             B=num_elements,
             H=hidden_size,

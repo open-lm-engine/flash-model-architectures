@@ -1,6 +1,5 @@
 import torch
 
-from ...math import ceil_divide
 from ...utils import ensure_contiguous
 from .torch_implementation import embedding_torch
 from .triton_implementation import embedding_backward_triton, embedding_forward_triton
@@ -18,21 +17,15 @@ class _Embedding_Cute(torch.autograd.Function):
         BLOCK_SIZE_B_backward: int,
         BLOCK_SIZE_H_backward: int,
     ) -> torch.Tensor:
-        B = input_ids.numel()
-        H = weight.size(-1)
+        output = torch.empty(*input_ids.size(), weight.size(-1), dtype=weight.dtype, device=input_ids.device)
 
-        output = torch.empty(*input_ids.size(), H, dtype=weight.dtype, device=input_ids.device)
-
-        with torch.cuda.device(input_ids.device):
-            embedding_forward_triton[ceil_divide(B, BLOCK_SIZE_B_forward), ceil_divide(H, BLOCK_SIZE_H_forward)](
-                x_ptr=input_ids,
-                weight_ptr=weight,
-                output_ptr=output,
-                B=B,
-                H=H,
-                BLOCK_SIZE_B=BLOCK_SIZE_B_forward,
-                BLOCK_SIZE_H=BLOCK_SIZE_H_forward,
-            )
+        embedding_forward_triton(
+            input_ids=input_ids,
+            weight=weight,
+            output=output,
+            BLOCK_SIZE_B=BLOCK_SIZE_B_forward,
+            BLOCK_SIZE_H=BLOCK_SIZE_H_forward,
+        )
 
         ctx.save_for_backward(input_ids, weight)
         ctx.BLOCK_SIZE_B_backward = BLOCK_SIZE_B_backward
@@ -45,28 +38,19 @@ class _Embedding_Cute(torch.autograd.Function):
     def backward(ctx, output_grad: torch.Tensor) -> torch.Tensor:
         input_ids, weight = ctx.saved_tensors
 
-        B = input_ids.numel()
-        H = weight.size(-1)
-        BLOCK_SIZE_B = ctx.BLOCK_SIZE_B_backward
-        BLOCK_SIZE_H = ctx.BLOCK_SIZE_H_backward
-
         weight_grad = torch.zeros_like(weight)
 
         accumulate_in_fp32 = weight_grad.dtype == torch.bfloat16
         if accumulate_in_fp32:
             weight_grad = weight_grad.float()
 
-        with torch.cuda.device(input_ids.device):
-            embedding_backward_triton[ceil_divide(B, BLOCK_SIZE_B), ceil_divide(H, BLOCK_SIZE_H)](
-                x_ptr=input_ids,
-                output_grad_ptr=output_grad,
-                weight_grad_ptr=weight_grad,
-                B=B,
-                H=H,
-                accumulate_in_fp32=accumulate_in_fp32,
-                BLOCK_SIZE_B=BLOCK_SIZE_B,
-                BLOCK_SIZE_H=BLOCK_SIZE_H,
-            )
+        embedding_backward_triton(
+            input_ids=input_ids,
+            output_grad=output_grad,
+            weight_grad=weight_grad,
+            BLOCK_SIZE_B=ctx.BLOCK_SIZE_B_backward,
+            BLOCK_SIZE_H=ctx.BLOCK_SIZE_H_backward,
+        )
 
         return None, weight_grad, *[None] * 4
 

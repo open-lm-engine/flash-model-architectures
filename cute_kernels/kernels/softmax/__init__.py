@@ -18,25 +18,15 @@ class _Softmax_Cute(torch.autograd.Function):
         BLOCK_SIZE_B_backward: int,
         BLOCK_SIZE_H_backward: int,
     ) -> torch.Tensor:
-        if x.dim() == 1:
-            B = 1
-            H = x.size(-1)
-        else:
-            B, H = get_num_elements_and_hidden_size(x)
-
         output = torch.empty_like(x)
 
-        with torch.cuda.device(x.device):
-            softmax_forward_triton[ceil_divide(B, BLOCK_SIZE_B_forward),](
-                x_ptr=x,
-                output_ptr=output,
-                has_logits_multiplier=logits_multiplier is not None,
-                logits_multiplier=logits_multiplier,
-                B=B,
-                H=H,
-                BLOCK_SIZE_B=BLOCK_SIZE_B_forward,
-                BLOCK_SIZE_H=BLOCK_SIZE_H_forward,
-            )
+        softmax_forward_triton(
+            x=x,
+            output=output,
+            logits_multiplier=logits_multiplier,
+            BLOCK_SIZE_B=BLOCK_SIZE_B_forward,
+            BLOCK_SIZE_H=BLOCK_SIZE_H_forward,
+        )
 
         ctx.save_for_backward(output)
         ctx.logits_multiplier = logits_multiplier
