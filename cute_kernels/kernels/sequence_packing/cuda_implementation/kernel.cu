@@ -24,8 +24,6 @@ inline __device__ void _copy_array(const scalar_t *source,
     constexpr uint32 N_per_thread = ck_mem::get_num_elements_for_vector_load_stores<scalar_t>();
     const uint32 N_vec = N / N_per_thread;
 
-    // start = b * stride_b + s * stride_s for N_per_thread = 1
-    // start = (b * stride_b + s * stride_s) / N_per_thread for N_per_thread != 1
     uint32 unpacked_offset = (b * S + s) * N_vec;
     uint32 packed_offset = t * N_vec;
 
