@@ -52,7 +52,7 @@ inline __device__ void _update_local_count(const scalar_t *x,
     const uint32 N_vec = N / N_per_thread;
 
     for (uint32 i = global_thread_id; i < N_vec; i += total_threads) {
-        const scalar_t *x_vec = ck_mem::load_128_bits<const scalar_t>(x, i);
+        const scalar_t *x_vec = ck_mem::load_128_bits<scalar_t>(x, i);
 
         for (uint32 j = 0; j < N_per_thread; j++) {
             atomicAdd(&shared_memory[x_vec[j]], 1);
