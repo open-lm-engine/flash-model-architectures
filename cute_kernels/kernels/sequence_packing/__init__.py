@@ -2,7 +2,7 @@ import torch
 
 from ...utils import ensure_contiguous
 from .cuda_implementation import pack_unpack_sequence_cuda
-from .torch_implementation import pack_sequence_torch
+from .torch_implementation import pack_sequence_torch, unpack_sequence_torch
 
 
 def _pack_sequence(x: torch.Tensor, cu_seqlens: torch.Tensor, padding_side: str, BLOCK_SIZE: int) -> torch.Tensor:
