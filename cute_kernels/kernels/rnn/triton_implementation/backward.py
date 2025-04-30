@@ -66,6 +66,7 @@ def rnn_backward_triton_kernel(
     output_ptrs = output_ptr + indices
     output = tl.load(output_ptrs, mask=mask_bh, other=0)
 
+    # backward counting reduces 1 instruction since we need to compare s == 0, otherwise we have to compare s == S - 1
     for s in range(S - 1, -1, -1):
         output_grad_ptrs = output_grad_ptr + indices
         output_grad = tl.load(output_grad_ptrs, mask=mask_bh, other=0)

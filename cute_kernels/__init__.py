@@ -22,6 +22,8 @@ from .kernels import (
     gemm_torch,
     linear_cute,
     linear_torch,
+    pack_sequence_cute,
+    pack_sequence_torch,
     rmsnorm_cute,
     rmsnorm_torch,
     rnn_cute,

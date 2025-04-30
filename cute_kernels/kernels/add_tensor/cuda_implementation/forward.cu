@@ -61,7 +61,7 @@ void add_tensor_cuda(const torch::Tensor &x, const torch::Tensor &y, torch::Tens
 
     AT_DISPATCH_CUSTOM_FLOAT_TYPES(x.scalar_type(), "add_tensor_cuda_kernel", ([&] {
                                        const uint32 num_elements_per_thread = 16 / sizeof(scalar_t);
-                                       const uint32 num_elements_per_block = BLOCK_SIZE * num_elements_per_thread;
+                                       const uint32 num_elements_per_block = num_elements_per_thread * BLOCK_SIZE;
 
                                        std::vector<ck::ChunkedArray<scalar_t>> x_chunks =
                                            ck::chunk_array<scalar_t>(x.data_ptr<scalar_t>(), total_elements);
@@ -74,7 +74,7 @@ void add_tensor_cuda(const torch::Tensor &x, const torch::Tensor &y, torch::Tens
                                            ck_mem::get_num_elements_for_vector_load_stores<scalar_t>();
                                        const uint32 N_per_block = BLOCK_SIZE * N_per_thread;
 
-                                       for (int i = 0; i < x_chunks.size(); i++) {
+                                       for (uint32 i = 0; i < x_chunks.size(); i++) {
                                            ck::ChunkedArray<scalar_t> x_chunk = x_chunks[i];
                                            ck::ChunkedArray<scalar_t> y_chunk = y_chunks[i];
                                            ck::ChunkedArray<scalar_t> output_chunk = output_chunks[i];
