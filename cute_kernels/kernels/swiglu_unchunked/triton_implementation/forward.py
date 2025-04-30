@@ -9,7 +9,9 @@ from ....utils import cute_op, get_num_elements_and_hidden_size
 
 
 @triton.jit
-def swiglu_unchunked_forward_triton(x_ptr, output_ptr, B, H, BLOCK_SIZE_B: tl.constexpr, BLOCK_SIZE_H: tl.constexpr):
+def swiglu_unchunked_forward_triton_kernel(
+    x_ptr, output_ptr, B, H, BLOCK_SIZE_B: tl.constexpr, BLOCK_SIZE_H: tl.constexpr
+):
     BLOCK_ID_B = tl.program_id(axis=0)
     BLOCK_ID_H = tl.program_id(axis=1)
 
