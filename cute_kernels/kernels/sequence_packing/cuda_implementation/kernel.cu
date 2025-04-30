@@ -14,8 +14,8 @@ using uint64 = ck::uint64;
 enum class PaddingSide { left, right };
 
 template <typename scalar_t, bool is_packing>
-inline __device__ void _copy_array(std::conditional_t<is_packing, const scalar_t, scalar_t> *source,
-                                   std::conditional_t<is_packing, scalar_t, const scalar_t> *destination,
+inline __device__ void _copy_array(const scalar_t *source,
+                                   scalar_t *destination,
                                    const uint32 &b,
                                    const uint32 &s,
                                    const uint32 &t,
