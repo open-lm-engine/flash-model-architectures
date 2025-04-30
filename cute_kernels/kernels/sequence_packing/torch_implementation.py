@@ -26,7 +26,9 @@ def pack_sequence_torch(x: torch.Tensor, cu_seqlens: torch.Tensor, padding_side:
 def unpack_sequence_torch(
     x: torch.Tensor, cu_seqlens: torch.Tensor, desired_shape: tuple[int], padding_side: str = "left"
 ) -> torch.Tensor:
-    B = cu_seqlens.size(0) - 1
+    B, S = desired_shape[:2]
+    assert cu_seqlens.size(0) - 1 == B
+    assert desired_shape[2:] == x.size()[1:]
 
     seqlens = cu_seqlens[1:] - cu_seqlens[:-1]
     batch_indices = torch.arange(B, device=x.device).repeat_interleave(seqlens)

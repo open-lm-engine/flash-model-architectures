@@ -86,6 +86,7 @@ class _UnpackSequence_Cute(torch.autograd.Function):
     ) -> torch.Tensor:
         assert padding_side in ["left", "right"]
         assert x.dim() >= 2
+        assert desired_shape[0] == cu_seqlens.size(0) - 1
         assert desired_shape[2:] == x.size()[1:]
 
         ctx.save_for_backward(cu_seqlens)
