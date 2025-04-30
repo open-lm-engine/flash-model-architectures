@@ -25,13 +25,14 @@ def swiglu_unchunked_forward_triton_kernel(
     mask_bh = mask_b[:, None] & mask_h[None, :]
 
     up_ptrs = x_ptr + indices_b[:, None] * H + indices_h[None, :]
-    gate_ptrs = up_ptrs + (H >> 1)
-    output_ptrs = output_ptr + indices_b[:, None] * half_H + indices_h[None, :]
-
     up = tl.load(up_ptrs, mask=mask_bh)
+
+    gate_ptrs = up_ptrs + (H >> 1)
     gate = tl.load(gate_ptrs, mask=mask_bh).to(tl.float32)
+
     output = up * gate * sigmoid(gate)
 
+    output_ptrs = output_ptr + indices_b[:, None] * half_H + indices_h[None, :]
     tl.store(output_ptrs, output, mask=mask_bh)
 
 
