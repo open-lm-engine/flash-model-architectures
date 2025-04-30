@@ -88,7 +88,7 @@ void pack_unpack_sequence_cuda(const torch::Tensor &x,
     const dim3 NUM_BLOCKS = dim3(S, B);
     const uint32 shared_memory_size = B * sizeof(uint32);
 
-    AT_DISPATCH_CUSTOM_FLOAT_TYPES(
+    DISPATCH_FLOAT_KERNEL(
         x.scalar_type(), "pack_unpack_sequence_cuda_kernel", ([&] {
             constexpr uint32 N_per_thread = ck_mem::get_num_elements_for_vector_load_stores<scalar_t>();
             TORCH_CHECK(N % N_per_thread == 0);

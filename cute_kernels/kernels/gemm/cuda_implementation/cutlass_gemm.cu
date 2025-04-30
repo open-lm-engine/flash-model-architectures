@@ -69,36 +69,36 @@ void cutlass_gemm_cuda(const torch::Tensor &A,
     }
     CHECK_CUDA_TENSOR(output);
 
-    AT_DISPATCH_CUSTOM_FLOAT_TYPES(
-        A.scalar_type(), "cutlass_gemm_cuda", ([&] {
-            using input_dtype = typename ck::DType<scalar_t>::cutlass_dtype;
+    DISPATCH_FLOAT_KERNEL(A.scalar_type(), "cutlass_gemm_cuda", ([&] {
+                              using input_dtype = typename ck::DType<scalar_t>::cutlass_dtype;
 
-            const input_dtype *A_data = reinterpret_cast<input_dtype *>(A.data_ptr<scalar_t>());
-            const input_dtype *B_data = reinterpret_cast<input_dtype *>(B.data_ptr<scalar_t>());
-            const input_dtype *C_data = C.has_value() ? reinterpret_cast<input_dtype *>(C.value().data_ptr<scalar_t>())
-                                                      : nullptr;
-            input_dtype *output_data = reinterpret_cast<input_dtype *>(output.data_ptr<scalar_t>());
+                              const input_dtype *A_data = reinterpret_cast<input_dtype *>(A.data_ptr<scalar_t>());
+                              const input_dtype *B_data = reinterpret_cast<input_dtype *>(B.data_ptr<scalar_t>());
+                              const input_dtype *C_data =
+                                  C.has_value() ? reinterpret_cast<input_dtype *>(C.value().data_ptr<scalar_t>())
+                                                : nullptr;
+                              input_dtype *output_data = reinterpret_cast<input_dtype *>(output.data_ptr<scalar_t>());
 
-            const int32 _M = ck::safe_cast_uint32_to_int32(M);
-            const int32 _K = ck::safe_cast_uint32_to_int32(K);
-            const int32 _N = ck::safe_cast_uint32_to_int32(N);
+                              const int32 _M = ck::safe_cast_uint32_to_int32(M);
+                              const int32 _K = ck::safe_cast_uint32_to_int32(K);
+                              const int32 _N = ck::safe_cast_uint32_to_int32(N);
 
-            if (is_A_transposed) {
-                if (is_B_transposed) {
-                    _cutlass_gemm_templated_layout<input_dtype, true, true>(
-                        A_data, B_data, C_data, output_data, alpha, beta, _M, _K, _N);
-                } else {
-                    _cutlass_gemm_templated_layout<input_dtype, true, false>(
-                        A_data, B_data, C_data, output_data, alpha, beta, _M, _K, _N);
-                }
-            } else {
-                if (is_B_transposed) {
-                    _cutlass_gemm_templated_layout<input_dtype, false, true>(
-                        A_data, B_data, C_data, output_data, alpha, beta, _M, _K, _N);
-                } else {
-                    _cutlass_gemm_templated_layout<input_dtype, false, false>(
-                        A_data, B_data, C_data, output_data, alpha, beta, _M, _K, _N);
-                }
-            }
-        }));
+                              if (is_A_transposed) {
+                                  if (is_B_transposed) {
+                                      _cutlass_gemm_templated_layout<input_dtype, true, true>(
+                                          A_data, B_data, C_data, output_data, alpha, beta, _M, _K, _N);
+                                  } else {
+                                      _cutlass_gemm_templated_layout<input_dtype, true, false>(
+                                          A_data, B_data, C_data, output_data, alpha, beta, _M, _K, _N);
+                                  }
+                              } else {
+                                  if (is_B_transposed) {
+                                      _cutlass_gemm_templated_layout<input_dtype, false, true>(
+                                          A_data, B_data, C_data, output_data, alpha, beta, _M, _K, _N);
+                                  } else {
+                                      _cutlass_gemm_templated_layout<input_dtype, false, false>(
+                                          A_data, B_data, C_data, output_data, alpha, beta, _M, _K, _N);
+                                  }
+                              }
+                          }));
 }
