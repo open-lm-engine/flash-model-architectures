@@ -40,12 +40,12 @@ inline __device__ void _copy_array(const scalar_t *source,
 
 template <typename scalar_t, typename integer_t, PaddingSide padding_side, bool is_packing>
 __global__ void pack_unpack_sequence_cuda_kernel(
-    const scalar_t *x, scalar_t *output, const uint32 *cu_seqlens, const uint32 B, const uint32 S, const uint32 N) {
+    const scalar_t *x, scalar_t *output, const integer_t *cu_seqlens, const uint32 B, const uint32 S, const uint32 N) {
     const uint32 s = blockIdx.x;
     const uint32 b = blockIdx.y;
 
-    const uint32 start = cu_seqlens[b];
-    const uint32 end = cu_seqlens[b + 1];
+    const integer_t start = cu_seqlens[b];
+    const integer_t end = cu_seqlens[b + 1];
     const uint32 seqlens = end - start;
     const uint32 pad_tokens = S - seqlens;
 
