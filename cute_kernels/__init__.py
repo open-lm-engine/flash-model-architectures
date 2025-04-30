@@ -34,7 +34,6 @@ from .kernels import (
     swiglu_torch,
     swiglu_unchunked_cute,
     swiglu_unchunked_torch,
-    unpack_sequence_torch,
 )
 from .math import ceil_divide, get_powers_of_2
 from .tensor import CuteTensor
