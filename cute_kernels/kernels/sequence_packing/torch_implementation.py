@@ -31,7 +31,9 @@ def unpack_sequence_torch(
 
     seqlens = cu_seqlens[1:] - cu_seqlens[:-1]
     batch_indices = torch.arange(B, device=x.device).repeat_interleave(seqlens)
-    seq_indices = torch.cat([torch.arange(sl, device=x.device) for sl in seqlens])
+
+    if padding_side == "left":
+        seq_indices = torch.cat([torch.arange(sl, device=x.device) for sl in seqlens])
 
     padded = torch.zeros(desired_shape, dtype=x.dtype, device=x.device)
     padded[batch_indices, seq_indices] = x
