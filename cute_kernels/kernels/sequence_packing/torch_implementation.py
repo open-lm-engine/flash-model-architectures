@@ -34,7 +34,8 @@ def unpack_sequence_torch(
     batch_indices = torch.arange(B, device=x.device).repeat_interleave(seqlens)
 
     if padding_side == "left":
-        seq_indices = torch.cat([torch.arange(sl, device=x.device) for sl in seqlens])
+        pad_tokens = S - seqlens
+        seq_indices = torch.cat([torch.arange(sl, S, device=x.device) for sl in pad_tokens])
     elif padding_side == "right":
         seq_indices = torch.cat([torch.arange(sl, device=x.device) for sl in seqlens])
     else:
