@@ -18,17 +18,8 @@ class _PackSequence_Cute(torch.autograd.Function):
         assert x.dim() >= 2
 
         output = torch.empty(cu_seqlens[-1], *x.size()[2:], device=x.device, dtype=x.dtype)
-        is_max_seqlen_tensor = isinstance(max_seqlen, torch.Tensor)
 
-        pack_sequence_cuda(
-            x=x,
-            output=output,
-            cu_seqlens=cu_seqlens,
-            max_seqlen_tensor=max_seqlen if is_max_seqlen_tensor else None,
-            max_seqlen=None if is_max_seqlen_tensor else max_seqlen,
-            padding_side=padding_side,
-            BLOCK_SIZE=BLOCK_SIZE,
-        )
+        pack_sequence_cuda(x=x, output=output, cu_seqlens=cu_seqlens, padding_side=padding_side, BLOCK_SIZE=BLOCK_SIZE)
 
         return output
 

@@ -35,15 +35,9 @@ inline __device__ void _copy_array(const scalar_t *source,
     }
 }
 
-template <typename scalar_t, typename integer_t, bool is_max_seqlen_tensor, PaddingSide padding_side>
-__global__ void pack_sequence_cuda_kernel(const scalar_t *x,
-                                          scalar_t *output,
-                                          const uint32 *cu_seqlens,
-                                          const uint32 *max_seqlen_tensor,
-                                          uint32 max_seqlen,  // not constant to be able to laod from max_seqlen_tensor
-                                          const uint32 B,
-                                          const uint32 S,
-                                          const uint32 N) {
+template <typename scalar_t, typename integer_t, PaddingSide padding_side>
+__global__ void pack_sequence_cuda_kernel(
+    const scalar_t *x, scalar_t *output, const uint32 *cu_seqlens, const uint32 B, const uint32 S, const uint32 N) {
     const uint32 s = blockIdx.x;
     const uint32 b = blockIdx.y;
 
@@ -66,8 +60,6 @@ __global__ void pack_sequence_cuda_kernel(const scalar_t *x,
 void pack_sequence_cuda(const torch::Tensor &x,
                         torch::Tensor &output,
                         const torch::Tensor &cu_seqlens,
-                        const std::optional<torch::Tensor> &max_seqlen_tensor,
-                        const std::optional<uint32> &max_seqlen,
                         const std::string &padding_side,
                         const uint32 &BLOCK_SIZE) {
     CHECK_CUDA_TENSOR(x);
@@ -98,50 +90,14 @@ void pack_sequence_cuda(const torch::Tensor &x,
             constexpr uint32 N_per_thread = ck_mem::get_num_elements_for_vector_load_stores<scalar_t>();
             TORCH_CHECK(N % N_per_thread == 0);
 
-            if (max_seqlen_tensor.has_value()) {
-                if (padding_side == "left") {
-                    pack_sequence_cuda_kernel<scalar_t, uint32, true, PaddingSide::left>
-                        <<<NUM_BLOCKS, BLOCK_SIZE, shared_memory_size>>>(x.data_ptr<scalar_t>(),
-                                                                         output.data_ptr<scalar_t>(),
-                                                                         cu_seqlens.data_ptr<uint32>(),
-                                                                         max_seqlen_tensor.value().data_ptr<uint32>(),
-                                                                         0,
-                                                                         B,
-                                                                         S,
-                                                                         N);
-                } else {
-                    pack_sequence_cuda_kernel<scalar_t, uint32, true, PaddingSide::right>
-                        <<<NUM_BLOCKS, BLOCK_SIZE, shared_memory_size>>>(x.data_ptr<scalar_t>(),
-                                                                         output.data_ptr<scalar_t>(),
-                                                                         cu_seqlens.data_ptr<uint32>(),
-                                                                         max_seqlen_tensor.value().data_ptr<uint32>(),
-                                                                         0,
-                                                                         B,
-                                                                         S,
-                                                                         N);
-                }
+            if (padding_side == "left") {
+                pack_sequence_cuda_kernel<scalar_t, uint32, PaddingSide::left>
+                    <<<NUM_BLOCKS, BLOCK_SIZE, shared_memory_size>>>(
+                        x.data_ptr<scalar_t>(), output.data_ptr<scalar_t>(), cu_seqlens.data_ptr<uint32>(), B, S, N);
             } else {
-                if (padding_side == "left") {
-                    pack_sequence_cuda_kernel<scalar_t, uint32, false, PaddingSide::left>
-                        <<<NUM_BLOCKS, BLOCK_SIZE, shared_memory_size>>>(x.data_ptr<scalar_t>(),
-                                                                         output.data_ptr<scalar_t>(),
-                                                                         cu_seqlens.data_ptr<uint32>(),
-                                                                         nullptr,
-                                                                         max_seqlen.value(),
-                                                                         B,
-                                                                         S,
-                                                                         N);
-                } else {
-                    pack_sequence_cuda_kernel<scalar_t, uint32, false, PaddingSide::right>
-                        <<<NUM_BLOCKS, BLOCK_SIZE, shared_memory_size>>>(x.data_ptr<scalar_t>(),
-                                                                         output.data_ptr<scalar_t>(),
-                                                                         cu_seqlens.data_ptr<uint32>(),
-                                                                         nullptr,
-                                                                         max_seqlen.value(),
-                                                                         B,
-                                                                         S,
-                                                                         N);
-                }
+                pack_sequence_cuda_kernel<scalar_t, uint32, PaddingSide::right>
+                    <<<NUM_BLOCKS, BLOCK_SIZE, shared_memory_size>>>(
+                        x.data_ptr<scalar_t>(), output.data_ptr<scalar_t>(), cu_seqlens.data_ptr<uint32>(), B, S, N);
             }
         }));
 }
