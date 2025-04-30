@@ -70,14 +70,6 @@ void pack_sequence_cuda(const torch::Tensor &x,
 
     TORCH_CHECK(padding_side == "left" || padding_side == "right");
 
-    // only one of the 2 should contain a value
-    if (max_seqlen_tensor.has_value()) {
-        CHECK_CUDA_TENSOR(max_seqlen_tensor.value());
-        TORCH_CHECK(!max_seqlen.has_value());
-    } else {
-        TORCH_CHECK(max_seqlen.has_value());
-    }
-
     const uint32 B = x.size(0);
     const uint32 S = x.size(1);
     const uint32 N = x.numel() / (B * S);
