@@ -18,7 +18,7 @@ inline __device__ void _copy_array(const scalar_t *source,
                                    scalar_t *destination,
                                    const uint32 &b,
                                    const uint32 &s,
-                                   const uint32 &output_index,
+                                   const uint32 &t,
                                    const uint32 &S,
                                    const uint32 &N) {
     constexpr uint32 N_per_thread = ck_mem::get_num_elements_for_vector_load_stores<scalar_t>();
@@ -27,7 +27,7 @@ inline __device__ void _copy_array(const scalar_t *source,
     // start = b * stride_b + s * stride_s for N_per_thread = 1
     // start = (b * stride_b + s * stride_s) / N_per_thread for N_per_thread != 1
     uint32 load_offset = (b * S + s) * N_vec;
-    uint32 store_offset = output_index * N_vec;
+    uint32 store_offset = t * N_vec;
 
     for (uint32 i = threadIdx.x; i < N_vec; i += blockDim.x) {
         const scalar_t *source_vec = ck_mem::load_128_bits<scalar_t>(source, load_offset + i);

@@ -18,7 +18,7 @@ inline __device__ void _copy_array(const scalar_t *source,
                                    scalar_t *destination,
                                    const uint32 &b,
                                    const uint32 &s,
-                                   const uint32 &output_index,
+                                   const uint32 &t,
                                    const uint32 &S,
                                    const uint32 &N) {
     constexpr uint32 N_per_thread = ck_mem::get_num_elements_for_vector_load_stores<scalar_t>();
@@ -26,8 +26,8 @@ inline __device__ void _copy_array(const scalar_t *source,
 
     // start = b * stride_b + s * stride_s for N_per_thread = 1
     // start = (b * stride_b + s * stride_s) / N_per_thread for N_per_thread != 1
-    uint32 load_offset = (b * S + s) * N_vec;
-    uint32 store_offset = output_index * N_vec;
+    uint32 load_offset = t * N_vec;
+    uint32 store_offset = (b * S + s) * N_vec;
 
     for (uint32 i = threadIdx.x; i < N_vec; i += blockDim.x) {
         const scalar_t *source_vec = ck_mem::load_128_bits<scalar_t>(source, load_offset + i);
@@ -36,14 +36,15 @@ inline __device__ void _copy_array(const scalar_t *source,
 }
 
 template <typename scalar_t, typename integer_t, bool is_max_seqlen_tensor, PaddingSide padding_side>
-__global__ void pack_sequence_cuda_kernel(const scalar_t *x,
-                                          scalar_t *output,
-                                          const uint32 *cu_seqlens,
-                                          const uint32 *max_seqlen_tensor,
-                                          uint32 max_seqlen,  // not constant to be able to laod from max_seqlen_tensor
-                                          const uint32 B,
-                                          const uint32 S,
-                                          const uint32 N) {
+__global__ void unpack_sequence_cuda_kernel(
+    const scalar_t *x,
+    scalar_t *output,
+    const uint32 *cu_seqlens,
+    const uint32 *max_seqlen_tensor,
+    uint32 max_seqlen,  // not constant to be able to laod from max_seqlen_tensor
+    const uint32 B,
+    const uint32 S,
+    const uint32 N) {
     const uint32 s = blockIdx.x;
     const uint32 b = blockIdx.y;
 
@@ -100,7 +101,7 @@ void unpack_sequence_cuda(const torch::Tensor &x,
 
             if (max_seqlen_tensor.has_value()) {
                 if (padding_side == "left") {
-                    pack_sequence_cuda_kernel<scalar_t, uint32, true, PaddingSide::left>
+                    unpack_sequence_cuda_kernel<scalar_t, uint32, true, PaddingSide::left>
                         <<<NUM_BLOCKS, BLOCK_SIZE, shared_memory_size>>>(x.data_ptr<scalar_t>(),
                                                                          output.data_ptr<scalar_t>(),
                                                                          cu_seqlens.data_ptr<uint32>(),
@@ -110,7 +111,7 @@ void unpack_sequence_cuda(const torch::Tensor &x,
                                                                          S,
                                                                          N);
                 } else {
-                    pack_sequence_cuda_kernel<scalar_t, uint32, true, PaddingSide::right>
+                    unpack_sequence_cuda_kernel<scalar_t, uint32, true, PaddingSide::right>
                         <<<NUM_BLOCKS, BLOCK_SIZE, shared_memory_size>>>(x.data_ptr<scalar_t>(),
                                                                          output.data_ptr<scalar_t>(),
                                                                          cu_seqlens.data_ptr<uint32>(),
@@ -122,7 +123,7 @@ void unpack_sequence_cuda(const torch::Tensor &x,
                 }
             } else {
                 if (padding_side == "left") {
-                    pack_sequence_cuda_kernel<scalar_t, uint32, false, PaddingSide::left>
+                    unpack_sequence_cuda_kernel<scalar_t, uint32, false, PaddingSide::left>
                         <<<NUM_BLOCKS, BLOCK_SIZE, shared_memory_size>>>(x.data_ptr<scalar_t>(),
                                                                          output.data_ptr<scalar_t>(),
                                                                          cu_seqlens.data_ptr<uint32>(),
@@ -132,7 +133,7 @@ void unpack_sequence_cuda(const torch::Tensor &x,
                                                                          S,
                                                                          N);
                 } else {
-                    pack_sequence_cuda_kernel<scalar_t, uint32, false, PaddingSide::right>
+                    unpack_sequence_cuda_kernel<scalar_t, uint32, false, PaddingSide::right>
                         <<<NUM_BLOCKS, BLOCK_SIZE, shared_memory_size>>>(x.data_ptr<scalar_t>(),
                                                                          output.data_ptr<scalar_t>(),
                                                                          cu_seqlens.data_ptr<uint32>(),
