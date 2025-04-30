@@ -33,16 +33,6 @@ inline __device__ void _copy_array(const scalar_t *source,
         const scalar_t *source_vec = ck_mem::load_128_bits<scalar_t>(source, load_offset + i);
         ck_mem::store_128_bits<scalar_t>(source_vec, destination, store_offset + i);
     }
-
-    if (threadIdx.x < N) {
-        load_offset += N_vec;
-        load_offset *= N_per_thread;
-
-        store_offset += N_vec;
-        store_offset *= N_per_thread;
-
-        destination[store_offset + threadIdx.x] = source[load_offset + threadIdx.x];
-    }
 }
 
 template <typename scalar_t, typename integer_t, bool is_max_seqlen_tensor, PaddingSide padding_side>
