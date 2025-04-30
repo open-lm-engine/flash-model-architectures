@@ -1,7 +1,7 @@
 import torch
 
 from .cuda_implementation import pack_sequence_cuda
-from .torch_implementation import pack_sequence_torch, unpack_sequence_torch
+from .torch_implementation import pack_sequence_torch
 
 
 class _PackSequence_Cute(torch.autograd.Function):

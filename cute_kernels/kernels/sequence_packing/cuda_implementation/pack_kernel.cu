@@ -14,13 +14,13 @@ using uint64 = ck::uint64;
 enum class PaddingSide { left, right };
 
 template <typename scalar_t>
-__device__ void _copy_array(const scalar_t *source,
-                            scalar_t *destination,
-                            const uint32 &b,
-                            const uint32 &s,
-                            const uint32 &output_index,
-                            const uint32 &S,
-                            const uint32 &N) {
+inline __device__ void _copy_array(const scalar_t *source,
+                                   scalar_t *destination,
+                                   const uint32 &b,
+                                   const uint32 &s,
+                                   const uint32 &output_index,
+                                   const uint32 &S,
+                                   const uint32 &N) {
     constexpr uint32 N_per_thread = ck_mem::get_num_elements_for_vector_load_stores<scalar_t>();
     const uint32 N_vec = N / N_per_thread;
 
