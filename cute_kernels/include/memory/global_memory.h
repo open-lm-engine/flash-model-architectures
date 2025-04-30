@@ -11,9 +11,8 @@ namespace cute_kernels::memory {
 
     template <typename T>
     inline __device__ void store_128_bits(const T *source, T *destination, const uint64 &index) {
-        using vecT = std::conditional_t<std::is_const<T>::value, const int32_4, int32_4>;
-        vecT *destination_vector_array = reinterpret_cast<vecT *>(destination);
-        const vecT source_vector = reinterpret_cast<const vecT *>(&source[0])[0];
+        int32_4 *destination_vector_array = reinterpret_cast<int32_4 *>(destination);
+        const int32_4 source_vector = reinterpret_cast<const int32_4 *>(&source[0])[0];
         destination_vector_array[index] = source_vector;
     }
 
