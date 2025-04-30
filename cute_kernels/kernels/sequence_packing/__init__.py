@@ -1,7 +1,7 @@
 import torch
 
 from ...utils import ensure_contiguous
-from .cuda_implementation import pack_sequence_cuda, unpack_sequence_cuda
+from .cuda_implementation import pack_unpack_sequence_cuda
 from .torch_implementation import pack_sequence_torch
 
 
@@ -21,7 +21,7 @@ class _PackSequence_Cute(torch.autograd.Function):
         assert x.dim() >= 2
 
         output = torch.empty(cu_seqlens[-1], *x.size()[2:], device=x.device, dtype=x.dtype)
-        pack_sequence_cuda(
+        pack_unpack_sequence_cuda(
             x=x, output=output, cu_seqlens=cu_seqlens, padding_side=padding_side, BLOCK_SIZE=BLOCK_SIZE_forward
         )
 

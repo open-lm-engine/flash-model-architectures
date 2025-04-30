@@ -13,9 +13,9 @@ using uint64 = ck::uint64;
 
 enum class PaddingSide { left, right };
 
-template <typename scalar_t>
-inline __device__ void _copy_array(const scalar_t *source,
-                                   scalar_t *destination,
+template <typename scalar_t, bool is_packing>
+inline __device__ void _copy_array(std::conditional_t<is_packing, const scalar_t, scalar_t> *unpacked_array,
+                                   std::conditional_t<is_packing, scalar_t, const scalar_t> *packed_array,
                                    const uint32 &b,
                                    const uint32 &s,
                                    const uint32 &t,
@@ -26,17 +26,22 @@ inline __device__ void _copy_array(const scalar_t *source,
 
     // start = b * stride_b + s * stride_s for N_per_thread = 1
     // start = (b * stride_b + s * stride_s) / N_per_thread for N_per_thread != 1
-    uint32 load_offset = (b * S + s) * N_vec;
-    uint32 store_offset = t * N_vec;
+    uint32 unpacked_offset = (b * S + s) * N_vec;
+    uint32 packed_offset = t * N_vec;
 
     for (uint32 i = threadIdx.x; i < N_vec; i += blockDim.x) {
-        const scalar_t *source_vec = ck_mem::load_128_bits<scalar_t>(source, load_offset + i);
-        ck_mem::store_128_bits<scalar_t>(source_vec, destination, store_offset + i);
+        if (is_packing) {
+            const scalar_t *source_vec = ck_mem::load_128_bits<scalar_t>(unpacked_array, unpacked_offset + i);
+            ck_mem::store_128_bits<scalar_t>(source_vec, packed_array, packed_offset + i);
+        } else {
+            const scalar_t *source_vec = ck_mem::load_128_bits<scalar_t>(packed_array, packed_offset + i);
+            ck_mem::store_128_bits<scalar_t>(source_vec, unpacked_array, unpacked_offset + i);
+        }
     }
 }
 
-template <typename scalar_t, typename integer_t, PaddingSide padding_side>
-__global__ void pack_sequence_cuda_kernel(
+template <typename scalar_t, typename integer_t, PaddingSide padding_side, bool is_packing>
+__global__ void pack_unpack_sequence_cuda_kernel(
     const scalar_t *x, scalar_t *output, const uint32 *cu_seqlens, const uint32 B, const uint32 S, const uint32 N) {
     const uint32 s = blockIdx.x;
     const uint32 b = blockIdx.y;
@@ -48,20 +53,20 @@ __global__ void pack_sequence_cuda_kernel(
 
     if (padding_side == PaddingSide::left) {
         if (s >= pad_tokens) {
-            _copy_array(x, output, b, s, start + s - pad_tokens, S, N);
+            _copy_array<scalar_t, is_packing>(x, output, b, s, start + s - pad_tokens, S, N);
         }
     } else {
         if (s < pad_tokens) {
-            _copy_array(x, output, b, s, start + s, S, N);
+            _copy_array<scalar_t, is_packing>(x, output, b, s, start + s, S, N);
         }
     }
 }
 
-void pack_sequence_cuda(const torch::Tensor &x,
-                        torch::Tensor &output,
-                        const torch::Tensor &cu_seqlens,
-                        const std::string &padding_side,
-                        const uint32 &BLOCK_SIZE) {
+void pack_unpack_sequence_cuda(const torch::Tensor &x,
+                               torch::Tensor &output,
+                               const torch::Tensor &cu_seqlens,
+                               const std::string &padding_side,
+                               const uint32 &BLOCK_SIZE) {
     CHECK_CUDA_TENSOR(x);
     CHECK_CUDA_TENSOR(output);
     CHECK_CUDA_TENSOR(cu_seqlens);
@@ -78,16 +83,16 @@ void pack_sequence_cuda(const torch::Tensor &x,
     const uint32 shared_memory_size = B * sizeof(uint32);
 
     AT_DISPATCH_CUSTOM_FLOAT_TYPES(
-        x.scalar_type(), "pack_sequence_cuda_kernel", ([&] {
+        x.scalar_type(), "pack_unpack_sequence_cuda_kernel", ([&] {
             constexpr uint32 N_per_thread = ck_mem::get_num_elements_for_vector_load_stores<scalar_t>();
             TORCH_CHECK(N % N_per_thread == 0);
 
             if (padding_side == "left") {
-                pack_sequence_cuda_kernel<scalar_t, uint32, PaddingSide::left>
+                pack_unpack_sequence_cuda_kernel<scalar_t, uint32, PaddingSide::left, true>
                     <<<NUM_BLOCKS, BLOCK_SIZE, shared_memory_size>>>(
                         x.data_ptr<scalar_t>(), output.data_ptr<scalar_t>(), cu_seqlens.data_ptr<uint32>(), B, S, N);
             } else {
-                pack_sequence_cuda_kernel<scalar_t, uint32, PaddingSide::right>
+                pack_unpack_sequence_cuda_kernel<scalar_t, uint32, PaddingSide::right, true>
                     <<<NUM_BLOCKS, BLOCK_SIZE, shared_memory_size>>>(
                         x.data_ptr<scalar_t>(), output.data_ptr<scalar_t>(), cu_seqlens.data_ptr<uint32>(), B, S, N);
             }
