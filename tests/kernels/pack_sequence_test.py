@@ -67,7 +67,11 @@ class PackSequenceTest(TestCommons):
         x_kernel, x_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype)
         cu_seqlens = torch.tensor(cu_seqlens, device=device, dtype=torch.uint32)
 
-        z_kernel = function(x_kernel, cu_seqlens=cu_seqlens, desired_shape=desired_shape, padding_side=padding_side)
+        with torch._dynamo.config.patch(capture_scalar_outputs=True):
+            z_kernel = function(
+                x_kernel, cu_seqlens=cu_seqlens, desired_shape=desired_shape, padding_side=padding_side
+            )
+
         z_expected = unpack_sequence_torch(
             x_expected, cu_seqlens=cu_seqlens.to(torch.int), desired_shape=desired_shape, padding_side=padding_side
         )
