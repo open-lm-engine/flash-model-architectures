@@ -113,7 +113,7 @@ class _UnpackSequence_Cute(torch.autograd.Function):
             BLOCK_SIZE=ctx.BLOCK_SIZE_backward,
         )
 
-        return x_grad, *[None] * 4
+        return x_grad, *[None] * 5
 
 
 def pack_sequence_cute(
