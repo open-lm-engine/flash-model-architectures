@@ -109,7 +109,7 @@ void pack_sequence_cuda(const torch::Tensor &x,
             TORCH_CHECK(N % N_per_thread == 0);
 
             if (max_seqlen_tensor.has_value()) {
-                if (padding_size == "left") {
+                if (padding_side == "left") {
                     pack_sequence_cuda_kernel<scalar_t, uint32, true, PaddingSide::left>
                         <<<NUM_BLOCKS, BLOCK_SIZE, shared_memory_size>>>(x.data_ptr<scalar_t>(),
                                                                          output.data_ptr<scalar_t>(),
@@ -131,7 +131,7 @@ void pack_sequence_cuda(const torch::Tensor &x,
                                                                          N);
                 }
             } else {
-                if (padding_size == "left") {
+                if (padding_side == "left") {
                     pack_sequence_cuda_kernel<scalar_t, uint32, false, PaddingSide::left>
                         <<<NUM_BLOCKS, BLOCK_SIZE, shared_memory_size>>>(x.data_ptr<scalar_t>(),
                                                                          output.data_ptr<scalar_t>(),
