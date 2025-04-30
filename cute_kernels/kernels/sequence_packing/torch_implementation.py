@@ -16,18 +16,6 @@ def _unpack_sequence_torch_no_grad(x: torch.Tensor, cu_seqlens: torch.Tensor) ->
     return padded
 
 
-class _PackSequence_Cute(torch.autograd.Function):
-    @staticmethod
-    def forward(ctx, x: torch.Tensor, cu_seqlens: torch.Tensor, padding_side: str) -> torch.Tensor:
-        assert padding_side in ["left", "right"]
-        assert x.dim() >= 2
-        return _pack_sequence_torch_no_grad(x=x, cu_seqlens=cu_seqlens, padding_side=padding_side)
-
-    @staticmethod
-    def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
-        return output_grad, None, None
-
-
 def pack_sequence_torch(x: torch.Tensor, cu_seqlens: torch.Tensor, padding_side: str = "left") -> torch.Tensor:
     B, S = x.size()[:2]
     other_dims = x.shape[2:]
