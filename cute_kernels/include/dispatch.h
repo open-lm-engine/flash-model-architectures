@@ -11,8 +11,8 @@
                            DISPATCH_CASE(at::ScalarType::BFloat16, SCALAR_NAME, __VA_ARGS__) \
                                DISPATCH_CASE(at::ScalarType::Float, SCALAR_NAME, __VA_ARGS__))
 
-#define DISPATCH_INT_KERNEL(TYPE, NAME, ...)                              \
-    AT_DISPATCH_SWITCH(TYPE,                                              \
-                       NAME,                                              \
-                       AT_DISPATCH_CASE(at::ScalarType::Int, __VA_ARGS__) \
-                           AT_DISPATCH_CASE(at::ScalarType::Long, __VA_ARGS__))
+#define DISPATCH_INT_KERNEL(TYPE, NAME, SCALAR_NAME, ...)                           \
+    AT_DISPATCH_SWITCH(TYPE,                                                        \
+                       NAME,                                                        \
+                       DISPATCH_CASE(at::ScalarType::Int, SCALAR_NAME, __VA_ARGS__) \
+                           DISPATCH_CASE(at::ScalarType::Long, SCALAR_NAME, __VA_ARGS__))
