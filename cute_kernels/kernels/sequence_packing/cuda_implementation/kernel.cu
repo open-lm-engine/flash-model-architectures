@@ -56,7 +56,7 @@ __global__ void pack_unpack_sequence_cuda_kernel(
             _copy_array<scalar_t, is_packing>(x, output, b, s, start + s - pad_tokens, S, N);
         }
     } else {
-        if (s < pad_tokens) {
+        if (s < seqlens) {
             _copy_array<scalar_t, is_packing>(x, output, b, s, start + s, S, N);
         }
     }

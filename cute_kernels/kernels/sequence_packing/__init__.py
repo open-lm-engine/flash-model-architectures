@@ -31,6 +31,7 @@ class _PackSequence_Cute(torch.autograd.Function):
 
         ctx.save_for_backward(cu_seqlens)
         ctx.x_size = x.size()
+        ctx.padding_side = padding_side
         ctx.BLOCK_SIZE_backward = BLOCK_SIZE_backward
 
         return output
