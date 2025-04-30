@@ -43,7 +43,7 @@ void add_scalar_cuda(const torch::Tensor &x, const fp32 &y, torch::Tensor &outpu
 
     const uint64 total_elements = x.numel();
 
-    DISPATCH_FLOAT_KERNEL(x.scalar_type(), "add_scalar_cuda_kernel", ([&] {
+    DISPATCH_FLOAT_KERNEL(x.scalar_type(), "add_scalar_cuda_kernel", scalar_t, ([&] {
                               std::vector<ck::ChunkedArray<scalar_t>> x_chunks =
                                   ck::chunk_array<scalar_t>(x.data_ptr<scalar_t>(), total_elements);
                               std::vector<ck::ChunkedArray<scalar_t>> output_chunks =
