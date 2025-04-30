@@ -34,6 +34,10 @@ def unpack_sequence_torch(
 
     if padding_side == "left":
         seq_indices = torch.cat([torch.arange(sl, device=x.device) for sl in seqlens])
+    elif padding_side == "right":
+        seq_indices = torch.cat([torch.arange(sl, device=x.device) for sl in seqlens])
+    else:
+        raise ValueError(f"unexpected padding_side ({padding_side})")
 
     padded = torch.zeros(desired_shape, dtype=x.dtype, device=x.device)
     padded[batch_indices, seq_indices] = x

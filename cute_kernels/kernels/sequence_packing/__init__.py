@@ -133,6 +133,6 @@ def unpack_sequence_cute(
     BLOCK_SIZE_forward: int = 1024,
     BLOCK_SIZE_backward: int = 1024,
 ) -> torch.Tensor:
-    return _PackSequence_Cute.apply(
+    return _UnpackSequence_Cute.apply(
         x, cu_seqlens, desired_shape, padding_side, BLOCK_SIZE_forward, BLOCK_SIZE_backward
     )
