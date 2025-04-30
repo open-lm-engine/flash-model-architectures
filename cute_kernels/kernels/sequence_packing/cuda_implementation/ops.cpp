@@ -8,5 +8,5 @@ void pack_unpack_sequence_cuda(const torch::Tensor &x,
                                const uint &BLOCK_SIZE);
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
-    m.def("pack_unpack_sequence_cuda_kernel", &pack_unpack_sequence_cuda_kernel, "pack unpack sequence (CUDA)");
+    m.def("pack_unpack_sequence_cuda", &pack_unpack_sequence_cuda, "pack unpack sequence (CUDA)");
 }
