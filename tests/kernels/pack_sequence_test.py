@@ -35,4 +35,8 @@ class PackSequenceTest(TestCommons):
         z_kernel = function(x_kernel, cu_seqlens=cu_seqlens, max_seqlen=max_seqlen, padding_side=padding_side)
         z_expected = pack_sequence_torch(x_expected, cu_seqlens=cu_seqlens.to(torch.int), padding_side=padding_side)
 
+        z_expected.sum().backward()
+        z_kernel.sum().backward()
+
         self.assert_equal_tensors(z_kernel, z_expected, True)
+        self.assert_equal_tensors(x_kernel.grad, x_expected.grad, True)
