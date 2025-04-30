@@ -14,8 +14,8 @@ using uint64 = ck::uint64;
 enum class PaddingSide { left, right };
 
 template <typename scalar_t, bool is_packing>
-inline __device__ void _copy_array(std::conditional_t<is_packing, const scalar_t, scalar_t> *unpacked_array,
-                                   std::conditional_t<is_packing, scalar_t, const scalar_t> *packed_array,
+inline __device__ void _copy_array(std::conditional_t<is_packing, const scalar_t, scalar_t> *source,
+                                   std::conditional_t<is_packing, scalar_t, const scalar_t> *destination,
                                    const uint32 &b,
                                    const uint32 &s,
                                    const uint32 &t,
@@ -31,11 +31,11 @@ inline __device__ void _copy_array(std::conditional_t<is_packing, const scalar_t
 
     for (uint32 i = threadIdx.x; i < N_vec; i += blockDim.x) {
         if (is_packing) {
-            const scalar_t *source_vec = ck_mem::load_128_bits<scalar_t>(unpacked_array, unpacked_offset + i);
-            ck_mem::store_128_bits<scalar_t>(source_vec, packed_array, packed_offset + i);
+            const scalar_t *source_vec = ck_mem::load_128_bits<scalar_t>(source, unpacked_offset + i);
+            ck_mem::store_128_bits<scalar_t>(source_vec, destination, packed_offset + i);
         } else {
-            const scalar_t *source_vec = ck_mem::load_128_bits<scalar_t>(packed_array, packed_offset + i);
-            ck_mem::store_128_bits<scalar_t>(source_vec, unpacked_array, unpacked_offset + i);
+            const scalar_t *source_vec = ck_mem::load_128_bits<scalar_t>(source, packed_offset + i);
+            ck_mem::store_128_bits<scalar_t>(source_vec, destination, unpacked_offset + i);
         }
     }
 }
@@ -66,6 +66,7 @@ void pack_unpack_sequence_cuda(const torch::Tensor &x,
                                torch::Tensor &output,
                                const torch::Tensor &cu_seqlens,
                                const std::string &padding_side,
+                               const bool &pack,
                                const uint32 &BLOCK_SIZE) {
     CHECK_CUDA_TENSOR(x);
     CHECK_CUDA_TENSOR(output);
@@ -75,9 +76,16 @@ void pack_unpack_sequence_cuda(const torch::Tensor &x,
 
     TORCH_CHECK(padding_side == "left" || padding_side == "right");
 
-    const uint32 B = x.size(0);
-    const uint32 S = x.size(1);
-    const uint32 N = x.numel() / (B * S);
+    uint32 B, S, N;
+    if (pack) {
+        B = x.size(0);
+        S = x.size(1);
+        N = x.numel() / (B * S);
+    } else {
+        B = output.size(0);
+        S = output.size(1);
+        N = output.numel() / (B * S);
+    }
 
     const dim3 NUM_BLOCKS = dim3(S, B);
     const uint32 shared_memory_size = B * sizeof(uint32);
@@ -87,14 +95,42 @@ void pack_unpack_sequence_cuda(const torch::Tensor &x,
             constexpr uint32 N_per_thread = ck_mem::get_num_elements_for_vector_load_stores<scalar_t>();
             TORCH_CHECK(N % N_per_thread == 0);
 
-            if (padding_side == "left") {
-                pack_unpack_sequence_cuda_kernel<scalar_t, uint32, PaddingSide::left, true>
-                    <<<NUM_BLOCKS, BLOCK_SIZE, shared_memory_size>>>(
-                        x.data_ptr<scalar_t>(), output.data_ptr<scalar_t>(), cu_seqlens.data_ptr<uint32>(), B, S, N);
+            if (pack) {
+                if (padding_side == "left") {
+                    pack_unpack_sequence_cuda_kernel<scalar_t, uint32, PaddingSide::left, true>
+                        <<<NUM_BLOCKS, BLOCK_SIZE, shared_memory_size>>>(x.data_ptr<scalar_t>(),
+                                                                         output.data_ptr<scalar_t>(),
+                                                                         cu_seqlens.data_ptr<uint32>(),
+                                                                         B,
+                                                                         S,
+                                                                         N);
+                } else {
+                    pack_unpack_sequence_cuda_kernel<scalar_t, uint32, PaddingSide::right, true>
+                        <<<NUM_BLOCKS, BLOCK_SIZE, shared_memory_size>>>(x.data_ptr<scalar_t>(),
+                                                                         output.data_ptr<scalar_t>(),
+                                                                         cu_seqlens.data_ptr<uint32>(),
+                                                                         B,
+                                                                         S,
+                                                                         N);
+                }
             } else {
-                pack_unpack_sequence_cuda_kernel<scalar_t, uint32, PaddingSide::right, true>
-                    <<<NUM_BLOCKS, BLOCK_SIZE, shared_memory_size>>>(
-                        x.data_ptr<scalar_t>(), output.data_ptr<scalar_t>(), cu_seqlens.data_ptr<uint32>(), B, S, N);
+                if (padding_side == "left") {
+                    pack_unpack_sequence_cuda_kernel<scalar_t, uint32, PaddingSide::left, false>
+                        <<<NUM_BLOCKS, BLOCK_SIZE, shared_memory_size>>>(x.data_ptr<scalar_t>(),
+                                                                         output.data_ptr<scalar_t>(),
+                                                                         cu_seqlens.data_ptr<uint32>(),
+                                                                         B,
+                                                                         S,
+                                                                         N);
+                } else {
+                    pack_unpack_sequence_cuda_kernel<scalar_t, uint32, PaddingSide::right, false>
+                        <<<NUM_BLOCKS, BLOCK_SIZE, shared_memory_size>>>(x.data_ptr<scalar_t>(),
+                                                                         output.data_ptr<scalar_t>(),
+                                                                         cu_seqlens.data_ptr<uint32>(),
+                                                                         B,
+                                                                         S,
+                                                                         N);
+                }
             }
         }));
 }
