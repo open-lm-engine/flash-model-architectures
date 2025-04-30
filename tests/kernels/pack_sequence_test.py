@@ -32,7 +32,7 @@ class PackSequenceTest(TestCommons):
         cu_seqlens = torch.tensor(cu_seqlens, device=device, dtype=torch.uint32)
         max_seqlen = (cu_seqlens.to(torch.int)[1:] - cu_seqlens.to(torch.int)[:-1]).max().to(torch.uint32)
 
-        z_kernel = function(x_kernel, cu_seqlens=cu_seqlens, max_seqlen=max_seqlen, padding_side=padding_side)
+        z_kernel = function(x_kernel, cu_seqlens=cu_seqlens, padding_side=padding_side)
         z_expected = pack_sequence_torch(x_expected, cu_seqlens=cu_seqlens.to(torch.int), padding_side=padding_side)
 
         z_expected.sum().backward()
