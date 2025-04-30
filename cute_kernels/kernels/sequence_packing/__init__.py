@@ -15,8 +15,9 @@ class _PackSequence_Cute(torch.autograd.Function):
         BLOCK_SIZE: int,
     ) -> torch.Tensor:
         assert padding_side in ["left", "right"]
+        assert x.dim() >= 2
 
-        output = torch.empty(cu_seqlens[-1], *x.size()[1:], device=x.device, dtype=x.dtype)
+        output = torch.empty(cu_seqlens[-1], *x.size()[2:], device=x.device, dtype=x.dtype)
         is_max_seqlen_tensor = isinstance(max_seqlen, torch.Tensor)
 
         pack_sequence_cuda(

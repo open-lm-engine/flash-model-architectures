@@ -21,28 +21,37 @@ __device__ void _copy_array(const scalar_t *source,
                             const uint32 &output_index,
                             const uint32 &S,
                             const uint32 &N) {
-    constexpr uint32 N_per_thread = ck_mem::get_num_elements_for_vector_load_stores<scalar_t>();
-    const uint32 N_vec = N / N_per_thread;
-
-    // start = b * stride_b + s * stride_s for N_per_thread = 1
-    // start = (b * stride_b + s * stride_s) / N_per_thread for N_per_thread != 1
-    uint32 load_offset = (b * S + s) * N_vec;
-    uint32 store_offset = output_index * N_vec;
-
-    for (uint32 i = threadIdx.x; i < N_vec; i += blockDim.x) {
-        const scalar_t *source_vec = ck_mem::load_128_bits<scalar_t>(source, load_offset + i);
-        ck_mem::store_128_bits<scalar_t>(source_vec, destination, store_offset + i);
+    uint32 load_offset = (b * S + s) * N;
+    uint32 store_offset = output_index * N;
+    // if (threadIdx.x == 0) {
+    //     printf("%d %d %d\n", s, load_offset, c);
+    // }
+    for (uint32 i = threadIdx.x; i < N; i += blockDim.x) {
+        destination[store_offset + i] = source[load_offset + i];
     }
 
-    if (threadIdx.x < N) {
-        load_offset += N_vec;
-        load_offset *= N_per_thread;
+    // constexpr uint32 N_per_thread = ck_mem::get_num_elements_for_vector_load_stores<scalar_t>();
+    // const uint32 N_vec = N / N_per_thread;
 
-        store_offset += N_vec;
-        store_offset *= N_per_thread;
+    // // start = b * stride_b + s * stride_s for N_per_thread = 1
+    // // start = (b * stride_b + s * stride_s) / N_per_thread for N_per_thread != 1
+    // uint32 load_offset = (b * S + s) * N_vec;
+    // uint32 store_offset = output_index * N_vec;
 
-        destination[store_offset + threadIdx.x] = source[load_offset + threadIdx.x];
-    }
+    // for (uint32 i = threadIdx.x; i < N_vec; i += blockDim.x) {
+    //     const scalar_t *source_vec = ck_mem::load_128_bits<scalar_t>(source, load_offset + i);
+    //     ck_mem::store_128_bits<scalar_t>(source_vec, destination, store_offset + i);
+    // }
+
+    // if (threadIdx.x < N) {
+    //     load_offset += N_vec;
+    //     load_offset *= N_per_thread;
+
+    //     store_offset += N_vec;
+    //     store_offset *= N_per_thread;
+
+    //     destination[store_offset + threadIdx.x] = source[load_offset + threadIdx.x];
+    // }
 }
 
 template <typename scalar_t, typename integer_t, bool is_max_seqlen_tensor, PaddingSide padding_side>

@@ -11,10 +11,10 @@ from ..test_commons import TestCommons
 class PackSequenceTest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(
-            [(7, 1000, 12, 14)],  # size
-            [[0, 70, 170, 295, 393, 412, 515, 691]],  # cu_seqlens
+            [(1, 8, 4)],  # size
+            [[0, 7]],  # , 170, 295, 393, 412, 515, 691]],  # cu_seqlens
             [torch.device("cuda")],  # device
-            TestCommons.get_dtypes(),  # dtype
+            TestCommons.get_dtypes()[:1],  # dtype
             [pack_sequence_cute],  # , torch.compile(pack_sequence_cute, fullgraph=True)],  # function
         )
     )
@@ -31,7 +31,10 @@ class PackSequenceTest(TestCommons):
         max_seqlen = (cu_seqlens.to(torch.int)[1:] - cu_seqlens.to(torch.int)[:-1]).max().to(torch.uint32)
 
         z_kernel = function(x_kernel, cu_seqlens, max_seqlen)
-        assert False
-        # z_expected = pack_sequence_torch(x_expected, cu_seqlens, max_seqlen)
+        z_expected = pack_sequence_torch(x_expected, cu_seqlens.to(torch.int))
 
-        # self.assert_equal_tensors(z_kernel, z_expected, True)
+        print(x_expected)
+        print(z_kernel)
+        print(z_expected)
+
+        self.assert_equal_tensors(z_kernel, z_expected, True)
