@@ -35,8 +35,8 @@ __global__ void swiglu_forward_cuda_kernel(const scalar_t *gate,
     const uint32 N_vec = N / N_per_thread;
 
     if (thread_id < N_vec) {
-        const scalar_t *gate_vec = ck_mem::load_128_bits<const scalar_t>(gate, thread_id);
-        const scalar_t *up_vec = ck_mem::load_128_bits<const scalar_t>(up, thread_id);
+        const scalar_t *gate_vec = ck_mem::load_128_bits<scalar_t>(gate, thread_id);
+        const scalar_t *up_vec = ck_mem::load_128_bits<scalar_t>(up, thread_id);
         scalar_t output_buffer[N_per_thread];
 
         for (uint32 i = 0; i < N_per_thread; i++) {

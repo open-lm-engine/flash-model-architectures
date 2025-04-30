@@ -50,9 +50,9 @@ __global__ void swiglu_backward_cuda_kernel(const scalar_t *gate,
     const uint32 N_vec = N / N_per_thread;
 
     if (thread_id < N_vec) {
-        const scalar_t *gate_vec = ck_mem::load_128_bits<const scalar_t>(gate, thread_id);
-        const scalar_t *up_vec = ck_mem::load_128_bits<const scalar_t>(up, thread_id);
-        const scalar_t *output_grad_vec = ck_mem::load_128_bits<const scalar_t>(output_grad, thread_id);
+        const scalar_t *gate_vec = ck_mem::load_128_bits<scalar_t>(gate, thread_id);
+        const scalar_t *up_vec = ck_mem::load_128_bits<scalar_t>(up, thread_id);
+        const scalar_t *output_grad_vec = ck_mem::load_128_bits<scalar_t>(output_grad, thread_id);
 
         scalar_t gate_grad_buffer[N_per_thread];
         scalar_t up_grad_buffer[N_per_thread];
