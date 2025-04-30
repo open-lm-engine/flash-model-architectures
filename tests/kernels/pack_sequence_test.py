@@ -51,7 +51,7 @@ class PackSequenceTest(TestCommons):
             [torch.device("cuda")],  # device
             TestCommons.get_dtypes(),  # dtype
             ["left", "right"],  # padding_side
-            [unpack_sequence_cute],  # , torch.compile(pack_sequence_cute, fullgraph=True)],  # function
+            [unpack_sequence_cute, torch.compile(unpack_sequence_cute, fullgraph=True)],  # function
         )
     )
     def test_unpack_sequence(
