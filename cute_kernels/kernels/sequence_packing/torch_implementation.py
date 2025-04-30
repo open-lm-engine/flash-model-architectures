@@ -1,21 +1,6 @@
 import torch
 
 
-@torch.no_grad()
-def _unpack_sequence_torch_no_grad(x: torch.Tensor, cu_seqlens: torch.Tensor) -> torch.Tensor:
-    batch_size = cu_seqlens.size(0) - 1
-    other_dims = x.size()[1:]
-
-    seqlens = cu_seqlens[1:] - cu_seqlens[:-1]
-    batch_indices = torch.arange(batch_size, device=x.device).repeat_interleave(seqlens)
-    seq_indices = torch.cat([torch.arange(sl, device=x.device) for sl in seqlens])
-
-    padded = torch.zeros(batch_size, max_seqlen, *other_dims, dtype=x.dtype, device=x.device)
-    padded[batch_indices, seq_indices] = x
-
-    return padded
-
-
 def pack_sequence_torch(x: torch.Tensor, cu_seqlens: torch.Tensor, padding_side: str = "left") -> torch.Tensor:
     B, S = x.size()[:2]
     other_dims = x.shape[2:]
@@ -36,3 +21,19 @@ def pack_sequence_torch(x: torch.Tensor, cu_seqlens: torch.Tensor, padding_side:
     unpadded = x[batch_indices, seq_indices]
 
     return unpadded
+
+
+@torch.no_grad()
+def unpack_sequence_torch(
+    x: torch.Tensor, cu_seqlens: torch.Tensor, desired_shape: tuple[int], padding_side: str = "left"
+) -> torch.Tensor:
+    B = cu_seqlens.size(0) - 1
+
+    seqlens = cu_seqlens[1:] - cu_seqlens[:-1]
+    batch_indices = torch.arange(B, device=x.device).repeat_interleave(seqlens)
+    seq_indices = torch.cat([torch.arange(sl, device=x.device) for sl in seqlens])
+
+    padded = torch.zeros(desired_shape, dtype=x.dtype, device=x.device)
+    padded[batch_indices, seq_indices] = x
+
+    return padded
