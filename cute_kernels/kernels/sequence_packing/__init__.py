@@ -5,6 +5,38 @@ from .cuda_implementation import pack_unpack_sequence_cuda
 from .torch_implementation import pack_sequence_torch
 
 
+def _pack_sequence(x: torch.Tensor, cu_seqlens: torch.Tensor, padding_side: str, BLOCK_SIZE: int) -> torch.Tensor:
+    output = torch.empty(cu_seqlens[-1], *x.size()[2:], device=x.device, dtype=x.dtype)
+    pack_unpack_sequence_cuda(
+        x=x,
+        output=output,
+        cu_seqlens=cu_seqlens,
+        padding_side=padding_side,
+        pack=True,
+        BLOCK_SIZE=BLOCK_SIZE,
+    )
+
+    return output
+
+
+def _unpack_sequence(
+    x: torch.Tensor, cu_seqlens: torch.Tensor, padding_side: str, desired_shape: tuple[int], BLOCK_SIZE: int
+) -> torch.Tensor:
+    B, S = desired_shape[:2]
+
+    output = torch.zeros(B, S, *desired_shape[2:], device=x.device, dtype=x.dtype)
+    pack_unpack_sequence_cuda(
+        x=x,
+        output=output,
+        cu_seqlens=cu_seqlens,
+        padding_side=padding_side,
+        pack=False,
+        BLOCK_SIZE=BLOCK_SIZE,
+    )
+
+    return output
+
+
 class _PackSequence_Cute(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
@@ -19,37 +51,21 @@ class _PackSequence_Cute(torch.autograd.Function):
         assert padding_side in ["left", "right"]
         assert x.dim() >= 2
 
-        output = torch.empty(cu_seqlens[-1], *x.size()[2:], device=x.device, dtype=x.dtype)
-        pack_unpack_sequence_cuda(
-            x=x,
-            output=output,
-            cu_seqlens=cu_seqlens,
-            padding_side=padding_side,
-            pack=True,
-            BLOCK_SIZE=BLOCK_SIZE_forward,
-        )
-
         ctx.save_for_backward(cu_seqlens)
-        ctx.x_size = x.size()
+        ctx.x_shape = x.size()
         ctx.padding_side = padding_side
         ctx.BLOCK_SIZE_backward = BLOCK_SIZE_backward
 
-        return output
+        return _pack_sequence(x=x, cu_seqlens=cu_seqlens, padding_side=padding_side, BLOCK_SIZE=BLOCK_SIZE_forward)
 
     @staticmethod
     @ensure_contiguous
     def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
-        B, S = ctx.x_size[:2]
-
-        cu_seqlens = ctx.saved_tensors[0]
-        x_grad = torch.zeros(B, S, *ctx.x_size[2:], device=output_grad.device, dtype=output_grad.dtype)
-
-        pack_unpack_sequence_cuda(
+        x_grad = _unpack_sequence(
             x=output_grad,
-            output=x_grad,
-            cu_seqlens=cu_seqlens,
+            cu_seqlens=ctx.saved_tensors[0],
             padding_side=ctx.padding_side,
-            pack=False,
+            desired_shape=ctx.x_shape,
             BLOCK_SIZE=ctx.BLOCK_SIZE_backward,
         )
 
