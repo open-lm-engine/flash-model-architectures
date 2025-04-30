@@ -2,7 +2,7 @@
 
 #include <torch/extension.h>
 
-#define DISPATCH_CASE(enum_type, scalar_name, ...) AT_PRIVATE_CASE_TYPE_USING_HINT(enum_type, scalar_name, __VA_ARGS__)
+#define DISPATCH_CASE(ENUM_TYPE, SCALAR_NAME, ...) AT_PRIVATE_CASE_TYPE_USING_HINT(ENUM_TYPE, SCALAR_NAME, __VA_ARGS__)
 
 #define DISPATCH_FLOAT_KERNEL(TYPE, NAME, SCALAR_NAME, ...)                                  \
     AT_DISPATCH_SWITCH(TYPE,                                                                 \
