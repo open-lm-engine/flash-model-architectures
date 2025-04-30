@@ -59,7 +59,7 @@ void add_tensor_cuda(const torch::Tensor &x, const torch::Tensor &y, torch::Tens
 
     const uint64 total_elements = x.numel();
 
-    DISPATCH_FLOAT_KERNEL(x.scalar_type(), "add_tensor_cuda_kernel", ([&] {
+    DISPATCH_FLOAT_KERNEL(x.scalar_type(), "add_tensor_cuda_kernel", scalar_t, ([&] {
                               const uint32 num_elements_per_thread = 16 / sizeof(scalar_t);
                               const uint32 num_elements_per_block = num_elements_per_thread * BLOCK_SIZE;
 
