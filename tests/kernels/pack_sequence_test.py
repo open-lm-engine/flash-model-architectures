@@ -1,6 +1,7 @@
 from typing import Callable
 
 import torch
+import torch._dynamo.config
 from parameterized import parameterized
 
 from cute_kernels import pack_sequence_cute, pack_sequence_torch, unpack_sequence_cute, unpack_sequence_torch
@@ -31,7 +32,9 @@ class PackSequenceTest(TestCommons):
         x_kernel, x_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype)
         cu_seqlens = torch.tensor(cu_seqlens, device=device, dtype=torch.uint32)
 
-        z_kernel = function(x_kernel, cu_seqlens=cu_seqlens, padding_side=padding_side)
+        with torch._dynamo.config.patch(capture_scalar_outputs=True):
+            z_kernel = function(x_kernel, cu_seqlens=cu_seqlens, padding_side=padding_side)
+
         z_expected = pack_sequence_torch(x_expected, cu_seqlens=cu_seqlens.to(torch.int), padding_side=padding_side)
 
         z_expected.sum().backward()
