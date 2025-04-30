@@ -23,7 +23,6 @@ def pack_sequence_torch(x: torch.Tensor, cu_seqlens: torch.Tensor, padding_side:
     return unpadded
 
 
-@torch.no_grad()
 def unpack_sequence_torch(
     x: torch.Tensor, cu_seqlens: torch.Tensor, desired_shape: tuple[int], padding_side: str = "left"
 ) -> torch.Tensor:
