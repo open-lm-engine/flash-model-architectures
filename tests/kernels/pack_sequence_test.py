@@ -3,7 +3,7 @@ from typing import Callable
 import torch
 from parameterized import parameterized
 
-from cute_kernels import KernelBackend, pack_sequence_cute, pack_sequence_torch
+from cute_kernels import pack_sequence_cute, pack_sequence_torch
 
 from ..test_commons import TestCommons
 
