@@ -88,7 +88,7 @@ void swiglu_backward_cuda(const torch::Tensor &gate,
 
     const uint64 total_elements = gate.numel();
 
-    DISPATCH_FLOAT_KERNEL(gate.scalar_type(), "swiglu_backward_cuda_kernel", ([&] {
+    DISPATCH_FLOAT_KERNEL(gate.scalar_type(), "swiglu_backward_cuda_kernel", scalar_t, ([&] {
                               const uint32 N_per_thread = ck_mem::get_num_elements_for_vector_load_stores<scalar_t>();
                               const uint32 N_per_block = BLOCK_SIZE * N_per_thread;
 
