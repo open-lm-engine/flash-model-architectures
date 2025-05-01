@@ -9,17 +9,14 @@ def _copy_array(source_ptr, destination_ptr, b, s, t, S, N, pack: tl.constexpr, 
 
     for i in range(tl.cdiv(N, BLOCK_SIZE)):
         indices = i * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
-
-        unpacked_ptrs = unpacked_offset + indices
-        packed_ptrs = packed_offset + indices
         mask = indices < N
 
         if pack:
-            source = tl.load(source_ptr + unpacked_ptrs, mask=mask)
-            tl.store(destination_ptr + packed_ptrs, source, mask=mask)
+            source = tl.load(source_ptr + unpacked_offset + indices, mask=mask)
+            tl.store(destination_ptr + packed_offset + indices, source, mask=mask)
         else:
-            source = tl.load(source_ptr + packed_ptrs, mask=mask)
-            tl.store(destination_ptr + unpacked_ptrs, source, mask=mask)
+            source = tl.load(source_ptr + packed_offset + indices, mask=mask)
+            tl.store(destination_ptr + unpacked_offset + indices, source, mask=mask)
 
 
 @triton.jit
