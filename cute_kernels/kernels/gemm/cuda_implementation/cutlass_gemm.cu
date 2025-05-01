@@ -69,7 +69,7 @@ void cutlass_gemm_cuda(const torch::Tensor &A,
     }
     CHECK_CUDA_TENSOR(output);
 
-    DISPATCH_FLOAT_KERNEL(A.scalar_type(), "cutlass_gemm_cuda", ([&] {
+    DISPATCH_FLOAT_KERNEL(A.scalar_type(), "cutlass_gemm_cuda", scalar_t, ([&] {
                               using input_dtype = typename ck::DType<scalar_t>::cutlass_dtype;
 
                               const input_dtype *A_data = reinterpret_cast<input_dtype *>(A.data_ptr<scalar_t>());
