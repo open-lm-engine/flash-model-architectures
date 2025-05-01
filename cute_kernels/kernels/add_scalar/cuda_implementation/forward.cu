@@ -43,24 +43,24 @@ void add_scalar_cuda(const torch::Tensor &x, const fp32 &y, torch::Tensor &outpu
 
     const uint64 total_elements = x.numel();
 
-    AT_DISPATCH_CUSTOM_FLOAT_TYPES(
-        x.scalar_type(), "add_scalar_cuda_kernel", ([&] {
-            std::vector<ck::ChunkedArray<scalar_t>> x_chunks =
-                ck::chunk_array<scalar_t>(x.data_ptr<scalar_t>(), total_elements);
-            std::vector<ck::ChunkedArray<scalar_t>> output_chunks =
-                ck::chunk_array<scalar_t>(output.data_ptr<scalar_t>(), total_elements);
+    DISPATCH_FLOAT_KERNEL(x.scalar_type(), "add_scalar_cuda_kernel", scalar_t, ([&] {
+                              std::vector<ck::ChunkedArray<scalar_t>> x_chunks =
+                                  ck::chunk_array<scalar_t>(x.data_ptr<scalar_t>(), total_elements);
+                              std::vector<ck::ChunkedArray<scalar_t>> output_chunks =
+                                  ck::chunk_array<scalar_t>(output.data_ptr<scalar_t>(), total_elements);
 
-            const uint32 N_per_thread = ck_mem::get_num_elements_for_vector_load_stores<scalar_t>();
-            const uint32 N_per_block = BLOCK_SIZE * N_per_thread;
+                              const uint32 N_per_thread = ck_mem::get_num_elements_for_vector_load_stores<scalar_t>();
+                              const uint32 N_per_block = BLOCK_SIZE * N_per_thread;
 
-            for (uint32 i = 0; i < x_chunks.size(); i++) {
-                ck::ChunkedArray<scalar_t> x_chunk = x_chunks[i];
-                ck::ChunkedArray<scalar_t> output_chunk = output_chunks[i];
+                              for (uint32 i = 0; i < x_chunks.size(); i++) {
+                                  ck::ChunkedArray<scalar_t> x_chunk = x_chunks[i];
+                                  ck::ChunkedArray<scalar_t> output_chunk = output_chunks[i];
 
-                const uint64 N = x_chunk.num_elements;
-                const uint32 NUM_BLOCKS = ck::ceil_divide<uint64>(N, N_per_block);
+                                  const uint64 N = x_chunk.num_elements;
+                                  const uint32 NUM_BLOCKS = ck::ceil_divide<uint64>(N, N_per_block);
 
-                add_scalar_cuda_kernel<scalar_t><<<NUM_BLOCKS, BLOCK_SIZE>>>(x_chunk.array, y, output_chunk.array, N);
-            }
-        }));
+                                  add_scalar_cuda_kernel<scalar_t>
+                                      <<<NUM_BLOCKS, BLOCK_SIZE>>>(x_chunk.array, y, output_chunk.array, N);
+                              }
+                          }));
 }

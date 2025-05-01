@@ -102,18 +102,17 @@ void shared_memory_gemm_cuda(const torch::Tensor &A,
     dim3 NUM_BLOCKS = dim3(ck::ceil_divide<uint32>(N, BLOCK_SIZE), ck::ceil_divide<uint32>(M, BLOCK_SIZE), 1);
     dim3 BLOCK_SIZE_dim = dim3(BLOCK_SIZE, BLOCK_SIZE, 1);
 
-    AT_DISPATCH_CUSTOM_FLOAT_TYPES(
-        A.scalar_type(), "shared_memory_gemm_cuda_kernel", ([&] {
-            _shared_memory_gemm_cuda_kernel<scalar_t>
-                <<<NUM_BLOCKS, BLOCK_SIZE_dim, 2 * BLOCK_SIZE * BLOCK_SIZE * sizeof(scalar_t)>>>(
-                    A.data_ptr<scalar_t>(),
-                    B.data_ptr<scalar_t>(),
-                    C.has_value() ? C.value().data_ptr<scalar_t>() : nullptr,
-                    output.data_ptr<scalar_t>(),
-                    alpha,
-                    beta,
-                    M,
-                    K,
-                    N);
-        }));
+    DISPATCH_FLOAT_KERNEL(A.scalar_type(), "shared_memory_gemm_cuda_kernel", scalar_t, ([&] {
+                              _shared_memory_gemm_cuda_kernel<scalar_t>
+                                  <<<NUM_BLOCKS, BLOCK_SIZE_dim, 2 * BLOCK_SIZE * BLOCK_SIZE * sizeof(scalar_t)>>>(
+                                      A.data_ptr<scalar_t>(),
+                                      B.data_ptr<scalar_t>(),
+                                      C.has_value() ? C.value().data_ptr<scalar_t>() : nullptr,
+                                      output.data_ptr<scalar_t>(),
+                                      alpha,
+                                      beta,
+                                      M,
+                                      K,
+                                      N);
+                          }));
 }

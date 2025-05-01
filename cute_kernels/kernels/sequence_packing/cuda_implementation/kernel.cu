@@ -40,12 +40,12 @@ inline __device__ void _copy_array(const scalar_t *source,
 
 template <typename scalar_t, typename integer_t, PaddingSide padding_side, bool is_packing>
 __global__ void pack_unpack_sequence_cuda_kernel(
-    const scalar_t *x, scalar_t *output, const uint32 *cu_seqlens, const uint32 B, const uint32 S, const uint32 N) {
+    const scalar_t *x, scalar_t *output, const integer_t *cu_seqlens, const uint32 B, const uint32 S, const uint32 N) {
     const uint32 s = blockIdx.x;
     const uint32 b = blockIdx.y;
 
-    const uint32 start = cu_seqlens[b];
-    const uint32 end = cu_seqlens[b + 1];
+    const integer_t start = cu_seqlens[b];
+    const integer_t end = cu_seqlens[b + 1];
     const uint32 seqlens = end - start;
     const uint32 pad_tokens = S - seqlens;
 
@@ -88,47 +88,50 @@ void pack_unpack_sequence_cuda(const torch::Tensor &x,
     const dim3 NUM_BLOCKS = dim3(S, B);
     const uint32 shared_memory_size = B * sizeof(uint32);
 
-    AT_DISPATCH_CUSTOM_FLOAT_TYPES(
-        x.scalar_type(), "pack_unpack_sequence_cuda_kernel", ([&] {
+    DISPATCH_FLOAT_KERNEL(
+        x.scalar_type(), "pack_unpack_sequence_cuda_kernel_float", scalar_t, ([&] {
             constexpr uint32 N_per_thread = ck_mem::get_num_elements_for_vector_load_stores<scalar_t>();
             TORCH_CHECK(N % N_per_thread == 0);
 
-            if (pack) {
-                if (padding_side == "left") {
-                    pack_unpack_sequence_cuda_kernel<scalar_t, uint32, PaddingSide::left, true>
-                        <<<NUM_BLOCKS, BLOCK_SIZE, shared_memory_size>>>(x.data_ptr<scalar_t>(),
-                                                                         output.data_ptr<scalar_t>(),
-                                                                         cu_seqlens.data_ptr<uint32>(),
-                                                                         B,
-                                                                         S,
-                                                                         N);
-                } else {
-                    pack_unpack_sequence_cuda_kernel<scalar_t, uint32, PaddingSide::right, true>
-                        <<<NUM_BLOCKS, BLOCK_SIZE, shared_memory_size>>>(x.data_ptr<scalar_t>(),
-                                                                         output.data_ptr<scalar_t>(),
-                                                                         cu_seqlens.data_ptr<uint32>(),
-                                                                         B,
-                                                                         S,
-                                                                         N);
-                }
-            } else {
-                if (padding_side == "left") {
-                    pack_unpack_sequence_cuda_kernel<scalar_t, uint32, PaddingSide::left, false>
-                        <<<NUM_BLOCKS, BLOCK_SIZE, shared_memory_size>>>(x.data_ptr<scalar_t>(),
-                                                                         output.data_ptr<scalar_t>(),
-                                                                         cu_seqlens.data_ptr<uint32>(),
-                                                                         B,
-                                                                         S,
-                                                                         N);
-                } else {
-                    pack_unpack_sequence_cuda_kernel<scalar_t, uint32, PaddingSide::right, false>
-                        <<<NUM_BLOCKS, BLOCK_SIZE, shared_memory_size>>>(x.data_ptr<scalar_t>(),
-                                                                         output.data_ptr<scalar_t>(),
-                                                                         cu_seqlens.data_ptr<uint32>(),
-                                                                         B,
-                                                                         S,
-                                                                         N);
-                }
-            }
+            DISPATCH_INT_KERNEL(
+                cu_seqlens.scalar_type(), "pack_unpack_sequence_cuda_kernel_int", integer_t, ([&] {
+                    if (pack) {
+                        if (padding_side == "left") {
+                            pack_unpack_sequence_cuda_kernel<scalar_t, integer_t, PaddingSide::left, true>
+                                <<<NUM_BLOCKS, BLOCK_SIZE, shared_memory_size>>>(x.data_ptr<scalar_t>(),
+                                                                                 output.data_ptr<scalar_t>(),
+                                                                                 cu_seqlens.data_ptr<integer_t>(),
+                                                                                 B,
+                                                                                 S,
+                                                                                 N);
+                        } else {
+                            pack_unpack_sequence_cuda_kernel<scalar_t, integer_t, PaddingSide::right, true>
+                                <<<NUM_BLOCKS, BLOCK_SIZE, shared_memory_size>>>(x.data_ptr<scalar_t>(),
+                                                                                 output.data_ptr<scalar_t>(),
+                                                                                 cu_seqlens.data_ptr<integer_t>(),
+                                                                                 B,
+                                                                                 S,
+                                                                                 N);
+                        }
+                    } else {
+                        if (padding_side == "left") {
+                            pack_unpack_sequence_cuda_kernel<scalar_t, integer_t, PaddingSide::left, false>
+                                <<<NUM_BLOCKS, BLOCK_SIZE, shared_memory_size>>>(x.data_ptr<scalar_t>(),
+                                                                                 output.data_ptr<scalar_t>(),
+                                                                                 cu_seqlens.data_ptr<integer_t>(),
+                                                                                 B,
+                                                                                 S,
+                                                                                 N);
+                        } else {
+                            pack_unpack_sequence_cuda_kernel<scalar_t, integer_t, PaddingSide::right, false>
+                                <<<NUM_BLOCKS, BLOCK_SIZE, shared_memory_size>>>(x.data_ptr<scalar_t>(),
+                                                                                 output.data_ptr<scalar_t>(),
+                                                                                 cu_seqlens.data_ptr<integer_t>(),
+                                                                                 B,
+                                                                                 S,
+                                                                                 N);
+                        }
+                    }
+                }));
         }));
 }
