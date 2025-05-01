@@ -20,6 +20,19 @@ def _copy_array(source_ptr, destination_ptr, b, s, t, S, N, pack: tl.constexpr, 
 
 
 @triton.jit
+def _q(source_ptr, destination_ptr, b, s, t, S, N, pack: tl.constexpr, BLOCK_SIZE: tl.constexpr):
+    unpacked_offset = (b * S + s) * N
+    packed_offset = t * N
+
+    for i in range(tl.cdiv(N, BLOCK_SIZE)):
+        indices = i * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
+        mask = indices < N
+
+        source = tl.load(source_ptr + packed_offset + indices, mask=mask)
+        tl.store(destination_ptr + unpacked_offset + indices, source, mask=mask)
+
+
+@triton.jit
 def pack_unpack_sequence_triton_kernel(
     x_ptr,
     output_ptr,
@@ -44,4 +57,4 @@ def pack_unpack_sequence_triton_kernel(
             _copy_array(x_ptr, output_ptr, b, s, start + s - pad_tokens, S, N, pack, BLOCK_SIZE)
     else:
         if s < seqlens:
-            _copy_array(x_ptr, output_ptr, b, s, start + s, S, N, pack, BLOCK_SIZE)
+            _q(x_ptr, output_ptr, b, s, start + s, S, N, pack, BLOCK_SIZE)
