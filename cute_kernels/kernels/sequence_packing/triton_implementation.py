@@ -12,13 +12,14 @@ def _copy_array(source_ptr, destination_ptr, b, s, t, S, N, pack: tl.constexpr, 
 
         unpacked_ptrs = unpacked_offset + indices
         packed_ptrs = packed_offset + indices
+        mask = indices < N
 
         if pack:
-            source = tl.load(source_ptr + unpacked_ptrs)
-            tl.store(destination_ptr + packed_ptrs, source)
+            source = tl.load(source_ptr + unpacked_ptrs, mask=mask)
+            tl.store(destination_ptr + packed_ptrs, source, mask=mask)
         else:
-            source = tl.load(source_ptr + packed_ptrs)
-            tl.store(destination_ptr + unpacked_ptrs, source)
+            source = tl.load(source_ptr + packed_ptrs, mask=mask)
+            tl.store(destination_ptr + unpacked_ptrs, source, mask=mask)
 
 
 @triton.jit
