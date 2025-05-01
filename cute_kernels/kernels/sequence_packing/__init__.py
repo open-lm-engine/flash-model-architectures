@@ -101,8 +101,14 @@ class _PackSequence_Cute(torch.autograd.Function):
         x: torch.Tensor,
         cu_seqlens: torch.Tensor,
         padding_side: str,
-        BLOCK_SIZE_forward: int,
-        BLOCK_SIZE_backward: int,
+        kernel_backend_forward: KernelBackend,
+        BLOCK_SIZE_CUDA_forward: int,
+        BLOCK_SIZE_TRITON_forward: int,
+        NUM_WARPS_TRITON_forward: int,
+        kernel_backend_backward: KernelBackend,
+        BLOCK_SIZE_CUDA_backward: int,
+        BLOCK_SIZE_TRITON_backward: int,
+        NUM_WARPS_TRITON_backward: int,
     ) -> torch.Tensor:
         assert padding_side in ["left", "right"]
         assert x.dim() >= 2
@@ -110,14 +116,17 @@ class _PackSequence_Cute(torch.autograd.Function):
         ctx.save_for_backward(cu_seqlens)
         ctx.padding_side = padding_side
         ctx.x_shape = x.size()
-        ctx.BLOCK_SIZE_backward = BLOCK_SIZE_backward
+        ctx.kernel_backend_backward = kernel_backend_backward
+        ctx.BLOCK_SIZE_CUDA_backward = BLOCK_SIZE_CUDA_backward
+        ctx.BLOCK_SIZE_TRITON_backward = BLOCK_SIZE_TRITON_backward
+        ctx.NUM_WARPS_TRITON_backward = NUM_WARPS_TRITON_backward
 
         output = _pack_sequence(
             x=x,
             cu_seqlens=cu_seqlens,
             padding_side=padding_side,
             kernel_backend=kernel_backend_forward,
-            BLOCK_SIZE_CUDA=BLOCK_SIZE_forward,
+            BLOCK_SIZE_CUDA=BLOCK_SIZE_CUDA_forward,
             BLOCK_SIZE_TRITON=BLOCK_SIZE_TRITON_forward,
             NUM_WARPS_TRITON=NUM_WARPS_TRITON_forward,
         )
@@ -132,6 +141,7 @@ class _PackSequence_Cute(torch.autograd.Function):
             cu_seqlens=ctx.saved_tensors[0],
             padding_side=ctx.padding_side,
             desired_shape=ctx.x_shape,
+            kernel_backend=ctx.kernel_backend_backward,
             BLOCK_SIZE_CUDA=ctx.BLOCK_SIZE_CUDA_backward,
             BLOCK_SIZE_TRITON=ctx.BLOCK_SIZE_TRITON_backward,
             NUM_WARPS_TRITON=ctx.NUM_WARPS_TRITON_backward,
@@ -149,8 +159,14 @@ class _UnpackSequence_Cute(torch.autograd.Function):
         cu_seqlens: torch.Tensor,
         desired_shape: tuple[int],
         padding_side: str,
-        BLOCK_SIZE_forward: int,
-        BLOCK_SIZE_backward: int,
+        kernel_backend_forward: KernelBackend,
+        BLOCK_SIZE_CUDA_forward: int,
+        BLOCK_SIZE_TRITON_forward: int,
+        NUM_WARPS_TRITON_forward: int,
+        kernel_backend_backward: KernelBackend,
+        BLOCK_SIZE_CUDA_backward: int,
+        BLOCK_SIZE_TRITON_backward: int,
+        NUM_WARPS_TRITON_backward: int,
     ) -> torch.Tensor:
         assert padding_side in ["left", "right"]
         assert x.dim() >= 2
@@ -159,14 +175,20 @@ class _UnpackSequence_Cute(torch.autograd.Function):
 
         ctx.save_for_backward(cu_seqlens)
         ctx.padding_side = padding_side
-        ctx.BLOCK_SIZE_backward = BLOCK_SIZE_backward
+        ctx.kernel_backend_backward = kernel_backend_backward
+        ctx.BLOCK_SIZE_CUDA_backward = BLOCK_SIZE_CUDA_backward
+        ctx.BLOCK_SIZE_TRITON_backward = BLOCK_SIZE_TRITON_backward
+        ctx.NUM_WARPS_TRITON_backward = NUM_WARPS_TRITON_backward
 
         output = _unpack_sequence(
             x=x,
             cu_seqlens=cu_seqlens,
             padding_side=padding_side,
             desired_shape=desired_shape,
-            BLOCK_SIZE=BLOCK_SIZE_forward,
+            kernel_backend=kernel_backend_forward,
+            BLOCK_SIZE_CUDA=BLOCK_SIZE_CUDA_forward,
+            BLOCK_SIZE_TRITON=BLOCK_SIZE_TRITON_forward,
+            NUM_WARPS_TRITON=NUM_WARPS_TRITON_forward,
         )
 
         return output
@@ -178,7 +200,10 @@ class _UnpackSequence_Cute(torch.autograd.Function):
             x=output_grad,
             cu_seqlens=ctx.saved_tensors[0],
             padding_side=ctx.padding_side,
-            BLOCK_SIZE=ctx.BLOCK_SIZE_backward,
+            kernel_backend=ctx.kernel_backend_backward,
+            BLOCK_SIZE_CUDA=ctx.BLOCK_SIZE_CUDA_backward,
+            BLOCK_SIZE_TRITON=ctx.BLOCK_SIZE_TRITON_backward,
+            NUM_WARPS_TRITON=ctx.NUM_WARPS_TRITON_backward,
         )
 
         return x_grad, *[None] * 5
