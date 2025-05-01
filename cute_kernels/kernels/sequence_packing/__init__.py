@@ -213,10 +213,28 @@ def pack_sequence_cute(
     x: torch.Tensor,
     cu_seqlens: torch.Tensor,
     padding_side: str = "left",
-    BLOCK_SIZE_forward: int = 1024,
-    BLOCK_SIZE_backward: int = 1024,
+    kernel_backend_forward: KernelBackend = KernelBackend.cuda,
+    BLOCK_SIZE_CUDA_forward: int = 1024,
+    BLOCK_SIZE_TRITON_forward: int = 4096,
+    NUM_WARPS_TRITON_forward: int = 32,
+    kernel_backend_backward: KernelBackend = KernelBackend.cuda,
+    BLOCK_SIZE_CUDA_backward: int = 1024,
+    BLOCK_SIZE_TRITON_backward: int = 4096,
+    NUM_WARPS_TRITON_backward: int = 32,
 ) -> torch.Tensor:
-    return _PackSequence_Cute.apply(x, cu_seqlens, padding_side, BLOCK_SIZE_forward, BLOCK_SIZE_backward)
+    return _PackSequence_Cute.apply(
+        x,
+        cu_seqlens,
+        padding_side,
+        kernel_backend_forward,
+        BLOCK_SIZE_CUDA_forward,
+        BLOCK_SIZE_TRITON_forward,
+        NUM_WARPS_TRITON_forward,
+        kernel_backend_backward,
+        BLOCK_SIZE_CUDA_backward,
+        BLOCK_SIZE_TRITON_backward,
+        NUM_WARPS_TRITON_backward,
+    )
 
 
 def unpack_sequence_cute(
@@ -224,9 +242,26 @@ def unpack_sequence_cute(
     cu_seqlens: torch.Tensor,
     desired_shape: tuple[int],
     padding_side: str = "left",
-    BLOCK_SIZE_forward: int = 1024,
-    BLOCK_SIZE_backward: int = 1024,
+    kernel_backend_forward: KernelBackend = KernelBackend.cuda,
+    BLOCK_SIZE_CUDA_forward: int = 1024,
+    BLOCK_SIZE_TRITON_forward: int = 4096,
+    NUM_WARPS_TRITON_forward: int = 32,
+    kernel_backend_backward: KernelBackend = KernelBackend.cuda,
+    BLOCK_SIZE_CUDA_backward: int = 1024,
+    BLOCK_SIZE_TRITON_backward: int = 4096,
+    NUM_WARPS_TRITON_backward: int = 32,
 ) -> torch.Tensor:
     return _UnpackSequence_Cute.apply(
-        x, cu_seqlens, desired_shape, padding_side, BLOCK_SIZE_forward, BLOCK_SIZE_backward
+        x,
+        cu_seqlens,
+        desired_shape,
+        padding_side,
+        kernel_backend_forward,
+        BLOCK_SIZE_CUDA_forward,
+        BLOCK_SIZE_TRITON_forward,
+        NUM_WARPS_TRITON_forward,
+        kernel_backend_backward,
+        BLOCK_SIZE_CUDA_backward,
+        BLOCK_SIZE_TRITON_backward,
+        NUM_WARPS_TRITON_backward,
     )
