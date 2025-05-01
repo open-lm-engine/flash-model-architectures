@@ -40,9 +40,9 @@ def pack_unpack_sequence_triton_kernel(
     start = tl.load(cu_seqlens_ptrs)
     end = tl.load(cu_seqlens_ptrs + 1)
     seqlens = end - start
-    pad_tokens = S - seqlens
 
     if padding_side == "left":
+        pad_tokens = S - seqlens
         if s >= pad_tokens:
             _copy_array(x_ptr, output_ptr, b, s, start + s - pad_tokens, S, N, pack, BLOCK_SIZE)
     else:
