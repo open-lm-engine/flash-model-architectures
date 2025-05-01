@@ -75,6 +75,18 @@ def _get_cpp_function(function_name: str, source_files: list[str], build_directo
 def cpp_jit(
     function_name: str | None = None, extra_source_files: list[str] = [], build_directory: str | None = None
 ) -> Callable:
+    """wrapper to compile C++/CUDA source code at runtime.
+
+    Args:
+        function_name (str | None, optional): name of the function to expose from the C++ file, the python function
+            name should match the funcion name in the C++ file if this is not specified. Defaults to None.
+        extra_source_files (list[str], optional): any extra files to use for compilation, by default it scans the
+            directory of the python stub file. Defaults to [].
+        build_directory (str | None, optional): directory in which to place the build artifacts. Defaults to None.
+
+    Returns:
+        Callable: returns the wrapped function that can be used to call the C++ functions from python
+    """
     cpp_function = None
     args_spec = None
 
