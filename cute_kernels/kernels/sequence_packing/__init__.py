@@ -1,20 +1,50 @@
 import torch
 
+from ...kernel_backend import KernelBackend
 from ...utils import ensure_contiguous
 from .cuda_implementation import pack_unpack_sequence_cuda
 from .torch_implementation import pack_sequence_torch, unpack_sequence_torch
+from .triton_implementation import pack_unpack_sequence_triton_kernel
 
 
-def _pack_sequence(x: torch.Tensor, cu_seqlens: torch.Tensor, padding_side: str, BLOCK_SIZE: int) -> torch.Tensor:
+def _pack_sequence(
+    x: torch.Tensor,
+    cu_seqlens: torch.Tensor,
+    padding_side: str,
+    kernel_backend: KernelBackend,
+    BLOCK_SIZE_CUDA: int,
+    BLOCK_SIZE_TRITON: int,
+    NUM_WARPS_TRITON: int,
+) -> torch.Tensor:
     output = torch.empty(cu_seqlens[-1], *x.size()[2:], device=x.device, dtype=x.dtype)
-    pack_unpack_sequence_cuda(
-        x=x,
-        output=output,
-        cu_seqlens=cu_seqlens,
-        padding_side=padding_side,
-        pack=True,
-        BLOCK_SIZE=BLOCK_SIZE,
-    )
+
+    if kernel_backend == KernelBackend.cuda:
+        pack_unpack_sequence_cuda(
+            x=x,
+            output=output,
+            cu_seqlens=cu_seqlens,
+            padding_side=padding_side,
+            pack=True,
+            BLOCK_SIZE=BLOCK_SIZE_CUDA,
+        )
+    elif kernel_backend == KernelBackend.triton:
+        B, S = x.size()[:2]
+        N = x.numel() / (B * S)
+
+        with torch.cuda.device(x.device):
+            pack_unpack_sequence_triton_kernel[S, B](
+                x_ptr=x,
+                output_ptr=output,
+                cu_seqlens_ptr=cu_seqlens,
+                S=S,
+                N=N,
+                padding_side=padding_side,
+                pack=True,
+                BLOCK_SIZE=BLOCK_SIZE_TRITON,
+                num_warps=NUM_WARPS_TRITON,
+            )
+    else:
+        raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
     return output
 
@@ -56,7 +86,17 @@ class _PackSequence_Cute(torch.autograd.Function):
         ctx.x_shape = x.size()
         ctx.BLOCK_SIZE_backward = BLOCK_SIZE_backward
 
-        return _pack_sequence(x=x, cu_seqlens=cu_seqlens, padding_side=padding_side, BLOCK_SIZE=BLOCK_SIZE_forward)
+        output = _pack_sequence(
+            x=x,
+            cu_seqlens=cu_seqlens,
+            padding_side=padding_side,
+            kernel_backend=kernel_backend_forward,
+            BLOCK_SIZE_CUDA=BLOCK_SIZE_forward,
+            BLOCK_SIZE_TRITON=BLOCK_SIZE_TRITON_forward,
+            NUM_WARPS_TRITON=NUM_WARPS_TRITON_forward,
+        )
+
+        return output
 
     @staticmethod
     @ensure_contiguous

@@ -40,7 +40,7 @@ inline __device__ void _copy_array(const scalar_t *source,
 
 template <typename scalar_t, typename integer_t, PaddingSide padding_side, bool is_packing>
 __global__ void pack_unpack_sequence_cuda_kernel(
-    const scalar_t *x, scalar_t *output, const integer_t *cu_seqlens, const uint32 B, const uint32 S, const uint32 N) {
+    const scalar_t *x, scalar_t *output, const integer_t *cu_seqlens, const uint32 S, const uint32 N) {
     const uint32 s = blockIdx.x;
     const uint32 b = blockIdx.y;
 
@@ -101,7 +101,6 @@ void pack_unpack_sequence_cuda(const torch::Tensor &x,
                                 <<<NUM_BLOCKS, BLOCK_SIZE, shared_memory_size>>>(x.data_ptr<scalar_t>(),
                                                                                  output.data_ptr<scalar_t>(),
                                                                                  cu_seqlens.data_ptr<integer_t>(),
-                                                                                 B,
                                                                                  S,
                                                                                  N);
                         } else {
@@ -109,7 +108,6 @@ void pack_unpack_sequence_cuda(const torch::Tensor &x,
                                 <<<NUM_BLOCKS, BLOCK_SIZE, shared_memory_size>>>(x.data_ptr<scalar_t>(),
                                                                                  output.data_ptr<scalar_t>(),
                                                                                  cu_seqlens.data_ptr<integer_t>(),
-                                                                                 B,
                                                                                  S,
                                                                                  N);
                         }
@@ -119,7 +117,6 @@ void pack_unpack_sequence_cuda(const torch::Tensor &x,
                                 <<<NUM_BLOCKS, BLOCK_SIZE, shared_memory_size>>>(x.data_ptr<scalar_t>(),
                                                                                  output.data_ptr<scalar_t>(),
                                                                                  cu_seqlens.data_ptr<integer_t>(),
-                                                                                 B,
                                                                                  S,
                                                                                  N);
                         } else {
@@ -127,7 +124,6 @@ void pack_unpack_sequence_cuda(const torch::Tensor &x,
                                 <<<NUM_BLOCKS, BLOCK_SIZE, shared_memory_size>>>(x.data_ptr<scalar_t>(),
                                                                                  output.data_ptr<scalar_t>(),
                                                                                  cu_seqlens.data_ptr<integer_t>(),
-                                                                                 B,
                                                                                  S,
                                                                                  N);
                         }
