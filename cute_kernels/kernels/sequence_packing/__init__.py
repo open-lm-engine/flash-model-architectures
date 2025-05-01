@@ -29,7 +29,7 @@ def _pack_sequence(
         )
     elif kernel_backend == KernelBackend.triton:
         B, S = x.size()[:2]
-        N = output.numel() // (B * S)
+        N = x.numel() // (B * S)
 
         with torch.cuda.device(x.device):
             pack_unpack_sequence_triton_kernel[S, B](
@@ -73,7 +73,7 @@ def _unpack_sequence(
             BLOCK_SIZE=BLOCK_SIZE_CUDA,
         )
     elif kernel_backend == KernelBackend.triton:
-        N = x.numel() // (B * S)
+        N = output.numel() // (B * S)
 
         with torch.cuda.device(x.device):
             pack_unpack_sequence_triton_kernel[S, B](
