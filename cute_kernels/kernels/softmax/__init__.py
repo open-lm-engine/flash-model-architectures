@@ -30,7 +30,7 @@ class _Softmax_Cute(torch.autograd.Function):
 
         ctx.save_for_backward(output)
         ctx.logits_multiplier = logits_multiplier
-        ctx.shape = output.size()
+        ctx.shape = get_num_elements_and_hidden_size(x)
         ctx.BLOCK_SIZE_B_backward = BLOCK_SIZE_B_backward
         ctx.BLOCK_SIZE_H_backward = BLOCK_SIZE_H_backward
 
