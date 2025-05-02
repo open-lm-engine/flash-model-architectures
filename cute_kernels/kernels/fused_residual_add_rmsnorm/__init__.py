@@ -34,12 +34,12 @@ class _FusedResidualAddRMSNorm_Cute(torch.autograd.Function):
 
         B, H = get_num_elements_and_hidden_size(x)
 
+        BLOCK_SIZE_H = get_next_power_of_2(H)
+        assert BLOCK_SIZE_H < MAX_TRITON_BLOCK_SIZE
+
         output = torch.empty_like(x)
         added_x_residual = torch.empty_like(x)
         rmsnorm_denominator = None if memory_efficient else torch.empty(B, device=x.device, dtype=torch.float32)
-
-        BLOCK_SIZE_H = get_next_power_of_2(H)
-        assert BLOCK_SIZE_H < MAX_TRITON_BLOCK_SIZE
 
         with torch.cuda.device(x.device):
             fused_residual_add_rmsnorm_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B_forward),](
