@@ -56,7 +56,7 @@ def rnn_forward_triton_kernel(
 
 
 @triton.jit
-def rnn_varlen_forward_triton(
+def rnn_varlen_forward_triton_kernel(
     input_ptr,
     input_stride_s,
     weight_ptr,

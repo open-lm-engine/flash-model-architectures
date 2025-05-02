@@ -1,2 +1,2 @@
-from .backward import rnn_backward_triton, rnn_varlen_backward_triton
-from .forward import rnn_forward_triton, rnn_varlen_forward_triton
+from .backward import rnn_backward_triton_kernel, rnn_varlen_backward_triton_kernel
+from .forward import rnn_forward_triton_kernel, rnn_varlen_forward_triton_kernel

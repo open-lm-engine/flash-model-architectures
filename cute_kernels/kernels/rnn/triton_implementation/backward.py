@@ -104,7 +104,7 @@ def rnn_backward_triton_kernel(
 
 
 @triton.jit
-def rnn_varlen_backward_triton(
+def rnn_varlen_backward_triton_kernel(
     weight_ptr,
     weight_stride_n,
     weight_stride_h,

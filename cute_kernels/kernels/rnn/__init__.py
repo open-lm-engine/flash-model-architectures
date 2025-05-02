@@ -4,10 +4,10 @@ from ...math import ceil_divide, get_next_power_of_2
 from ...utils import ensure_contiguous
 from .torch_implementation import rnn_torch
 from .triton_implementation import (
-    rnn_backward_triton,
-    rnn_forward_triton,
-    rnn_varlen_backward_triton,
-    rnn_varlen_forward_triton,
+    rnn_backward_triton_kernel,
+    rnn_forward_triton_kernel,
+    rnn_varlen_backward_triton_kernel,
+    rnn_varlen_forward_triton_kernel,
 )
 
 
@@ -39,7 +39,7 @@ class _RNN_Cute(torch.autograd.Function):
             B, S = input.size()[:2]
 
             with torch.cuda.device(input.device):
-                rnn_forward_triton[ceil_divide(B, BLOCK_SIZE_B_forward), N](
+                rnn_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B_forward), N](
                     input_ptr=input,
                     input_stride_b=input.stride(0),
                     input_stride_s=input.stride(1),
@@ -60,7 +60,7 @@ class _RNN_Cute(torch.autograd.Function):
             B = cu_seqlens.numel() - 1
 
             with torch.cuda.device(input.device):
-                rnn_varlen_forward_triton[ceil_divide(B, BLOCK_SIZE_B_forward), N](
+                rnn_varlen_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B_forward), N](
                     input_ptr=input,
                     input_stride_s=input.stride(0),
                     input_stride_n=input.stride(1),
@@ -103,7 +103,7 @@ class _RNN_Cute(torch.autograd.Function):
             B, S = output.size()[:2]
 
             with torch.cuda.device(output.device):
-                rnn_backward_triton[ceil_divide(B, BLOCK_SIZE_B), N](
+                rnn_backward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), N](
                     weight_ptr=weight,
                     weight_stride_n=weight.stride(0),
                     weight_stride_h=weight.stride(1),
@@ -130,7 +130,7 @@ class _RNN_Cute(torch.autograd.Function):
             B = cu_seqlens.numel() - 1
 
             with torch.cuda.device(output.device):
-                rnn_varlen_backward_triton[ceil_divide(B, BLOCK_SIZE_B), N](
+                rnn_varlen_backward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), N](
                     weight_ptr=weight,
                     weight_stride_n=weight.stride(0),
                     weight_stride_h=weight.stride(1),
