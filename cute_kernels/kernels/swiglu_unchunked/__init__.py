@@ -1,9 +1,9 @@
 import torch
 
-from ...math import divide_if_divisible
-from ...utils import ensure_contiguous
+from ...math import ceil_divide, divide_if_divisible
+from ...utils import ensure_contiguous, get_num_elements_and_hidden_size
 from .torch_implementation import swiglu_unchunked_torch
-from .triton_implementation import swiglu_unchunked_backward_triton, swiglu_unchunked_forward_triton
+from .triton_implementation import swiglu_unchunked_backward_triton, swiglu_unchunked_forward_triton_kernel
 
 
 class _SwigluUnchunked_Cute(torch.autograd.Function):
@@ -21,11 +21,20 @@ class _SwigluUnchunked_Cute(torch.autograd.Function):
         ctx.BLOCK_SIZE_B_backward = BLOCK_SIZE_B_backward
         ctx.BLOCK_SIZE_H_backward = BLOCK_SIZE_H_backward
 
-        output = torch.empty(*x.size()[:-1], divide_if_divisible(x.size(-1), 2), device=x.device, dtype=x.dtype)
+        B, H = get_num_elements_and_hidden_size(x)
+        output = torch.empty(*x.size()[:-1], divide_if_divisible(H, 2), device=x.device, dtype=x.dtype)
 
-        swiglu_unchunked_forward_triton(
-            x=x, output=output, BLOCK_SIZE_B=BLOCK_SIZE_B_forward, BLOCK_SIZE_H=BLOCK_SIZE_H_forward
-        )
+        with torch.cuda.device(x.device):
+            swiglu_unchunked_forward_triton_kernel[
+                ceil_divide(B, BLOCK_SIZE_B_forward), ceil_divide(H, BLOCK_SIZE_H_forward)
+            ](
+                x_ptr=x,
+                output_ptr=output,
+                B=B,
+                H=H,
+                BLOCK_SIZE_B=BLOCK_SIZE_B_forward,
+                BLOCK_SIZE_H=BLOCK_SIZE_H_forward,
+            )
 
         return output
 
