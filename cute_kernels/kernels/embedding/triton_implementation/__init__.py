@@ -1,2 +1,2 @@
-from .backward import embedding_backward_triton_kernel
-from .forward import embedding_forward_triton_kernel
+from .backward import embedding_backward_triton
+from .forward import embedding_forward_triton

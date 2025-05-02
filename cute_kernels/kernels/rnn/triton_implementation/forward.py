@@ -1,7 +1,11 @@
+import torch
 import triton
 import triton.language as tl
 
+from ....constants import LIBRARY_NAME
+from ....math import ceil_divide, get_next_power_of_2
 from ....triton_math import tanh
+from ....utils import cute_op
 
 
 @triton.jit
@@ -54,3 +58,36 @@ def rnn_forward_triton_kernel(
         tl.store(output_ptrs, input_state, mask=mask_bh)
 
         indices += input_stride_s
+
+
+@cute_op(f"{LIBRARY_NAME}::rnn_forward_triton", mutates_args={"output"})
+def rnn_forward_triton(
+    input: torch.Tensor,
+    weight: torch.Tensor,
+    input_state: torch.Tensor | None,
+    output: torch.Tensor,
+    BLOCK_SIZE_B: int,
+) -> None:
+    B, S, N, H = input.size()
+
+    BLOCK_SIZE_H = get_next_power_of_2(H)
+    BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
+
+    with torch.device(input.device):
+        rnn_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), N](
+            input_ptr=input,
+            input_stride_b=input.stride(0),
+            input_stride_s=input.stride(1),
+            input_stride_n=input.stride(2),
+            weight_ptr=weight,
+            weight_stride_n=weight.stride(0),
+            weight_stride_h=weight.stride(1),
+            has_input_state=input_state is not None,
+            input_state_ptr=input_state,
+            output_ptr=output,
+            B=B,
+            S=S,
+            H=H,
+            BLOCK_SIZE_B=BLOCK_SIZE_B,
+            BLOCK_SIZE_H=BLOCK_SIZE_H,
+        )

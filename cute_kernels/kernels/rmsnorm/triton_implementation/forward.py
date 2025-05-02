@@ -1,5 +1,10 @@
+import torch
 import triton
 import triton.language as tl
+
+from ....constants import LIBRARY_NAME, MAX_TRITON_BLOCK_SIZE
+from ....math import ceil_divide, get_next_power_of_2
+from ....utils import cute_op, get_num_elements_and_hidden_size
 
 
 @triton.jit
@@ -44,3 +49,33 @@ def rmsnorm_forward_triton_kernel(
 
     output_ptrs = output_ptr + indices_bh
     tl.store(output_ptrs, x, mask=mask_bh)
+
+
+@cute_op(f"{LIBRARY_NAME}::rmsnorm_forward_triton", mutates_args={"output", "rmsnorm_denominator"})
+def rmsnorm_forward_triton(
+    x: torch.Tensor,
+    weight: torch.Tensor | None,
+    output: torch.Tensor,
+    eps: float,
+    rmsnorm_denominator: torch.Tensor | None,
+    BLOCK_SIZE_B: int,
+) -> None:
+    B, H = get_num_elements_and_hidden_size(x)
+
+    BLOCK_SIZE_H = get_next_power_of_2(H)
+    assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
+
+    with torch.device(x.device):
+        rmsnorm_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](
+            x_ptr=x,
+            has_weight=weight is not None,
+            weight_ptr=weight,
+            output_ptr=output,
+            eps=eps,
+            has_rmsnorm_denominator=rmsnorm_denominator is not None,
+            rmsnorm_denominator_ptr=rmsnorm_denominator,
+            B=B,
+            H=H,
+            BLOCK_SIZE_B=BLOCK_SIZE_B,
+            BLOCK_SIZE_H=BLOCK_SIZE_H,
+        )
