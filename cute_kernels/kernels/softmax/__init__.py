@@ -3,7 +3,7 @@ import torch
 from ...math import ceil_divide
 from ...utils import ensure_contiguous, get_num_elements_and_hidden_size
 from .torch_implementation import softmax_torch
-from .triton_implementation import softmax_backward_triton, softmax_forward_triton
+from .triton_implementation import softmax_backward_triton_kernel, softmax_forward_triton
 
 
 class _Softmax_Cute(torch.autograd.Function):
@@ -41,14 +41,23 @@ class _Softmax_Cute(torch.autograd.Function):
         output = ctx.saved_tensors[0]
         x_grad = torch.empty_like(output)
 
-        softmax_backward_triton(
-            output=output,
-            output_grad=output_grad,
-            x_grad=x_grad,
-            logits_multiplier=ctx.logits_multiplier,
-            BLOCK_SIZE_B=ctx.BLOCK_SIZE_B_backward,
-            BLOCK_SIZE_H=ctx.BLOCK_SIZE_H_backward,
-        )
+        B, H = get_num_elements_and_hidden_size(x_grad)
+        BLOCK_SIZE_B = ctx.BLOCK_SIZE_B_backward
+        BLOCK_SIZE_H = ctx.BLOCK_SIZE_H_backward
+        logits_multiplier = ctx.logits_multiplier
+
+        with torch.cuda.device(x_grad.device):
+            softmax_backward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](
+                output_ptr=output,
+                output_grad_ptr=output_grad,
+                x_grad_ptr=x_grad,
+                has_logits_multiplier=logits_multiplier not in [None, 1],
+                logits_multiplier=logits_multiplier,
+                B=B,
+                H=H,
+                BLOCK_SIZE_B=BLOCK_SIZE_B,
+                BLOCK_SIZE_H=BLOCK_SIZE_H,
+            )
 
         return x_grad, *[None] * 5
 
