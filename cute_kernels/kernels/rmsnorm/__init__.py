@@ -71,7 +71,7 @@ class _RMSNorm_Cute(torch.autograd.Function):
         sm_count = get_sm_count(x.device)
         num_programs = min(sm_count, ceil_divide(B, BLOCK_SIZE_B))
 
-        with torch.device(x.device):
+        with torch.cuda.device(x.device):
             rmsnorm_backward_triton_kernel[num_programs,](
                 x_ptr=x,
                 has_weight=weight is not None,
