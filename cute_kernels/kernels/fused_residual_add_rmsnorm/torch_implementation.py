@@ -5,7 +5,7 @@ import torch.nn.functional as F
 def fused_residual_add_rmsnorm_torch(
     x: torch.Tensor, residual: torch.Tensor, weight: torch.Tensor | None, eps: float, multiplier: float | None = None
 ) -> tuple[torch.Tensor]:
-    if multiplier is not None:
+    if multiplier not in [None, 1]:
         x = x * multiplier
 
     x = x + residual

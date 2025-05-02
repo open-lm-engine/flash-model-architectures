@@ -38,17 +38,13 @@ class _Swiglu_Cute(torch.autograd.Function):
         if is_cuda_kernel_backend_allowed(kernel_backend_forward) and is_nvidia_gpu() and gate.is_cuda and up.is_cuda:
             swiglu_forward_cuda(gate=gate, up=up, output=output, BLOCK_SIZE=BLOCK_SIZE_CUDA_forward)
         elif is_triton_kernel_backend_allowed(kernel_backend_forward):
-            N = gate.numel()
-
-            with torch.cuda.device(gate.device):
-                swiglu_forward_triton[ceil_divide(N, BLOCK_SIZE_TRITON_forward),](
-                    gate_ptr=gate,
-                    up_ptr=up,
-                    output_ptr=output,
-                    N=N,
-                    BLOCK_SIZE=BLOCK_SIZE_TRITON_forward,
-                    num_warps=NUM_WARPS_TRITON_forward,
-                )
+            swiglu_forward_triton(
+                gate=gate,
+                up=up,
+                output=output,
+                BLOCK_SIZE=BLOCK_SIZE_TRITON_forward,
+                NUM_WARPS=NUM_WARPS_TRITON_forward,
+            )
         else:
             raise ValueError("unexpected kernel_backend")
 
@@ -73,20 +69,15 @@ class _Swiglu_Cute(torch.autograd.Function):
                 BLOCK_SIZE=ctx.BLOCK_SIZE_CUDA_backward,
             )
         elif is_triton_kernel_backend_allowed(kernel_backend_backward):
-            N = gate.numel()
-            BLOCK_SIZE = ctx.BLOCK_SIZE_TRITON_backward
-
-            with torch.cuda.device(gate.device):
-                swiglu_backward_triton[ceil_divide(N, BLOCK_SIZE),](
-                    gate_ptr=gate,
-                    up_ptr=up,
-                    output_grad_ptr=output_grad,
-                    gate_grad_ptr=gate_grad,
-                    up_grad_ptr=up_grad,
-                    N=N,
-                    BLOCK_SIZE=BLOCK_SIZE,
-                    num_warps=ctx.NUM_WARPS_TRITON_backward,
-                )
+            swiglu_backward_triton(
+                gate=gate,
+                up=up,
+                output_grad=output_grad,
+                gate_grad=gate_grad,
+                up_grad=up_grad,
+                BLOCK_SIZE=ctx.BLOCK_SIZE_TRITON_backward,
+                NUM_WARPS=ctx.NUM_WARPS_TRITON_backward,
+            )
         else:
             raise ValueError("unexpected kernel_backend")
 

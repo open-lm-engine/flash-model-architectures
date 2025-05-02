@@ -16,18 +16,18 @@ def _tanh_backward(y):
 
 
 @triton.jit
-def rnn_backward_triton(
+def rnn_backward_triton_kernel(
     weight_ptr,
     weight_stride_n,
     weight_stride_h,
     output_ptr,
+    output_stride_b,
+    output_stride_s,
+    output_stride_n,
     has_input_state: tl.constexpr,
     input_state_ptr,
     input_state_stride_b,
     input_state_stride_n,
-    output_stride_b,
-    output_stride_s,
-    output_stride_n,
     output_grad_ptr,
     input_grad_ptr,
     weight_grad_ptr,
@@ -62,6 +62,7 @@ def rnn_backward_triton(
     output_ptrs = output_ptr + indices
     output = tl.load(output_ptrs, mask=mask_bh, other=0)
 
+    # backward counting reduces 1 instruction since we need to compare s == 0, otherwise we have to compare s == S - 1
     for s in range(S - 1, -1, -1):
         output_grad_ptrs = output_grad_ptr + indices
         output_grad = tl.load(output_grad_ptrs, mask=mask_bh, other=0)
@@ -123,7 +124,6 @@ def rnn_varlen_backward_triton(
     B,
     S,
     H,
-    allow_tf32: tl.constexpr,
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):

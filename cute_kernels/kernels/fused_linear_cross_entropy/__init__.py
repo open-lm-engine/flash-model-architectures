@@ -45,25 +45,20 @@ class _FusedLinearCrossEntropy_Cute(torch.autograd.Function):
 
             _x = x[start:end]
             _logits = (_x @ weight.T).contiguous()
-            B = _logits.size(0)
 
             _logits_grad = torch.empty_like(_logits)
             _labels = labels[start:end].contiguous()
 
-            with torch.cuda.device(x.device):
-                cross_entropy_forward_backward_triton[ceil_divide(_logits.size(0), BLOCK_SIZE_B),](
-                    x_ptr=_logits,
-                    labels_ptr=_labels,
-                    loss_ptr=loss,
-                    x_grad_ptr=_logits_grad,
-                    has_logits_multiplier=logits_multiplier is not None,
-                    logits_multiplier=logits_multiplier,
-                    B=B,
-                    V=V,
-                    BLOCK_SIZE_B=BLOCK_SIZE_B,
-                    BLOCK_SIZE_V=BLOCK_SIZE_V,
-                    reduction="sum",
-                )
+            cross_entropy_forward_backward_triton(
+                x=_logits,
+                labels=_labels,
+                loss=loss,
+                x_grad=_logits_grad,
+                logits_multiplier=logits_multiplier,
+                BLOCK_SIZE_B=BLOCK_SIZE_B,
+                BLOCK_SIZE_V=BLOCK_SIZE_V,
+                reduction="sum",
+            )
 
             x_grad[start:end] = _logits_grad @ weight
             torch.addmm(weight_grad, _logits_grad.T, _x, alpha=1, beta=1, out=weight_grad)
