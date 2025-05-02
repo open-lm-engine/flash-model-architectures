@@ -3,7 +3,6 @@ from contextlib import contextmanager
 from typing import Callable, Iterable, Sequence
 
 import torch
-import torch.lib
 
 
 _IS_CUTE_TRACING = False
