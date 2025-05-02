@@ -34,16 +34,11 @@ def cute_op(
     device_types: str | Sequence[str] | None = None,
     schema: str | None = None,
     fake_func: Callable | None = None,
-    triton_op: bool = False,
 ) -> Callable:
     def _inner(func: Callable):
-        if triton_op:
-            compileable_func = torch.library.triton_op(name, func, mutates_args=mutates_args, schema=schema)
-            assert fake_func is None
-        else:
-            compileable_func = torch.library.custom_op(
-                name, func, mutates_args=mutates_args, device_types=device_types, schema=schema
-            )
+        compileable_func = torch.library.custom_op(
+            name, func, mutates_args=mutates_args, device_types=device_types, schema=schema
+        )
 
         if fake_func is not None:
             compileable_func.register_fake(fake_func)
