@@ -1,5 +1,10 @@
+import torch
 import triton
 import triton.language as tl
+
+from ....constants import LIBRARY_NAME
+from ....math import ceil_divide
+from ....utils import cute_op, get_num_elements_and_hidden_size
 
 
 @triton.jit
@@ -72,3 +77,28 @@ def softmax_backward_triton_kernel(
 
         x_grad_ptrs = x_grad_ptr + indices
         tl.store(x_grad_ptrs, output, mask=mask_bh)
+
+
+@cute_op(f"{LIBRARY_NAME}::softmax_backward_triton", mutates_args={"x_grad"}, triton_op=True)
+def softmax_backward_triton(
+    output: torch.Tensor,
+    output_grad: torch.Tensor,
+    x_grad: torch.Tensor,
+    logits_multiplier: float | None,
+    BLOCK_SIZE_B: int,
+    BLOCK_SIZE_H: int,
+) -> None:
+    B, H = get_num_elements_and_hidden_size(x_grad)
+
+    with torch.cuda.device(x_grad.device):
+        softmax_backward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](
+            output_ptr=output,
+            output_grad_ptr=output_grad,
+            x_grad_ptr=x_grad,
+            has_logits_multiplier=logits_multiplier not in [None, 1],
+            logits_multiplier=logits_multiplier,
+            B=B,
+            H=H,
+            BLOCK_SIZE_B=BLOCK_SIZE_B,
+            BLOCK_SIZE_H=BLOCK_SIZE_H,
+        )
