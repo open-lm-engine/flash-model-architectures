@@ -88,17 +88,17 @@ def softmax_backward_triton(
     BLOCK_SIZE_B: int,
     BLOCK_SIZE_H: int,
 ) -> None:
-    num_elements, hidden_size = get_num_elements_and_hidden_size(x_grad)
+    B, H = get_num_elements_and_hidden_size(x_grad)
 
-    with torch.device(x_grad.device):
-        softmax_backward_triton_kernel[ceil_divide(num_elements, BLOCK_SIZE_B),](
+    with torch.cuda.device(x_grad.device):
+        softmax_backward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](
             output_ptr=output,
             output_grad_ptr=output_grad,
             x_grad_ptr=x_grad,
             has_logits_multiplier=logits_multiplier not in [None, 1],
             logits_multiplier=logits_multiplier,
-            B=num_elements,
-            H=hidden_size,
+            B=B,
+            H=H,
             BLOCK_SIZE_B=BLOCK_SIZE_B,
             BLOCK_SIZE_H=BLOCK_SIZE_H,
         )
