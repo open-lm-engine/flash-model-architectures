@@ -76,11 +76,10 @@ def scatter2scatter(
         )
 
 
-@cute_op(f"{LIBRARY_NAME}::group_bwd_W", mutates_args={"DW"})
 def group_bwd_W(DY: torch.Tensor, X: torch.Tensor, expert_offsets: torch.Tensor, DW: torch.Tensor, E: int) -> None:
     grid = lambda meta: (E * ceil_divide(meta["K"], meta["BLOCK_K"]), ceil_divide(meta["N"], meta["BLOCK_N"]))
 
-    with torch.device(X.device):
+    with torch.cuda.device(X.device):
         groupXtY_triton_kernel[grid](
             # DY_ptr, stride_dym, stride_dyk,
             DY,
