@@ -82,7 +82,8 @@ def rnn_varlen_forward_triton(
     input_state: torch.Tensor | None,
     output: torch.Tensor,
     cu_seqlens: torch.Tensor,
-    max_seqlen: torch.Tensor | int,
+    max_seqlen_tensor: torch.Tensor | None,
+    max_seqlen: int | None,
     BLOCK_SIZE_B: int,
 ) -> None:
     _, N, H = input.size()
@@ -92,6 +93,7 @@ def rnn_varlen_forward_triton(
     BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
 
     has_input_state = input_state is not None
+    is_max_seqlen_tensor = max_seqlen_tensor is not None
 
     with torch.device(input.device):
         rnn_varlen_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), N](
@@ -104,8 +106,8 @@ def rnn_varlen_forward_triton(
             input_state_stride_b=input_state.stride(0) if has_input_state else None,
             output_ptr=output,
             cu_seqlens_ptr=cu_seqlens,
-            is_max_seqlen_tensor=isinstance(max_seqlen, torch.Tensor),
-            max_seqlen_ptr=max_seqlen,
+            is_max_seqlen_tensor=is_max_seqlen_tensor,
+            max_seqlen_ptr=max_seqlen_tensor if is_max_seqlen_tensor else max_seqlen,
             B=B,
             H=H,
             BLOCK_SIZE_B=BLOCK_SIZE_B,

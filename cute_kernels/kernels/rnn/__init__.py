@@ -38,6 +38,7 @@ class _RNN_Cute(torch.autograd.Function):
             )
         else:
             assert max_seqlen is not None
+            is_max_seqlen_tensor = isinstance(max_seqlen, torch.Tensor)
 
             rnn_varlen_forward_triton(
                 input=input,
@@ -45,7 +46,8 @@ class _RNN_Cute(torch.autograd.Function):
                 input_state=input_state,
                 output=output,
                 cu_seqlens=cu_seqlens,
-                max_seqlen=max_seqlen,
+                max_seqlen_tensor=max_seqlen if is_max_seqlen_tensor else None,
+                max_seqlen=None if is_max_seqlen_tensor else max_seqlen,
                 BLOCK_SIZE_B=BLOCK_SIZE_B_forward,
             )
 
