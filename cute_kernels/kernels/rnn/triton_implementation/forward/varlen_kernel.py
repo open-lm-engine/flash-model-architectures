@@ -74,7 +74,7 @@ def rnn_varlen_forward_triton_kernel(
         indices += input_stride_s
 
 
-@cute_op(f"{LIBRARY_NAME}::rnn_forward_triton", mutates_args={"output"})
+@cute_op(f"{LIBRARY_NAME}::rnn_varlen_forward_triton", mutates_args={"output"})
 def rnn_varlen_forward_triton(
     input: torch.Tensor,
     weight: torch.Tensor,
