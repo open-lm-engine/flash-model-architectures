@@ -1,6 +1,6 @@
 import torch
 
-from ...math import ceil_divide, get_next_power_of_2
+from ...math import ceil_divide
 from ...utils import ensure_contiguous
 from .torch_implementation import rnn_torch
 from .triton_implementation import (
@@ -38,31 +38,16 @@ class _RNN_Cute(torch.autograd.Function):
             )
         else:
             assert max_seqlen is not None
-            B = cu_seqlens.numel() - 1
 
-            N, H = input.size()[-2:]
-            BLOCK_SIZE_H = get_next_power_of_2(H)
-            BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
-
-            with torch.cuda.device(input.device):
-                rnn_varlen_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B_forward), N](
-                    input_ptr=input,
-                    input_stride_s=input.stride(0),
-                    input_stride_n=input.stride(1),
-                    weight_ptr=weight,
-                    weight_stride_n=weight.stride(0),
-                    weight_stride_h=weight.stride(1),
-                    has_input_state=input_state is not None,
-                    input_state_ptr=input_state,
-                    output_ptr=output,
-                    cu_seqlens_ptr=cu_seqlens,
-                    is_max_seqlen_tensor=isinstance(max_seqlen, torch.Tensor),
-                    max_seqlen_ptr=max_seqlen,
-                    B=B,
-                    H=H,
-                    BLOCK_SIZE_B=BLOCK_SIZE_B_forward,
-                    BLOCK_SIZE_H=BLOCK_SIZE_H,
-                )
+            rnn_varlen_forward_triton(
+                input=input,
+                weight=weight,
+                input_state=input_state,
+                output=output,
+                cu_seqlens=cu_seqlens,
+                max_seqlen=max_seqlen,
+                BLOCK_SIZE_B=BLOCK_SIZE_B_forward,
+            )
 
         ctx.save_for_backward(weight, output, input_state, cu_seqlens, max_seqlen)
         ctx.gradient_clipping = gradient_clipping
