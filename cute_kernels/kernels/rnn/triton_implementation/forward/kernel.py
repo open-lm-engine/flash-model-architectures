@@ -72,17 +72,18 @@ def rnn_forward_triton(
     BLOCK_SIZE_H = get_next_power_of_2(H)
     BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
 
+    has_input_state = input_state is not None
+
     with torch.device(input.device):
         rnn_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), N](
             input_ptr=input,
             input_stride_b=input.stride(0),
             input_stride_s=input.stride(1),
-            input_stride_n=input.stride(2),
             weight_ptr=weight,
             weight_stride_n=weight.stride(0),
-            weight_stride_h=weight.stride(1),
-            has_input_state=input_state is not None,
+            has_input_state=has_input_state,
             input_state_ptr=input_state,
+            input_state_stride_b=input_state.stride(0) if has_input_state else None,
             output_ptr=output,
             B=B,
             S=S,
