@@ -1,5 +1,10 @@
+import torch
 import triton
 import triton.language as tl
+
+from ...constants import LIBRARY_NAME
+from ...math import ceil_divide
+from ...utils import cute_op
 
 
 @triton.jit
@@ -78,3 +83,43 @@ def gemm_triton_kernel(
         accumulator += beta * C
 
     tl.store(output_ptr + indices_mn, accumulator, mask=mask_mn)
+
+
+@cute_op(f"{LIBRARY_NAME}::gemm_triton", mutates_args={"output"})
+def gemm_triton(
+    A: torch.Tensor,
+    B: torch.Tensor,
+    C: torch.Tensor | None,
+    output: torch.Tensor,
+    is_A_transposed: bool,
+    is_B_transposed: bool,
+    alpha: float,
+    beta: float,
+    M: int,
+    K: int,
+    N: int,
+    BLOCK_SIZE_M: int,
+    BLOCK_SIZE_K: int,
+    BLOCK_SIZE_N: int,
+    num_warps: int,
+    num_stages: int,
+) -> None:
+    with torch.device(A.device):
+        gemm_triton_kernel[ceil_divide(M, BLOCK_SIZE_M) * ceil_divide(N, BLOCK_SIZE_N),](
+            A_ptr=A,
+            B_ptr=B,
+            C_ptr=C,
+            output_ptr=output,
+            alpha=alpha,
+            beta=beta,
+            is_A_transposed=is_A_transposed,
+            is_B_transposed=is_B_transposed,
+            M=M,
+            K=K,
+            N=N,
+            BLOCK_SIZE_M=BLOCK_SIZE_M,
+            BLOCK_SIZE_K=BLOCK_SIZE_K,
+            BLOCK_SIZE_N=BLOCK_SIZE_N,
+            num_warps=num_warps,
+            num_stages=num_stages,
+        )

@@ -3,12 +3,7 @@ import torch
 from ...math import ceil_divide, get_next_power_of_2
 from ...utils import ensure_contiguous
 from .torch_implementation import rnn_torch
-from .triton_implementation import (
-    rnn_backward_triton_kernel,
-    rnn_forward_triton_kernel,
-    rnn_varlen_backward_triton_kernel,
-    rnn_varlen_forward_triton_kernel,
-)
+from .triton_implementation import rnn_backward_triton, rnn_forward_triton
 
 
 class _RNN_Cute(torch.autograd.Function):
@@ -82,7 +77,6 @@ class _RNN_Cute(torch.autograd.Function):
         ctx.save_for_backward(weight, output, input_state, cu_seqlens, max_seqlen)
         ctx.gradient_clipping = gradient_clipping
         ctx.BLOCK_SIZE_B_backward = BLOCK_SIZE_B_backward
-        ctx.BLOCK_SIZE_H = BLOCK_SIZE_H
 
         return output
 
