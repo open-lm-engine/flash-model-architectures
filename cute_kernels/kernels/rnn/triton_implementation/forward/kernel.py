@@ -13,8 +13,10 @@ def rnn_forward_triton_kernel(
     input_ptr,
     input_stride_b,
     input_stride_s,
+    input_stride_n,
     weight_ptr,
     weight_stride_n,
+    weight_stride_h,
     has_input_state: tl.constexpr,
     input_state_ptr,
     input_state_stride_b,
@@ -35,12 +37,13 @@ def rnn_forward_triton_kernel(
     mask_h = indices_h < H
     mask_bh = mask_b[:, None] & mask_h[None, :]
 
-    weight_ptrs = weight_ptr + pid_n * weight_stride_n + indices_h[:, None] * H + indices_h[None, :]
+    weight_ptrs = weight_ptr + pid_n * weight_stride_n + indices_h[:, None] * weight_stride_h + indices_h[None, :]
     weight = tl.load(weight_ptrs, mask=mask_h[:, None] & mask_h[None, :], other=0)
 
+    indices = indices_b[:, None] * input_stride_b + pid_n * input_stride_n + indices_h[None, :]
+
     if has_input_state:
-        input_state_ptrs = input_state_ptr + indices_b[:, None] * input_state_stride_b + pid_n * H + indices_h[None, :]
-        input_state = tl.load(input_state_ptrs, mask=mask_bh)
+        input_state_ptrs = input_state_ptr + indices
     else:
         input_state = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=input_ptr.dtype.element_ty)
 
@@ -79,11 +82,12 @@ def rnn_forward_triton(
             input_ptr=input,
             input_stride_b=input.stride(0),
             input_stride_s=input.stride(1),
+            input_stride_n=input.stride(2),
             weight_ptr=weight,
             weight_stride_n=weight.stride(0),
-            has_input_state=has_input_state,
+            weight_stride_h=weight.stride(1),
+            has_input_state=input_state is not None,
             input_state_ptr=input_state,
-            input_state_stride_b=input_state.stride(0) if has_input_state else None,
             output_ptr=output,
             B=B,
             S=S,
