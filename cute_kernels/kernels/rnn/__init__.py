@@ -77,6 +77,7 @@ class _RNN_Cute(torch.autograd.Function):
         input_grad = torch.empty_like(output)
         weight_grad = torch.empty_like(weight)
 
+        BLOCK_SIZE_B = ctx.BLOCK_SIZE_B_backward
         gradient_clipping = ctx.gradient_clipping
 
         if cu_seqlens is None:
