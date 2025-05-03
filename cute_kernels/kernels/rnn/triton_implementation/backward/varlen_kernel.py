@@ -95,16 +95,20 @@ def rnn_varlen_backward_triton(
     output_grad: torch.Tensor,
     input_grad: torch.Tensor,
     weight_grad: torch.Tensor,
+    cu_seqlens: torch.Tensor,
+    max_seqlen_tensor: torch.Tensor | None,
+    max_seqlen: int | None,
     gradient_clipping: float | None,
     BLOCK_SIZE_B: int,
 ) -> None:
-    B, S, N, H = output.size()
+    _, N, H = output.size()
+    B = cu_seqlens.size(0) - 1
 
     BLOCK_SIZE_H = get_next_power_of_2(H)
     BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
 
     with torch.device(output.device):
-        rnn_backward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), N](
+        rnn_varlen_backward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), N](
             weight_ptr=weight,
             weight_stride_n=weight.stride(0),
             output_ptr=output,
@@ -119,7 +123,6 @@ def rnn_varlen_backward_triton(
             has_gradient_clipping=gradient_clipping is not None,
             gradient_clipping=gradient_clipping,
             B=B,
-            S=S,
             H=H,
             BLOCK_SIZE_B=BLOCK_SIZE_B,
             BLOCK_SIZE_H=BLOCK_SIZE_H,
