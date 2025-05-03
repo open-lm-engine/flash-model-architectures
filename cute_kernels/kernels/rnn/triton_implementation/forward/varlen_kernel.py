@@ -88,7 +88,7 @@ def rnn_varlen_forward_triton(
     BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
 
     with torch.device(input.device):
-        rnn_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), N](
+        rnn_varlen_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), N](
             input_ptr=input,
             input_stride_b=input.stride(0),
             input_stride_s=input.stride(1),
