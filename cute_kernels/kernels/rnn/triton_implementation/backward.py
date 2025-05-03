@@ -1,7 +1,11 @@
+import torch
 import triton
 import triton.language as tl
 
+from ....constants import LIBRARY_NAME
+from ....math import ceil_divide, get_next_power_of_2
 from ....triton_math import clamp
+from ....utils import cute_op
 
 
 @triton.jit
@@ -101,3 +105,45 @@ def rnn_backward_triton_kernel(
         weight_grad_ptr + pid_n * weight_stride_n + indices_h[:, None] * weight_stride_h + indices_h[None, :]
     )
     tl.store(weight_grad_ptrs, weight_grad, mask=mask_h[:, None] & mask_h[None, :])
+
+
+@cute_op(f"{LIBRARY_NAME}::rnn_backward_triton", mutates_args={"input_grad", "weight_grad"})
+def rnn_backward_triton(
+    weight: torch.Tensor,
+    output: torch.Tensor,
+    input_state: torch.Tensor | None,
+    output_grad: torch.Tensor,
+    input_grad: torch.Tensor,
+    weight_grad: torch.Tensor,
+    gradient_clipping: float | None,
+    BLOCK_SIZE_B: int,
+) -> None:
+    B, S, N, H = output.size()
+
+    BLOCK_SIZE_H = get_next_power_of_2(H)
+    BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
+
+    with torch.device(output.device):
+        rnn_backward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), N](
+            weight_ptr=weight,
+            weight_stride_n=weight.stride(0),
+            weight_stride_h=weight.stride(1),
+            output_ptr=output,
+            output_stride_b=output.stride(0),
+            output_stride_s=output.stride(1),
+            output_stride_n=output.stride(2),
+            has_input_state=input_state is not None,
+            input_state_ptr=input_state,
+            input_state_stride_b=None if input_state is None else input_state.stride(0),
+            input_state_stride_n=None if input_state is None else input_state.stride(1),
+            output_grad_ptr=output_grad,
+            input_grad_ptr=input_grad,
+            weight_grad_ptr=weight_grad,
+            has_gradient_clipping=gradient_clipping is not None,
+            gradient_clipping=gradient_clipping,
+            B=B,
+            S=S,
+            H=H,
+            BLOCK_SIZE_B=BLOCK_SIZE_B,
+            BLOCK_SIZE_H=BLOCK_SIZE_H,
+        )

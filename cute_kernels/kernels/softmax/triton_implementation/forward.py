@@ -1,5 +1,10 @@
+import torch
 import triton
 import triton.language as tl
+
+from ....constants import LIBRARY_NAME
+from ....math import ceil_divide
+from ....utils import cute_op, get_num_elements_and_hidden_size
 
 
 @triton.jit
@@ -69,3 +74,26 @@ def softmax_forward_triton_kernel(
 
         output_ptrs = output_ptr + indices
         tl.store(output_ptrs, x, mask=mask_bh)
+
+
+@cute_op(f"{LIBRARY_NAME}::softmax_forward_triton", mutates_args={"output"})
+def softmax_forward_triton(
+    x: torch.Tensor, output: torch.Tensor, logits_multiplier: float | None, BLOCK_SIZE_B: int, BLOCK_SIZE_H: int
+) -> None:
+    if x.dim() == 1:
+        B = 1
+        H = x.size(-1)
+    else:
+        B, H = get_num_elements_and_hidden_size(x)
+
+    with torch.device(x.device):
+        softmax_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](
+            x_ptr=x,
+            output_ptr=output,
+            has_logits_multiplier=logits_multiplier not in [None, 1],
+            logits_multiplier=logits_multiplier,
+            B=B,
+            H=H,
+            BLOCK_SIZE_B=BLOCK_SIZE_B,
+            BLOCK_SIZE_H=BLOCK_SIZE_H,
+        )

@@ -9,7 +9,7 @@ from .cuda_implementation import (
     shared_memory_gemm_cuda,
 )
 from .torch_implementation import gemm_torch
-from .triton_implementation import gemm_triton_kernel
+from .triton_implementation import gemm_triton
 
 
 @ensure_contiguous
@@ -132,25 +132,24 @@ def gemm_cute(
         NUM_WARPS = 8
         NUM_STAGES = 2
 
-        with torch.cuda.device(A.device):
-            gemm_triton_kernel[ceil_divide(M, BLOCK_SIZE_M) * ceil_divide(N, BLOCK_SIZE_N),](
-                A_ptr=A,
-                B_ptr=B,
-                C_ptr=C,
-                output_ptr=output,
-                alpha=alpha,
-                beta=beta,
-                is_A_transposed=is_A_transposed,
-                is_B_transposed=is_B_transposed,
-                M=M,
-                K=K,
-                N=N,
-                BLOCK_SIZE_M=BLOCK_SIZE_M,
-                BLOCK_SIZE_K=BLOCK_SIZE_K,
-                BLOCK_SIZE_N=BLOCK_SIZE_N,
-                num_warps=NUM_WARPS,
-                num_stages=NUM_STAGES,
-            )
+        gemm_triton(
+            A=A,
+            B=B,
+            C=C,
+            output=output,
+            is_A_transposed=is_A_transposed,
+            is_B_transposed=is_B_transposed,
+            alpha=alpha,
+            beta=beta,
+            M=M,
+            K=K,
+            N=N,
+            BLOCK_SIZE_M=BLOCK_SIZE_M,
+            BLOCK_SIZE_K=BLOCK_SIZE_K,
+            BLOCK_SIZE_N=BLOCK_SIZE_N,
+            num_warps=NUM_WARPS,
+            num_stages=NUM_STAGES,
+        )
     else:
         raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 

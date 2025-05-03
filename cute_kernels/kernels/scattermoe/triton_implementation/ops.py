@@ -14,7 +14,7 @@ def _fake_bincount(x: torch.Tensor, minlength: int) -> torch.Tensor:
 
 @cute_op(f"{LIBRARY_NAME}::bincount", mutates_args={}, fake_func=_fake_bincount)
 def bincount(x: torch.Tensor, minlength: int) -> torch.Tensor:
-    return x.bincount(minlength=minlength).to(torch.int)
+    return x.bincount(minlength=minlength)
 
 
 def expert_boundaries(sorted_experts_idxs: torch.Tensor, k: int) -> torch.Tensor:
@@ -76,10 +76,11 @@ def scatter2scatter(
         )
 
 
+@cute_op(f"{LIBRARY_NAME}::group_bwd_W", mutates_args={"DW"})
 def group_bwd_W(DY: torch.Tensor, X: torch.Tensor, expert_offsets: torch.Tensor, DW: torch.Tensor, E: int) -> None:
     grid = lambda meta: (E * ceil_divide(meta["K"], meta["BLOCK_K"]), ceil_divide(meta["N"], meta["BLOCK_N"]))
 
-    with torch.cuda.device(X.device):
+    with torch.device(X.device):
         groupXtY_triton_kernel[grid](
             # DY_ptr, stride_dym, stride_dyk,
             DY,
@@ -105,6 +106,7 @@ def group_bwd_W(DY: torch.Tensor, X: torch.Tensor, expert_offsets: torch.Tensor,
         )
 
 
+@cute_op(f"{LIBRARY_NAME}::group", mutates_args={"out"})
 def group(
     A: torch.Tensor,
     sorted_expert_idxs: torch.Tensor,
@@ -118,7 +120,7 @@ def group(
 
     grid = lambda meta: (triton.cdiv(meta["N"], meta["BLOCK_N"]),)
 
-    with torch.cuda.device(A.device):
+    with torch.device(A.device):
         group_triton_kernel[grid](
             # A_ptr, stride_an, stride_ai,
             A,

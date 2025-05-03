@@ -5,7 +5,7 @@ from ...math import ceil_divide
 from ...utils import ensure_same_strides, is_nvidia_gpu
 from .cuda_implementation import add_tensor_cuda
 from .torch_implementation import add_tensor_torch
-from .triton_implementation import add_tensor_triton_kernel
+from .triton_implementation import add_tensor_triton
 
 
 class _AddTensor_Cute(torch.autograd.Function):
@@ -28,17 +28,7 @@ class _AddTensor_Cute(torch.autograd.Function):
         if is_cuda_kernel_backend_allowed(kernel_backend) and is_nvidia_gpu() and x.is_cuda and y.is_cuda:
             add_tensor_cuda(x=x, y=y, output=output, BLOCK_SIZE=BLOCK_SIZE_CUDA)
         elif is_triton_kernel_backend_allowed(kernel_backend):
-            N = x.numel()
-
-            with torch.cuda.device(x.device):
-                add_tensor_triton_kernel[ceil_divide(N, BLOCK_SIZE_TRITON),](
-                    x_ptr=x,
-                    y_ptr=y,
-                    output_ptr=output,
-                    N=N,
-                    BLOCK_SIZE=BLOCK_SIZE_TRITON,
-                    num_warps=NUM_WARPS_TRITON,
-                )
+            add_tensor_triton(x=x, y=y, output=output, BLOCK_SIZE=BLOCK_SIZE_TRITON, NUM_WARPS=NUM_WARPS_TRITON)
         else:
             raise ValueError("unexpected kernel_backend")
 

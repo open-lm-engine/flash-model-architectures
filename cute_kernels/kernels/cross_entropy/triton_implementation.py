@@ -1,5 +1,10 @@
+import torch
 import triton
 import triton.language as tl
+
+from ...constants import LIBRARY_NAME
+from ...math import ceil_divide
+from ...utils import cute_op
 
 
 @triton.jit
@@ -91,3 +96,32 @@ def cross_entropy_forward_backward_triton_kernel(
         loss /= B
 
     tl.atomic_add(loss_ptr + tl.arange(0, 1), loss)
+
+
+@cute_op(f"{LIBRARY_NAME}::cross_entropy_forward_backward_triton", mutates_args={"loss", "x_grad"})
+def cross_entropy_forward_backward_triton(
+    x: torch.Tensor,
+    labels: torch.Tensor,
+    loss: torch.Tensor,
+    x_grad: torch.Tensor,
+    logits_multiplier: float | None,
+    BLOCK_SIZE_B: int,
+    BLOCK_SIZE_V: int,
+    reduction: str,
+) -> None:
+    B, V = x.size()
+
+    with torch.device(x.device):
+        cross_entropy_forward_backward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](
+            x_ptr=x,
+            labels_ptr=labels,
+            loss_ptr=loss,
+            x_grad_ptr=x_grad,
+            has_logits_multiplier=logits_multiplier not in [None, 1],
+            logits_multiplier=logits_multiplier,
+            B=B,
+            V=V,
+            BLOCK_SIZE_B=BLOCK_SIZE_B,
+            BLOCK_SIZE_V=BLOCK_SIZE_V,
+            reduction=reduction,
+        )

@@ -1,5 +1,10 @@
+import torch
 import triton
 import triton.language as tl
+
+from ....constants import LIBRARY_NAME, MAX_TRITON_BLOCK_SIZE
+from ....math import ceil_divide, get_next_power_of_2
+from ....utils import cute_op, get_num_elements_and_hidden_size, get_sm_count
 
 
 @triton.jit
@@ -96,3 +101,50 @@ def fused_residual_add_rmsnorm_backward_triton_kernel(
 
     if has_weight:
         tl.atomic_add(weight_grad_ptr + indices_h, weight_grad, mask=mask_h)
+
+
+@cute_op(
+    f"{LIBRARY_NAME}::fused_residual_add_rmsnorm_backward_triton",
+    mutates_args={"x_grad", "residual_grad", "weight_grad"},
+)
+def fused_residual_add_rmsnorm_backward_triton(
+    added_x_residual: torch.Tensor,
+    weight: torch.Tensor | None,
+    output_grad: torch.Tensor,
+    added_x_residual_grad: torch.Tensor,
+    rmsnorm_denominator: torch.Tensor | None,
+    x_grad: torch.Tensor,
+    residual_grad: torch.Tensor,
+    weight_grad: torch.Tensor | None,
+    eps: float,
+    multiplier: float | None,
+    BLOCK_SIZE_B: int,
+) -> None:
+    B, H = get_num_elements_and_hidden_size(added_x_residual)
+
+    BLOCK_SIZE_H = get_next_power_of_2(H)
+    assert BLOCK_SIZE_H < MAX_TRITON_BLOCK_SIZE
+
+    sm_count = get_sm_count(added_x_residual.device)
+    num_programs = min(sm_count, ceil_divide(B, BLOCK_SIZE_B))
+
+    with torch.device(added_x_residual.device):
+        fused_residual_add_rmsnorm_backward_triton_kernel[num_programs,](
+            added_x_residual_ptr=added_x_residual,
+            has_weight=weight is not None,
+            weight_ptr=weight,
+            output_grad_ptr=output_grad,
+            added_x_residual_grad_ptr=added_x_residual_grad,
+            x_grad_ptr=x_grad,
+            residual_grad_ptr=residual_grad,
+            weight_grad_ptr=weight_grad,
+            eps=eps,
+            has_multiplier=multiplier not in [None, 1],
+            multiplier=multiplier,
+            has_rmsnorm_denominator=rmsnorm_denominator is not None,
+            rmsnorm_denominator_ptr=rmsnorm_denominator,
+            B=B,
+            H=H,
+            BLOCK_SIZE_B=BLOCK_SIZE_B,
+            BLOCK_SIZE_H=BLOCK_SIZE_H,
+        )
