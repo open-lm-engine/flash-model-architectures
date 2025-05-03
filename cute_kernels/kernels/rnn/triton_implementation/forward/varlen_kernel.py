@@ -11,7 +11,7 @@ from .....utils import cute_op
 @triton.jit
 def rnn_varlen_forward_triton_kernel(
     input_ptr,
-    input_stride_s,
+    input_stride_t,
     weight_ptr,
     weight_stride_n,
     has_input_state: tl.constexpr,
@@ -54,7 +54,7 @@ def rnn_varlen_forward_triton_kernel(
     else:
         max_seqlen = max_seqlen_ptr
 
-    indices = start[:, None] * input_stride_s + pid_n * H + indices_h[None, :]
+    indices = start[:, None] * input_stride_t + pid_n * H + indices_h[None, :]
 
     for _ in range(max_seqlen):
         unfinished = indices < end
@@ -66,12 +66,13 @@ def rnn_varlen_forward_triton_kernel(
         new_state = tl.dot(input_state, weight, input, allow_tf32=True).to(input_state.dtype)
         new_state = tanh(new_state)
 
-        input_state = new_state * unfinished[:, None] + input_state * (1 - unfinished)[:, None]
+        unfinished = unfinished[:, None]
+        input_state = new_state * unfinished + input_state * (1 - unfinished)
 
         output_ptrs = output_ptr + indices
         tl.store(output_ptrs, new_state, mask=mask)
 
-        indices += input_stride_s
+        indices += input_stride_t
 
 
 @cute_op(f"{LIBRARY_NAME}::rnn_varlen_forward_triton", mutates_args={"output"})
@@ -80,27 +81,32 @@ def rnn_varlen_forward_triton(
     weight: torch.Tensor,
     input_state: torch.Tensor | None,
     output: torch.Tensor,
+    cu_seqlens: torch.Tensor,
+    max_seqlen: torch.Tensor | int,
     BLOCK_SIZE_B: int,
 ) -> None:
-    B, S, N, H = input.size()
+    _, N, H = input.size()
+    B = cu_seqlens.size(0) - 1
 
     BLOCK_SIZE_H = get_next_power_of_2(H)
     BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
 
+    has_input_state = input_state is not None
+
     with torch.device(input.device):
         rnn_varlen_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), N](
             input_ptr=input,
-            input_stride_b=input.stride(0),
-            input_stride_s=input.stride(1),
-            input_stride_n=input.stride(2),
+            input_stride_t=input.stride(0),
             weight_ptr=weight,
             weight_stride_n=weight.stride(0),
-            weight_stride_h=weight.stride(1),
-            has_input_state=input_state is not None,
+            has_input_state=has_input_state,
             input_state_ptr=input_state,
+            input_state_stride_b=input_state.stride(0) if has_input_state else None,
             output_ptr=output,
+            cu_seqlens_ptr=cu_seqlens,
+            is_max_seqlen_tensor=isinstance(max_seqlen, torch.Tensor),
+            max_seqlen_ptr=max_seqlen,
             B=B,
-            S=S,
             H=H,
             BLOCK_SIZE_B=BLOCK_SIZE_B,
             BLOCK_SIZE_H=BLOCK_SIZE_H,
