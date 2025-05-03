@@ -3,7 +3,12 @@ import torch
 from ...math import ceil_divide, get_next_power_of_2
 from ...utils import ensure_contiguous
 from .torch_implementation import rnn_torch
-from .triton_implementation import rnn_backward_triton, rnn_forward_triton, rnn_varlen_forward_triton
+from .triton_implementation import (
+    rnn_backward_triton,
+    rnn_forward_triton,
+    rnn_varlen_backward_triton,
+    rnn_varlen_forward_triton,
+)
 
 
 class _RNN_Cute(torch.autograd.Function):
