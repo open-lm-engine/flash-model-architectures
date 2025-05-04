@@ -100,3 +100,43 @@ class RNNTest(TestCommons):
         self.assert_equal_tensors(y_kernel, y_expected, True)
         self.assert_equal_tensors(x_packed_kernel.grad, x_packed_expected.grad, True)
         self.assert_equal_tensors(weight_kernel.grad, weight_expected.grad, False, atol_float32=1.5e-7, rtol_float32=0)
+
+    @parameterized.expand(
+        TestCommons.make_args_matrix(
+            [torch.device("cuda")],
+            [torch.float32],
+            [[0, 7, 19, 27, 93]],  # cu_seqlens
+            [64],  # state_size
+            [4],  # num_heads
+        )
+    )
+    def test_rnn_varlen_cute(
+        self,
+        device: torch.device,
+        dtype: torch.dtype,
+        cu_seqlens: list[int],
+        state_size: int,
+        num_heads: int,
+    ) -> None:
+        set_seed(_SEED)
+
+        cu_seqlens = torch.tensor(cu_seqlens, device=device)
+        max_seqlen = (cu_seqlens[1:] - cu_seqlens[:-1]).max()
+
+        x_kernel, x_expected = self.get_random_duplicated_tensors(
+            (cu_seqlens[-1], num_heads, state_size), device=device, dtype=dtype, std=0.01
+        )
+
+        weight_kernel, weight_expected = self.get_random_duplicated_tensors(
+            (num_heads, state_size, state_size), device=device, dtype=dtype, std=0.01
+        )
+
+        y_kernel = rnn_cute(x_kernel, weight_kernel, cu_seqlens=cu_seqlens, max_seqlen=max_seqlen)
+        y_expected = rnn_torch(y_expected, weight_kernel, cu_seqlens=cu_seqlens, max_seqlen=max_seqlen)
+
+        y_kernel.sum().backward()
+        y_expected.sum().backward()
+
+        self.assert_equal_tensors(y_kernel, y_expected, True)
+        self.assert_equal_tensors(x_packed_kernel.grad, x_packed_expected.grad, True)
+        self.assert_equal_tensors(weight_kernel.grad, weight_expected.grad, False, atol_float32=1.5e-7, rtol_float32=0)
