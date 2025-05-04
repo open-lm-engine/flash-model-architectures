@@ -20,6 +20,7 @@ def _load_input_state(
     H,
     BLOCK_SIZE_B,
     BLOCK_SIZE_H,
+    dtype,
 ):
     if has_input_state:
         output_ptrs = input_state_ptr + indices_b[:, None] * input_state_stride_b + pid_n * H + indices_h[None, :]
@@ -103,6 +104,7 @@ def rnn_varlen_backward_triton_kernel(
         output_ptrs -= output_stride_t
         output_prev = tl.where(
             unfinished,
+            tl.load(output_ptrs, mask=mask, other=0),
             _load_input_state(
                 has_input_state=has_input_state,
                 input_state_ptr=input_state_ptr,
@@ -114,8 +116,8 @@ def rnn_varlen_backward_triton_kernel(
                 H=H,
                 BLOCK_SIZE_B=BLOCK_SIZE_B,
                 BLOCK_SIZE_H=BLOCK_SIZE_H,
+                dtype=weight.dtype,
             ),
-            tl.load(output_ptrs, mask=mask, other=0),
         )
 
         weight_grad = tl.dot(output_prev.T, input_grad, weight_grad, allow_tf32=True)
