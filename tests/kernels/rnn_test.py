@@ -3,7 +3,7 @@ from typing import Callable
 import torch
 from parameterized import parameterized
 
-from cute_kernels import rnn_cute, rnn_torch, set_seed, unpack_sequence_cute
+from cute_kernels import pack_sequence_cute, rnn_cute, rnn_torch, set_seed, unpack_sequence_cute
 
 from ..test_commons import TestCommons
 
@@ -78,7 +78,9 @@ class RNNTest(TestCommons):
         x_packed_kernel, x_packed_expected = self.get_random_duplicated_tensors(
             (cu_seqlens[-1], num_heads, state_size), device=device, dtype=dtype, std=0.01
         )
-        x_unpacked_expected = unpack_sequence_cute(x_packed_expected, cu_seqlens, (batch_size, max_seqlen))
+        x_unpacked_expected = unpack_sequence_cute(
+            x_packed_expected, cu_seqlens, (batch_size, max_seqlen, *x_packed_expected.size()[-2:])
+        )
 
         weight_kernel, weight_expected = self.get_random_duplicated_tensors(
             (num_heads, state_size, state_size), device=device, dtype=dtype, std=0.01
@@ -90,10 +92,11 @@ class RNNTest(TestCommons):
         for i in range(batch_size):
             y_expected.append(rnn_torch(x_unpacked_expected[cu_seqlens[i] : cu_seqlens[i + 1]], weight_expected))
         y_expected = torch.cat(y_expected)
+        y_expected = pack_sequence_cute(y_expected, cu_seqlens=cu_seqlens)
 
         y_kernel.sum().backward()
         y_expected.sum().backward()
 
-        self.assert_equal_tensors(y_kernel, y_expected, False, atol_float32=7e-2, rtol_float32=0)
-        self.assert_equal_tensors(x_kernel.grad, x_expected.grad, False, atol_float32=6e-3, rtol_float32=0)
-        # self.assert_equal_tensors(weight_kernel.grad, weight_expected.grad, False, atol_float32=6e-3, rtol_float32=0)
+        self.assert_equal_tensors(y_kernel, y_expected, True)
+        self.assert_equal_tensors(x_packed_kernel.grad, x_packed_expected.grad, True)
+        self.assert_equal_tensors(weight_kernel.grad, weight_expected.grad, True)
