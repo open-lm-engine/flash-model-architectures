@@ -103,7 +103,7 @@ def rnn_varlen_backward_triton_kernel(
 
         output_ptrs -= output_stride_t
         output_prev = tl.where(
-            unfinished,
+            output_ptrs == start,
             tl.load(output_ptrs, mask=mask, other=0),
             _load_input_state(
                 has_input_state=has_input_state,
