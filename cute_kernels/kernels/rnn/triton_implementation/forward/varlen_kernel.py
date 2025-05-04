@@ -57,7 +57,7 @@ def rnn_varlen_forward_triton_kernel(
     indices = start * input_stride_t + pid_n * H + indices_h[None, :]
 
     for _ in range(max_seqlen):
-        unfinished = indices < end
+        unfinished = start < end
         mask = unfinished & mask_h[None, :]
 
         input_ptrs = input_ptr + indices
@@ -72,6 +72,7 @@ def rnn_varlen_forward_triton_kernel(
         tl.store(output_ptrs, new_state, mask=mask)
 
         indices += input_stride_t
+        start += 1
 
 
 @cute_op(f"{LIBRARY_NAME}::rnn_varlen_forward_triton", mutates_args={"output"})
