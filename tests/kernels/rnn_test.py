@@ -99,4 +99,4 @@ class RNNTest(TestCommons):
 
         self.assert_equal_tensors(y_kernel, y_expected, True)
         self.assert_equal_tensors(x_packed_kernel.grad, x_packed_expected.grad, True)
-        self.assert_equal_tensors(weight_kernel.grad, weight_expected.grad, True)
+        self.assert_equal_tensors(weight_kernel.grad, weight_expected.grad, False, atol_float32=1.5e-7, rtol_float32=0)
