@@ -163,7 +163,7 @@ def rnn_varlen_backward_triton(
             input_state_stride_b=input_state.stride(0) if has_input_state else None,
             output_grad_ptr=output_grad,
             cu_seqlens_ptr=cu_seqlens,
-            is_max_seqlen_tensor=max_seqlen_tensor if is_max_seqlen_tensor else None,
+            is_max_seqlen_tensor=is_max_seqlen_tensor,
             max_seqlen_ptr=max_seqlen_tensor if is_max_seqlen_tensor else max_seqlen,
             input_grad_ptr=input_grad,
             weight_grad_ptr=weight_grad,
