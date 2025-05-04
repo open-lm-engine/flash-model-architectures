@@ -92,4 +92,9 @@ class RNNTest(TestCommons):
             y_expected.append(rnn_torch(x_expected[cu_seqlens[i] : cu_seqlens[i + 1]], weight_expected))
         y_expected = torch.cat(y_expected)
 
+        y_kernel.sum().backward()
+        y_expected.sum().backward()
+
         self.assert_equal_tensors(y_kernel, y_expected, False, atol_float32=7e-2, rtol_float32=0)
+        self.assert_equal_tensors(x_kernel.grad, x_expected.grad, False, atol_float32=6e-3, rtol_float32=0)
+        self.assert_equal_tensors(weight_kernel.grad, weight_expected.grad, False, atol_float32=6e-3, rtol_float32=0)
