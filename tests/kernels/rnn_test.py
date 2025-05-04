@@ -3,7 +3,7 @@ from typing import Callable
 import torch
 from parameterized import parameterized
 
-from cute_kernels import rnn_cute, rnn_torch, set_seed
+from cute_kernels import rnn_cute, rnn_torch, set_seed, unpack_sequence_cute
 
 from ..test_commons import TestCommons
 
@@ -72,25 +72,23 @@ class RNNTest(TestCommons):
         set_seed(_SEED)
 
         batch_size = len(cu_seqlens) - 1
-        total_length = sum(cu_seqlens)
         cu_seqlens = torch.tensor(cu_seqlens, device=device)
         max_seqlen = (cu_seqlens[1:] - cu_seqlens[:-1]).max()
 
-        x_kernel, x_expected = self.get_random_duplicated_tensors(
-            (batch_size, total_length, num_heads, state_size), device=device, dtype=dtype, std=0.01
+        x_packed_kernel, x_packed_expected = self.get_random_duplicated_tensors(
+            (cu_seqlens[-1], num_heads, state_size), device=device, dtype=dtype, std=0.01
         )
+        x_unpacked_expected = unpack_sequence_cute(x_packed_expected, cu_seqlens, (batch_size, max_seqlen))
+
         weight_kernel, weight_expected = self.get_random_duplicated_tensors(
             (num_heads, state_size, state_size), device=device, dtype=dtype, std=0.01
         )
 
-        y_kernel = rnn_torch(
-            x_kernel.view(-1, num_heads, state_size), weight_kernel, cu_seqlens=cu_seqlens, max_seqlen=max_seqlen
-        )
-        y_kernel = y_kernel.view(batch_size, -1, num_heads, state_size)
+        y_kernel = rnn_torch(x_packed_kernel, weight_kernel, cu_seqlens=cu_seqlens, max_seqlen=max_seqlen)
 
         y_expected = []
         for i in range(batch_size):
-            y_expected.append(rnn_torch(x_expected[cu_seqlens[i] : cu_seqlens[i + 1]], weight_expected))
+            y_expected.append(rnn_torch(x_unpacked_expected[cu_seqlens[i] : cu_seqlens[i + 1]], weight_expected))
         y_expected = torch.cat(y_expected)
 
         y_kernel.sum().backward()
