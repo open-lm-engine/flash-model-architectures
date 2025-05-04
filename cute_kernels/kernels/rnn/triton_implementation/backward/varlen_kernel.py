@@ -79,7 +79,9 @@ def rnn_varlen_backward_triton_kernel(
     else:
         max_seqlen = max_seqlen_ptr
 
-    indices = (end - 1) * output_stride_t + pid_n * H + indices_h[None, :]
+    end -= 1
+
+    indices = end * output_stride_t + pid_n * H + indices_h[None, :]
 
     output_ptrs = output_ptr + indices
     output = tl.load(output_ptrs, mask=mask_bh, other=0)
