@@ -15,7 +15,7 @@ def _load_input_state(
     input_state_ptr,
     input_state_stride_b,
     pid_n,
-    indices_b,
+    indices,
     indices_h,
     mask,
     H,
@@ -24,7 +24,7 @@ def _load_input_state(
     dtype,
 ):
     if has_input_state:
-        output_ptrs = input_state_ptr + indices_b[:, None] * input_state_stride_b + pid_n * H + indices_h[None, :]
+        output_ptrs = input_state_ptr + indices * input_state_stride_b + pid_n * H + indices_h[None, :]
         output_prev = tl.load(output_ptrs, mask=mask, other=0)
     else:
         output_prev = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=dtype)
@@ -106,14 +106,13 @@ def rnn_varlen_backward_triton_kernel(
 
         output_ptrs -= output_stride_t
         output_prev = tl.where(
-            unfinished,
-            tl.load(output_ptrs, mask=mask, other=0),
+            start == end,
             _load_input_state(
                 has_input_state=has_input_state,
                 input_state_ptr=input_state_ptr,
                 input_state_stride_b=input_state_stride_b,
                 pid_n=pid_n,
-                indices_b=indices_b,
+                indices=indices,
                 indices_h=indices_h,
                 mask=mask,
                 H=H,
@@ -121,6 +120,7 @@ def rnn_varlen_backward_triton_kernel(
                 BLOCK_SIZE_H=BLOCK_SIZE_H,
                 dtype=weight.dtype,
             ),
+            tl.load(output_ptrs, mask=mask, other=0),
         )
 
         weight_grad = tl.dot(output_prev.T, input_grad, weight_grad, allow_tf32=True)
