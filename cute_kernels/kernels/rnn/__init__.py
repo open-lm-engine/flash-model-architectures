@@ -79,35 +79,18 @@ class _RNN_Cute(torch.autograd.Function):
                 BLOCK_SIZE_B=BLOCK_SIZE_B,
             )
         else:
-            B = cu_seqlens.numel() - 1
-            N, H = output.size()[-2:]
-            BLOCK_SIZE_B = ctx.BLOCK_SIZE_B_backward
-            BLOCK_SIZE_H = ctx.BLOCK_SIZE_H
-
-            with torch.cuda.device(output.device):
-                rnn_varlen_backward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), N](
-                    weight_ptr=weight,
-                    weight_stride_n=weight.stride(0),
-                    weight_stride_h=weight.stride(1),
-                    output_ptr=output,
-                    has_input_state=input_state is not None,
-                    input_state_ptr=input_state,
-                    input_state_stride_b=None if input_state is None else input_state.stride(0),
-                    input_state_stride_n=None if input_state is None else input_state.stride(1),
-                    output_stride_b=output.stride(0),
-                    output_stride_s=output.stride(1),
-                    output_stride_n=output.stride(2),
-                    output_grad_ptr=output_grad,
-                    input_grad_ptr=input_grad,
-                    weight_grad_ptr=weight_grad,
-                    has_gradient_clipping=gradient_clipping is not None,
-                    gradient_clipping=gradient_clipping,
-                    B=B,
-                    S=S,
-                    H=H,
-                    BLOCK_SIZE_B=BLOCK_SIZE_B,
-                    BLOCK_SIZE_H=BLOCK_SIZE_H,
-                )
+            rnn_varlen_backward_triton(
+                weight=weight,
+                output=output,
+                input_state=input_state,
+                output_grad=output_grad,
+                input_grad=input_grad,
+                weight_grad=weight_grad,
+                cu_seqlens=cu_seqlens,
+                max_seqlen_tensor=max_seqlen,
+                gradient_clipping=gradient_clipping,
+                BLOCK_SIZE_B=BLOCK_SIZE_B,
+            )
 
         return input_grad, weight_grad, *[None] * 6
 
