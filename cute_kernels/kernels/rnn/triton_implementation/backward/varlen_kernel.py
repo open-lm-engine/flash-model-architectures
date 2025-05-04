@@ -9,6 +9,7 @@ from .....utils import cute_op
 from .kernel import _tanh_backward
 
 
+@triton.jit
 def _load_input_state(
     has_input_state,
     input_state_ptr,
@@ -69,24 +70,24 @@ def rnn_varlen_backward_triton_kernel(
     weight_ptrs = weight_ptr + pid_n * weight_stride_n + indices_h[:, None] * H + indices_h[None, :]
     weight = tl.load(weight_ptrs, mask=mask_h[:, None] & mask_h[None, :], other=0)
 
-    cu_seqlens_ptrs = cu_seqlens_ptr + indices_b
-    start = tl.load(cu_seqlens_ptrs, mask=mask_b)
-    end = tl.load(cu_seqlens_ptrs + 1, mask=mask_b)
+    cu_seqlens_ptrs = cu_seqlens_ptr + indices_b[:, None]
+    start = tl.load(cu_seqlens_ptrs, mask=mask_b[:, None])
+    end = tl.load(cu_seqlens_ptrs + 1, mask=mask_b[:, None])
 
     if is_max_seqlen_tensor:
         max_seqlen = tl.load(max_seqlen_ptr)
     else:
         max_seqlen = max_seqlen_ptr
 
-    indices = (end[:, None] - 1) * output_stride_t + pid_n * H + indices_h[None, :]
+    indices = (end - 1) * output_stride_t + pid_n * H + indices_h[None, :]
 
     output_ptrs = output_ptr + indices
     output = tl.load(output_ptrs, mask=mask_bh, other=0)
 
     # backward counting reduces 1 instruction since we need to compare s == 0, otherwise we have to compare s == S - 1
-    for s in range(max_seqlen - 1, -1, -1):
-        unfinished = indices >= start
-        mask = unfinished[:, None] & mask_h[None, :]
+    for _ in range(max_seqlen - 1, -1, -1):
+        unfinished = end >= start
+        mask = unfinished & mask_h[None, :]
 
         output_grad_ptrs = output_grad_ptr + indices
         output_grad = tl.load(output_grad_ptrs, mask=mask, other=0)
@@ -103,7 +104,7 @@ def rnn_varlen_backward_triton_kernel(
 
         output_ptrs -= output_stride_t
         output_prev = tl.where(
-            output_ptrs == start,
+            end == start,
             tl.load(output_ptrs, mask=mask, other=0),
             _load_input_state(
                 has_input_state=has_input_state,
@@ -124,6 +125,7 @@ def rnn_varlen_backward_triton_kernel(
         output = output_prev
 
         indices -= output_stride_t
+        end -= 1
 
     weight_grad_ptrs = weight_grad_ptr + pid_n * weight_stride_n + indices_h[:, None] * H + indices_h[None, :]
     tl.store(weight_grad_ptrs, weight_grad, mask=mask_h[:, None] & mask_h[None, :])
