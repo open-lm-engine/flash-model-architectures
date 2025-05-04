@@ -1,6 +1,5 @@
 import torch
 
-from ...math import ceil_divide
 from ...utils import ensure_contiguous
 from .torch_implementation import rnn_torch
 from .triton_implementation import (
@@ -54,6 +53,7 @@ class _RNN_Cute(torch.autograd.Function):
         ctx.save_for_backward(weight, output, input_state, cu_seqlens, max_seqlen)
         ctx.gradient_clipping = gradient_clipping
         ctx.BLOCK_SIZE_B_backward = BLOCK_SIZE_B_backward
+        ctx.is_max_seqlen_tensor = is_max_seqlen_tensor
 
         return output
 
@@ -66,6 +66,7 @@ class _RNN_Cute(torch.autograd.Function):
 
         BLOCK_SIZE_B = ctx.BLOCK_SIZE_B_backward
         gradient_clipping = ctx.gradient_clipping
+        is_max_seqlen_tensor = ctx.is_max_seqlen_tensor
 
         if cu_seqlens is None:
             rnn_backward_triton(
@@ -87,7 +88,8 @@ class _RNN_Cute(torch.autograd.Function):
                 input_grad=input_grad,
                 weight_grad=weight_grad,
                 cu_seqlens=cu_seqlens,
-                max_seqlen_tensor=max_seqlen,
+                max_seqlen_tensor=max_seqlen if is_max_seqlen_tensor else None,
+                max_seqlen=None if is_max_seqlen_tensor else max_seqlen,
                 gradient_clipping=gradient_clipping,
                 BLOCK_SIZE_B=BLOCK_SIZE_B,
             )
