@@ -2,6 +2,26 @@ import torch
 import torch.nn.functional as F
 
 
+class _GradientClipping(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, x: torch.Tensor, gradient_clipping: float) -> torch.Tensor:
+        ctx.gradient_clipping = gradient_clipping
+        return x
+
+    @staticmethod
+    def backward(ctx, x_grad: torch.Tensor) -> tuple[torch.Tensor, None]:
+        gradient_clipping = ctx.gradient_clipping
+        x_grad = x_grad.clip(-gradient_clipping, gradient_clipping)
+        return x_grad, None
+
+
+def clip_gradients(x: torch.Tensor, gradient_clipping: float | None) -> torch.Tensor:
+    if gradient_clipping is None:
+        return x
+
+    return _GradientClipping.apply(x, gradient_clipping)
+
+
 def rnn_torch(
     input: torch.Tensor,
     weight: torch.Tensor,
@@ -10,9 +30,6 @@ def rnn_torch(
     cu_seqlens: torch.Tensor | None = None,
     max_seqlen: torch.Tensor | int | None = None,
 ) -> torch.Tensor:
-    if gradient_clipping is not None:
-        raise NotImplementedError("rnn_torch doesn't support gradient_clipping")
-
     output = torch.empty_like(input)
 
     if cu_seqlens is None:
@@ -37,6 +54,7 @@ def rnn_torch(
 
             input_state = input_state.float()
             input_state = F.tanh(input_state)
+            input_state = clip_gradients(input_state, gradient_clipping)
             input_state = input_state.type_as(input)
 
             input_state = input_state.squeeze(-2)
@@ -57,25 +75,26 @@ def rnn_torch(
         # weight -> (1, N, H, H)
         # input_state -> (B, N, H)
 
-        offset = cu_seqlens[:-1]
+        start = cu_seqlens[:-1]
+        end = cu_seqlens[1:]
 
         for s in range(max_seqlen):
-            mask = offset < cu_seqlens[1:]
+            offset = start + s
+            unfinished = offset < end
             new_state = input_state.unsqueeze(-2)
 
             # don't update the finished sequences
             # (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
-            new_state = new_state[mask] @ weight + input[offset[mask], ...]
+            new_state = new_state[unfinished] @ weight + input[offset[unfinished], ...]
 
             new_state = new_state.float()
             new_state = F.tanh(new_state)
+            new_state = clip_gradients(new_state, gradient_clipping)
             new_state = new_state.type_as(input)
 
             new_state = new_state.squeeze(-2)
 
-            output[offset[mask], ...] = new_state
-            input_state[mask] = new_state
-
-            offset = offset + 1
+            output[offset[unfinished], ...] = new_state
+            input_state[unfinished] = new_state
 
     return output
