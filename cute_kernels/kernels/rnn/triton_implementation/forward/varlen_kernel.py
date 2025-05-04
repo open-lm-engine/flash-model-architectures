@@ -45,20 +45,20 @@ def rnn_varlen_forward_triton_kernel(
     else:
         input_state = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=input_ptr.dtype.element_ty)
 
-    cu_seqlens_ptrs = cu_seqlens_ptr + indices_b
-    start = tl.load(cu_seqlens_ptrs, mask=mask_b)
-    end = tl.load(cu_seqlens_ptrs + 1, mask=mask_b)
+    cu_seqlens_ptrs = cu_seqlens_ptr + indices_b[:, None]
+    start = tl.load(cu_seqlens_ptrs, mask=mask_b[:, None])
+    end = tl.load(cu_seqlens_ptrs + 1, mask=mask_b[:, None])
 
     if is_max_seqlen_tensor:
         max_seqlen = tl.load(max_seqlen_ptr)
     else:
         max_seqlen = max_seqlen_ptr
 
-    indices = start[:, None] * input_stride_t + pid_n * H + indices_h[None, :]
+    indices = start * input_stride_t + pid_n * H + indices_h[None, :]
 
     for _ in range(max_seqlen):
         unfinished = indices < end
-        mask = unfinished[:, None] & mask_h[None, :]
+        mask = unfinished & mask_h[None, :]
 
         input_ptrs = input_ptr + indices
         input = tl.load(input_ptrs, mask=mask, other=0)
@@ -66,7 +66,6 @@ def rnn_varlen_forward_triton_kernel(
         new_state = tl.dot(input_state, weight, input, allow_tf32=True).to(input_state.dtype)
         new_state = tanh(new_state)
 
-        unfinished = unfinished[:, None]
         input_state = new_state * unfinished + input_state * (1 - unfinished)
 
         output_ptrs = output_ptr + indices
