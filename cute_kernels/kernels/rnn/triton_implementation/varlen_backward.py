@@ -6,7 +6,7 @@ from .....constants import LIBRARY_NAME
 from .....math import ceil_divide, get_next_power_of_2
 from .....triton_math import clamp
 from .....utils import cute_op
-from .kernel import _tanh_backward
+from .backward import _tanh_backward
 
 
 @triton.jit
