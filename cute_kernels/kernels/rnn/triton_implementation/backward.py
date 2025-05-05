@@ -2,10 +2,10 @@ import torch
 import triton
 import triton.language as tl
 
-from .....constants import LIBRARY_NAME
-from .....math import ceil_divide, get_next_power_of_2
-from .....triton_math import clamp
-from .....utils import cute_op
+from ....constants import LIBRARY_NAME
+from ....math import ceil_divide, get_next_power_of_2
+from ....triton_math import clamp
+from ....utils import cute_op
 
 
 @triton.jit
