@@ -147,7 +147,7 @@ class RNNTest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(
             [torch.device("cuda")],
-            [torch.float32, torch.float16],
+            TestCommons.get_dtypes(),
             [[0, 7, 19, 27, 93]],  # cu_seqlens
             [64],  # head_dim
             [4],  # num_heads
@@ -206,4 +206,6 @@ class RNNTest(TestCommons):
             rtol_float32=0,
             atol_float16=8e-4,
             rtol_float16=0,
+            atol_bfloat16=6e-3,
+            rtol_bfloat16=0,
         )
