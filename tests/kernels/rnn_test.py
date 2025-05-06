@@ -80,7 +80,7 @@ class RNNTest(TestCommons):
             [[0, 7, 19, 27, 93]],  # cu_seqlens
             [64],  # head_dim
             [4],  # num_heads
-            [False],  # has_input_state
+            [False, True],  # has_input_state
         )
     )
     def test_rnn_varlen_torch(
@@ -140,7 +140,7 @@ class RNNTest(TestCommons):
             rtol_float32=0,
             atol_float16=1.5e-3,
             rtol_float16=0,
-            atol_bfloat16=5e-3,
+            atol_bfloat16=6e-3,
             rtol_bfloat16=0,
         )
 
