@@ -1,6 +1,7 @@
 from typing import Callable
 
 import torch
+import torch.nn.functional as F
 from parameterized import parameterized
 
 from cute_kernels import pack_sequence_cute, rnn_cute, rnn_torch, set_seed, unpack_sequence_cute
@@ -129,7 +130,7 @@ class RNNTest(TestCommons):
                     input_state_expected[i].unsqueeze(0),
                 )
             )
-        y_expected = torch.cat(y_expected)
+        y_expected = torch.cat([F.pad(y, (max_seqlen - y.size(1), 0)) for y in y_expected])
         y_expected = pack_sequence_cute(y_expected, cu_seqlens=cu_seqlens)
 
         y_kernel.sum().backward()
