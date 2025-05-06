@@ -10,6 +10,7 @@ from torch.utils.cpp_extension import load as load_cpp_extension
 
 _CPP_MODULE_PREFIX = "cute_kernels"
 _GLOBAL_RANK = int(os.getenv("RANK", 0))
+_WORLD_SIZE = int(os.getenv("WORLD_SIZE", 1))
 
 
 @torch._dynamo.disable
@@ -53,7 +54,9 @@ def _get_cpp_function(function_name: str, source_files: list[str], build_directo
                 verbose=False,
             )
     else:
-        build_directory = os.path.join(build_directory, str(uuid4()))
+        if _WORLD_SIZE > 1:
+            build_directory = os.path.join(build_directory, str(uuid4()))
+
         os.makedirs(build_directory, exist_ok=True)
 
         module = load_cpp_extension(
