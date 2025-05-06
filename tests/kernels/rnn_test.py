@@ -18,7 +18,7 @@ class RNNTest(TestCommons):
             [torch.float32, torch.float16],
             [4],  # batch_size
             [1024],  # sequence_length
-            [64],  # state_size
+            [64],  # head_dim
             [4],  # num_heads
             [False, True],  # has_input_state
             [rnn_cute, torch.compile(rnn_cute, fullgraph=True)],  # function
@@ -30,7 +30,7 @@ class RNNTest(TestCommons):
         dtype: torch.dtype,
         batch_size: int,
         sequence_length: int,
-        state_size: int,
+        head_dim: int,
         num_heads: int,
         has_input_state: bool,
         function: Callable,
@@ -38,17 +38,17 @@ class RNNTest(TestCommons):
         set_seed(_SEED)
 
         x_kernel, x_expected = self.get_random_duplicated_tensors(
-            (batch_size, sequence_length, num_heads, state_size), device=device, dtype=dtype, std=0.01
+            (batch_size, sequence_length, num_heads, head_dim), device=device, dtype=dtype, std=0.01
         )
         weight_kernel, weight_expected = self.get_random_duplicated_tensors(
-            (num_heads, state_size, state_size), device=device, dtype=dtype, std=0.01
+            (num_heads, head_dim, head_dim), device=device, dtype=dtype, std=0.01
         )
 
         input_state_kernel = None
         input_state_expected = None
         if has_input_state:
             input_state_kernel, input_state_expected = self.get_random_duplicated_tensors(
-                (batch_size, num_heads, state_size), device=device, dtype=dtype, std=0.01
+                (batch_size, num_heads, head_dim), device=device, dtype=dtype, std=0.01
             )
 
         y_kernel = function(x_kernel, weight_kernel, input_state_kernel)
@@ -78,7 +78,7 @@ class RNNTest(TestCommons):
             [torch.device("cuda")],
             [torch.float32, torch.float16],
             [[0, 7, 19, 27, 93]],  # cu_seqlens
-            [64],  # state_size
+            [64],  # head_dim
             [4],  # num_heads
             [False, True],  # has_input_state
         )
@@ -88,7 +88,7 @@ class RNNTest(TestCommons):
         device: torch.device,
         dtype: torch.dtype,
         cu_seqlens: list[int],
-        state_size: int,
+        head_dim: int,
         num_heads: int,
         has_input_state: bool,
     ) -> None:
@@ -99,21 +99,21 @@ class RNNTest(TestCommons):
         max_seqlen = (cu_seqlens[1:] - cu_seqlens[:-1]).max()
 
         x_packed_kernel, x_packed_expected = self.get_random_duplicated_tensors(
-            (cu_seqlens[-1], num_heads, state_size), device=device, dtype=dtype, std=0.01
+            (cu_seqlens[-1], num_heads, head_dim), device=device, dtype=dtype, std=0.01
         )
         x_unpacked_expected = unpack_sequence_cute(
             x_packed_expected, cu_seqlens, (batch_size, max_seqlen, *x_packed_expected.size()[-2:])
         )
 
         weight_kernel, weight_expected = self.get_random_duplicated_tensors(
-            (num_heads, state_size, state_size), device=device, dtype=dtype, std=0.01
+            (num_heads, head_dim, head_dim), device=device, dtype=dtype, std=0.01
         )
 
         input_state_kernel = None
         input_state_expected = None
         if has_input_state:
             input_state_kernel, input_state_expected = self.get_random_duplicated_tensors(
-                (batch_size, num_heads, state_size), device=device, dtype=dtype, std=0.01
+                (batch_size, num_heads, head_dim), device=device, dtype=dtype, std=0.01
             )
 
         y_kernel = rnn_torch(
@@ -150,7 +150,7 @@ class RNNTest(TestCommons):
             [torch.device("cuda")],
             [torch.float32],
             [[0, 7, 19, 27, 93]],  # cu_seqlens
-            [64],  # state_size
+            [64],  # head_dim
             [4],  # num_heads
         )
     )
@@ -159,7 +159,7 @@ class RNNTest(TestCommons):
         device: torch.device,
         dtype: torch.dtype,
         cu_seqlens: list[int],
-        state_size: int,
+        head_dim: int,
         num_heads: int,
     ) -> None:
         set_seed(_SEED)
@@ -168,11 +168,11 @@ class RNNTest(TestCommons):
         max_seqlen = (cu_seqlens[1:] - cu_seqlens[:-1]).max()
 
         x_kernel, x_expected = self.get_random_duplicated_tensors(
-            (cu_seqlens[-1], num_heads, state_size), device=device, dtype=dtype, std=0.01
+            (cu_seqlens[-1], num_heads, head_dim), device=device, dtype=dtype, std=0.01
         )
 
         weight_kernel, weight_expected = self.get_random_duplicated_tensors(
-            (num_heads, state_size, state_size), device=device, dtype=dtype, std=0.01
+            (num_heads, head_dim, head_dim), device=device, dtype=dtype, std=0.01
         )
 
         y_kernel = rnn_cute(x_kernel, weight_kernel, cu_seqlens=cu_seqlens, max_seqlen=max_seqlen)
