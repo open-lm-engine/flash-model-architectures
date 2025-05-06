@@ -20,6 +20,7 @@ class RNNTest(TestCommons):
             [1024],  # sequence_length
             [64],  # state_size
             [4],  # num_heads
+            [False, True],  # has_input_state
             [rnn_cute, torch.compile(rnn_cute, fullgraph=True)],  # function
         )
     )
@@ -31,6 +32,7 @@ class RNNTest(TestCommons):
         sequence_length: int,
         state_size: int,
         num_heads: int,
+        has_input_state: bool,
         function: Callable,
     ) -> None:
         set_seed(_SEED)
@@ -42,8 +44,15 @@ class RNNTest(TestCommons):
             (num_heads, state_size, state_size), device=device, dtype=dtype, std=0.01
         )
 
-        y_kernel = function(x_kernel, weight_kernel)
-        y_expected = rnn_torch(x_expected, weight_expected)
+        input_state_kernel = None
+        input_state_expected = None
+        if has_input_state:
+            input_state_kernel, input_state_expected = self.get_random_duplicated_tensors(
+                (batch_size, num_heads, state_size), device=device, dtype=dtype, std=0.01
+            )
+
+        y_kernel = function(x_kernel, weight_kernel, input_state_kernel)
+        y_expected = rnn_torch(x_expected, weight_expected, input_state_expected)
 
         y_kernel.sum().backward()
         y_expected.sum().backward()
