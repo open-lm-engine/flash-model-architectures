@@ -48,7 +48,7 @@ def rnn_forward_triton_kernel(
 
     for _ in range(S):
         input_ptrs = input_ptr + indices
-        input = tl.load(input_ptrs, mask=mask_bh, other=0)
+        input = tl.load(input_ptrs, mask=mask_bh, other=0).to(tl.float32)
 
         input_state = tl.dot(input_state, weight, input, allow_tf32=True).to(input_state.dtype)
         input_state = tanh(input_state)
