@@ -77,9 +77,9 @@ class RNNTest(TestCommons):
         TestCommons.make_args_matrix(
             [torch.device("cuda")],
             TestCommons.get_dtypes(),
-            [[0, 7, 19]],  # cu_seqlens
-            [1],  # head_dim
-            [1],  # num_heads
+            [[0, 7, 19, 27, 93]],  # cu_seqlens
+            [64],  # head_dim
+            [4],  # num_heads
             [False],  # has_input_state
         )
     )
