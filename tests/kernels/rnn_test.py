@@ -126,7 +126,7 @@ class RNNTest(TestCommons):
                 rnn_torch(
                     x_unpacked_expected[i, cu_seqlens[i] : cu_seqlens[i + 1]].unsqueeze(0),
                     weight_expected,
-                    input_state_expected,
+                    input_state_expected[i].unsqueeze(0),
                 )
             )
         y_expected = torch.cat(y_expected)
