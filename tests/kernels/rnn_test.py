@@ -140,6 +140,8 @@ class RNNTest(TestCommons):
             rtol_float32=0,
             atol_float16=1.5e-3,
             rtol_float16=0,
+            atol_bfloat16=5e-3,
+            rtol_bfloat16=0,
         )
 
     @parameterized.expand(
