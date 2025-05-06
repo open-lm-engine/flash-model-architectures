@@ -124,7 +124,9 @@ class RNNTest(TestCommons):
         for i in range(batch_size):
             y_expected.append(
                 rnn_torch(
-                    x_unpacked_expected[cu_seqlens[i] : cu_seqlens[i + 1]], weight_expected, input_state_expected
+                    x_unpacked_expected[i, cu_seqlens[i] : cu_seqlens[i + 1]].unsqueeze(0),
+                    weight_expected,
+                    input_state_expected,
                 )
             )
         y_expected = torch.cat(y_expected)
