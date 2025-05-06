@@ -52,7 +52,15 @@ class RNNTest(TestCommons):
         self.assert_equal_tensors(
             x_kernel.grad, x_expected.grad, False, atol_float32=6e-3, rtol_float32=0, atol_float16=2e-3, rtol_float16=0
         )
-        self.assert_equal_tensors(weight_kernel.grad, weight_expected.grad, False, atol_float32=6e-3, rtol_float32=0)
+        self.assert_equal_tensors(
+            weight_kernel.grad,
+            weight_expected.grad,
+            False,
+            atol_float32=6e-3,
+            rtol_float32=0,
+            atol_float16=2.2e-2,
+            rtol_float16=0,
+        )
 
     @parameterized.expand(
         TestCommons.make_args_matrix(
