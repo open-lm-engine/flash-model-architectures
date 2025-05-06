@@ -48,15 +48,17 @@ def rnn_forward_triton_kernel(
 
     input_dtype = input_ptr.dtype.element_ty
     out_dtype = input_dtype
+    cast_dtype = input_dtype
     if input_dtype == tl.bfloat16:
         input_dtype = tl.float32
         out_dtype = tl.float32
+        cast_dtype = tl.bfloat16
 
     for _ in range(S):
         input_ptrs = input_ptr + indices
         input = tl.load(input_ptrs, mask=mask_bh, other=0).to(input_dtype)
 
-        input_state = tl.dot(input_state, weight, input, allow_tf32=True, out_dtype=out_dtype).to(input_dtype)
+        input_state = tl.dot(input_state, weight, input, allow_tf32=True, out_dtype=out_dtype).to(cast_dtype)
         input_state = tanh(input_state)
 
         output_ptrs = output_ptr + indices
