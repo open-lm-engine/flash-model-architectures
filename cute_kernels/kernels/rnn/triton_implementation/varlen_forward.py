@@ -61,9 +61,9 @@ def rnn_varlen_forward_triton_kernel(
         mask = unfinished & mask_h[None, :]
 
         input_ptrs = input_ptr + indices
-        input = tl.load(input_ptrs, mask=mask, other=0).to(tl.float32)
+        input = tl.load(input_ptrs, mask=mask, other=0)
 
-        new_state = tl.dot(input_state, weight, input, allow_tf32=True).to(input_state.dtype)
+        new_state = tl.dot(input_state, weight, input, allow_tf32=True, out_dtype=input_state.dtype)
         new_state = tanh(new_state)
 
         input_state = (new_state * unfinished + input_state * (1 - unfinished)).to(input_state.dtype)
