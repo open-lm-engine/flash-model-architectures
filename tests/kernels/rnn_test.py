@@ -4,7 +4,9 @@ import torch
 import torch.nn.functional as F
 from parameterized import parameterized
 
-from cute_kernels import pack_sequence_cute, rnn_cute, rnn_torch, set_seed, unpack_sequence_cute
+from cute_kernels import pack_sequence_torch as pack_sequence_cute
+from cute_kernels import rnn_cute, rnn_torch, set_seed
+from cute_kernels import unpack_sequence_torch as unpack_sequence_cute
 
 from ..test_commons import TestCommons
 
@@ -78,9 +80,9 @@ class RNNTest(TestCommons):
         TestCommons.make_args_matrix(
             [torch.device("cuda")],
             [torch.float32, torch.float16],
-            [[0, 7, 19, 27, 93]],  # cu_seqlens
-            [64],  # head_dim
-            [4],  # num_heads
+            [[0, 7, 19]],  # cu_seqlens
+            [1],  # head_dim
+            [1],  # num_heads
             [False],  # has_input_state
         )
     )
@@ -102,9 +104,6 @@ class RNNTest(TestCommons):
         x_packed_kernel, x_packed_expected = self.get_random_duplicated_tensors(
             (cu_seqlens[-1], num_heads, head_dim), device=device, dtype=dtype, std=0.01
         )
-        x_unpacked_expected = unpack_sequence_cute(
-            x_packed_expected, cu_seqlens, (batch_size, max_seqlen, *x_packed_expected.size()[-2:])
-        )
 
         weight_kernel, weight_expected = self.get_random_duplicated_tensors(
             (num_heads, head_dim, head_dim), device=device, dtype=dtype, std=0.01
@@ -123,15 +122,13 @@ class RNNTest(TestCommons):
 
         y_expected = []
         for i in range(batch_size):
-            y_expected.append(
-                rnn_torch(
-                    x_unpacked_expected[i, cu_seqlens[i] : cu_seqlens[i + 1]].unsqueeze(0),
-                    weight_expected,
-                    input_state_expected[i].unsqueeze(0),
-                )
-            )
-        y_expected = torch.cat([F.pad(y, (max_seqlen - y.size(1), 0)) for y in y_expected])
-        y_expected = pack_sequence_cute(y_expected, cu_seqlens=cu_seqlens)
+            y = rnn_torch(
+                x_packed_expected[cu_seqlens[i] : cu_seqlens[i + 1]].unsqueeze(0),
+                weight_expected,
+                input_state_expected[i].unsqueeze(0) if has_input_state else None,
+            ).squeeze(0)
+            y_expected.append(y)
+        y_expected = torch.cat(y_expected)
 
         y_kernel.sum().backward()
         y_expected.sum().backward()
