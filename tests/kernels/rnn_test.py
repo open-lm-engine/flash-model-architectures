@@ -1,7 +1,6 @@
 from typing import Callable
 
 import torch
-import torch.nn.functional as F
 from parameterized import parameterized
 
 from cute_kernels import rnn_cute, rnn_torch, set_seed
