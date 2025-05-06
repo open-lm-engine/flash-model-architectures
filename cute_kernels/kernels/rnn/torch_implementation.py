@@ -67,6 +67,8 @@ def rnn_torch(
 
         if input_state is None:
             input_state = torch.zeros(B, N, H, device=input.device, dtype=input.dtype)
+        else:
+            input_state = input_state.clone()
 
         weight = weight.unsqueeze(0)
         input = input.unsqueeze(-2)

@@ -56,17 +56,26 @@ def rnn_varlen_forward_triton_kernel(
 
     indices = start * input_stride_t + pid_n * H + indices_h[None, :]
 
+    input_dtype = input_ptr.dtype.element_ty
+    out_dtype = input_dtype
+    cast_dtype = input_dtype
+    if input_dtype == tl.bfloat16:
+        input_dtype = tl.float32
+        out_dtype = tl.float32
+        cast_dtype = tl.bfloat16
+
     for _ in range(max_seqlen):
         unfinished = start < end
         mask = unfinished & mask_h[None, :]
 
         input_ptrs = input_ptr + indices
-        input = tl.load(input_ptrs, mask=mask, other=0)
+        input = tl.load(input_ptrs, mask=mask, other=0).to(input_dtype)
 
-        new_state = tl.dot(input_state, weight, input, allow_tf32=True).to(input_state.dtype)
+        new_state = tl.dot(input_state, weight, input, allow_tf32=True, out_dtype=out_dtype).to(cast_dtype)
         new_state = tanh(new_state)
 
         input_state = new_state * unfinished + input_state * (1 - unfinished)
+        input_state = input_state.to(cast_dtype)
 
         output_ptrs = output_ptr + indices
         tl.store(output_ptrs, new_state, mask=mask)
