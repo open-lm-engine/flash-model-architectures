@@ -15,7 +15,7 @@ class RNNTest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(
             [torch.device("cuda")],
-            [torch.float32],
+            [torch.float32, torch.bfloat16],
             [4],  # batch_size
             [1024],  # sequence_length
             [64],  # state_size
