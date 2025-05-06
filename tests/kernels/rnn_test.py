@@ -80,7 +80,7 @@ class RNNTest(TestCommons):
             [[0, 7, 19, 27, 93]],  # cu_seqlens
             [64],  # state_size
             [4],  # num_heads
-            [False],  # has_input_state
+            [False, True],  # has_input_state
         )
     )
     def test_rnn_varlen_torch(
