@@ -31,8 +31,6 @@ def scatter2scatter_triton_kernel(
     BLOCK_M: tl.constexpr,
     BLOCK_N: tl.constexpr,
     BLOCK_K: tl.constexpr,
-    ACC_TYPE: tl.constexpr,
-    allow_tf32: tl.constexpr,
     x_grouped,
     y_grouped,
 ):
@@ -55,7 +53,7 @@ def scatter2scatter_triton_kernel(
     no_k_mask = K % BLOCK_K == 0
     no_n_mask = N % BLOCK_N == 0
 
-    acc = tl.zeros((BLOCK_M, BLOCK_N), dtype=ACC_TYPE)
+    acc = tl.zeros((BLOCK_M, BLOCK_N), dtype=tl.float32)
     E_first_idx = tl.min(E_idxs)
     E_last_idx = tl.minimum(tl.max(E_idxs), E - 1)
     M_idx = tl.load(grouped_idx_ptr + M_block, mask=M_boundary_mask, other=0).to(tl.int32)
@@ -87,10 +85,8 @@ def scatter2scatter_triton_kernel(
             stride_wn,
             K,
             acc,
-            allow_tf32,
             no_k_mask,
             no_n_mask,
-            ACC_TYPE,
             BLOCK_K,
         )
     if y_grouped:
@@ -118,10 +114,8 @@ def compute_expert_block(
     stride_wn,
     K,
     acc,
-    allow_tf32,
     no_k_mask,
     no_n_mask,
-    ACC_TYPE,
     BLOCK_K,
 ):
 
@@ -144,7 +138,7 @@ def compute_expert_block(
 
         X_blk_ptrs += BLOCK_K * stride_xk
         W_blk_ptrs += BLOCK_K * stride_wk
-        acc += tl.dot(x, w, allow_tf32=allow_tf32, out_dtype=ACC_TYPE)
+        acc = tl.dot(x, w, acc, allow_tf32=True)
 
     return acc
 
@@ -175,8 +169,6 @@ def groupXtY_triton_kernel(
     BLOCK_M: tl.constexpr,
     BLOCK_N: tl.constexpr,
     BLOCK_K: tl.constexpr,
-    ACC_TYPE: tl.constexpr,
-    allow_tf32: tl.constexpr,
 ):
     pid0 = tl.program_id(axis=0)
     pid1 = tl.program_id(axis=1)
@@ -211,7 +203,7 @@ def groupXtY_triton_kernel(
         xt_blk_ptrs = X_ptr + K_block[:, None] * stride_xn + M_idxs[None, :] * stride_xm
         dy_blk_ptrs = DY_ptr + M_idxs[:, None] * stride_dym + N_block[None, :] * stride_dyk
 
-        acc = tl.zeros((BLOCK_K, BLOCK_N), dtype=ACC_TYPE)
+        acc = tl.zeros((BLOCK_K, BLOCK_N), dtype=tl.float32)
 
         iters = tl.cdiv(end_idx - start_idx, BLOCK_M)
 
@@ -233,7 +225,7 @@ def groupXtY_triton_kernel(
 
             xt_blk_ptrs += BLOCK_M * stride_xm
             dy_blk_ptrs += BLOCK_M * stride_dym
-            acc += tl.dot(xt, dy, out_dtype=ACC_TYPE, allow_tf32=allow_tf32)
+            acc = tl.dot(xt, dy, acc, allow_tf32=True)
 
         DW_blk_ptrs = DW_ptr + E_idx * stride_dwe + K_block[:, None] * stride_dwk + N_block[None, :] * stride_dwn
         acc = acc.to(DW_blk_ptrs.dtype.element_ty)
