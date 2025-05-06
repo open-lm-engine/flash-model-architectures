@@ -4,9 +4,7 @@ import torch
 import torch.nn.functional as F
 from parameterized import parameterized
 
-from cute_kernels import pack_sequence_torch as pack_sequence_cute
 from cute_kernels import rnn_cute, rnn_torch, set_seed
-from cute_kernels import unpack_sequence_torch as unpack_sequence_cute
 
 from ..test_commons import TestCommons
 
