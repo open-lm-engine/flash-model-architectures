@@ -80,6 +80,7 @@ class RNNTest(TestCommons):
             [[0, 7, 19, 27, 93]],  # cu_seqlens
             [64],  # state_size
             [4],  # num_heads
+            [False, True],  # has_input_state
         )
     )
     def test_rnn_varlen_torch(
@@ -89,6 +90,7 @@ class RNNTest(TestCommons):
         cu_seqlens: list[int],
         state_size: int,
         num_heads: int,
+        has_input_state: bool,
     ) -> None:
         set_seed(_SEED)
 
@@ -107,11 +109,24 @@ class RNNTest(TestCommons):
             (num_heads, state_size, state_size), device=device, dtype=dtype, std=0.01
         )
 
-        y_kernel = rnn_torch(x_packed_kernel, weight_kernel, cu_seqlens=cu_seqlens, max_seqlen=max_seqlen)
+        input_state_kernel = None
+        input_state_expected = None
+        if has_input_state:
+            input_state_kernel, input_state_expected = self.get_random_duplicated_tensors(
+                (batch_size, num_heads, state_size), device=device, dtype=dtype, std=0.01
+            )
+
+        y_kernel = rnn_torch(
+            x_packed_kernel, weight_kernel, input_state_kernel, cu_seqlens=cu_seqlens, max_seqlen=max_seqlen
+        )
 
         y_expected = []
         for i in range(batch_size):
-            y_expected.append(rnn_torch(x_unpacked_expected[cu_seqlens[i] : cu_seqlens[i + 1]], weight_expected))
+            y_expected.append(
+                rnn_torch(
+                    x_unpacked_expected[cu_seqlens[i] : cu_seqlens[i + 1]], weight_expected, input_state_expected
+                )
+            )
         y_expected = torch.cat(y_expected)
         y_expected = pack_sequence_cute(y_expected, cu_seqlens=cu_seqlens)
 
