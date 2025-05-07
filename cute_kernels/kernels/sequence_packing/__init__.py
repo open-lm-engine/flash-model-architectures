@@ -4,7 +4,7 @@ from ...kernel_backend import KernelBackend
 from ...utils import ensure_contiguous
 from .cuda_implementation import pack_unpack_sequence_cuda
 from .torch_implementation import pack_sequence_torch, unpack_sequence_torch
-from .triton_implementation import pack_unpack_sequence_triton_kernel
+from .triton_implementation import pack_unpack_sequence_triton, pack_unpack_sequence_triton_kernel
 
 
 def _pack_sequence(
@@ -28,21 +28,15 @@ def _pack_sequence(
             BLOCK_SIZE=BLOCK_SIZE_CUDA,
         )
     elif kernel_backend == KernelBackend.triton:
-        B, S = x.size()[:2]
-        N = x.numel() // (B * S)
-
-        with torch.cuda.device(x.device):
-            pack_unpack_sequence_triton_kernel[S, B](
-                x_ptr=x,
-                output_ptr=output,
-                cu_seqlens_ptr=cu_seqlens,
-                S=S,
-                N=N,
-                padding_side=padding_side,
-                pack=True,
-                BLOCK_SIZE=BLOCK_SIZE_TRITON,
-                num_warps=NUM_WARPS_TRITON,
-            )
+        pack_unpack_sequence_triton(
+            x=x,
+            output=output,
+            cu_seqlens=cu_seqlens,
+            padding_side=padding_side,
+            pack=True,
+            BLOCK_SIZE=BLOCK_SIZE_TRITON,
+            NUM_WARPS=NUM_WARPS_TRITON,
+        )
     else:
         raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
@@ -73,20 +67,15 @@ def _unpack_sequence(
             BLOCK_SIZE=BLOCK_SIZE_CUDA,
         )
     elif kernel_backend == KernelBackend.triton:
-        N = output.numel() // (B * S)
-
-        with torch.cuda.device(x.device):
-            pack_unpack_sequence_triton_kernel[S, B](
-                x_ptr=x,
-                output_ptr=output,
-                cu_seqlens_ptr=cu_seqlens,
-                S=S,
-                N=N,
-                padding_side=padding_side,
-                pack=False,
-                BLOCK_SIZE=BLOCK_SIZE_TRITON,
-                num_warps=NUM_WARPS_TRITON,
-            )
+        pack_unpack_sequence_triton(
+            x=x,
+            output=output,
+            cu_seqlens=cu_seqlens,
+            padding_side=padding_side,
+            pack=False,
+            BLOCK_SIZE=BLOCK_SIZE_TRITON,
+            NUM_WARPS=NUM_WARPS_TRITON,
+        )
     else:
         raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
