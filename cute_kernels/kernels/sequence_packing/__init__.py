@@ -53,9 +53,7 @@ def _unpack_sequence(
     BLOCK_SIZE_TRITON: int,
     NUM_WARPS_TRITON: int,
 ) -> torch.Tensor:
-    B, S = desired_shape[:2]
-
-    output = torch.zeros(B, S, *desired_shape[2:], device=x.device, dtype=x.dtype)
+    output = torch.zeros(*desired_shape, device=x.device, dtype=x.dtype)
 
     if kernel_backend == KernelBackend.cuda:
         pack_unpack_sequence_cuda(
