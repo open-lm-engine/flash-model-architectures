@@ -4,19 +4,21 @@ from ...kernel_backend import KernelBackend
 from ...utils import ensure_contiguous
 from .cuda_implementation import pack_unpack_sequence_cuda
 from .torch_implementation import pack_sequence_torch, unpack_sequence_torch
-from .triton_implementation import pack_unpack_sequence_triton, pack_unpack_sequence_triton_kernel
+from .triton_implementation import pack_unpack_sequence_triton
 
 
 def _pack_sequence(
     x: torch.Tensor,
-    output: torch.Tensor,
     cu_seqlens: torch.Tensor,
+    desired_shape: tuple[int],
     padding_side: str,
     kernel_backend: KernelBackend,
     BLOCK_SIZE_CUDA: int,
     BLOCK_SIZE_TRITON: int,
     NUM_WARPS_TRITON: int,
-) -> None:
+) -> torch.Tensor:
+    output = torch.empty(desired_shape, device=x.device, dtype=x.dtype)
+
     if kernel_backend == KernelBackend.cuda:
         pack_unpack_sequence_cuda(
             x=x,
@@ -39,12 +41,14 @@ def _pack_sequence(
     else:
         raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
+    return output
+
 
 def _unpack_sequence(
     x: torch.Tensor,
     cu_seqlens: torch.Tensor,
-    padding_side: str,
     desired_shape: tuple[int],
+    padding_side: str,
     kernel_backend: KernelBackend,
     BLOCK_SIZE_CUDA: int,
     BLOCK_SIZE_TRITON: int,
@@ -84,6 +88,7 @@ class _PackSequence_Cute(torch.autograd.Function):
         ctx,
         x: torch.Tensor,
         cu_seqlens: torch.Tensor,
+        desired_shape: tuple[int],
         padding_side: str,
         kernel_backend_forward: KernelBackend,
         BLOCK_SIZE_CUDA_forward: int,
@@ -106,13 +111,10 @@ class _PackSequence_Cute(torch.autograd.Function):
         ctx.BLOCK_SIZE_TRITON_backward = BLOCK_SIZE_TRITON_backward
         ctx.NUM_WARPS_TRITON_backward = NUM_WARPS_TRITON_backward
 
-        # NOTE this causes synchronization with CPU since we allocate a tensor with data dependent shape
-        output = torch.empty(cu_seqlens[-1], *x.size()[2:], device=x.device, dtype=x.dtype)
-
-        _pack_sequence(
+        output = _pack_sequence(
             x=x,
-            output=output,
             cu_seqlens=cu_seqlens,
+            desired_shape=desired_shape,
             padding_side=padding_side,
             kernel_backend=kernel_backend_forward,
             BLOCK_SIZE_CUDA=BLOCK_SIZE_CUDA_forward,
@@ -128,15 +130,15 @@ class _PackSequence_Cute(torch.autograd.Function):
         x_grad = _unpack_sequence(
             x=output_grad,
             cu_seqlens=ctx.saved_tensors[0],
-            padding_side=ctx.padding_side,
             desired_shape=ctx.x_shape,
+            padding_side=ctx.padding_side,
             kernel_backend=ctx.kernel_backend_backward,
             BLOCK_SIZE_CUDA=ctx.BLOCK_SIZE_CUDA_backward,
             BLOCK_SIZE_TRITON=ctx.BLOCK_SIZE_TRITON_backward,
             NUM_WARPS_TRITON=ctx.NUM_WARPS_TRITON_backward,
         )
 
-        return x_grad, *[None] * 10
+        return x_grad, *[None] * 11
 
 
 class _UnpackSequence_Cute(torch.autograd.Function):
@@ -188,12 +190,10 @@ class _UnpackSequence_Cute(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
     def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
-        x_grad = torch.empty(ctx.x_shape, device=output_grad.device, dtype=output_grad.dtype)
-
-        _pack_sequence(
+        x_grad = _pack_sequence(
             x=output_grad,
-            output=x_grad,
             cu_seqlens=ctx.saved_tensors[0],
+            desired_shape=ctx.x_shape,
             padding_side=ctx.padding_side,
             kernel_backend=ctx.kernel_backend_backward,
             BLOCK_SIZE_CUDA=ctx.BLOCK_SIZE_CUDA_backward,
@@ -205,7 +205,7 @@ class _UnpackSequence_Cute(torch.autograd.Function):
 
 
 def pack_sequence_cute(
-    x: torch.Tensor,
+    inputs: torch.Tensor | list[torch.Tensor],
     cu_seqlens: torch.Tensor,
     padding_side: str = "left",
     *,
@@ -217,24 +217,44 @@ def pack_sequence_cute(
     BLOCK_SIZE_CUDA_backward: int = 1024,
     BLOCK_SIZE_TRITON_backward: int = 4096,
     NUM_WARPS_TRITON_backward: int = 32,
-) -> torch.Tensor:
-    return _PackSequence_Cute.apply(
-        x,
-        cu_seqlens,
-        padding_side,
-        kernel_backend_forward,
-        BLOCK_SIZE_CUDA_forward,
-        BLOCK_SIZE_TRITON_forward,
-        NUM_WARPS_TRITON_forward,
-        kernel_backend_backward,
-        BLOCK_SIZE_CUDA_backward,
-        BLOCK_SIZE_TRITON_backward,
-        NUM_WARPS_TRITON_backward,
-    )
+) -> torch.Tensor | list[torch.Tensor]:
+    is_list = isinstance(inputs, (list, tuple))
+    if not is_list:
+        inputs = [inputs]
+
+    # NOTE we call .item() outside because data dependent (cu_seqlens[-1]) memory allocation calls sync anyways
+    # so, we do it once for all the tensors
+    N = cu_seqlens[-1].item()
+    outputs = []
+
+    for x in inputs:
+        desired_shape = (N, *x.size()[2:])
+
+        x = _PackSequence_Cute.apply(
+            x,
+            cu_seqlens,
+            desired_shape,
+            padding_side,
+            kernel_backend_forward,
+            BLOCK_SIZE_CUDA_forward,
+            BLOCK_SIZE_TRITON_forward,
+            NUM_WARPS_TRITON_forward,
+            kernel_backend_backward,
+            BLOCK_SIZE_CUDA_backward,
+            BLOCK_SIZE_TRITON_backward,
+            NUM_WARPS_TRITON_backward,
+        )
+
+        outputs.append(x)
+
+    if not is_list:
+        outputs = outputs[0]
+
+    return outputs
 
 
 def unpack_sequence_cute(
-    x: torch.Tensor,
+    inputs: torch.Tensor | list[torch.Tensor],
     cu_seqlens: torch.Tensor,
     desired_shape: tuple[int],
     padding_side: str = "left",
@@ -247,18 +267,32 @@ def unpack_sequence_cute(
     BLOCK_SIZE_CUDA_backward: int = 1024,
     BLOCK_SIZE_TRITON_backward: int = 4096,
     NUM_WARPS_TRITON_backward: int = 32,
-) -> torch.Tensor:
-    return _UnpackSequence_Cute.apply(
-        x,
-        cu_seqlens,
-        desired_shape,
-        padding_side,
-        kernel_backend_forward,
-        BLOCK_SIZE_CUDA_forward,
-        BLOCK_SIZE_TRITON_forward,
-        NUM_WARPS_TRITON_forward,
-        kernel_backend_backward,
-        BLOCK_SIZE_CUDA_backward,
-        BLOCK_SIZE_TRITON_backward,
-        NUM_WARPS_TRITON_backward,
-    )
+) -> torch.Tensor | list[torch.Tensor]:
+    is_list = isinstance(inputs, (list, tuple))
+    if not is_list:
+        inputs = [inputs]
+
+    outputs = []
+
+    for x in inputs:
+        x = _UnpackSequence_Cute.apply(
+            x,
+            cu_seqlens,
+            desired_shape,
+            padding_side,
+            kernel_backend_forward,
+            BLOCK_SIZE_CUDA_forward,
+            BLOCK_SIZE_TRITON_forward,
+            NUM_WARPS_TRITON_forward,
+            kernel_backend_backward,
+            BLOCK_SIZE_CUDA_backward,
+            BLOCK_SIZE_TRITON_backward,
+            NUM_WARPS_TRITON_backward,
+        )
+
+        outputs.append(x)
+
+    if not is_list:
+        outputs = outputs[0]
+
+    return outputs
