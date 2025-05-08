@@ -138,7 +138,7 @@ class _PackSequence_Cute(torch.autograd.Function):
             NUM_WARPS_TRITON=ctx.NUM_WARPS_TRITON_backward,
         )
 
-        return x_grad, *[None] * 10
+        return x_grad, *[None] * 11
 
 
 class _UnpackSequence_Cute(torch.autograd.Function):
