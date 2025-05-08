@@ -1,5 +1,9 @@
+import torch
 import triton
 import triton.language as tl
+
+from ...constants import LIBRARY_NAME
+from ...utils import cute_op
 
 
 @triton.jit
@@ -45,3 +49,34 @@ def pack_unpack_sequence_triton_kernel(
     else:
         if s < seqlens:
             _copy_array(x_ptr, output_ptr, b, s, start + s, S, N, pack, BLOCK_SIZE)
+
+
+@cute_op(f"{LIBRARY_NAME}::pack_unpack_sequence_triton", mutates_args={"output"})
+def pack_unpack_sequence_triton(
+    x: torch.Tensor,
+    output: torch.Tensor,
+    cu_seqlens: torch.Tensor,
+    padding_side: str,
+    pack: bool,
+    BLOCK_SIZE: int,
+    NUM_WARPS: int,
+) -> None:
+    if pack:
+        B, S = x.size()[:2]
+        N = x.numel() // (B * S)
+    else:
+        B, S = output.size()[:2]
+        N = output.numel() // (B * S)
+
+    with torch.device(x.device):
+        pack_unpack_sequence_triton_kernel[S, B](
+            x_ptr=x,
+            output_ptr=output,
+            cu_seqlens_ptr=cu_seqlens,
+            S=S,
+            N=N,
+            padding_side=padding_side,
+            pack=pack,
+            BLOCK_SIZE=BLOCK_SIZE,
+            num_warps=NUM_WARPS,
+        )

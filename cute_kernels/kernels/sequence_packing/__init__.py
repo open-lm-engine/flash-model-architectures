@@ -4,20 +4,19 @@ from ...kernel_backend import KernelBackend
 from ...utils import ensure_contiguous
 from .cuda_implementation import pack_unpack_sequence_cuda
 from .torch_implementation import pack_sequence_torch, unpack_sequence_torch
-from .triton_implementation import pack_unpack_sequence_triton_kernel
+from .triton_implementation import pack_unpack_sequence_triton, pack_unpack_sequence_triton_kernel
 
 
 def _pack_sequence(
     x: torch.Tensor,
+    output: torch.Tensor,
     cu_seqlens: torch.Tensor,
     padding_side: str,
     kernel_backend: KernelBackend,
     BLOCK_SIZE_CUDA: int,
     BLOCK_SIZE_TRITON: int,
     NUM_WARPS_TRITON: int,
-) -> torch.Tensor:
-    output = torch.empty(cu_seqlens[-1], *x.size()[2:], device=x.device, dtype=x.dtype)
-
+) -> None:
     if kernel_backend == KernelBackend.cuda:
         pack_unpack_sequence_cuda(
             x=x,
@@ -28,25 +27,17 @@ def _pack_sequence(
             BLOCK_SIZE=BLOCK_SIZE_CUDA,
         )
     elif kernel_backend == KernelBackend.triton:
-        B, S = x.size()[:2]
-        N = x.numel() // (B * S)
-
-        with torch.cuda.device(x.device):
-            pack_unpack_sequence_triton_kernel[S, B](
-                x_ptr=x,
-                output_ptr=output,
-                cu_seqlens_ptr=cu_seqlens,
-                S=S,
-                N=N,
-                padding_side=padding_side,
-                pack=True,
-                BLOCK_SIZE=BLOCK_SIZE_TRITON,
-                num_warps=NUM_WARPS_TRITON,
-            )
+        pack_unpack_sequence_triton(
+            x=x,
+            output=output,
+            cu_seqlens=cu_seqlens,
+            padding_side=padding_side,
+            pack=True,
+            BLOCK_SIZE=BLOCK_SIZE_TRITON,
+            NUM_WARPS=NUM_WARPS_TRITON,
+        )
     else:
         raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
-
-    return output
 
 
 def _unpack_sequence(
@@ -59,9 +50,7 @@ def _unpack_sequence(
     BLOCK_SIZE_TRITON: int,
     NUM_WARPS_TRITON: int,
 ) -> torch.Tensor:
-    B, S = desired_shape[:2]
-
-    output = torch.zeros(B, S, *desired_shape[2:], device=x.device, dtype=x.dtype)
+    output = torch.zeros(*desired_shape, device=x.device, dtype=x.dtype)
 
     if kernel_backend == KernelBackend.cuda:
         pack_unpack_sequence_cuda(
@@ -73,20 +62,15 @@ def _unpack_sequence(
             BLOCK_SIZE=BLOCK_SIZE_CUDA,
         )
     elif kernel_backend == KernelBackend.triton:
-        N = output.numel() // (B * S)
-
-        with torch.cuda.device(x.device):
-            pack_unpack_sequence_triton_kernel[S, B](
-                x_ptr=x,
-                output_ptr=output,
-                cu_seqlens_ptr=cu_seqlens,
-                S=S,
-                N=N,
-                padding_side=padding_side,
-                pack=False,
-                BLOCK_SIZE=BLOCK_SIZE_TRITON,
-                num_warps=NUM_WARPS_TRITON,
-            )
+        pack_unpack_sequence_triton(
+            x=x,
+            output=output,
+            cu_seqlens=cu_seqlens,
+            padding_side=padding_side,
+            pack=False,
+            BLOCK_SIZE=BLOCK_SIZE_TRITON,
+            NUM_WARPS=NUM_WARPS_TRITON,
+        )
     else:
         raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
@@ -112,6 +96,7 @@ class _PackSequence_Cute(torch.autograd.Function):
     ) -> torch.Tensor:
         assert padding_side in ["left", "right"]
         assert x.dim() >= 2
+        assert x.size(0) == cu_seqlens.size(0) - 1
 
         ctx.save_for_backward(cu_seqlens)
         ctx.padding_side = padding_side
@@ -121,8 +106,12 @@ class _PackSequence_Cute(torch.autograd.Function):
         ctx.BLOCK_SIZE_TRITON_backward = BLOCK_SIZE_TRITON_backward
         ctx.NUM_WARPS_TRITON_backward = NUM_WARPS_TRITON_backward
 
-        output = _pack_sequence(
+        # NOTE this causes synchronization with CPU since we allocate a tensor with data dependent shape
+        output = torch.empty(cu_seqlens[-1], *x.size()[2:], device=x.device, dtype=x.dtype)
+
+        _pack_sequence(
             x=x,
+            output=output,
             cu_seqlens=cu_seqlens,
             padding_side=padding_side,
             kernel_backend=kernel_backend_forward,
@@ -179,6 +168,9 @@ class _UnpackSequence_Cute(torch.autograd.Function):
         ctx.BLOCK_SIZE_CUDA_backward = BLOCK_SIZE_CUDA_backward
         ctx.BLOCK_SIZE_TRITON_backward = BLOCK_SIZE_TRITON_backward
         ctx.NUM_WARPS_TRITON_backward = NUM_WARPS_TRITON_backward
+        # saving shape in forward can avoid allocating a tensor of shape depending on cu_seqlens[-1]
+        # this avoids synchronization with CPU
+        ctx.x_shape = x.size()
 
         output = _unpack_sequence(
             x=x,
@@ -196,8 +188,11 @@ class _UnpackSequence_Cute(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
     def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
-        x_grad = _pack_sequence(
+        x_grad = torch.empty(ctx.x_shape, device=output_grad.device, dtype=output_grad.dtype)
+
+        _pack_sequence(
             x=output_grad,
+            output=x_grad,
             cu_seqlens=ctx.saved_tensors[0],
             padding_side=ctx.padding_side,
             kernel_backend=ctx.kernel_backend_backward,
