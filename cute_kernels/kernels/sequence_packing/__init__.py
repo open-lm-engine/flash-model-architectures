@@ -190,12 +190,10 @@ class _UnpackSequence_Cute(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
     def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
-        x_grad = torch.empty(ctx.x_shape, device=output_grad.device, dtype=output_grad.dtype)
-
-        _pack_sequence(
+        x_grad = _pack_sequence(
             x=output_grad,
-            output=x_grad,
             cu_seqlens=ctx.saved_tensors[0],
+            desired_shape=ctx.x_shape,
             padding_side=ctx.padding_side,
             kernel_backend=ctx.kernel_backend_backward,
             BLOCK_SIZE_CUDA=ctx.BLOCK_SIZE_CUDA_backward,
