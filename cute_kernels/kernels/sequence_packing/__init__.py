@@ -205,7 +205,7 @@ class _UnpackSequence_Cute(torch.autograd.Function):
 
 
 def pack_sequence_cute(
-    x: torch.Tensor | list[torch.Tensor],
+    inputs: torch.Tensor | list[torch.Tensor],
     cu_seqlens: torch.Tensor,
     padding_side: str = "left",
     *,
@@ -218,18 +218,20 @@ def pack_sequence_cute(
     BLOCK_SIZE_TRITON_backward: int = 4096,
     NUM_WARPS_TRITON_backward: int = 32,
 ) -> torch.Tensor | list[torch.Tensor]:
-    is_list = isinstance(x, (list, tuple))
+    is_list = isinstance(inputs, (list, tuple))
     if not is_list:
-        x = [x]
+        inputs = [inputs]
 
+    # NOTE we call .item() outside because data dependent (cu_seqlens[-1]) memory allocation calls sync anyways
+    # so, we do it once for all the tensors
     N = cu_seqlens[-1].item()
-    output = []
+    outputs = []
 
-    for _x in x:
-        desired_shape = (N, *_x.size()[2:])
+    for x in inputs:
+        desired_shape = (N, *x.size()[2:])
 
-        _x = _PackSequence_Cute.apply(
-            _x,
+        x = _PackSequence_Cute.apply(
+            x,
             cu_seqlens,
             desired_shape,
             padding_side,
@@ -243,12 +245,12 @@ def pack_sequence_cute(
             NUM_WARPS_TRITON_backward,
         )
 
-        output.append(_x)
+        outputs.append(x)
 
     if not is_list:
-        output = output[0]
+        outputs = outputs[0]
 
-    return output
+    return outputs
 
 
 def unpack_sequence_cute(
