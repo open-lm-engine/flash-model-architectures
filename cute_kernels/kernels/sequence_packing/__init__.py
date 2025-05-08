@@ -224,10 +224,12 @@ def pack_sequence_cute(
     if not is_list:
         x = [x]
 
-    desired_shape = (cu_seqlens[-1].item(), *x.size()[2:])
+    N = cu_seqlens[-1].item()
     output = []
 
     for _x in x:
+        desired_shape = (N, *_x.size()[2:])
+
         _x = _PackSequence_Cute.apply(
             _x,
             cu_seqlens,
