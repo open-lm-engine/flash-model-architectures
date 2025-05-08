@@ -4,7 +4,7 @@ from ...kernel_backend import KernelBackend
 from ...utils import ensure_contiguous
 from .cuda_implementation import pack_unpack_sequence_cuda
 from .torch_implementation import pack_sequence_torch, unpack_sequence_torch
-from .triton_implementation import pack_unpack_sequence_triton, pack_unpack_sequence_triton_kernel
+from .triton_implementation import pack_unpack_sequence_triton
 
 
 def _pack_sequence(
