@@ -2,19 +2,20 @@
 #include <cuda_runtime.h>
 #include <torch/extension.h>
 
+#include "cute/tensor.hpp"
 #include "include/cute_kernels.h"
-#include "index.cuh"
 
 namespace ck = cute_kernels;
+using namespace cute;
 
 using uint32 = ck::uint32;
 using fp32 = ck::fp32;
 
 template <typename scalar_t, bool is_A_transposed, bool is_B_transposed>
-__global__ void _naive_gemm_cuda_kernel(const scalar_t *A,
-                                        const scalar_t *B,
-                                        const scalar_t *C,
-                                        scalar_t *output,
+__global__ void _naive_gemm_cuda_kernel(const scalar_t *_A,
+                                        const scalar_t *_B,
+                                        const scalar_t *_C,
+                                        scalar_t *_output,
                                         const fp32 alpha,
                                         const fp32 beta,
                                         const uint32 M,
@@ -23,27 +24,37 @@ __global__ void _naive_gemm_cuda_kernel(const scalar_t *A,
     const uint32 i = blockIdx.y * blockDim.y + threadIdx.y;
     const uint32 j = blockIdx.x * blockDim.x + threadIdx.x;
 
+    Layout layout_A =
+        make_layout(is_A_transposed ? make_shape(K, M) : make_shape(M, K), make_stride(is_A_transposed ? M : K, 1));
+    Tensor A = make_tensor(make_gmem_ptr(_A), layout_A);
+
+    Layout layout_B =
+        make_layout(is_B_transposed ? make_shape(N, K) : make_shape(K, N), make_stride(is_B_transposed ? K : N, 1));
+    Tensor B = make_tensor(make_gmem_ptr(_B), layout_B);
+
+    Layout layout_C = make_layout(make_shape(M, N), make_stride(N, 1));
+    Tensor C = make_tensor(make_gmem_ptr(_C), layout_C);
+    Tensor output = make_tensor(make_gmem_ptr(_output), layout_C);
+
     if (i < M && j < N) {
         fp32 accumulator = 0;
 
         // clang-format off
-        #pragma unroll 128
+        #pragma unroll
         // clang-format on
         for (uint32 k = 0; k < K; k++) {
-            const uint32 A_index = get_matrix_index<uint32, is_A_transposed>(i, k, M, K);
-            const uint32 B_index = get_matrix_index<uint32, is_B_transposed>(k, j, K, N);
-
-            accumulator += A[A_index] * B[B_index];
+            const scalar_t a = is_A_transposed ? A(k, i) : A(i, k);
+            const scalar_t b = is_B_transposed ? B(j, k) : B(k, j);
+            accumulator += a * b;
         }
 
         accumulator *= alpha;
-        const uint32 index = get_matrix_index<uint32, false>(i, j, M, N);
 
         if (beta != 0) {
-            accumulator += beta * C[index];
+            accumulator += beta * C(i, j);
         }
 
-        output[index] = accumulator;
+        output(i, j) = accumulator;
     }
 }
 
