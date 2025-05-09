@@ -33,7 +33,7 @@ __global__ void _naive_gemm_cuda_kernel(const scalar_t *_A,
         fp32 accumulator = 0;
 
         // clang-format off
-        #pragma unroll 128
+        #pragma unroll
         // clang-format on
         for (uint32 k = 0; k < K; k++) {
             const scalar_t a = is_A_transposed ? A(k, i) : A(i, k);
