@@ -28,7 +28,8 @@ __global__ void _naive_gemm_cuda_kernel(const scalar_t *_A,
         make_layout(is_A_transposed ? make_shape(K, M) : make_shape(M, K), make_stride(is_A_transposed ? M : K, 1));
     Tensor A = make_tensor(make_gmem_ptr(_A), layout_A);
 
-    Layout layout_B = make_layout(is_B_transposed ? make_shape(N, K) : make_shape(K, N), make_stride(N, 1));
+    Layout layout_B =
+        make_layout(is_B_transposed ? make_shape(N, K) : make_shape(K, N), make_stride(is_B_transposed ? K : N, 1));
     Tensor B = make_tensor(make_gmem_ptr(_B), layout_B);
 
     Layout layout_C = make_layout(make_shape(M, N), make_stride(N, 1));
