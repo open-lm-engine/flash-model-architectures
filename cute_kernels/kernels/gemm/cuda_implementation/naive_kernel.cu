@@ -25,16 +25,14 @@ __global__ void _naive_gemm_cuda_kernel(const scalar_t *_A,
     const uint32 j = blockIdx.x * blockDim.x + threadIdx.x;
 
     Layout layout_A = make_layout(is_A_transposed ? make_shape(K, M) : make_shape(M, K), make_stride(K, 1));
-    Tensor A = make_tensor(make_gmem_ptr(_A), make_layout(shape_A, stride_A));
+    Tensor A = make_tensor(make_gmem_ptr(_A), layout_A);
 
     Layout layout_B = make_layout(is_B_transposed ? make_shape(N, K) : make_shape(K, N), make_stride(N, 1));
-    Tensor B = make_tensor(make_gmem_ptr(_B), make_layout(shape_B, stride_B));
+    Tensor B = make_tensor(make_gmem_ptr(_B), layout_B);
 
-    Shape shape_C = make_shape(M, N);
-    Stride stride_C = make_stride(N, 1);
-    Tensor C = make_tensor(make_gmem_ptr(_C), make_layout(shape_C, stride_C));
-
-    Tensor output = make_tensor(make_gmem_ptr(_output), make_layout(shape_C, stride_C));
+    Layout layout_C = make_layout(make_shape(M, N), make_stride(N, 1));
+    Tensor C = make_tensor(make_gmem_ptr(_C), layout_C);
+    Tensor output = make_tensor(make_gmem_ptr(_output), layout_C);
 
     if (i < M && j < N) {
         fp32 accumulator = 0;
