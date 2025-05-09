@@ -15,7 +15,7 @@ template <typename scalar_t, bool is_A_transposed, bool is_B_transposed>
 __global__ void _naive_gemm_cuda_kernel(const scalar_t *_A,
                                         const scalar_t *_B,
                                         const scalar_t *_C,
-                                        scalar_t *output,
+                                        scalar_t *_output,
                                         const fp32 alpha,
                                         const fp32 beta,
                                         const uint32 M,
@@ -27,6 +27,7 @@ __global__ void _naive_gemm_cuda_kernel(const scalar_t *_A,
     Tensor A = make_tensor(make_gmem_ptr(_A), is_A_transposed ? make_shape(K, M) : make_shape(M, K));
     Tensor B = make_tensor(make_gmem_ptr(_B), is_B_transposed ? make_shape(N, K) : make_shape(K, N));
     Tensor C = make_tensor(make_gmem_ptr(_C), make_shape(M, N));
+    Tensor output = make_tensor(make_gmem_ptr(_output), make_shape(M, N));
 
     if (i < M && j < N) {
         fp32 accumulator = 0;
