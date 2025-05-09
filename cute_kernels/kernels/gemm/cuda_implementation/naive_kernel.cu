@@ -24,12 +24,19 @@ __global__ void _naive_gemm_cuda_kernel(const scalar_t *_A,
     const uint32 i = blockIdx.y * blockDim.y + threadIdx.y;
     const uint32 j = blockIdx.x * blockDim.x + threadIdx.x;
 
-    Tensor A =
-        make_tensor(make_gmem_ptr(_A), make_layout(is_A_transposed ? make_shape(K, M) : make_shape(M, K), RowMajor));
-    Tensor B =
-        make_tensor(make_gmem_ptr(_B), make_layout(is_B_transposed ? make_shape(N, K) : make_shape(K, N), RowMajor));
-    Tensor C = make_tensor(make_gmem_ptr(_C), make_layout(make_shape(M, N), RowMajor));
-    Tensor output = make_tensor(make_gmem_ptr(_output), make_layout(make_shape(M, N), RowMajor));
+    Shape shape_A = is_A_transposed ? make_shape(K, M) : make_shape(M, K);
+    Stride stride_A = make_stride(K, 1);
+    Tensor A = make_tensor(make_gmem_ptr(_A), make_layout(shape_A, stride_A));
+
+    Shape shape_B = is_B_transposed ? make_shape(N, K) : make_shape(K, N);
+    Stride stride_B = make_stride(N, 1);
+    Tensor B = make_tensor(make_gmem_ptr(_B), make_layout(shape_B, stride_B));
+
+    Shape shape_C = make_shape(M, N);
+    Stride stride_C = make_stride(N, 1);
+    Tensor C = make_tensor(make_gmem_ptr(_C), make_layout(shape_C, stride_C));
+
+    Tensor output = make_tensor(make_gmem_ptr(_output), make_layout(shape_C, stride_C));
 
     if (i < M && j < N) {
         fp32 accumulator = 0;
