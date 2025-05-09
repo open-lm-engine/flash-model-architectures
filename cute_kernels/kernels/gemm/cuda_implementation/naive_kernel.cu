@@ -24,20 +24,8 @@ __global__ void _naive_gemm_cuda_kernel(const scalar_t *_A,
     const uint32 i = blockIdx.y * blockDim.y + threadIdx.y;
     const uint32 j = blockIdx.x * blockDim.x + threadIdx.x;
 
-    Tensor A;
-    if (is_A_transposed) {
-        A = make_tensor(make_gmem_ptr(_A), make_shape(K, M));
-    } else {
-        A = make_tensor(make_gmem_ptr(_A), make_shape(M, K));
-    }
-
-    Tensor B;
-    if (is_B_transposed) {
-        make_tensor(make_gmem_ptr(_B), make_shape(K, N));
-    } else {
-        make_tensor(make_gmem_ptr(_B), make_shape(N, K));
-    }
-
+    Tensor A = make_tensor(make_gmem_ptr(_A), is_A_transposed ? make_shape(K, M) : make_shape(M, K));
+    Tensor B = make_tensor(make_gmem_ptr(_B), is_B_transposed ? make_shape(N, K) : make_shape(K, N));
     Tensor C = make_tensor(make_gmem_ptr(_C), make_shape(M, N));
 
     if (i < M && j < N) {
@@ -47,20 +35,8 @@ __global__ void _naive_gemm_cuda_kernel(const scalar_t *_A,
         #pragma unroll 128
         // clang-format on
         for (uint32 k = 0; k < K; k++) {
-            scalar_t a;
-            if (is_A_transposed) {
-                a = A(k, i);
-            } else {
-                a = A(i, k);
-            }
-
-            scalar_t b;
-            if (is_B_transposed) {
-                b = B(j, k);
-            } else {
-                a = A(k, j);
-            }
-
+            const scalar_t a = is_A_transposed ? A(k, i) : A(i, k);
+            const scalar_t b = is_B_transposed ? B(j, k) : A(k, j);
             accumulator += a * b;
         }
 
