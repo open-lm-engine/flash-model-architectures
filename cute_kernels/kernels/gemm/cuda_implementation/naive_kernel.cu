@@ -24,12 +24,10 @@ __global__ void _naive_gemm_cuda_kernel(const scalar_t *_A,
     const uint32 i = blockIdx.y * blockDim.y + threadIdx.y;
     const uint32 j = blockIdx.x * blockDim.x + threadIdx.x;
 
-    Shape shape_A = is_A_transposed ? make_shape(K, M) : make_shape(M, K);
-    Stride stride_A = make_stride(K, 1);
+    Layout layout_A = make_layout(is_A_transposed ? make_shape(K, M) : make_shape(M, K), make_stride(K, 1));
     Tensor A = make_tensor(make_gmem_ptr(_A), make_layout(shape_A, stride_A));
 
-    Shape shape_B = is_B_transposed ? make_shape(N, K) : make_shape(K, N);
-    Stride stride_B = make_stride(N, 1);
+    Layout layout_B = make_layout(is_B_transposed ? make_shape(N, K) : make_shape(K, N), make_stride(N, 1));
     Tensor B = make_tensor(make_gmem_ptr(_B), make_layout(shape_B, stride_B));
 
     Shape shape_C = make_shape(M, N);
