@@ -9,7 +9,7 @@ from ..test_commons import TestCommons
 
 
 _SEED = 42
-_RELU_NEGATIVE_SLOP = 0.1
+_RELU_NEGATIVE_SLOPE = 0.1
 
 
 class RNNTest(TestCommons):
@@ -59,7 +59,7 @@ class RNNTest(TestCommons):
             weight_kernel,
             input_state_kernel,
             activation_function=activation_function,
-            relu_negative_slope=_RELU_NEGATIVE_SLOP if activation_function == "leaky_relu" else None,
+            relu_negative_slope=_RELU_NEGATIVE_SLOPE if activation_function == "leaky_relu" else None,
         )
 
         y_expected = rnn_torch(
@@ -67,7 +67,7 @@ class RNNTest(TestCommons):
             weight_expected,
             input_state_expected,
             activation_function=activation_function,
-            relu_negative_slope=_RELU_NEGATIVE_SLOP if activation_function == "leaky_relu" else None,
+            relu_negative_slope=_RELU_NEGATIVE_SLOPE if activation_function == "leaky_relu" else None,
         )
 
         y_kernel.sum().backward()
@@ -138,7 +138,7 @@ class RNNTest(TestCommons):
             cu_seqlens=cu_seqlens,
             max_seqlen=max_seqlen,
             activation_function=activation_function,
-            relu_negative_slope=_RELU_NEGATIVE_SLOP if activation_function == "leaky_relu" else None,
+            relu_negative_slope=_RELU_NEGATIVE_SLOPE if activation_function == "leaky_relu" else None,
         )
 
         y_expected = []
@@ -148,7 +148,7 @@ class RNNTest(TestCommons):
                 weight_expected,
                 input_state_expected[i].unsqueeze(0) if has_input_state else None,
                 activation_function=activation_function,
-                relu_negative_slope=_RELU_NEGATIVE_SLOP if activation_function == "leaky_relu" else None,
+                relu_negative_slope=_RELU_NEGATIVE_SLOPE if activation_function == "leaky_relu" else None,
             ).squeeze(0)
             y_expected.append(y)
         y_expected = torch.cat(y_expected)
@@ -219,7 +219,7 @@ class RNNTest(TestCommons):
             cu_seqlens=cu_seqlens,
             max_seqlen=max_seqlen,
             activation_function=activation_function,
-            relu_negative_slope=_RELU_NEGATIVE_SLOP if activation_function == "leaky_relu" else None,
+            relu_negative_slope=_RELU_NEGATIVE_SLOPE if activation_function == "leaky_relu" else None,
         )
 
         y_expected = rnn_torch(
@@ -229,7 +229,7 @@ class RNNTest(TestCommons):
             cu_seqlens=cu_seqlens,
             max_seqlen=max_seqlen,
             activation_function=activation_function,
-            relu_negative_slope=_RELU_NEGATIVE_SLOP if activation_function == "leaky_relu" else None,
+            relu_negative_slope=_RELU_NEGATIVE_SLOPE if activation_function == "leaky_relu" else None,
         )
 
         y_kernel.sum().backward()
