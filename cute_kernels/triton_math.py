@@ -35,3 +35,13 @@ def tanh(x):
     x = x.to(dtype)
 
     return x
+
+
+@triton.jit
+def relu(x):
+    return max(0, x)
+
+
+@triton.jit
+def leaky_relu(x, negative_slope):
+    return relu(x) + negative_slope * min(0, x)

@@ -21,11 +21,18 @@ class _RNN_Cute(torch.autograd.Function):
         gradient_clipping: float | None,
         cu_seqlens: torch.Tensor | None,
         max_seqlen: torch.Tensor | int | None,
+        activation_function: str,
+        relu_negative_slope: float | None,
         BLOCK_SIZE_B_forward: int,
         BLOCK_SIZE_B_backward: int,
     ) -> torch.Tensor:
-        if gradient_clipping is not None:
-            assert gradient_clipping > 0, "gradient_clipping should be a positive number"
+        if activation_function == "relu":
+            assert relu_negative_slope is not None
+        else:
+            assert relu_negative_slope is None
+
+        if gradient_clipping < 0:
+            gradient_clipping = -gradient_clipping
 
         output = torch.empty_like(input)
 
@@ -33,7 +40,13 @@ class _RNN_Cute(torch.autograd.Function):
             assert max_seqlen is None
 
             rnn_forward_triton(
-                input=input, weight=weight, input_state=input_state, output=output, BLOCK_SIZE_B=BLOCK_SIZE_B_forward
+                input=input,
+                weight=weight,
+                input_state=input_state,
+                output=output,
+                activation_function=activation_function,
+                relu_negative_slope=relu_negative_slope,
+                BLOCK_SIZE_B=BLOCK_SIZE_B_forward,
             )
         else:
             assert max_seqlen is not None
@@ -47,6 +60,8 @@ class _RNN_Cute(torch.autograd.Function):
                 cu_seqlens=cu_seqlens,
                 max_seqlen_tensor=max_seqlen if is_max_seqlen_tensor else None,
                 max_seqlen=None if is_max_seqlen_tensor else max_seqlen,
+                activation_function=activation_function,
+                relu_negative_slope=relu_negative_slope,
                 BLOCK_SIZE_B=BLOCK_SIZE_B_forward,
             )
 
@@ -104,6 +119,8 @@ def rnn_cute(
     gradient_clipping: float | None = None,
     cu_seqlens: torch.Tensor | None = None,
     max_seqlen: torch.Tensor | int | None = None,
+    activation_function: str = "tanh",
+    relu_negative_slope: float | None = None,
     *,
     BLOCK_SIZE_B_forward: int = 32,
     BLOCK_SIZE_B_backward: int = 32,
@@ -136,6 +153,8 @@ def rnn_cute(
         gradient_clipping,
         cu_seqlens,
         max_seqlen,
+        activation_function,
+        relu_negative_slope,
         BLOCK_SIZE_B_forward,
         BLOCK_SIZE_B_backward,
     )
