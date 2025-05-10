@@ -2,20 +2,21 @@
 #include <cuda_runtime.h>
 #include <torch/extension.h>
 
+#include "cute/tensor.hpp"
 #include "include/cute_kernels.h"
-#include "index.cuh"
 
 namespace ck = cute_kernels;
 namespace ck_mem = cute_kernels::memory;
+using namespace cute;
 
 using uint32 = ck::uint32;
 using fp32 = ck::fp32;
 
 template <typename scalar_t>
-__global__ void _shared_memory_gemm_cuda_kernel(const scalar_t *A,
-                                                const scalar_t *B,
-                                                const scalar_t *C,
-                                                scalar_t *output,
+__global__ void _shared_memory_gemm_cuda_kernel(const scalar_t *_A,
+                                                const scalar_t *_B,
+                                                const scalar_t *_C,
+                                                scalar_t *_output,
                                                 const fp32 alpha,
                                                 const fp32 beta,
                                                 const uint32 M,
@@ -26,27 +27,40 @@ __global__ void _shared_memory_gemm_cuda_kernel(const scalar_t *A,
 
     scalar_t *shared_memory = ck_mem::get_dynamic_shared_memory<scalar_t>();
 
-    scalar_t *A_shared = shared_memory;
-    scalar_t *B_shared = &shared_memory[blockDim.x * blockDim.x];
+    scalar_t *_A_shared = shared_memory;
+    scalar_t *_B_shared = &shared_memory[blockDim.x * blockDim.x];
+
+    Layout layout_A_shared = make_layout(make_shape(blockDim.x, blockDim.x), make_stride(blockDim.x, 1));
+    Tensor A_shared = make_tensor(make_smem_ptr(_A_shared), layout_A_shared);
+    Tensor B_shared = make_tensor(make_smem_ptr(_B_shared), layout_A_shared);
+
+    Layout layout_A = make_layout(make_shape(M, K), make_stride(K, 1));
+    Tensor A = make_tensor(make_gmem_ptr(_A), layout_A);
+
+    Layout layout_B = make_layout(make_shape(K, N), make_stride(N, 1));
+    Tensor B = make_tensor(make_gmem_ptr(_B), layout_B);
+
+    Layout layout_C = make_layout(make_shape(M, N), make_stride(N, 1));
+    Tensor C = make_tensor(make_gmem_ptr(_C), layout_C);
+
+    Tensor output = make_tensor(make_gmem_ptr(_output), layout_C);
 
     fp32 accumulator = 0;
 
     // clang-format off
-    #pragma unroll 128
+    #pragma unroll
     // clang-format on
     for (uint32 k = 0; k < K; k += blockDim.x) {
-        const uint32 index = get_matrix_index<uint32, false>(threadIdx.y, threadIdx.x, blockDim.x, blockDim.x);
-
         // instead of looping over k dimension, we use the threads in the block to load the data to shared memory
         uint32 k_offset = k + threadIdx.x;
         if (i < M && k_offset < K) {
-            A_shared[index] = A[get_matrix_index<uint32, false>(i, k_offset, M, K)];
+            A_shared(threadIdx.y, threadIdx.x) = A(i, k_offset);
         }
 
         // instead of looping over k dimension, we use the threads in the block to load the data to shared memory
         k_offset = k + threadIdx.y;
         if (j < N && k_offset < K) {
-            B_shared[index] = B[get_matrix_index<uint32, false>(k_offset, j, K, N)];
+            B_shared(threadIdx.y, threadIdx.x) = B(k_offset, j);
         }
 
         __syncthreads();
@@ -54,8 +68,7 @@ __global__ void _shared_memory_gemm_cuda_kernel(const scalar_t *A,
         if (i < M && j < N) {
             const uint32 max_q = min(K - k, blockDim.x);
             for (uint32 q = 0; q < max_q; q++) {
-                accumulator += A_shared[get_matrix_index<uint32, false>(threadIdx.y, q, blockDim.x, blockDim.x)] *
-                               B_shared[get_matrix_index<uint32, false>(q, threadIdx.x, blockDim.x, blockDim.x)];
+                accumulator += A_shared(threadIdx.y, q) * B_shared(q, threadIdx.x);
             }
         }
 
@@ -65,19 +78,18 @@ __global__ void _shared_memory_gemm_cuda_kernel(const scalar_t *A,
 
     if (i < M && j < N) {
         accumulator *= alpha;
-        const uint32 index = get_matrix_index<uint32, false>(i, j, M, N);
 
         if (beta != 0) {
-            accumulator += beta * C[index];
+            accumulator += beta * C(i, j);
         }
 
-        output[index] = accumulator;
+        output(i, j) = accumulator;
     }
 }
 
 void shared_memory_gemm_cuda(const torch::Tensor &A,
                              const torch::Tensor &B,
-                             std::optional<torch::Tensor> &C,
+                             std::optional<torch::Tensor> &_C,
                              torch::Tensor &output,
                              const bool &is_A_transposed,
                              const bool &is_B_transposed,
@@ -89,8 +101,8 @@ void shared_memory_gemm_cuda(const torch::Tensor &A,
                              const uint32 &BLOCK_SIZE) {
     CHECK_CUDA_TENSOR(A);
     CHECK_CUDA_TENSOR(B);
-    if (C.has_value()) {
-        CHECK_CUDA_TENSOR(C.value());
+    if (_C.has_value()) {
+        CHECK_CUDA_TENSOR(_C.value());
     }
     CHECK_CUDA_TENSOR(output);
 
@@ -107,7 +119,7 @@ void shared_memory_gemm_cuda(const torch::Tensor &A,
                                   <<<NUM_BLOCKS, BLOCK_SIZE_dim, 2 * BLOCK_SIZE * BLOCK_SIZE * sizeof(scalar_t)>>>(
                                       A.data_ptr<scalar_t>(),
                                       B.data_ptr<scalar_t>(),
-                                      C.has_value() ? C.value().data_ptr<scalar_t>() : nullptr,
+                                      _C.has_value() ? _C.value().data_ptr<scalar_t>() : nullptr,
                                       output.data_ptr<scalar_t>(),
                                       alpha,
                                       beta,
