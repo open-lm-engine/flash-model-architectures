@@ -4,7 +4,7 @@ import triton.language as tl
 
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
-from ....triton_math import tanh
+from ....triton_math import leaky_relu, tanh
 from ....utils import cute_op
 
 
@@ -21,6 +21,8 @@ def rnn_varlen_forward_triton_kernel(
     cu_seqlens_ptr,
     is_max_seqlen_tensor: tl.constexpr,
     max_seqlen_ptr,
+    activation_function: tl.constexpr,
+    relu_negative_slope,
     B,
     H,
     BLOCK_SIZE_B: tl.constexpr,
@@ -72,7 +74,11 @@ def rnn_varlen_forward_triton_kernel(
         input = tl.load(input_ptrs, mask=mask, other=0).to(input_dtype)
 
         new_state = tl.dot(input_state, weight, input, allow_tf32=True, out_dtype=out_dtype).to(cast_dtype)
-        new_state = tanh(new_state)
+
+        if activation_function == "tanh":
+            new_state = tanh(new_state)
+        elif activation_function == "leaky_relu":
+            new_state = leaky_relu(new_state, relu_negative_slope)
 
         input_state = new_state * unfinished + input_state * (1 - unfinished)
         input_state = input_state.to(cast_dtype)
@@ -93,6 +99,8 @@ def rnn_varlen_forward_triton(
     cu_seqlens: torch.Tensor,
     max_seqlen_tensor: torch.Tensor | None,
     max_seqlen: int | None,
+    activation_function: str,
+    relu_negative_slope: float | None,
     BLOCK_SIZE_B: int,
 ) -> None:
     _, N, H = input.size()
@@ -119,6 +127,8 @@ def rnn_varlen_forward_triton(
             max_seqlen_ptr=max_seqlen_tensor if is_max_seqlen_tensor else max_seqlen,
             B=B,
             H=H,
+            activation_function=activation_function,
+            relu_negative_slope=relu_negative_slope,
             BLOCK_SIZE_B=BLOCK_SIZE_B,
             BLOCK_SIZE_H=BLOCK_SIZE_H,
         )
