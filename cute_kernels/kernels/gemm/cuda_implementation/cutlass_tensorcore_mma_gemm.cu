@@ -86,7 +86,7 @@ inline void _cutlass_tensorcore_mma_gemm_templated_layout(const fp32 *A,
 
 void cutlass_tensorcore_mma_gemm_cuda(const torch::Tensor &A,
                                       const torch::Tensor &B,
-                                      std::optional<torch::Tensor> &C,
+                                      std::optional<torch::Tensor> &_C,
                                       torch::Tensor &output,
                                       const bool &is_A_transposed,
                                       const bool &is_B_transposed,
@@ -98,13 +98,13 @@ void cutlass_tensorcore_mma_gemm_cuda(const torch::Tensor &A,
     CHECK_CUDA_TENSOR(A);
     CHECK_CUDA_TENSOR(B);
     if (C.has_value()) {
-        CHECK_CUDA_TENSOR(C.value());
+        CHECK_CUDA_TENSOR(_C.value());
     }
     CHECK_CUDA_TENSOR(output);
 
     const fp32 *A_data = A.data_ptr<fp32>();
     const fp32 *B_data = B.data_ptr<fp32>();
-    const fp32 *C_data = C.has_value() ? C.value().data_ptr<fp32>() : nullptr;
+    const fp32 *C_data = _C.has_value() ? _C.value().data_ptr<fp32>() : nullptr;
     fp32 *output_data = output.data_ptr<fp32>();
 
     const int32 _M = ck::safe_cast_uint32_to_int32(M);

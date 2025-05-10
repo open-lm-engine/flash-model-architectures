@@ -53,7 +53,7 @@ inline void _cutlass_gemm_templated_layout(const input_dtype *A,
 
 void cutlass_gemm_cuda(const torch::Tensor &A,
                        const torch::Tensor &B,
-                       std::optional<torch::Tensor> &C,
+                       std::optional<torch::Tensor> &_C,
                        torch::Tensor &output,
                        const bool &is_A_transposed,
                        const bool &is_B_transposed,
@@ -65,7 +65,7 @@ void cutlass_gemm_cuda(const torch::Tensor &A,
     CHECK_CUDA_TENSOR(A);
     CHECK_CUDA_TENSOR(B);
     if (C.has_value()) {
-        CHECK_CUDA_TENSOR(C.value());
+        CHECK_CUDA_TENSOR(_C.value());
     }
     CHECK_CUDA_TENSOR(output);
 
@@ -75,7 +75,7 @@ void cutlass_gemm_cuda(const torch::Tensor &A,
                               const input_dtype *A_data = reinterpret_cast<input_dtype *>(A.data_ptr<scalar_t>());
                               const input_dtype *B_data = reinterpret_cast<input_dtype *>(B.data_ptr<scalar_t>());
                               const input_dtype *C_data =
-                                  C.has_value() ? reinterpret_cast<input_dtype *>(C.value().data_ptr<scalar_t>())
+                                  C.has_value() ? reinterpret_cast<input_dtype *>(_C.value().data_ptr<scalar_t>())
                                                 : nullptr;
                               input_dtype *output_data = reinterpret_cast<input_dtype *>(output.data_ptr<scalar_t>());
 

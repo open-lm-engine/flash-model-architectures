@@ -77,7 +77,7 @@ __global__ void _shared_memory_gemm_cuda_kernel(const scalar_t *A,
 
 void shared_memory_gemm_cuda(const torch::Tensor &A,
                              const torch::Tensor &B,
-                             std::optional<torch::Tensor> &C,
+                             std::optional<torch::Tensor> &_C,
                              torch::Tensor &output,
                              const bool &is_A_transposed,
                              const bool &is_B_transposed,
@@ -89,8 +89,8 @@ void shared_memory_gemm_cuda(const torch::Tensor &A,
                              const uint32 &BLOCK_SIZE) {
     CHECK_CUDA_TENSOR(A);
     CHECK_CUDA_TENSOR(B);
-    if (C.has_value()) {
-        CHECK_CUDA_TENSOR(C.value());
+    if (_C.has_value()) {
+        CHECK_CUDA_TENSOR(_C.value());
     }
     CHECK_CUDA_TENSOR(output);
 
@@ -107,7 +107,7 @@ void shared_memory_gemm_cuda(const torch::Tensor &A,
                                   <<<NUM_BLOCKS, BLOCK_SIZE_dim, 2 * BLOCK_SIZE * BLOCK_SIZE * sizeof(scalar_t)>>>(
                                       A.data_ptr<scalar_t>(),
                                       B.data_ptr<scalar_t>(),
-                                      C.has_value() ? C.value().data_ptr<scalar_t>() : nullptr,
+                                      _C.has_value() ? _C.value().data_ptr<scalar_t>() : nullptr,
                                       output.data_ptr<scalar_t>(),
                                       alpha,
                                       beta,
