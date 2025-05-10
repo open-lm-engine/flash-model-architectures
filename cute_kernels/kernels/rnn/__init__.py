@@ -145,6 +145,8 @@ def rnn_cute(
             implies no clipping. Defaults to None.
         cu_seqlens (torch.Tensor | None, optional): cumulative sequence length (must contain 0 as first element). Defaults to None.
         max_seqlen (torch.Tensor | int | None, optional): max sequence length in the batch. Defaults to None.
+        activation_function (str): activation function, can be "tanh" or "leaky_relu". Defaults to "tanh".
+        relu_negative_slope (float): negative slope for leaky_relu. Defaults to "tanh".
         BLOCK_SIZE_B_forward (int, optional): block size for forward along batch dimension for forward. Defaults to
             32.
         BLOCK_SIZE_B_backward (int, optional): block size for backward along batch dimension for backward. Defaults to
