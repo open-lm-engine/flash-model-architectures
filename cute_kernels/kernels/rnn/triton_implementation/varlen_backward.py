@@ -152,6 +152,8 @@ def rnn_varlen_backward_triton(
     max_seqlen_tensor: torch.Tensor | None,
     max_seqlen: int | None,
     gradient_clipping: float | None,
+    activation_function: str,
+    relu_negative_slope: float | None,
     BLOCK_SIZE_B: int,
 ) -> None:
     _, N, H = output.size()
@@ -180,6 +182,8 @@ def rnn_varlen_backward_triton(
             weight_grad_ptr=weight_grad,
             has_gradient_clipping=gradient_clipping is not None,
             gradient_clipping=gradient_clipping,
+            activation_function=activation_function,
+            relu_negative_slope=relu_negative_slope,
             B=B,
             H=H,
             BLOCK_SIZE_B=BLOCK_SIZE_B,
