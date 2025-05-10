@@ -141,6 +141,8 @@ def rnn_backward_triton(
             weight_grad_ptr=weight_grad,
             has_gradient_clipping=gradient_clipping is not None,
             gradient_clipping=gradient_clipping,
+            activation_function=activation_function,
+            relu_negative_slope=relu_negative_slope,
             B=B,
             S=S,
             H=H,

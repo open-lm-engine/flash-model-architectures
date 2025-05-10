@@ -24,7 +24,7 @@ def _activation_with_clipped_gradients(
         x = x.float()
         x = F.tanh(x)
         x = x.to(original_dtype)
-    elif activation_function == "relu":
+    elif activation_function == "leaky_relu":
         x = F.leaky_relu(x, negative_slope=relu_negative_slope)
     else:
         raise ValueError(f"unexpected activation_function ({activation_function})")
@@ -45,7 +45,7 @@ def rnn_torch(
     activation_function: str = "tanh",
     relu_negative_slope: float | None = None,
 ) -> torch.Tensor:
-    if activation_function == "relu":
+    if activation_function == "leaky_relu":
         assert relu_negative_slope is not None
     else:
         assert relu_negative_slope is None

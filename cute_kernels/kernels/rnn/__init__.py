@@ -26,7 +26,7 @@ class _RNN_Cute(torch.autograd.Function):
         BLOCK_SIZE_B_forward: int,
         BLOCK_SIZE_B_backward: int,
     ) -> torch.Tensor:
-        if activation_function == "relu":
+        if activation_function == "leaky_relu":
             assert relu_negative_slope is not None
         else:
             assert relu_negative_slope is None

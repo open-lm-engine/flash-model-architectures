@@ -21,6 +21,7 @@ class RNNTest(TestCommons):
             [64],  # head_dim
             [4],  # num_heads
             [False, True],  # has_input_state
+            ["tanh", "leaky_relu"],  # activation_function
             [rnn_cute, torch.compile(rnn_cute, fullgraph=True)],  # function
         )
     )
@@ -33,6 +34,7 @@ class RNNTest(TestCommons):
         head_dim: int,
         num_heads: int,
         has_input_state: bool,
+        activation_function: str,
         function: Callable,
     ) -> None:
         set_seed(_SEED)
@@ -51,8 +53,10 @@ class RNNTest(TestCommons):
                 (batch_size, num_heads, head_dim), device=device, dtype=dtype, std=0.01
             )
 
-        y_kernel = function(x_kernel, weight_kernel, input_state_kernel)
-        y_expected = rnn_torch(x_expected, weight_expected, input_state_expected)
+        y_kernel = function(x_kernel, weight_kernel, input_state_kernel, activation_function=activation_function)
+        y_expected = rnn_torch(
+            x_expected, weight_expected, input_state_expected, activation_function=activation_function
+        )
 
         y_kernel.sum().backward()
         y_expected.sum().backward()
@@ -81,6 +85,7 @@ class RNNTest(TestCommons):
             [64],  # head_dim
             [4],  # num_heads
             [False, True],  # has_input_state
+            ["tanh", "leaky_relu"],  # activation_function
         )
     )
     def test_rnn_varlen_torch(
@@ -91,6 +96,7 @@ class RNNTest(TestCommons):
         head_dim: int,
         num_heads: int,
         has_input_state: bool,
+        activation_function: str,
     ) -> None:
         set_seed(_SEED)
 
@@ -114,7 +120,12 @@ class RNNTest(TestCommons):
             )
 
         y_kernel = rnn_torch(
-            x_packed_kernel, weight_kernel, input_state_kernel, cu_seqlens=cu_seqlens, max_seqlen=max_seqlen
+            x_packed_kernel,
+            weight_kernel,
+            input_state_kernel,
+            cu_seqlens=cu_seqlens,
+            max_seqlen=max_seqlen,
+            activation_function=activation_function,
         )
 
         y_expected = []
@@ -123,6 +134,7 @@ class RNNTest(TestCommons):
                 x_packed_expected[cu_seqlens[i] : cu_seqlens[i + 1]].unsqueeze(0),
                 weight_expected,
                 input_state_expected[i].unsqueeze(0) if has_input_state else None,
+                activation_function=activation_function,
             ).squeeze(0)
             y_expected.append(y)
         y_expected = torch.cat(y_expected)
@@ -152,6 +164,7 @@ class RNNTest(TestCommons):
             [64],  # head_dim
             [4],  # num_heads
             [False, True],  # has_input_state
+            ["tanh", "leaky_relu"],  # activation_function
         )
     )
     def test_rnn_varlen_cute(
@@ -162,6 +175,7 @@ class RNNTest(TestCommons):
         head_dim: int,
         num_heads: int,
         has_input_state: bool,
+        activation_function: str,
     ) -> None:
         set_seed(_SEED)
 
@@ -184,9 +198,21 @@ class RNNTest(TestCommons):
                 (batch_size, num_heads, head_dim), device=device, dtype=dtype, std=0.01
             )
 
-        y_kernel = rnn_cute(x_kernel, weight_kernel, input_state_kernel, cu_seqlens=cu_seqlens, max_seqlen=max_seqlen)
+        y_kernel = rnn_cute(
+            x_kernel,
+            weight_kernel,
+            input_state_kernel,
+            cu_seqlens=cu_seqlens,
+            max_seqlen=max_seqlen,
+            activation_function=activation_function,
+        )
         y_expected = rnn_torch(
-            x_expected, weight_expected, input_state_expected, cu_seqlens=cu_seqlens, max_seqlen=max_seqlen
+            x_expected,
+            weight_expected,
+            input_state_expected,
+            cu_seqlens=cu_seqlens,
+            max_seqlen=max_seqlen,
+            activation_function=activation_function,
         )
 
         y_kernel.sum().backward()
