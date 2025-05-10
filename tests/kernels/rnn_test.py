@@ -33,7 +33,6 @@ class RNNTest(TestCommons):
         head_dim: int,
         num_heads: int,
         has_input_state: bool,
-        activation_function: str,
         function: Callable,
     ) -> None:
         set_seed(_SEED)
@@ -186,7 +185,6 @@ class RNNTest(TestCommons):
             )
 
         y_kernel = rnn_cute(x_kernel, weight_kernel, input_state_kernel, cu_seqlens=cu_seqlens, max_seqlen=max_seqlen)
-
         y_expected = rnn_torch(
             x_expected, weight_expected, input_state_expected, cu_seqlens=cu_seqlens, max_seqlen=max_seqlen
         )
