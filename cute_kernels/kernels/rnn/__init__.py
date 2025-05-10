@@ -31,7 +31,7 @@ class _RNN_Cute(torch.autograd.Function):
         else:
             assert relu_negative_slope is None
 
-        if gradient_clipping < 0:
+        if gradient_clipping is not None and gradient_clipping < 0:
             gradient_clipping = -gradient_clipping
 
         output = torch.empty_like(input)
