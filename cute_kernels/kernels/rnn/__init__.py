@@ -67,6 +67,8 @@ class _RNN_Cute(torch.autograd.Function):
 
         ctx.save_for_backward(weight, output, input_state, cu_seqlens, max_seqlen)
         ctx.gradient_clipping = gradient_clipping
+        ctx.activation_function = activation_function
+        ctx.relu_negative_slope = relu_negative_slope
         ctx.BLOCK_SIZE_B_backward = BLOCK_SIZE_B_backward
 
         return output
@@ -80,6 +82,8 @@ class _RNN_Cute(torch.autograd.Function):
 
         BLOCK_SIZE_B = ctx.BLOCK_SIZE_B_backward
         gradient_clipping = ctx.gradient_clipping
+        activation_function = ctx.activation_function
+        relu_negative_slope = ctx.relu_negative_slope
 
         if cu_seqlens is None:
             rnn_backward_triton(
@@ -90,6 +94,8 @@ class _RNN_Cute(torch.autograd.Function):
                 input_grad=input_grad,
                 weight_grad=weight_grad,
                 gradient_clipping=gradient_clipping,
+                activation_function=activation_function,
+                relu_negative_slope=relu_negative_slope,
                 BLOCK_SIZE_B=BLOCK_SIZE_B,
             )
         else:
@@ -106,6 +112,8 @@ class _RNN_Cute(torch.autograd.Function):
                 max_seqlen_tensor=max_seqlen if is_max_seqlen_tensor else None,
                 max_seqlen=None if is_max_seqlen_tensor else max_seqlen,
                 gradient_clipping=gradient_clipping,
+                activation_function=activation_function,
+                relu_negative_slope=relu_negative_slope,
                 BLOCK_SIZE_B=BLOCK_SIZE_B,
             )
 

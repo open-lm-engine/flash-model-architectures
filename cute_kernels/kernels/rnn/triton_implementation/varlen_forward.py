@@ -125,10 +125,10 @@ def rnn_varlen_forward_triton(
             cu_seqlens_ptr=cu_seqlens,
             is_max_seqlen_tensor=is_max_seqlen_tensor,
             max_seqlen_ptr=max_seqlen_tensor if is_max_seqlen_tensor else max_seqlen,
-            B=B,
-            H=H,
             activation_function=activation_function,
             relu_negative_slope=relu_negative_slope,
+            B=B,
+            H=H,
             BLOCK_SIZE_B=BLOCK_SIZE_B,
             BLOCK_SIZE_H=BLOCK_SIZE_H,
         )

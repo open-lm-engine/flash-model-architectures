@@ -6,7 +6,7 @@ from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
 from ....triton_math import clamp
 from ....utils import cute_op
-from .backward import _tanh_backward
+from .backward import _leaky_relu_backward, _tanh_backward
 
 
 @triton.jit
@@ -49,6 +49,8 @@ def rnn_varlen_backward_triton_kernel(
     weight_grad_ptr,
     has_gradient_clipping: tl.constexpr,
     gradient_clipping,
+    activation_function: tl.constexpr,
+    relu_negative_slope,
     B,
     H,
     BLOCK_SIZE_B: tl.constexpr,
@@ -97,7 +99,11 @@ def rnn_varlen_backward_triton_kernel(
         if has_gradient_clipping:
             input_state_grad = clamp(input_state_grad, min_value=-gradient_clipping, max_value=gradient_clipping)
 
-        input_grad = (output_grad + input_state_grad) * _tanh_backward(output)
+        input_grad = output_grad + input_state_grad
+        if activation_function == "tanh":
+            input_grad *= _tanh_backward(output)
+        elif activation_function == "leaky_relu":
+            input_grad *= _leaky_relu_backward(output, relu_negative_slope)
 
         input_grad_ptrs = input_grad_ptr + indices
         tl.store(input_grad_ptrs, input_grad, mask=mask)
