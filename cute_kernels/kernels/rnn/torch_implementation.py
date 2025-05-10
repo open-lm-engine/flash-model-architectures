@@ -15,11 +15,24 @@ class _GradientClipping(torch.autograd.Function):
         return x_grad, None
 
 
-def clip_gradients(x: torch.Tensor, gradient_clipping: float | None) -> torch.Tensor:
-    if gradient_clipping is None:
-        return x
+def _activation_with_clipped_gradients(
+    x: torch.Tensor, activation_function: str, relu_negative_slope: float | None, gradient_clipping: float | None
+) -> torch.Tensor:
+    original_dtype = x.dtype
 
-    return _GradientClipping.apply(x, gradient_clipping)
+    if activation_function == "tanh":
+        x = x.float()
+        x = F.tanh(x)
+        x = x.to(original_dtype)
+    elif activation_function == "relu":
+        x = F.leaky_relu(x, negative_slope=relu_negative_slope)
+    else:
+        raise ValueError(f"unexpected activation_function ({activation_function})")
+
+    if gradient_clipping is not None:
+        x = _GradientClipping.apply(x, gradient_clipping)
+
+    return x
 
 
 def rnn_torch(
@@ -29,7 +42,17 @@ def rnn_torch(
     gradient_clipping: float | None = None,
     cu_seqlens: torch.Tensor | None = None,
     max_seqlen: torch.Tensor | int | None = None,
+    activation_function: str = "tanh",
+    relu_negative_slope: float | None = None,
 ) -> torch.Tensor:
+    if activation_function == "relu":
+        assert relu_negative_slope is not None
+    else:
+        assert relu_negative_slope is None
+
+    if gradient_clipping < 0:
+        gradient_clipping = -gradient_clipping
+
     output = torch.empty_like(input)
 
     if cu_seqlens is None:
@@ -52,10 +75,12 @@ def rnn_torch(
             # (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
             input_state = input_state @ weight + input[:, s, ...]
 
-            input_state = input_state.float()
-            input_state = F.tanh(input_state)
-            input_state = clip_gradients(input_state, gradient_clipping)
-            input_state = input_state.type_as(input)
+            input_state = _activation_with_clipped_gradients(
+                x=input_state,
+                activation_function=activation_function,
+                relu_negative_slope=relu_negative_slope,
+                gradient_clipping=gradient_clipping,
+            )
 
             input_state = input_state.squeeze(-2)
 
@@ -89,10 +114,12 @@ def rnn_torch(
             # (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
             new_state = new_state[unfinished] @ weight + input[offset[unfinished], ...]
 
-            new_state = new_state.float()
-            new_state = F.tanh(new_state)
-            new_state = clip_gradients(new_state, gradient_clipping)
-            new_state = new_state.type_as(input)
+            new_state = _activation_with_clipped_gradients(
+                x=new_state,
+                activation_function=activation_function,
+                relu_negative_slope=relu_negative_slope,
+                gradient_clipping=gradient_clipping,
+            )
 
             new_state = new_state.squeeze(-2)
 
