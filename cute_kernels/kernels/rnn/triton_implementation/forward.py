@@ -4,7 +4,7 @@ import triton.language as tl
 
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
-from ....triton_math import tanh
+from ....triton_math import leaky_relu, tanh
 from ....utils import cute_op
 
 
@@ -19,6 +19,8 @@ def rnn_forward_triton_kernel(
     input_state_ptr,
     input_state_stride_b,
     output_ptr,
+    activation_function: tl.constexpr,
+    relu_negative_slope,
     B,
     S,
     H,
@@ -59,7 +61,11 @@ def rnn_forward_triton_kernel(
         input = tl.load(input_ptrs, mask=mask_bh, other=0).to(input_dtype)
 
         input_state = tl.dot(input_state, weight, input, allow_tf32=True, out_dtype=out_dtype).to(cast_dtype)
-        input_state = tanh(input_state)
+
+        if activation_function == "tanh":
+            input_state = tanh(input_state)
+        elif activation_function == "leaky_relu":
+            input_state = leaky_relu(input_state, relu_negative_slope)
 
         output_ptrs = output_ptr + indices
         tl.store(output_ptrs, input_state, mask=mask_bh)
@@ -73,6 +79,8 @@ def rnn_forward_triton(
     weight: torch.Tensor,
     input_state: torch.Tensor | None,
     output: torch.Tensor,
+    activation_function: str,
+    relu_negative_slope: float | None,
     BLOCK_SIZE_B: int,
 ) -> None:
     B, S, N, H = input.size()
@@ -93,6 +101,8 @@ def rnn_forward_triton(
             input_state_ptr=input_state,
             input_state_stride_b=input_state.stride(0) if has_input_state else None,
             output_ptr=output,
+            activation_function=activation_function,
+            relu_negative_slope=relu_negative_slope,
             B=B,
             S=S,
             H=H,
