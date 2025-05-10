@@ -51,8 +51,6 @@ __global__ void _shared_memory_gemm_cuda_kernel(const scalar_t *_A,
     #pragma unroll
     // clang-format on
     for (uint32 k = 0; k < K; k += blockDim.x) {
-        const uint32 index = get_matrix_index<uint32, false>(threadIdx.y, threadIdx.x, blockDim.x, blockDim.x);
-
         // instead of looping over k dimension, we use the threads in the block to load the data to shared memory
         uint32 k_offset = k + threadIdx.x;
         if (i < M && k_offset < K) {
