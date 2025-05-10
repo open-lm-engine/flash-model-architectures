@@ -64,7 +64,7 @@ void cutlass_gemm_cuda(const torch::Tensor &A,
                        const uint32 &N) {
     CHECK_CUDA_TENSOR(A);
     CHECK_CUDA_TENSOR(B);
-    if (C.has_value()) {
+    if (_C.has_value()) {
         CHECK_CUDA_TENSOR(_C.value());
     }
     CHECK_CUDA_TENSOR(output);
