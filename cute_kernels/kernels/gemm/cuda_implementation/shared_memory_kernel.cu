@@ -28,12 +28,12 @@ __global__ void _shared_memory_gemm_cuda_kernel(const scalar_t *_A,
 
     scalar_t *shared_memory = ck_mem::get_dynamic_shared_memory<scalar_t>();
 
-    scalar_t *_As = shared_memory;
-    scalar_t *_Bs = &shared_memory[blockDim.x * blockDim.x];
+    scalar_t *_A_shared = shared_memory;
+    scalar_t *_B_shared = &shared_memory[blockDim.x * blockDim.x];
 
-    Layout layout_As = make_layout(make_shape(blockDim.x, blockDim.x), make_stride(blockDim.x, 1));
-    Tensor As = make_tensor(make_smem_ptr(_As), layout_As);
-    Tensor Bs = make_tensor(make_smem_ptr(_Bs), layout_As);
+    Layout layout_A_shared = make_layout(make_shape(blockDim.x, blockDim.x), make_stride(blockDim.x, 1));
+    Tensor A_shared = make_tensor(make_smem_ptr(_A_shared), layout_A_shared);
+    Tensor B_shared = make_tensor(make_smem_ptr(_B_shared), layout_A_shared);
 
     Layout layout_A = make_layout(make_shape(M, K), make_stride(K, 1));
     Tensor A = make_tensor(make_gmem_ptr(_A), layout_A);
@@ -57,13 +57,13 @@ __global__ void _shared_memory_gemm_cuda_kernel(const scalar_t *_A,
         // instead of looping over k dimension, we use the threads in the block to load the data to shared memory
         uint32 k_offset = k + threadIdx.x;
         if (i < M && k_offset < K) {
-            As(threadIdx.y, threadIdx.x) = A(i, k_offset);
+            A_shared(threadIdx.y, threadIdx.x) = A(i, k_offset);
         }
 
         // instead of looping over k dimension, we use the threads in the block to load the data to shared memory
         k_offset = k + threadIdx.y;
         if (j < N && k_offset < K) {
-            Bs(threadIdx.y, threadIdx.x) = B(k_offset, j);
+            B_shared(threadIdx.y, threadIdx.x) = B(k_offset, j);
         }
 
         __syncthreads();
@@ -71,7 +71,7 @@ __global__ void _shared_memory_gemm_cuda_kernel(const scalar_t *_A,
         if (i < M && j < N) {
             const uint32 max_q = min(K - k, blockDim.x);
             for (uint32 q = 0; q < max_q; q++) {
-                accumulator += As(threadIdx.y, q) * Bs(q, threadIdx.x);
+                accumulator += A_shared(threadIdx.y, q) * B_shared(q, threadIdx.x);
             }
         }
 
