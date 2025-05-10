@@ -4,7 +4,6 @@
 
 #include "cute/tensor.hpp"
 #include "include/cute_kernels.h"
-#include "index.cuh"
 
 namespace ck = cute_kernels;
 namespace ck_mem = cute_kernels::memory;
