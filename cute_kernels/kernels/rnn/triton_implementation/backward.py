@@ -22,6 +22,7 @@ def _tanh_backward(y):
 @triton.jit
 def _leaky_relu_backward(y, relu_negative_slope):
     dtype = y.dtype
+
     y = tl.where(y >= 0, 1, relu_negative_slope)
     y = y.to(dtype)
 
