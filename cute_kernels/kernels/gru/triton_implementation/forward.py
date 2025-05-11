@@ -78,19 +78,6 @@ def gru_forward_triton_kernel(
         cast_dtype = tl.bfloat16
 
     for _ in range(S):
-        forget_gate = sigmoid(
-            _load_and_dot(
-                input_ptr=forget_input_ptr,
-                indices=indices,
-                mask_bh=mask_bh,
-                input_dtype=input_dtype,
-                weight=forget_weight,
-                input_state=input_state,
-                out_dtype=out_dtype,
-                cast_dtype=cast_dtype,
-            )
-        )
-
         reset_gate = sigmoid(
             _load_and_dot(
                 input_ptr=reset_input_ptr,
@@ -112,6 +99,19 @@ def gru_forward_triton_kernel(
                 input_dtype=input_dtype,
                 weight=weight,
                 input_state=input_state * reset_gate,
+                out_dtype=out_dtype,
+                cast_dtype=cast_dtype,
+            )
+        )
+
+        forget_gate = sigmoid(
+            _load_and_dot(
+                input_ptr=forget_input_ptr,
+                indices=indices,
+                mask_bh=mask_bh,
+                input_dtype=input_dtype,
+                weight=forget_weight,
+                input_state=input_state,
                 out_dtype=out_dtype,
                 cast_dtype=cast_dtype,
             )
