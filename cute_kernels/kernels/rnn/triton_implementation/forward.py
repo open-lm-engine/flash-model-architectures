@@ -71,22 +71,17 @@ def rnn_forward_triton_kernel(
         cast_dtype = tl.bfloat16
 
     for _ in range(S):
-        input_ptrs = input_ptr + indices
-        input = tl.load(input_ptrs, mask=mask_bh, other=0).to(input_dtype)
-
         input_state = _rnn_forward_update(
             input_state=input_state,
             weight=weight,
-            input=input,
+            input=tl.load(input_ptr + indices, mask=mask_bh, other=0).to(input_dtype),
             out_dtype=out_dtype,
             cast_dtype=cast_dtype,
             ACTIVATION_FUNCTION=ACTIVATION_FUNCTION,
             relu_negative_slope=relu_negative_slope,
         )
 
-        output_ptrs = output_ptr + indices
-        tl.store(output_ptrs, input_state, mask=mask_bh)
-
+        tl.store(output_ptr + indices, input_state, mask=mask_bh)
         indices += input_stride_s
 
 
