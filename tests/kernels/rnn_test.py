@@ -42,8 +42,6 @@ class RNNTest(TestCommons):
                 batch_size=batch_size,
                 sequence_length=sequence_length,
                 total_tokens=None,
-                batch_size=batch_size,
-                sequence_length=sequence_length,
                 num_heads=num_heads,
                 head_dim=head_dim,
                 has_input_state=has_input_state,
