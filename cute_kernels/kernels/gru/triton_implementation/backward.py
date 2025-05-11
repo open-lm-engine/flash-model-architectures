@@ -92,6 +92,18 @@ def gru_backward_triton_kernel(
 
         tl.store(forget_input_grad_ptr + indices, forget_input_grad, mask=mask_bh)
 
+        reset_input_grad, reset_weight_grad, input_state_grad_from_reset_gate = _rnn_backward_update(
+            output=reset_gate,
+            weight=reset_weight,
+            output_grad=reset_gate_grad,
+            weight_grad=reset_weight_grad,
+            output_prev=output_prev,
+            ACTIVATION_FUNCTION="sigmoid",
+            relu_negative_slope=None,
+        )
+
+        tl.store(reset_input_grad_ptr + indices, reset_input_grad, mask=mask_bh)
+
         indices -= output_stride_s
 
         output_prev = _load_previous_output(
