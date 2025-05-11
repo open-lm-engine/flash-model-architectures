@@ -79,15 +79,15 @@ def gru_torch(
 
             # don't update the finished sequences
             # (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
-            forget_gate = sigmoid(new_state @ forget_weight + forget_input[offset_unfinished, ...])
-            reset_gate = sigmoid(new_state @ reset_weight + reset_input[offset_unfinished, ...])
+            forget_gate = sigmoid(new_state @ forget_weight + forget_input[offset_unfinished])
+            reset_gate = sigmoid(new_state @ reset_weight + reset_input[offset_unfinished])
 
-            possible_new_state = tanh((new_state * reset_gate) @ weight + input[offset_unfinished, ...])
+            possible_new_state = tanh((new_state * reset_gate) @ weight + input[offset_unfinished])
             new_state = forget_gate * new_state + (1 - forget_gate) * possible_new_state
 
             new_state = new_state.squeeze(-2)
 
-            output[offset[unfinished], ...] = new_state
+            output[offset[unfinished]] = new_state
             input_state[unfinished] = new_state
 
     return output
