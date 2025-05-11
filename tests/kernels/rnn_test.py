@@ -236,7 +236,7 @@ class RNNTest(TestCommons):
             gradient_clipping=None,
             activation_function="tanh",
             relu_negative_slope=None,
-        )
+        ).to(device, dtype)
 
         batch_size = len(cu_seqlens) - 1 if cu_seqlens is None else 4
         cu_seqlens = None if cu_seqlens is None else torch.tensor(cu_seqlens, device=device)
