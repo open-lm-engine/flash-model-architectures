@@ -82,7 +82,7 @@ def gru_torch(
             forget_gate = sigmoid(new_state @ forget_weight + forget_input[offset_unfinished, ...])
             reset_gate = sigmoid(new_state @ reset_weight + reset_input[offset_unfinished, ...])
 
-            possible_new_state = tanh((input_state * reset_gate) @ weight + input[offset_unfinished, ...])
+            possible_new_state = tanh((new_state * reset_gate) @ weight + input[offset_unfinished, ...])
             new_state = forget_gate * new_state + (1 - forget_gate) * possible_new_state
 
             new_state = new_state.squeeze(-2)
