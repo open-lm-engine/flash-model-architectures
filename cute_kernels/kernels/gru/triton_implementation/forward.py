@@ -46,18 +46,14 @@ def gru_forward_triton_kernel(
     indices = pid_n * weight_stride_n + indices_h[:, None] * H + indices_h[None, :]
     mask_hh = mask_h[:, None] & mask_h[None, :]
 
-    weight_ptrs = weight_ptr + indices
-    weight = tl.load(weight_ptrs, mask=mask_hh, other=0)
-
-    forget_weight_ptrs = forget_weight_ptr + indices
-    forget_weight = tl.load(forget_weight_ptrs, mask=mask_hh, other=0)
-
-    reset_weight_ptrs = reset_weight_ptr + indices
-    reset_weight = tl.load(reset_weight_ptrs, mask=mask_hh, other=0)
+    weight = tl.load(weight_ptr + indices, mask=mask_hh, other=0)
+    forget_weight = tl.load(forget_weight_ptr + indices, mask=mask_hh, other=0)
+    reset_weight = tl.load(reset_weight_ptr + indices, mask=mask_hh, other=0)
 
     if HAS_INPUT_STATE:
-        input_state_ptrs = input_state_ptr + indices_b[:, None] * input_state_stride_b + pid_n * H + indices_h[None, :]
-        input_state = tl.load(input_state_ptrs, mask=mask_bh)
+        input_state = tl.load(
+            input_state_ptr + indices_b[:, None] * input_state_stride_b + pid_n * H + indices_h[None, :], mask=mask_bh
+        )
     else:
         input_state = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=input_ptr.dtype.element_ty)
 
