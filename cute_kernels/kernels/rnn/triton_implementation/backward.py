@@ -93,17 +93,6 @@ def rnn_backward_triton_kernel(
             input_state_grad = clamp(input_state_grad, min_value=-gradient_clipping, max_value=gradient_clipping)
 
         input_grad = output_grad + input_state_grad
-        if ACTIVATION_FUNCTION == "leaky_relu":
-            input_grad *= _leaky_relu_backward(output, relu_negative_slope)
-        elif ACTIVATION_FUNCTION == "sigmoid":
-            input_grad *= _sigmoid_backward(output)
-        elif ACTIVATION_FUNCTION == "tanh":
-            input_grad *= _tanh_backward(output)
-
-        input_grad_ptrs = input_grad_ptr + indices
-        tl.store(input_grad_ptrs, input_grad, mask=mask_bh)
-
-        input_state_grad = tl.dot(input_grad, weight.T, allow_tf32=True).to(input_state_grad.dtype)
 
         if s == 0:
             if HAS_INPUT_STATE:
@@ -117,7 +106,19 @@ def rnn_backward_triton_kernel(
             output_ptrs -= output_stride_s
             output_prev = tl.load(output_ptrs, mask=mask_bh, other=0)
 
+        if ACTIVATION_FUNCTION == "leaky_relu":
+            input_grad *= _leaky_relu_backward(output, relu_negative_slope)
+        elif ACTIVATION_FUNCTION == "sigmoid":
+            input_grad *= _sigmoid_backward(output)
+        elif ACTIVATION_FUNCTION == "tanh":
+            input_grad *= _tanh_backward(output)
+
+        input_grad_ptrs = input_grad_ptr + indices
+        tl.store(input_grad_ptrs, input_grad, mask=mask_bh)
+
+        input_state_grad = tl.dot(input_grad, weight.T, allow_tf32=True).to(input_state_grad.dtype)
         weight_grad = tl.dot(output_prev.T, input_grad, weight_grad, allow_tf32=True)
+
         output = output_prev
 
         indices -= output_stride_s

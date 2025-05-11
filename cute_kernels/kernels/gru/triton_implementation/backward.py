@@ -6,7 +6,7 @@ from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
 from ....triton_math import clamp
 from ....utils import cute_op
-from ...rnn.triton_implementation.backward import _leaky_relu_backward, _tanh_backward
+from ...rnn.triton_implementation.backward import _sigmoid_backward, _tanh_backward
 
 
 @triton.jit
@@ -16,10 +16,11 @@ def gru_backward_triton_kernel(
     output_ptr,
     output_stride_b,
     output_stride_s,
-    forget_weight_str,
-    forget_gate_str,
-    reset_weight_str,
-    reset_gate_str,
+    forget_weight_ptr,
+    forget_gate_ptr,
+    reset_weight_ptr,
+    reset_gate_ptr,
+    output_update_ptr,
     HAS_INPUT_STATE: tl.constexpr,
     input_state_ptr,
     input_state_stride_b,
@@ -65,11 +66,15 @@ def gru_backward_triton_kernel(
         if HAS_GRADIENT_CLIPPING:
             input_state_grad = clamp(input_state_grad, min_value=-gradient_clipping, max_value=gradient_clipping)
 
-        input_grad = output_grad + input_state_grad
-        if ACTIVATION_FUNCTION == "tanh":
-            input_grad *= _tanh_backward(output)
-        elif ACTIVATION_FUNCTION == "leaky_relu":
-            input_grad *= _leaky_relu_backward(output, relu_negative_slope)
+        forget_gate_ptrs = forget_gate_ptr + indices
+        forget_gate = tl.load(forget_gate_ptrs, mask=mask_bh)
+
+        output_update_ptrs = output_update_ptr + indices
+        output_update = tl.load(output_update_ptrs, mask=mask_bh)
+
+        forget_gate_grad = output_grad + input_state_grad
+        forget_gate_grad *= forget_gate - output_update
+        # forget_gate_grad *= _sigmoid_backward(forget_gate)
 
         input_grad_ptrs = input_grad_ptr + indices
         tl.store(input_grad_ptrs, input_grad, mask=mask_bh)
@@ -105,6 +110,7 @@ def gru_backward_triton(
     forget_gate: torch.Tensor,
     reset_weight: torch.Tensor,
     reset_gate: torch.Tensor,
+    output_update: torch.Tensor,
     input_state: torch.Tensor | None,
     output_grad: torch.Tensor,
     input_grad: torch.Tensor,
@@ -130,6 +136,7 @@ def gru_backward_triton(
             forget_gate_str=forget_gate,
             reset_weight_str=reset_weight,
             reset_gate_str=reset_gate,
+            output_update_ptr=output_update,
             HAS_INPUT_STATE=input_state is not None,
             input_state_ptr=input_state,
             input_state_stride_b=None if input_state is None else input_state.stride(0),
