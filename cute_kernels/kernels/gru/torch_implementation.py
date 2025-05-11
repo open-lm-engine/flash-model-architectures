@@ -43,7 +43,7 @@ def gru_torch(
             possible_new_state = tanh((input_state * reset_gate) @ weight + input[:, s])
             input_state = forget_gate * input_state + (1 - forget_gate) * possible_new_state
 
-            output[:, s, ...] = input_state.squeeze(-2)
+            output[:, s] = input_state.squeeze(-2)
     else:
         assert max_seqlen is not None
         B = cu_seqlens.numel() - 1
