@@ -15,11 +15,8 @@ def _load_output_output_grad(output_ptr, output_grad_ptr, h, H, BLOCK_SIZE_H, in
     indices = indices_b[:, None] * H + indices_h[None, :]
     mask_bh = mask_b[:, None] & mask_h[None, :]
 
-    output_ptrs = output_ptr + indices
-    output = tl.load(output_ptrs, mask=mask_bh)
-
-    output_grad_ptrs = output_grad_ptr + indices
-    output_grad = tl.load(output_grad_ptrs, mask=mask_bh)
+    output = tl.load(output_ptr + indices, mask=mask_bh)
+    output_grad = tl.load(output_grad_ptr + indices, mask=mask_bh)
 
     return output, output_grad, indices, mask_bh
 
@@ -75,8 +72,7 @@ def softmax_backward_triton_kernel(
         if HAS_LOGITS_MULTIPLIER:
             output *= logits_multiplier
 
-        x_grad_ptrs = x_grad_ptr + indices
-        tl.store(x_grad_ptrs, output, mask=mask_bh)
+        tl.store(x_grad_ptr + indices, output, mask=mask_bh)
 
 
 @cute_op(f"{LIBRARY_NAME}::softmax_backward_triton", mutates_args={"x_grad"})

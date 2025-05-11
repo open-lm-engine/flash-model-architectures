@@ -15,8 +15,7 @@ def _load_x(x_ptr, h, H, BLOCK_SIZE_H, indices_b, mask_b, other=None):
     indices = indices_b[:, None] * H + indices_h[None, :]
     mask_bh = mask_b[:, None] & mask_h[None, :]
 
-    x_ptrs = x_ptr + indices
-    x = tl.load(x_ptrs, mask=mask_bh, other=other)
+    x = tl.load(x_ptr + indices, mask=mask_bh, other=other)
 
     return x, indices, mask_bh
 
@@ -72,8 +71,7 @@ def softmax_forward_triton_kernel(
         x = tl.exp(x)
         x /= Z
 
-        output_ptrs = output_ptr + indices
-        tl.store(output_ptrs, x, mask=mask_bh)
+        tl.store(output_ptr + indices, x, mask=mask_bh)
 
 
 @cute_op(f"{LIBRARY_NAME}::softmax_forward_triton", mutates_args={"output"})
