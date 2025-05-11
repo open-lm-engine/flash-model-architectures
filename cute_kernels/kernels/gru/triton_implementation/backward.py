@@ -19,9 +19,11 @@ def gru_backward_triton_kernel(
     forget_weight_ptr,
     forget_gate_ptr,
     forget_input_grad_ptr,
+    forget_weight_grad_ptr,
     reset_weight_ptr,
     reset_gate_ptr,
     reset_input_grad_ptr,
+    reset_weight_grad_ptr,
     output_update_ptr,
     HAS_INPUT_STATE: tl.constexpr,
     input_state_ptr,
@@ -100,15 +102,17 @@ def gru_backward_triton_kernel(
             dtype=weight.dtype,
         )
 
-        input_grad, weight_grad, output_update_grad = _rnn_backward_update(
+        input_grad, weight_grad, reset_gate_times_input_state_grad = _rnn_backward_update(
             output=output_update,
             weight=weight,
-            output_grad=output_update_grad,
+            output_grad=-forget_gate * output_grad,
             weight_grad=weight_grad,
             output_prev=reset_gate * output_prev,
             ACTIVATION_FUNCTION="tanh",
             relu_negative_slope=None,
         )
+
+        tl.store(input_grad_ptrs, input_grad, mask=mask_bh)
 
         forget_input_grad, forget_weight_grad, input_state_grad = _rnn_backward_update(
             output=forget_gate,
@@ -131,12 +135,8 @@ def gru_backward_triton_kernel(
             ACTIVATION_FUNCTION="sigmoid",
             relu_negative_slope=None,
         )
-        input_state_grad += input_state_grad_from_reset_gate
 
         tl.store(reset_input_grad_ptrs, reset_input_grad, mask=mask_bh)
-
-        tl.store(input_grad_ptrs, input_grad, mask=mask_bh)
-        output = output_prev
 
     indices = pid_n * weight_stride_n + indices_h[:, None] * H + indices_h[None, :]
 
