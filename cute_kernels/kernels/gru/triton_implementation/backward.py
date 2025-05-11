@@ -29,8 +29,6 @@ def gru_backward_triton_kernel(
     weight_grad_ptr,
     HAS_GRADIENT_CLIPPING: tl.constexpr,
     gradient_clipping,
-    ACTIVATION_FUNCTION: tl.constexpr,
-    relu_negative_slope,
     B,
     S,
     H,
