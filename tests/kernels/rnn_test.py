@@ -243,7 +243,7 @@ class RNNTest(TestCommons):
         max_seqlen = None if cu_seqlens is None else (cu_seqlens[1:] - cu_seqlens[:-1]).max()
 
         input = (
-            torch.randn(batch_size, cu_seqlens[-1], num_heads, head_dim, device=device, dtype=dtype)
+            torch.randn(batch_size, 1024, num_heads, head_dim, device=device, dtype=dtype)
             if cu_seqlens is None
             else torch.randn(cu_seqlens[-1], num_heads, head_dim, device=device, dtype=dtype)
         )
