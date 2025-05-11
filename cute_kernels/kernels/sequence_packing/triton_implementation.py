@@ -30,8 +30,8 @@ def pack_unpack_sequence_triton_kernel(
     cu_seqlens_ptr,
     S,
     N,
-    padding_side: tl.constexpr,
-    pack: tl.constexpr,
+    PADDING_SIDE: tl.constexpr,
+    PACK: tl.constexpr,
     BLOCK_SIZE: tl.constexpr,
 ):
     s = tl.program_id(axis=0)
@@ -42,13 +42,13 @@ def pack_unpack_sequence_triton_kernel(
     end = tl.load(cu_seqlens_ptrs + 1)
     seqlens = end - start
 
-    if padding_side == "left":
+    if PADDING_SIDE == "left":
         pad_tokens = S - seqlens
         if s >= pad_tokens:
-            _copy_array(x_ptr, output_ptr, b, s, start + s - pad_tokens, S, N, pack, BLOCK_SIZE)
+            _copy_array(x_ptr, output_ptr, b, s, start + s - pad_tokens, S, N, PACK, BLOCK_SIZE)
     else:
         if s < seqlens:
-            _copy_array(x_ptr, output_ptr, b, s, start + s, S, N, pack, BLOCK_SIZE)
+            _copy_array(x_ptr, output_ptr, b, s, start + s, S, N, PACK, BLOCK_SIZE)
 
 
 @cute_op(f"{LIBRARY_NAME}::pack_unpack_sequence_triton", mutates_args={"output"})
@@ -75,8 +75,8 @@ def pack_unpack_sequence_triton(
             cu_seqlens_ptr=cu_seqlens,
             S=S,
             N=N,
-            padding_side=padding_side,
-            pack=pack,
+            PADDING_SIDE=padding_side,
+            PACK=pack,
             BLOCK_SIZE=BLOCK_SIZE,
             num_warps=NUM_WARPS,
         )

@@ -10,7 +10,7 @@ from ....utils import cute_op, get_num_elements_and_hidden_size, get_sm_count
 @triton.jit
 def fused_residual_add_rmsnorm_backward_triton_kernel(
     added_x_residual_ptr,
-    has_weight: tl.constexpr,
+    HAS_WEIGHT: tl.constexpr,
     weight_ptr,
     output_grad_ptr,
     added_x_residual_grad_ptr,
@@ -18,9 +18,9 @@ def fused_residual_add_rmsnorm_backward_triton_kernel(
     residual_grad_ptr,
     weight_grad_ptr,
     eps,
-    has_multiplier: tl.constexpr,
+    HAS_MULTIPLIER: tl.constexpr,
     multiplier,
-    has_rmsnorm_denominator: tl.constexpr,
+    HAS_RMSNORM_DENOMINATOR: tl.constexpr,
     rmsnorm_denominator_ptr,
     B,
     H,
@@ -43,7 +43,7 @@ def fused_residual_add_rmsnorm_backward_triton_kernel(
 
     x_dtype = added_x_residual_ptr.dtype.element_ty
 
-    if has_weight:
+    if HAS_WEIGHT:
         weight = tl.load(weight_ptr + indices_h, mask=mask_h)[None, :]
         weight_grad = tl.zeros((BLOCK_SIZE_H,), dtype=tl.float32)
 
@@ -57,7 +57,7 @@ def fused_residual_add_rmsnorm_backward_triton_kernel(
         added_x_residual_ptrs = added_x_residual_ptr + indices_bh
         added_x_residual = tl.load(added_x_residual_ptrs, mask=mask_bh).to(tl.float32)
 
-        if has_rmsnorm_denominator:
+        if HAS_RMSNORM_DENOMINATOR:
             inverse_rms = tl.load(rmsnorm_denominator_ptr + indices_b, mask=mask_b)
         else:
             squared_sum = tl.sum(added_x_residual * added_x_residual, axis=1)
@@ -67,7 +67,7 @@ def fused_residual_add_rmsnorm_backward_triton_kernel(
         output_grad = tl.load(output_grad_ptrs, mask=mask_bh)
 
         output_grad_weight = output_grad
-        if has_weight:
+        if HAS_WEIGHT:
             output_grad_weight *= weight
 
         output_grad_weight = output_grad_weight.to(tl.float32)
@@ -90,16 +90,16 @@ def fused_residual_add_rmsnorm_backward_triton_kernel(
         residual_grad_ptrs = residual_grad_ptr + indices_bh
         tl.store(residual_grad_ptrs, x_grad, mask=mask_bh)
 
-        if has_multiplier:
+        if HAS_MULTIPLIER:
             x_grad *= multiplier
 
         x_grad_ptrs = x_grad_ptr + indices_bh
         tl.store(x_grad_ptrs, x_grad, mask=mask_bh)
 
-        if has_weight:
+        if HAS_WEIGHT:
             weight_grad += tl.sum(output_grad * (added_x_residual * inverse_rms[:, None]).to(x_dtype), axis=0)
 
-    if has_weight:
+    if HAS_WEIGHT:
         tl.atomic_add(weight_grad_ptr + indices_h, weight_grad, mask=mask_h)
 
 
@@ -131,7 +131,7 @@ def fused_residual_add_rmsnorm_backward_triton(
     with torch.device(added_x_residual.device):
         fused_residual_add_rmsnorm_backward_triton_kernel[num_programs,](
             added_x_residual_ptr=added_x_residual,
-            has_weight=weight is not None,
+            HAS_WEIGHT=weight is not None,
             weight_ptr=weight,
             output_grad_ptr=output_grad,
             added_x_residual_grad_ptr=added_x_residual_grad,
@@ -139,9 +139,9 @@ def fused_residual_add_rmsnorm_backward_triton(
             residual_grad_ptr=residual_grad,
             weight_grad_ptr=weight_grad,
             eps=eps,
-            has_multiplier=multiplier not in [None, 1],
+            HAS_MULTIPLIER=multiplier not in [None, 1],
             multiplier=multiplier,
-            has_rmsnorm_denominator=rmsnorm_denominator is not None,
+            HAS_RMSNORM_DENOMINATOR=rmsnorm_denominator is not None,
             rmsnorm_denominator_ptr=rmsnorm_denominator,
             B=B,
             H=H,

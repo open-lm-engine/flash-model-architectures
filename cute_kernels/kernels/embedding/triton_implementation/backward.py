@@ -14,7 +14,6 @@ def embedding_backward_triton_kernel(
     weight_grad_ptr,
     B,
     H,
-    accumulate_in_fp32: tl.constexpr,
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
@@ -36,9 +35,7 @@ def embedding_backward_triton_kernel(
 
     weight_grad_ptrs = weight_grad_ptr + x[:, None] * H + indices_h[None, :]
 
-    if accumulate_in_fp32:
-        output_grad = output_grad.to(tl.float32)
-
+    output_grad = output_grad.to(tl.float32)
     tl.atomic_add(weight_grad_ptrs, output_grad, mask=mask_bh)
 
 
@@ -53,9 +50,7 @@ def embedding_backward_triton(
     B = input_ids.numel()
     H = weight_grad.size(-1)
 
-    accumulate_in_fp32 = weight_grad.dtype == torch.bfloat16
-    if accumulate_in_fp32:
-        weight_grad = weight_grad.float()
+    weight_grad = weight_grad.float()
 
     with torch.device(input_ids.device):
         embedding_backward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), ceil_divide(H, BLOCK_SIZE_H)](
@@ -64,7 +59,6 @@ def embedding_backward_triton(
             weight_grad_ptr=weight_grad,
             B=B,
             H=H,
-            accumulate_in_fp32=accumulate_in_fp32,
             BLOCK_SIZE_B=BLOCK_SIZE_B,
             BLOCK_SIZE_H=BLOCK_SIZE_H,
         )

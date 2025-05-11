@@ -47,15 +47,15 @@ def rnn_backward_triton_kernel(
     output_ptr,
     output_stride_b,
     output_stride_s,
-    has_input_state: tl.constexpr,
+    HAS_INPUT_STATE: tl.constexpr,
     input_state_ptr,
     input_state_stride_b,
     output_grad_ptr,
     input_grad_ptr,
     weight_grad_ptr,
-    has_gradient_clipping: tl.constexpr,
+    HAS_GRADIENT_CLIPPING: tl.constexpr,
     gradient_clipping,
-    activation_function: tl.constexpr,
+    ACTIVATION_FUNCTION: tl.constexpr,
     relu_negative_slope,
     B,
     S,
@@ -89,15 +89,15 @@ def rnn_backward_triton_kernel(
         output_grad_ptrs = output_grad_ptr + indices
         output_grad = tl.load(output_grad_ptrs, mask=mask_bh, other=0)
 
-        if has_gradient_clipping:
+        if HAS_GRADIENT_CLIPPING:
             input_state_grad = clamp(input_state_grad, min_value=-gradient_clipping, max_value=gradient_clipping)
 
         input_grad = output_grad + input_state_grad
-        if activation_function == "leaky_relu":
+        if ACTIVATION_FUNCTION == "leaky_relu":
             input_grad *= _leaky_relu_backward(output, relu_negative_slope)
-        elif activation_function == "sigmoid":
+        elif ACTIVATION_FUNCTION == "sigmoid":
             input_grad *= _sigmoid_backward(output)
-        elif activation_function == "tanh":
+        elif ACTIVATION_FUNCTION == "tanh":
             input_grad *= _tanh_backward(output)
 
         input_grad_ptrs = input_grad_ptr + indices
@@ -106,7 +106,7 @@ def rnn_backward_triton_kernel(
         input_state_grad = tl.dot(input_grad, weight.T, allow_tf32=True).to(input_state_grad.dtype)
 
         if s == 0:
-            if has_input_state:
+            if HAS_INPUT_STATE:
                 input_state_ptrs = (
                     input_state_ptr + indices_b[:, None] * input_state_stride_b + pid_n * H + indices_h[None, :]
                 )
@@ -151,15 +151,15 @@ def rnn_backward_triton(
             output_ptr=output,
             output_stride_b=output.stride(0),
             output_stride_s=output.stride(1),
-            has_input_state=input_state is not None,
+            HAS_INPUT_STATE=input_state is not None,
             input_state_ptr=input_state,
             input_state_stride_b=None if input_state is None else input_state.stride(0),
             output_grad_ptr=output_grad,
             input_grad_ptr=input_grad,
             weight_grad_ptr=weight_grad,
-            has_gradient_clipping=gradient_clipping is not None,
+            HAS_GRADIENT_CLIPPING=gradient_clipping is not None,
             gradient_clipping=gradient_clipping,
-            activation_function=activation_function,
+            ACTIVATION_FUNCTION=activation_function,
             relu_negative_slope=relu_negative_slope,
             B=B,
             S=S,

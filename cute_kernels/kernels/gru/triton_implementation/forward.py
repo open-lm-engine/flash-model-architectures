@@ -29,7 +29,7 @@ def gru_forward_triton_kernel(
     forget_weight_ptr,
     reset_input_ptr,
     reset_weight_ptr,
-    has_input_state: tl.constexpr,
+    HAS_INPUT_STATE: tl.constexpr,
     input_state_ptr,
     input_state_stride_b,
     output_ptr,
@@ -61,7 +61,7 @@ def gru_forward_triton_kernel(
     reset_weight_ptrs = reset_weight_ptr + indices
     reset_weight = tl.load(reset_weight_ptrs, mask=mask_hh, other=0)
 
-    if has_input_state:
+    if HAS_INPUT_STATE:
         input_state_ptrs = input_state_ptr + indices_b[:, None] * input_state_stride_b + pid_n * H + indices_h[None, :]
         input_state = tl.load(input_state_ptrs, mask=mask_bh)
     else:
@@ -155,7 +155,7 @@ def gru_forward_triton(
             forget_weight_ptr=forget_weight,
             reset_input_ptr=reset_input,
             reset_weight_ptr=reset_weight,
-            has_input_state=has_input_state,
+            HAS_INPUT_STATE=has_input_state,
             input_state_ptr=input_state,
             input_state_stride_b=input_state.stride(0) if has_input_state else None,
             output_ptr=output,
