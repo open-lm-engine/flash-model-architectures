@@ -8,6 +8,7 @@ from ....triton_math import leaky_relu, sigmoid, tanh
 from ....utils import cute_op
 
 
+@triton.jit
 def _rnn_forward_update(input_state, weight, input, out_dtype, cast_dtype, relu_negative_slope, ACTIVATION_FUNCTION):
     input_state = tl.dot(input_state, weight, input, allow_tf32=True, out_dtype=out_dtype).to(cast_dtype)
 

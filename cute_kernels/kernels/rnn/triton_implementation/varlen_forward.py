@@ -73,7 +73,7 @@ def rnn_varlen_forward_triton_kernel(
         input_ptrs = input_ptr + indices
         input = tl.load(input_ptrs, mask=mask, other=0).to(input_dtype)
 
-        new_state = _rnn_forward_update(
+        input_state = _rnn_forward_update(
             input_state=input_state,
             weight=weight,
             input=input,
@@ -84,7 +84,7 @@ def rnn_varlen_forward_triton_kernel(
         )
 
         output_ptrs = output_ptr + indices
-        tl.store(output_ptrs, new_state, mask=mask)
+        tl.store(output_ptrs, input_state, mask=mask)
 
         indices += input_stride_t
         start += 1
