@@ -1,7 +1,7 @@
 import torch
 import torch.nn.functional as F
 
-from ...torch_math import tanh
+from ...torch_math import sigmoid, tanh
 
 
 class _GradientClipping(torch.autograd.Function):
@@ -22,6 +22,8 @@ def _activation_with_clipped_gradients(
 ) -> torch.Tensor:
     if activation_function == "tanh":
         x = tanh(x)
+    elif activation_function == "sigmoid":
+        x = sigmoid(x)
     elif activation_function == "leaky_relu":
         x = F.leaky_relu(x, negative_slope=relu_negative_slope)
     else:
