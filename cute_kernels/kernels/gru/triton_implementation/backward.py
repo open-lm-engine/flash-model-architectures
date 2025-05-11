@@ -6,7 +6,7 @@ from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
 from ....triton_math import clamp, sigmoid_backward, tanh_backward
 from ....utils import cute_op
-from ...rnn.triton_implementation.backward import _backward_rnn_update
+from ...rnn.triton_implementation.backward import _backward_rnn_update, _load_previous_output
 
 
 @triton.jit
@@ -73,17 +73,21 @@ def gru_backward_triton_kernel(
         output_grad += input_state_grad
         forget_gate_grad = output_grad * (forget_gate - output_update)
 
-        if s == 0:
-            if HAS_INPUT_STATE:
-                input_state_ptrs = (
-                    input_state_ptr + indices_b[:, None] * input_state_stride_b + pid_n * H + indices_h[None, :]
-                )
-                output_prev = tl.load(input_state_ptrs, mask=mask_bh, other=0)
-            else:
-                output_prev = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=weight.dtype)
-        else:
-            output_ptrs -= output_stride_s
-            output_prev = tl.load(output_ptrs, mask=mask_bh, other=0)
+        output_ptrs -= output_stride_s
+        output_prev = _load_previous_output(
+            HAS_INPUT_STATE=HAS_INPUT_STATE,
+            input_state_ptr=input_state_ptr,
+            input_state_stride_b=input_state_stride_b,
+            output_ptrs=output_ptrs,
+            pid_n=pid_n,
+            indices_b=indices_b,
+            indices_h=indices_h,
+            mask_bh=mask_bh,
+            BLOCK_SIZE_B=BLOCK_SIZE_B,
+            BLOCK_SIZE_H=BLOCK_SIZE_H,
+            s=s,
+            dtype=weight.dtype,
+        )
 
         _backward_rnn_update(
             output=forget_gate,
