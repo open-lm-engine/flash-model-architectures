@@ -3,11 +3,11 @@ import torch.nn.functional as F
 
 
 def _sigmoid(x: torch.Tensor) -> torch.Tensor:
-    return F.sigmoid(x).type_as(x)
+    return F.sigmoid(x.float()).type_as(x)
 
 
 def _tanh(x: torch.Tensor) -> torch.Tensor:
-    return F.tanh(x).type_as(x)
+    return F.tanh(x.float()).type_as(x)
 
 
 def gru_torch(
