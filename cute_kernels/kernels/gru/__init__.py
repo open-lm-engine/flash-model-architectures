@@ -32,6 +32,8 @@ class _GRU_Cute(torch.autograd.Function):
             gradient_clipping = -gradient_clipping
 
         output = torch.empty_like(input)
+        forget_gate = torch.empty_like(input)
+        reset_gate = torch.empty_like(input)
 
         if cu_seqlens is None:
             assert max_seqlen is None
@@ -41,8 +43,10 @@ class _GRU_Cute(torch.autograd.Function):
                 weight=weight,
                 forget_input=forget_input,
                 forget_weight=forget_weight,
+                forget_gate=forget_gate,
                 reset_input=reset_input,
                 reset_weight=reset_weight,
+                reset_gate=reset_gate,
                 input_state=input_state,
                 output=output,
                 BLOCK_SIZE_B=BLOCK_SIZE_B_forward,

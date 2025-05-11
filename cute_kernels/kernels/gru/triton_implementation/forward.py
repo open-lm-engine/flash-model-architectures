@@ -133,14 +133,16 @@ def gru_forward_triton_kernel(
         indices += input_stride_s
 
 
-@cute_op(f"{LIBRARY_NAME}::gru_forward_triton", mutates_args={"output"})
+@cute_op(f"{LIBRARY_NAME}::gru_forward_triton", mutates_args={"forget_gate", "reset_gate", "output"})
 def gru_forward_triton(
     input: torch.Tensor,
     weight: torch.Tensor,
     forget_input: torch.Tensor,
     forget_weight: torch.Tensor,
+    forget_gate: torch.Tensor,
     reset_input: torch.Tensor,
     reset_weight: torch.Tensor,
+    reset_gate: torch.Tensor,
     input_state: torch.Tensor | None,
     output: torch.Tensor,
     BLOCK_SIZE_B: int,
@@ -161,8 +163,10 @@ def gru_forward_triton(
             weight_stride_n=weight.stride(0),
             forget_input_ptr=forget_input,
             forget_weight_ptr=forget_weight,
+            forget_gate_ptr=forget_gate,
             reset_input_ptr=reset_input,
             reset_weight_ptr=reset_weight,
+            reset_gate_ptr=reset_gate,
             HAS_INPUT_STATE=has_input_state,
             input_state_ptr=input_state,
             input_state_stride_b=input_state.stride(0) if has_input_state else None,
