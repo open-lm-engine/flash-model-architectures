@@ -4,40 +4,8 @@ import triton.language as tl
 
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
-from ....triton_math import clamp
+from ....triton_math import clamp, leaky_relu_backward, sigmoid_backward, tanh_backward
 from ....utils import cute_op
-
-
-@triton.jit
-def _sigmoid_backward(y):
-    dtype = y.dtype
-
-    y = y.to(tl.float32)
-    y = y * (1 - y)
-    y = y.to(dtype)
-
-    return y
-
-
-@triton.jit
-def _tanh_backward(y):
-    dtype = y.dtype
-
-    y = y.to(tl.float32)
-    y = 1 - y * y
-    y = y.to(dtype)
-
-    return y
-
-
-@triton.jit
-def _leaky_relu_backward(y, relu_negative_slope):
-    dtype = y.dtype
-
-    y = tl.where(y >= 0, 1, relu_negative_slope)
-    y = y.to(dtype)
-
-    return y
 
 
 @triton.jit
@@ -45,11 +13,11 @@ def _backward_rnn_update(
     output, weight, output_grad, weight_grad, output_prev, ACTIVATION_FUNCTION: tl.constexpr, relu_negative_slope
 ):
     if ACTIVATION_FUNCTION == "leaky_relu":
-        input_grad = output_grad * _leaky_relu_backward(output, relu_negative_slope)
+        input_grad = output_grad * leaky_relu_backward(output, relu_negative_slope)
     elif ACTIVATION_FUNCTION == "sigmoid":
-        input_grad = output_grad * _sigmoid_backward(output)
+        input_grad = output_grad * sigmoid_backward(output)
     elif ACTIVATION_FUNCTION == "tanh":
-        input_grad = output_grad * _tanh_backward(output)
+        input_grad = output_grad * tanh_backward(output)
 
     input_state_grad = tl.dot(input_grad, weight.T, allow_tf32=True).to(input_grad.dtype)
     weight_grad = tl.dot(output_prev.T, input_grad, weight_grad, allow_tf32=True)

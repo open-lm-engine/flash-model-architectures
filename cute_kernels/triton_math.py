@@ -55,3 +55,35 @@ def leaky_relu(x, negative_slope):
     x = x.to(dtype)
 
     return x
+
+
+@triton.jit
+def sigmoid_backward(y):
+    dtype = y.dtype
+
+    y = y.to(tl.float32)
+    y = y * (1 - y)
+    y = y.to(dtype)
+
+    return y
+
+
+@triton.jit
+def tanh_backward(y):
+    dtype = y.dtype
+
+    y = y.to(tl.float32)
+    y = 1 - y * y
+    y = y.to(dtype)
+
+    return y
+
+
+@triton.jit
+def leaky_relu_backward(y, relu_negative_slope):
+    dtype = y.dtype
+
+    y = tl.where(y >= 0, 1, relu_negative_slope)
+    y = y.to(dtype)
+
+    return y
