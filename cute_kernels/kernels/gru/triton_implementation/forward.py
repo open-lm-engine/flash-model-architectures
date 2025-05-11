@@ -8,6 +8,7 @@ from ....triton_math import sigmoid, tanh
 from ....utils import cute_op
 
 
+@triton.jit
 def _load_and_dot(input_ptr, indices, mask_bh, input_dtype, weight, input_state, out_dtype, cast_dtype):
     input_ptrs = input_ptr + indices
     input = tl.load(input_ptrs, mask=mask_bh, other=0).to(input_dtype)
