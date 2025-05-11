@@ -83,7 +83,6 @@ def _load_previous_output(
         else:
             output_prev = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=dtype)
     else:
-        output_ptrs -= output_stride_s
         output_prev = tl.load(output_ptrs, mask=mask_bh, other=0)
 
     return output_prev
@@ -142,6 +141,7 @@ def rnn_backward_triton_kernel(
         output_grad = tl.load(output_grad_ptrs, mask=mask_bh, other=0)
         output_grad += input_state_grad
 
+        output_ptrs -= output_stride_s
         output_prev = _load_previous_output(
             HAS_INPUT_STATE=HAS_INPUT_STATE,
             input_state_ptr=input_state_ptr,
