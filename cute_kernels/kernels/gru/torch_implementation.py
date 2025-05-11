@@ -14,14 +14,7 @@ def gru_torch(
     gradient_clipping: float | None = None,
     cu_seqlens: torch.Tensor | None = None,
     max_seqlen: torch.Tensor | int | None = None,
-    activation_function: str = "tanh",
-    relu_negative_slope: float | None = None,
 ) -> torch.Tensor:
-    if activation_function == "leaky_relu":
-        assert relu_negative_slope is not None
-    else:
-        assert relu_negative_slope is None
-
     if gradient_clipping is not None and gradient_clipping < 0:
         gradient_clipping = -gradient_clipping
 
@@ -47,8 +40,8 @@ def gru_torch(
             forget_gate = sigmoid(input_state @ forget_weight + forget_input[:, s])
             reset_gate = sigmoid(input_state @ reset_weight + reset_input[:, s])
 
-            new_state = tanh((input_state * reset_gate) @ weight + input[:, s])
-            input_state = forget_gate * input_state + (1 - forget_gate) * new_state
+            possible_new_state = tanh((input_state * reset_gate) @ weight + input[:, s])
+            input_state = forget_gate * input_state + (1 - forget_gate) * possible_new_state
 
             output[:, s, ...] = input_state.squeeze(-2)
     else:
@@ -76,16 +69,16 @@ def gru_torch(
             unfinished = offset < end
             new_state = input_state.unsqueeze(-2)
 
+            new_state = new_state[unfinished]
+            offset_unfinished = offset[unfinished]
+
             # don't update the finished sequences
             # (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
-            new_state = new_state[unfinished] @ weight + input[offset[unfinished], ...]
+            forget_gate = sigmoid(new_state @ forget_weight + forget_input[offset_unfinished, ...])
+            reset_gate = sigmoid(new_state @ reset_weight + reset_input[offset_unfinished, ...])
 
-            new_state = _activation_with_clipped_gradients(
-                x=new_state,
-                activation_function=activation_function,
-                relu_negative_slope=relu_negative_slope,
-                gradient_clipping=gradient_clipping,
-            )
+            possible_new_state = tanh((input_state * reset_gate) @ weight + input[offset_unfinished, ...])
+            new_state = forget_gate * new_state + (1 - forget_gate) * possible_new_state
 
             new_state = new_state.squeeze(-2)
 

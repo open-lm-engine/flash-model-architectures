@@ -6,6 +6,7 @@ from .embedding import embedding_cute, embedding_torch
 from .fused_linear_cross_entropy import fused_linear_cross_entropy_cute, fused_linear_cross_entropy_torch
 from .fused_residual_add_rmsnorm import fused_residual_add_rmsnorm_cute, fused_residual_add_rmsnorm_torch
 from .gemm import gemm_cute, gemm_torch
+from .gru import gru_torch
 from .linear import linear_cute, linear_torch
 from .rmsnorm import rmsnorm_cute, rmsnorm_torch
 from .rnn import rnn_cute, rnn_torch
