@@ -238,7 +238,7 @@ class RNNTest(TestCommons):
             relu_negative_slope=None,
         ).to(device, dtype)
 
-        batch_size = len(cu_seqlens) - 1 if cu_seqlens is None else 4
+        batch_size = 4 if cu_seqlens is None else len(cu_seqlens) - 1
         cu_seqlens = None if cu_seqlens is None else torch.tensor(cu_seqlens, device=device)
         max_seqlen = None if cu_seqlens is None else (cu_seqlens[1:] - cu_seqlens[:-1]).max()
 
