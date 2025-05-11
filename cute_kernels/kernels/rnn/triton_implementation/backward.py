@@ -40,6 +40,7 @@ def _leaky_relu_backward(y, relu_negative_slope):
     return y
 
 
+@triton.jit
 def _backward_rnn_update(
     output_grad, output, weight, output_prev, ACTIVATION_FUNCTION: tl.constexpr, relu_negative_slope
 ):
