@@ -27,6 +27,7 @@ def gru_backward_triton_kernel(
     output_grad_ptr,
     input_grad_ptr,
     weight_grad_ptr,
+    forget_input_grad_ptr,
     HAS_GRADIENT_CLIPPING: tl.constexpr,
     gradient_clipping,
     B,
@@ -54,7 +55,6 @@ def gru_backward_triton_kernel(
     weight = tl.load(weight_ptr + indices, mask=mask_hh, other=0)
     forget_weight = tl.load(forget_weight_ptr + indices, mask=mask_hh, other=0)
     reset_weight = tl.load(reset_weight_ptr + indices, mask=mask_hh, other=0)
-    weight = tl.load(weight_ptr + indices, mask=mask_hh, other=0)
 
     indices = indices_b[:, None] * output_stride_b + (S - 1) * output_stride_s + pid_n * H + indices_h[None, :]
     output = tl.load(output_ptr + indices, mask=mask_bh, other=0)
@@ -66,12 +66,20 @@ def gru_backward_triton_kernel(
 
         output_grad = tl.load(output_grad_ptr + indices, mask=mask_bh, other=0)
         forget_gate = tl.load(forget_gate_ptr + indices, mask=mask_bh)
+        reset_gate = tl.load(reset_gate_ptr + indices, mask=mask_bh)
         output_update = tl.load(output_update_ptr + indices, mask=mask_bh)
 
         output_grad += input_state_grad
-        forget_gate_grad = output_grad * (forget_gate - output_update)
 
-        input_grad_ptrs = input_grad_ptr + indices
+        input_grad = -forget_gate * output_grad * tanh_backward(output_update)
+        tl.store(input_grad_ptr + indices, input_grad, mask=mask_bh)
+
+        weight_grad = tl.dot((reset_gate * output_prev).T, input_grad, weight_grad)
+
+        forget_gate_grad = output_grad * (forget_gate - output_update)
+        forget_input_grad = forget_gate_grad * sigmoid_backward(forget_gate)
+        tl.store(forget_input_grad_ptr + indices, forget_input_grad, mask=mask_bh)
+
         indices -= output_stride_s
 
         output_prev = _load_previous_output(
@@ -89,20 +97,7 @@ def gru_backward_triton_kernel(
             dtype=weight.dtype,
         )
 
-        forget_input_grad, forger_weight_grad, input_state_grad = _backward_rnn_update(
-            output=forget_gate,
-            weight=forget_weight,
-            output_grad=forget_gate_grad,
-            weight_grad=forget_weight_grad,
-            output_prev=output_prev,
-            ACTIVATION_FUNCTION="sigmoid",
-            relu_negative_slope=None,
-        )
-
         tl.store(input_grad_ptrs, input_grad, mask=mask_bh)
-        input_state_grad = tl.dot(input_grad, weight.T, allow_tf32=True).to(input_state_grad.dtype)
-
-        weight_grad = tl.dot(output_prev.T, input_grad, weight_grad, allow_tf32=True)
         output = output_prev
 
     weight_grad_ptrs = weight_grad_ptr + pid_n * weight_stride_n + indices_h[:, None] * H + indices_h[None, :]
