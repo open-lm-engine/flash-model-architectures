@@ -79,7 +79,7 @@ def rnn_torch(
                 gradient_clipping=gradient_clipping,
             )
 
-            output[:, s, ...] = input_state.squeeze(-2)
+            output[:, s] = input_state.squeeze(-2)
     else:
         assert max_seqlen is not None
         B = cu_seqlens.numel() - 1
@@ -105,9 +105,11 @@ def rnn_torch(
             unfinished = offset < end
             new_state = input_state.unsqueeze(-2)
 
+            offset_unfinished = offset[unfinished]
+
             # don't update the finished sequences
             # (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
-            new_state = new_state[unfinished] @ weight + input[offset[unfinished], ...]
+            new_state = new_state[unfinished] @ weight + input[offset_unfinished]
 
             new_state = _activation_with_clipped_gradients(
                 x=new_state,
@@ -118,7 +120,7 @@ def rnn_torch(
 
             new_state = new_state.squeeze(-2)
 
-            output[offset[unfinished], ...] = new_state
+            output[offset_unfinished] = new_state
             input_state[unfinished] = new_state
 
     return output
