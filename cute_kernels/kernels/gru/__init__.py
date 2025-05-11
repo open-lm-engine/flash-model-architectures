@@ -2,7 +2,12 @@ import torch
 
 from ...utils import ensure_contiguous
 from .torch_implementation import gru_torch
-from .triton_implementation import gru_backward_triton, gru_forward_triton
+from .triton_implementation import (
+    gru_backward_triton,
+    gru_forward_triton,
+    gru_varlen_backward_triton,
+    gru_varlen_forward_triton,
+)
 
 
 class _GRU_Cute(torch.autograd.Function):
@@ -46,7 +51,7 @@ class _GRU_Cute(torch.autograd.Function):
             assert max_seqlen is not None
             is_max_seqlen_tensor = isinstance(max_seqlen, torch.Tensor)
 
-            rnn_varlen_forward_triton(
+            gru_varlen_forward_triton(
                 input=input,
                 weight=weight,
                 input_state=input_state,
@@ -87,7 +92,7 @@ class _GRU_Cute(torch.autograd.Function):
         else:
             is_max_seqlen_tensor = isinstance(max_seqlen, torch.Tensor)
 
-            rnn_varlen_backward_triton(
+            gru_varlen_backward_triton(
                 weight=weight,
                 output=output,
                 input_state=input_state,
