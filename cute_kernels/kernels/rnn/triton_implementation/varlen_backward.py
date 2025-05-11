@@ -99,14 +99,14 @@ def rnn_varlen_backward_triton_kernel(
 
         output_grad_ptrs = output_grad_ptr + indices
         output_grad = tl.load(output_grad_ptrs, mask=mask, other=0)
+        output_grad += input_state_grad
 
-        input_grad = output_grad + input_state_grad
         if ACTIVATION_FUNCTION == "leaky_relu":
-            input_grad *= leaky_relu_backward(output, relu_negative_slope)
+            input_grad = output_grad * leaky_relu_backward(output, relu_negative_slope)
         elif ACTIVATION_FUNCTION == "sigmoid":
-            input_grad *= sigmoid_backward(output)
+            input_grad = output_grad * sigmoid_backward(output)
         elif ACTIVATION_FUNCTION == "tanh":
-            input_grad *= tanh_backward(output)
+            input_grad = output_grad * tanh_backward(output)
 
         input_grad_ptrs = input_grad_ptr + indices
         tl.store(input_grad_ptrs, input_grad, mask=mask)
