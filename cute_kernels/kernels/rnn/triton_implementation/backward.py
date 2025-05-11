@@ -9,7 +9,7 @@ from ....utils import cute_op
 
 
 @triton.jit
-def _backward_rnn_update(
+def _rnn_backward_update(
     output, weight, output_grad, weight_grad, output_prev, ACTIVATION_FUNCTION: tl.constexpr, relu_negative_slope
 ):
     if ACTIVATION_FUNCTION == "leaky_relu":
@@ -130,7 +130,7 @@ def rnn_backward_triton_kernel(
             dtype=weight.dtype,
         )
 
-        input_grad, weight_grad, input_state_grad = _backward_rnn_update(
+        input_grad, weight_grad, input_state_grad = _rnn_backward_update(
             output=output,
             weight=weight,
             output_grad=output_grad,

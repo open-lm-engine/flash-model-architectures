@@ -4,9 +4,9 @@ import triton.language as tl
 
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
-from ....triton_math import clamp, leaky_relu_backward, sigmoid_backward, tanh_backward
+from ....triton_math import clamp
 from ....utils import cute_op
-from .backward import _backward_rnn_update
+from .backward import _rnn_backward_update
 
 
 @triton.jit
@@ -124,7 +124,7 @@ def rnn_varlen_backward_triton_kernel(
             tl.load(output_ptrs, mask=mask & (indices >= 0), other=0),
         )
 
-        input_grad, weight_grad, input_state_grad = _backward_rnn_update(
+        input_grad, weight_grad, input_state_grad = _rnn_backward_update(
             output=output,
             weight=weight,
             output_grad=output_grad,
