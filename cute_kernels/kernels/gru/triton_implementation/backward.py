@@ -18,6 +18,7 @@ def gru_backward_triton_kernel(
     output_stride_s,
     forget_weight_ptr,
     forget_gate_ptr,
+    forget_input_grad_ptr,
     reset_weight_ptr,
     reset_gate_ptr,
     output_update_ptr,
@@ -27,7 +28,6 @@ def gru_backward_triton_kernel(
     output_grad_ptr,
     input_grad_ptr,
     weight_grad_ptr,
-    forget_input_grad_ptr,
     HAS_GRADIENT_CLIPPING: tl.constexpr,
     gradient_clipping,
     B,
@@ -47,6 +47,7 @@ def gru_backward_triton_kernel(
     mask_bh = mask_b[:, None] & mask_h[None, :]
 
     input_state_grad = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=weight_ptr.dtype.element_ty)
+
     weight_grad = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
     forget_weight_grad = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
     reset_weight_grad = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
@@ -139,8 +140,11 @@ def gru_backward_triton_kernel(
         tl.store(input_grad_ptrs, input_grad, mask=mask_bh)
         output = output_prev
 
-    weight_grad_ptrs = weight_grad_ptr + pid_n * weight_stride_n + indices_h[:, None] * H + indices_h[None, :]
-    tl.store(weight_grad_ptrs, weight_grad, mask=mask_h[:, None] & mask_h[None, :])
+    indices = pid_n * weight_stride_n + indices_h[:, None] * H + indices_h[None, :]
+
+    tl.store(weight_grad_ptr + indices, weight_grad, mask=mask_hh)
+    tl.store(forget_weight_grad_ptr + indices, forget_weight_grad, mask=mask_hh)
+    tl.store(reset_weight_grad_ptr + indices, reset_weight_grad, mask=mask_hh)
 
 
 @cute_op(f"{LIBRARY_NAME}::gru_backward_triton", mutates_args={"input_grad", "weight_grad"})
