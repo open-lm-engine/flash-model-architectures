@@ -60,16 +60,18 @@ def rnn_varlen_backward_triton_kernel(
 
     indices_b = pid_b * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
     indices_h = tl.arange(0, BLOCK_SIZE_H)
+    indices_weight = pid_n * weight_stride_n + indices_h[:, None] * H + indices_h[None, :]
 
     mask_b = indices_b < B
     mask_h = indices_h < H
     mask_bh = mask_b[:, None] & mask_h[None, :]
+    mask_hh = mask_h[:, None] & mask_h[None, :]
 
     input_state_grad = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=weight_ptr.dtype.element_ty)
     weight_grad = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
 
-    weight_ptrs = weight_ptr + pid_n * weight_stride_n + indices_h[:, None] * H + indices_h[None, :]
-    weight = tl.load(weight_ptrs, mask=mask_h[:, None] & mask_h[None, :], other=0)
+    weight_ptrs = weight_ptr + indices_weight
+    weight = tl.load(weight_ptrs, mask=mask_hh, other=0)
 
     cu_seqlens_ptrs = cu_seqlens_ptr + indices_b[:, None]
     start = tl.load(cu_seqlens_ptrs, mask=mask_b[:, None])
@@ -137,8 +139,8 @@ def rnn_varlen_backward_triton_kernel(
         weight_grad = tl.dot(output_prev.T, input_grad, weight_grad, allow_tf32=True)
         output = output_prev
 
-    weight_grad_ptrs = weight_grad_ptr + pid_n * weight_stride_n + indices_h[:, None] * H + indices_h[None, :]
-    tl.store(weight_grad_ptrs, weight_grad, mask=mask_h[:, None] & mask_h[None, :])
+    weight_grad_ptrs = weight_grad_ptr + indices_weight
+    tl.store(weight_grad_ptrs, weight_grad, mask=mask_hh)
 
 
 @cute_op(f"{LIBRARY_NAME}::rnn_varlen_backward_triton", mutates_args={"input_grad", "weight_grad"})
