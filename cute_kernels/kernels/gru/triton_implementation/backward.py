@@ -71,6 +71,10 @@ def gru_backward_triton_kernel(
         reset_gate = tl.load(reset_gate_ptr + indices, mask=mask_bh)
         output_update = tl.load(output_update_ptr + indices, mask=mask_bh)
 
+        input_grad_ptrs = input_grad_ptr + indices
+        forget_input_grad_ptrs = forget_input_grad_ptr + indices
+        reset_input_grad_ptrs = reset_input_grad_ptr + indices
+
         output_grad += input_state_grad
 
         input_grad = -forget_gate * output_grad * tanh_backward(output_update)
@@ -90,7 +94,7 @@ def gru_backward_triton_kernel(
             relu_negative_slope=None,
         )
 
-        tl.store(forget_input_grad_ptr + indices, forget_input_grad, mask=mask_bh)
+        tl.store(forget_input_grad_ptrs, forget_input_grad, mask=mask_bh)
 
         reset_input_grad, reset_weight_grad, input_state_grad_from_reset_gate = _rnn_backward_update(
             output=reset_gate,
@@ -103,7 +107,7 @@ def gru_backward_triton_kernel(
         )
         input_state_grad += input_state_grad_from_reset_gate
 
-        tl.store(reset_input_grad_ptr + indices, reset_input_grad, mask=mask_bh)
+        tl.store(reset_input_grad_ptrs, reset_input_grad, mask=mask_bh)
 
         indices -= output_stride_s
 
