@@ -111,7 +111,6 @@ def rnn_backward_triton_kernel(
         output_grad += input_state_grad
 
         input_grad_ptrs = input_grad_ptr + indices
-
         indices -= output_stride_s
         output_ptrs = output_ptr + indices
 
