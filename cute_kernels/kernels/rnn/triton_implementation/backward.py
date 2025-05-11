@@ -43,10 +43,11 @@ def _load_previous_output(
 ):
     if s == 0:
         if HAS_INPUT_STATE:
-            input_state_ptrs = (
-                input_state_ptr + indices_b[:, None] * input_state_stride_b + pid_n * H + indices_h[None, :]
+            output_prev = tl.load(
+                input_state_ptr + indices_b[:, None] * input_state_stride_b + pid_n * H + indices_h[None, :],
+                mask=mask_bh,
+                other=0,
             )
-            output_prev = tl.load(input_state_ptrs, mask=mask_bh, other=0)
         else:
             output_prev = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=dtype)
     else:

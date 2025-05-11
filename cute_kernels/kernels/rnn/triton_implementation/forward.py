@@ -51,12 +51,16 @@ def rnn_forward_triton_kernel(
     mask_h = indices_h < H
     mask_bh = mask_b[:, None] & mask_h[None, :]
 
-    weight_ptrs = weight_ptr + pid_n * weight_stride_n + indices_h[:, None] * H + indices_h[None, :]
-    weight = tl.load(weight_ptrs, mask=mask_h[:, None] & mask_h[None, :], other=0)
+    weight = tl.load(
+        weight_ptr + pid_n * weight_stride_n + indices_h[:, None] * H + indices_h[None, :],
+        mask=mask_h[:, None] & mask_h[None, :],
+        other=0,
+    )
 
     if HAS_INPUT_STATE:
-        input_state_ptrs = input_state_ptr + indices_b[:, None] * input_state_stride_b + pid_n * H + indices_h[None, :]
-        input_state = tl.load(input_state_ptrs, mask=mask_bh)
+        input_state = tl.load(
+            input_state_ptr + indices_b[:, None] * input_state_stride_b + pid_n * H + indices_h[None, :], mask=mask_bh
+        )
     else:
         input_state = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=input_ptr.dtype.element_ty)
 
