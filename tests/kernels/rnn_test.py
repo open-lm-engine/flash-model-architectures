@@ -227,7 +227,16 @@ class RNNTest(TestCommons):
         head_dim: int,
         num_heads: int,
     ) -> None:
-        rnn = RNN(input_size=64, state_size=num_heads * head_dim, output_size=64, num_heads=num_heads, add_bias=False)
+        rnn = RNN(
+            input_size=64,
+            state_size=num_heads * head_dim,
+            output_size=64,
+            num_heads=num_heads,
+            add_bias=False,
+            gradient_clipping=None,
+            activation_function="tanh",
+            relu_negative_slope=None,
+        )
 
         batch_size = len(cu_seqlens) - 1 if cu_seqlens is None else 4
         cu_seqlens = None if cu_seqlens is None else torch.tensor(cu_seqlens, device=device)
