@@ -51,7 +51,7 @@ def _backward_rnn_update(
     elif ACTIVATION_FUNCTION == "tanh":
         input_grad = output_grad * _tanh_backward(output)
 
-    input_state_grad = tl.dot(input_grad, weight.T, allow_tf32=True).to(input_state_grad.dtype)
+    input_state_grad = tl.dot(input_grad, weight.T, allow_tf32=True).to(input_grad.dtype)
     weight_grad = tl.dot(output_prev.T, input_grad, weight_grad, allow_tf32=True)
 
     return input_grad, weight_grad, input_state_grad
