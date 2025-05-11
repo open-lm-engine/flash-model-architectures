@@ -1,13 +1,6 @@
 import torch
-import torch.nn.functional as F
 
-
-def _sigmoid(x: torch.Tensor) -> torch.Tensor:
-    return F.sigmoid(x.float()).type_as(x)
-
-
-def _tanh(x: torch.Tensor) -> torch.Tensor:
-    return F.tanh(x.float()).type_as(x)
+from ...torch_math import sigmoid, tanh
 
 
 def gru_torch(
@@ -43,23 +36,21 @@ def gru_torch(
 
         weight = weight.unsqueeze(0)
         input = input.unsqueeze(-2)
+        input_state = input_state.unsqueeze(-2)
 
         # input -> (B, S, N, 1, H)
         # weight -> (1, N, H, H)
-        # input_state -> (B, N, H)
+        # input_state -> (B, N, 1, H)
 
         for s in range(S):
-            input_state = input_state.unsqueeze(-2)
+            # (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
+            forget_gate = sigmoid(input_state @ forget_weight + forget_input[:, s])
+            reset_gate = sigmoid(input_state @ reset_weight + reset_input[:, s])
 
-            forget_gate = _sigmoid(input_state @ forget_weight + forget_input[:, s])
-            reset_gate = _sigmoid(input_state @ reset_weight + reset_input[:, s])
-
-            new_state = _tanh((input_state * reset_gate) @ weight + input[:, s])
+            new_state = tanh((input_state * reset_gate) @ weight + input[:, s])
             input_state = forget_gate * input_state + (1 - forget_gate) * new_state
 
-            input_state = input_state.squeeze(-2)
-
-            output[:, s, ...] = input_state
+            output[:, s, ...] = input_state.squeeze(-2)
     else:
         assert max_seqlen is not None
         B = cu_seqlens.numel() - 1
