@@ -1,7 +1,6 @@
 import torch
 
-from ...math import ceil_divide
-from ...utils import ensure_contiguous, get_num_elements_and_hidden_size
+from ...utils import ensure_contiguous
 from .torch_implementation import softmax_torch
 from .triton_implementation import softmax_backward_triton, softmax_forward_triton
 
