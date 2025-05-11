@@ -62,7 +62,7 @@ class RNN(nn.Module):
             input_state = input[cu_seqlens[1:] - 1]
 
         if input_state is not None:
-            input_state = input_state.view(-1, self.num_heads, self.state_head_dim)
+            input_state = input_state.view(input_state.size(0), -1)
 
         input = input.view(*input.size()[:-2], -1)
         input = self.output_projection(input)
