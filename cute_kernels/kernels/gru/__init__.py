@@ -64,7 +64,16 @@ class _GRU_Cute(torch.autograd.Function):
             )
 
         ctx.save_for_backward(
-            weight, forget_weight, forget_gate, reset_weight, reset_gate, output, input_state, cu_seqlens, max_seqlen
+            weight,
+            forget_weight,
+            forget_gate,
+            reset_weight,
+            reset_gate,
+            output_update,
+            output,
+            input_state,
+            cu_seqlens,
+            max_seqlen,
         )
 
         ctx.gradient_clipping = gradient_clipping
@@ -75,9 +84,18 @@ class _GRU_Cute(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
     def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor]:
-        weight, forget_weight, forget_gate, reset_weight, reset_gate, output, input_state, cu_seqlens, max_seqlen = (
-            ctx.saved_tensors
-        )
+        (
+            weight,
+            forget_weight,
+            forget_gate,
+            reset_weight,
+            reset_gate,
+            output_update,
+            output,
+            input_state,
+            cu_seqlens,
+            max_seqlen,
+        ) = ctx.saved_tensors
         input_grad = torch.empty_like(output)
         weight_grad = torch.empty_like(weight)
 
