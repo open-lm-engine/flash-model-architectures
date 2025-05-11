@@ -37,11 +37,21 @@ class GRUTest(TestCommons):
     ) -> None:
         set_seed(_SEED)
 
-        input_kernel, input_expected = self.get_random_duplicated_tensors(
-            (batch_size, sequence_length, num_heads, head_dim), device=device, dtype=dtype, std=0.01
-        )
-        weight_kernel, weight_expected = self.get_random_duplicated_tensors(
-            (num_heads, head_dim, head_dim), device=device, dtype=dtype, std=0.01
+        (
+            input_packed_kernel,
+            input_packed_expected,
+            weight_kernel,
+            weight_expected,
+            forget_input_packed_kernel,
+            forget_input_packed_expected,
+            forget_weight_kernel,
+            forget_weight_expected,
+            reset_input_packed_kernel,
+            reset_input_packed_expected,
+            reset_weight_kernel,
+            reset_weight_expected,
+        ) = self._get_packed_tensor_inputs(
+            batch_size=batch_size, num_heads=num_heads, head_dim=head_dim, dtype=dtype, device=device
         )
 
         input_state_kernel = None
@@ -51,8 +61,25 @@ class GRUTest(TestCommons):
                 (batch_size, num_heads, head_dim), device=device, dtype=dtype, std=0.01
             )
 
-        y_kernel = function(input_kernel, weight_kernel, input_state_kernel)
-        y_expected = gru_torch(input_expected, weight_expected, input_state_expected)
+        y_kernel = function(
+            input=input_packed_kernel,
+            weight=weight_kernel,
+            forget_input=forget_input_packed_kernel,
+            forget_weight=forget_weight_kernel,
+            reset_input=reset_input_packed_kernel,
+            reset_weight=reset_weight_kernel,
+            input_state=input_state_kernel,
+        )
+
+        y_expected = gru_torch(
+            input=input_packed_expected,
+            weight=weight_expected,
+            forget_input=forget_input_packed_expected,
+            forget_weight=forget_weight_expected,
+            reset_input=reset_input_packed_expected,
+            reset_weight=reset_weight_expected,
+            input_state=input_state_expected,
+        )
 
         y_kernel.sum().backward()
         y_expected.sum().backward()
