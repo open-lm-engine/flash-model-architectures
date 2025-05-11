@@ -36,19 +36,15 @@ def fused_residual_add_rmsnorm_forward_triton_kernel(
 
     mask_bh = mask_b[:, None] & mask_h[None, :]
 
-    x_ptrs = x_ptr + indices_bh
-    x = tl.load(x_ptrs, mask=mask_bh).to(tl.float32)
+    x = tl.load(x_ptr + indices_bh, mask=mask_bh).to(tl.float32)
 
     if HAS_MULTIPLIER:
         x *= multiplier
 
-    residual_ptrs = residual_ptr + indices_bh
-    residual = tl.load(residual_ptrs, mask=mask_bh)
-
+    residual = tl.load(residual_ptr + indices_bh, mask=mask_bh)
     x += residual
 
-    added_x_residual_ptrs = added_x_residual_ptr + indices_bh
-    tl.store(added_x_residual_ptrs, x, mask=mask_bh)
+    tl.store(added_x_residual_ptr + indices_bh, x, mask=mask_bh)
 
     squared_sum = tl.sum(x * x, axis=1)
     inverse_rms = tl.rsqrt((squared_sum / H) + eps)
@@ -62,8 +58,7 @@ def fused_residual_add_rmsnorm_forward_triton_kernel(
         weight = tl.load(weight_ptr + indices_h, mask=mask_h)
         x = x.to(x_ptr.dtype.element_ty) * weight[None, :]
 
-    output_ptrs = output_ptr + indices_bh
-    tl.store(output_ptrs, x, mask=mask_bh)
+    tl.store(output_ptr + indices_bh, x, mask=mask_bh)
 
 
 @cute_op(
