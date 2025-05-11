@@ -1,7 +1,7 @@
 import torch
 
 from ...kernel_backend import KernelBackend, is_cuda_kernel_backend_allowed, is_triton_kernel_backend_allowed
-from ...utils import ensure_same_strides, is_nvidia_gpu
+from ...utils import input_guard, is_nvidia_gpu
 from .cuda_implementation import add_tensor_cuda
 from .torch_implementation import add_tensor_torch
 from .triton_implementation import add_tensor_triton
@@ -9,6 +9,7 @@ from .triton_implementation import add_tensor_triton
 
 class _AddTensor_Cute(torch.autograd.Function):
     @staticmethod
+    @input_guard
     def forward(
         ctx,
         x: torch.Tensor,
@@ -21,7 +22,6 @@ class _AddTensor_Cute(torch.autograd.Function):
         assert x.size() == y.size(), "tensors x and y should have same shape"
         assert x.type() == y.type(), "tensors x and y should have same dtype"
 
-        x, y = ensure_same_strides(x, y)
         output = torch.empty_like(x)
 
         if is_cuda_kernel_backend_allowed(kernel_backend) and is_nvidia_gpu() and x.is_cuda and y.is_cuda:

@@ -1,14 +1,14 @@
 import torch
 
 from ...math import ceil_divide, get_next_power_of_2
-from ...utils import ensure_contiguous
+from ...utils import input_guard
 from ..cross_entropy import cross_entropy_forward_backward_triton
 from .torch_implementation import fused_linear_cross_entropy_torch
 
 
 class _FusedLinearCrossEntropy_Cute(torch.autograd.Function):
     @staticmethod
-    @ensure_contiguous
+    @input_guard
     def forward(
         ctx,
         x: torch.Tensor,

@@ -1,7 +1,7 @@
 import torch
 
 from ...kernel_backend import KernelBackend
-from ...utils import ensure_contiguous
+from ...utils import input_guard
 from .cuda_implementation import pack_unpack_sequence_cuda
 from .torch_implementation import pack_sequence_torch, unpack_sequence_torch
 from .triton_implementation import pack_unpack_sequence_triton
@@ -83,7 +83,7 @@ def _unpack_sequence(
 
 class _PackSequence_Cute(torch.autograd.Function):
     @staticmethod
-    @ensure_contiguous
+    @input_guard
     def forward(
         ctx,
         x: torch.Tensor,
@@ -125,7 +125,7 @@ class _PackSequence_Cute(torch.autograd.Function):
         return output
 
     @staticmethod
-    @ensure_contiguous
+    @input_guard
     def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
         x_grad = _unpack_sequence(
             x=output_grad,
@@ -143,7 +143,7 @@ class _PackSequence_Cute(torch.autograd.Function):
 
 class _UnpackSequence_Cute(torch.autograd.Function):
     @staticmethod
-    @ensure_contiguous
+    @input_guard
     def forward(
         ctx,
         x: torch.Tensor,
@@ -188,7 +188,7 @@ class _UnpackSequence_Cute(torch.autograd.Function):
         return output
 
     @staticmethod
-    @ensure_contiguous
+    @input_guard
     def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
         x_grad = _pack_sequence(
             x=output_grad,

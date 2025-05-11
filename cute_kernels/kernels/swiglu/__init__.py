@@ -1,7 +1,7 @@
 import torch
 
 from ...kernel_backend import KernelBackend, is_cuda_kernel_backend_allowed, is_triton_kernel_backend_allowed
-from ...utils import ensure_contiguous, is_nvidia_gpu
+from ...utils import input_guard, is_nvidia_gpu
 from .cuda_implementation import swiglu_backward_cuda, swiglu_forward_cuda
 from .torch_implementation import swiglu_torch
 from .triton_implementation import swiglu_backward_triton, swiglu_forward_triton
@@ -9,7 +9,7 @@ from .triton_implementation import swiglu_backward_triton, swiglu_forward_triton
 
 class _Swiglu_Cute(torch.autograd.Function):
     @staticmethod
-    @ensure_contiguous
+    @input_guard
     def forward(
         ctx,
         gate: torch.Tensor,
@@ -50,7 +50,7 @@ class _Swiglu_Cute(torch.autograd.Function):
         return output
 
     @staticmethod
-    @ensure_contiguous
+    @input_guard
     def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
         gate, up = ctx.saved_tensors
         gate_grad = torch.empty_like(gate)

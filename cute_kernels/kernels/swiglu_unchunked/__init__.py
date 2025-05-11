@@ -1,14 +1,14 @@
 import torch
 
 from ...math import divide_if_divisible
-from ...utils import ensure_contiguous
+from ...utils import input_guard
 from .torch_implementation import swiglu_unchunked_torch
 from .triton_implementation import swiglu_unchunked_backward_triton, swiglu_unchunked_forward_triton
 
 
 class _SwigluUnchunked_Cute(torch.autograd.Function):
     @staticmethod
-    @ensure_contiguous
+    @input_guard
     def forward(
         ctx,
         x: torch.Tensor,
@@ -30,7 +30,7 @@ class _SwigluUnchunked_Cute(torch.autograd.Function):
         return output
 
     @staticmethod
-    @ensure_contiguous
+    @input_guard
     def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
         x = ctx.saved_tensors[0]
         x_grad = torch.empty_like(x)

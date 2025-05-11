@@ -1,6 +1,6 @@
 import torch
 
-from ...utils import ensure_contiguous, get_num_elements_and_hidden_size
+from ...utils import get_num_elements_and_hidden_size, input_guard
 from .cuda_implementation import (
     cutlass_gemm_cuda,
     cutlass_tensorcore_mma_gemm_cuda,
@@ -11,7 +11,7 @@ from .torch_implementation import gemm_torch
 from .triton_implementation import gemm_triton
 
 
-@ensure_contiguous
+@input_guard
 def gemm_cute(
     A: torch.Tensor,
     B: torch.Tensor,

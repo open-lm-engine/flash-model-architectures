@@ -1,13 +1,13 @@
 import torch
 
-from ...utils import ensure_contiguous
+from ...utils import input_guard
 from .torch_implementation import embedding_torch
 from .triton_implementation import embedding_backward_triton, embedding_forward_triton
 
 
 class _Embedding_Cute(torch.autograd.Function):
     @staticmethod
-    @ensure_contiguous
+    @input_guard
     def forward(
         ctx,
         input_ids: torch.Tensor,
@@ -34,7 +34,7 @@ class _Embedding_Cute(torch.autograd.Function):
         return output
 
     @staticmethod
-    @ensure_contiguous
+    @input_guard
     def backward(ctx, output_grad: torch.Tensor) -> torch.Tensor:
         input_ids, weight = ctx.saved_tensors
 

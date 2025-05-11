@@ -1,13 +1,13 @@
 import torch
 
-from ...utils import ensure_contiguous, get_num_elements_and_hidden_size
+from ...utils import get_num_elements_and_hidden_size, input_guard
 from .torch_implementation import cross_entropy_torch
 from .triton_implementation import cross_entropy_forward_backward_triton
 
 
 class _CrossEntropy_Cute(torch.autograd.Function):
     @staticmethod
-    @ensure_contiguous
+    @input_guard
     def forward(
         ctx,
         x: torch.Tensor,

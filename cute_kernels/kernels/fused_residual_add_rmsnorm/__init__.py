@@ -1,6 +1,6 @@
 import torch
 
-from ...utils import ensure_contiguous, get_num_elements_and_hidden_size
+from ...utils import get_num_elements_and_hidden_size, input_guard
 from .torch_implementation import fused_residual_add_rmsnorm_torch
 from .triton_implementation import (
     fused_residual_add_rmsnorm_backward_triton,
@@ -10,7 +10,7 @@ from .triton_implementation import (
 
 class _FusedResidualAddRMSNorm_Cute(torch.autograd.Function):
     @staticmethod
-    @ensure_contiguous
+    @input_guard
     def forward(
         ctx,
         x: torch.Tensor,
@@ -56,7 +56,7 @@ class _FusedResidualAddRMSNorm_Cute(torch.autograd.Function):
         return output, added_x_residual
 
     @staticmethod
-    @ensure_contiguous
+    @input_guard
     def backward(ctx, output_grad: torch.Tensor, added_x_residual_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
         added_x_residual, weight, rmsnorm_denominator = ctx.saved_tensors
         x_grad = torch.empty_like(added_x_residual)

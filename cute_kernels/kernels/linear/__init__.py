@@ -1,13 +1,13 @@
 import torch
 
-from ...utils import ensure_contiguous
+from ...utils import input_guard
 from ..gemm import gemm_cute
 from .torch_implementation import linear_torch
 
 
 class _Linear_Cute(torch.autograd.Function):
     @staticmethod
-    @ensure_contiguous
+    @input_guard
     def forward(ctx, input: torch.Tensor, weight: torch.Tensor, bias: torch.Tensor | None) -> torch.Tensor:
         ctx.save_for_backward(input, weight)
         ctx.has_bias = bias is not None
@@ -21,7 +21,7 @@ class _Linear_Cute(torch.autograd.Function):
         return output
 
     @staticmethod
-    @ensure_contiguous
+    @input_guard
     def backward(ctx, output_grad: torch.Tensor) -> torch.Tensor:
         input, weight = ctx.saved_tensors
 

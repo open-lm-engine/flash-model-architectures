@@ -1,13 +1,13 @@
 import torch
 
-from ...utils import ensure_contiguous, get_num_elements_and_hidden_size
+from ...utils import get_num_elements_and_hidden_size, input_guard
 from .torch_implementation import rmsnorm_torch
 from .triton_implementation import rmsnorm_backward_triton, rmsnorm_forward_triton
 
 
 class _RMSNorm_Cute(torch.autograd.Function):
     @staticmethod
-    @ensure_contiguous
+    @input_guard
     def forward(
         ctx,
         x: torch.Tensor,
@@ -46,7 +46,7 @@ class _RMSNorm_Cute(torch.autograd.Function):
         return output
 
     @staticmethod
-    @ensure_contiguous
+    @input_guard
     def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
         x, weight, rmsnorm_denominator = ctx.saved_tensors
         x_grad = torch.empty_like(x)

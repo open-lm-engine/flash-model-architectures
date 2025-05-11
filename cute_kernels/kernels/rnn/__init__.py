@@ -1,6 +1,6 @@
 import torch
 
-from ...utils import ensure_contiguous
+from ...utils import input_guard
 from .torch_implementation import rnn_torch
 from .triton_implementation import (
     rnn_backward_triton,
@@ -12,7 +12,7 @@ from .triton_implementation import (
 
 class _RNN_Cute(torch.autograd.Function):
     @staticmethod
-    @ensure_contiguous
+    @input_guard
     def forward(
         ctx,
         input: torch.Tensor,
@@ -74,7 +74,7 @@ class _RNN_Cute(torch.autograd.Function):
         return output
 
     @staticmethod
-    @ensure_contiguous
+    @input_guard
     def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor]:
         weight, output, input_state, cu_seqlens, max_seqlen = ctx.saved_tensors
         input_grad = torch.empty_like(output)
