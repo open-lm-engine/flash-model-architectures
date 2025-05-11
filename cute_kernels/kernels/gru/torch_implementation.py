@@ -85,7 +85,7 @@ def gru_torch(
 
             new_state = new_state.squeeze(-2)
 
-            output[offset[unfinished]] = new_state
+            output[offset_unfinished] = new_state
             input_state[unfinished] = new_state
 
     return output

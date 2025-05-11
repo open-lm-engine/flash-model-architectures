@@ -4,8 +4,22 @@ import triton.language as tl
 
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
-from ....triton_math import leaky_relu, tanh
+from ....triton_math import leaky_relu, sigmoid, tanh
 from ....utils import cute_op
+
+
+@triton.jit
+def _rnn_forward_update(input_state, weight, input, out_dtype, cast_dtype, relu_negative_slope, ACTIVATION_FUNCTION):
+    input_state = tl.dot(input_state, weight, input, allow_tf32=True, out_dtype=out_dtype).to(cast_dtype)
+
+    if ACTIVATION_FUNCTION == "leaky_relu":
+        input_state = leaky_relu(input_state, relu_negative_slope)
+    elif ACTIVATION_FUNCTION == "sigmoid":
+        input_state = sigmoid(input_state)
+    elif ACTIVATION_FUNCTION == "tanh":
+        input_state = tanh(input_state)
+
+    return input_state
 
 
 @triton.jit
@@ -60,12 +74,15 @@ def rnn_forward_triton_kernel(
         input_ptrs = input_ptr + indices
         input = tl.load(input_ptrs, mask=mask_bh, other=0).to(input_dtype)
 
-        input_state = tl.dot(input_state, weight, input, allow_tf32=True, out_dtype=out_dtype).to(cast_dtype)
-
-        if ACTIVATION_FUNCTION == "tanh":
-            input_state = tanh(input_state)
-        elif ACTIVATION_FUNCTION == "leaky_relu":
-            input_state = leaky_relu(input_state, relu_negative_slope)
+        input_state = _rnn_forward_update(
+            input_state=input_state,
+            weight=weight,
+            input=input,
+            out_dtype=out_dtype,
+            cast_dtype=cast_dtype,
+            relu_negative_slope=relu_negative_slope,
+            ACTIVATION_FUNCTION=ACTIVATION_FUNCTION,
+        )
 
         output_ptrs = output_ptr + indices
         tl.store(output_ptrs, input_state, mask=mask_bh)
