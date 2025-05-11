@@ -10,11 +10,11 @@ from ....utils import cute_op, get_num_elements_and_hidden_size
 @triton.jit
 def rmsnorm_forward_triton_kernel(
     x_ptr,
-    has_weight: tl.constexpr,
+    HAS_WEIGHT: tl.constexpr,
     weight_ptr,
     output_ptr,
     eps,
-    has_rmsnorm_denominator: tl.constexpr,
+    HAS_RMSNORM_DENOMINATOR: tl.constexpr,
     rmsnorm_denominator_ptr,
     B,
     H,
@@ -38,12 +38,12 @@ def rmsnorm_forward_triton_kernel(
     squared_sum = tl.sum(x * x, axis=1)
     inverse_rms = tl.rsqrt((squared_sum / H) + eps)
 
-    if has_rmsnorm_denominator:
+    if HAS_RMSNORM_DENOMINATOR:
         tl.store(rmsnorm_denominator_ptr + indices_b, inverse_rms, mask=mask_b)
 
     x *= inverse_rms[:, None]
 
-    if has_weight:
+    if HAS_WEIGHT:
         weight = tl.load(weight_ptr + indices_h, mask=mask_h)
         x = x.to(x_ptr.dtype.element_ty) * weight[None, :]
 
@@ -68,11 +68,11 @@ def rmsnorm_forward_triton(
     with torch.device(x.device):
         rmsnorm_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](
             x_ptr=x,
-            has_weight=weight is not None,
+            HAS_WEIGHT=weight is not None,
             weight_ptr=weight,
             output_ptr=output,
             eps=eps,
-            has_rmsnorm_denominator=rmsnorm_denominator is not None,
+            HAS_RMSNORM_DENOMINATOR=rmsnorm_denominator is not None,
             rmsnorm_denominator_ptr=rmsnorm_denominator,
             B=B,
             H=H,

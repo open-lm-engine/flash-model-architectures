@@ -155,7 +155,7 @@ def gru_forward_triton(
             forget_weight_ptr=forget_weight,
             reset_input_ptr=reset_input,
             reset_weight_ptr=reset_weight,
-            has_input_state=has_input_state,
+            HAS_INPUT_STATE=has_input_state,
             input_state_ptr=input_state,
             input_state_stride_b=input_state.stride(0) if has_input_state else None,
             output_ptr=output,
