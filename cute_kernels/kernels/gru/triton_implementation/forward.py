@@ -6,16 +6,7 @@ from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
 from ....triton_math import sigmoid, tanh
 from ....utils import cute_op
-
-
-@triton.jit
-def _load_and_dot(input_ptr, indices, mask_bh, input_dtype, weight, input_state, out_dtype, cast_dtype):
-    input_ptrs = input_ptr + indices
-    input = tl.load(input_ptrs, mask=mask_bh, other=0).to(input_dtype)
-
-    gate = tl.dot(input_state, weight, input, allow_tf32=True, out_dtype=out_dtype).to(cast_dtype)
-
-    return gate
+from ...rnn.triton_implementation.forward import _rnn_forward_update
 
 
 @triton.jit
@@ -81,58 +72,44 @@ def gru_forward_triton_kernel(
         cast_dtype = tl.bfloat16
 
     for _ in range(S):
-        reset_gate = sigmoid(
-            _load_and_dot(
-                input_ptr=reset_input_ptr,
-                indices=indices,
-                mask_bh=mask_bh,
-                input_dtype=input_dtype,
-                weight=reset_weight,
-                input_state=input_state,
-                out_dtype=out_dtype,
-                cast_dtype=cast_dtype,
-            )
+        reset_gate = _rnn_forward_update(
+            input_state=input_state,
+            weight=reset_weight,
+            input=tl.load(reset_input_ptr + indices, mask=mask_bh),
+            out_dtype=out_dtype,
+            cast_dtype=cast_dtype,
+            ACTIVATION_FUNCTION="sigmoid",
+            relu_negative_slope=None,
         )
 
-        reset_gate_ptrs = reset_gate_ptr + indices
-        tl.store(reset_gate_ptrs, reset_gate, mask=mask_bh)
+        tl.store(reset_gate_ptr + indices, reset_gate, mask=mask_bh)
 
-        output_update = tanh(
-            _load_and_dot(
-                input_ptr=input_ptr,
-                indices=indices,
-                mask_bh=mask_bh,
-                input_dtype=input_dtype,
-                weight=weight,
-                input_state=input_state * reset_gate,
-                out_dtype=out_dtype,
-                cast_dtype=cast_dtype,
-            )
+        output_update = _rnn_forward_update(
+            input_state=input_state * reset_gate,
+            weight=weight,
+            input=tl.load(input_ptr + indices, mask=mask_bh),
+            out_dtype=out_dtype,
+            cast_dtype=cast_dtype,
+            ACTIVATION_FUNCTION="tanh",
+            relu_negative_slope=None,
         )
 
-        output_update_ptrs = output_update_ptr + indices
-        tl.store(output_update_ptrs, output_update, mask=mask_bh)
+        tl.store(output_update_ptr + indices, output_update, mask=mask_bh)
 
-        forget_gate = sigmoid(
-            _load_and_dot(
-                input_ptr=forget_input_ptr,
-                indices=indices,
-                mask_bh=mask_bh,
-                input_dtype=input_dtype,
-                weight=forget_weight,
-                input_state=input_state,
-                out_dtype=out_dtype,
-                cast_dtype=cast_dtype,
-            )
+        forget_gate = _rnn_forward_update(
+            input_state=input_state,
+            weight=forget_weight,
+            input=tl.load(forget_input_ptr + indices, mask=mask_bh),
+            out_dtype=out_dtype,
+            cast_dtype=cast_dtype,
+            ACTIVATION_FUNCTION="sigmoid",
+            relu_negative_slope=None,
         )
 
-        forget_gate_ptrs = forget_gate_ptr + indices
-        tl.store(forget_gate_ptrs, forget_gate, mask=mask_bh)
+        tl.store(forget_gate_ptr + indices, forget_gate, mask=mask_bh)
 
         input_state = forget_gate * input_state + (1 - forget_gate) * output_update
-
-        output_ptrs = output_ptr + indices
-        tl.store(output_ptrs, input_state, mask=mask_bh)
+        tl.store(output_ptr + indices, input_state, mask=mask_bh)
 
         indices += input_stride_s
 

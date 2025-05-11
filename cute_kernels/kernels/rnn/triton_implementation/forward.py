@@ -9,7 +9,7 @@ from ....utils import cute_op
 
 
 @triton.jit
-def _rnn_forward_update(input_state, weight, input, out_dtype, cast_dtype, relu_negative_slope, ACTIVATION_FUNCTION):
+def _rnn_forward_update(input_state, weight, input, out_dtype, cast_dtype, ACTIVATION_FUNCTION, relu_negative_slope):
     input_state = tl.dot(input_state, weight, input, allow_tf32=True, out_dtype=out_dtype).to(cast_dtype)
 
     if ACTIVATION_FUNCTION == "leaky_relu":
@@ -80,8 +80,8 @@ def rnn_forward_triton_kernel(
             input=input,
             out_dtype=out_dtype,
             cast_dtype=cast_dtype,
-            relu_negative_slope=relu_negative_slope,
             ACTIVATION_FUNCTION=ACTIVATION_FUNCTION,
+            relu_negative_slope=relu_negative_slope,
         )
 
         output_ptrs = output_ptr + indices

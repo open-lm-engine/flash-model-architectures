@@ -79,8 +79,8 @@ def rnn_varlen_forward_triton_kernel(
             input=input,
             out_dtype=out_dtype,
             cast_dtype=cast_dtype,
-            relu_negative_slope=relu_negative_slope,
             ACTIVATION_FUNCTION=ACTIVATION_FUNCTION,
+            relu_negative_slope=relu_negative_slope,
         )
 
         output_ptrs = output_ptr + indices
