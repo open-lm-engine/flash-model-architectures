@@ -27,8 +27,10 @@ def gru_forward_triton_kernel(
     weight_stride_n,
     forget_input_ptr,
     forget_weight_ptr,
+    forget_gate_ptr,
     reset_input_ptr,
     reset_weight_ptr,
+    reset_gate_ptr,
     HAS_INPUT_STATE: tl.constexpr,
     input_state_ptr,
     input_state_stride_b,
@@ -91,6 +93,9 @@ def gru_forward_triton_kernel(
             )
         )
 
+        reset_gate_ptrs = reset_gate_ptr + indices
+        tl.store(reset_gate_ptrs, reset_gate, mask=mask_bh)
+
         possible_new_state = tanh(
             _load_and_dot(
                 input_ptr=input_ptr,
@@ -116,6 +121,9 @@ def gru_forward_triton_kernel(
                 cast_dtype=cast_dtype,
             )
         )
+
+        forget_gate_ptrs = forget_gate_ptr + indices
+        tl.store(forget_gate_ptrs, forget_gate, mask=mask_bh)
 
         input_state = forget_gate * input_state + (1 - forget_gate) * possible_new_state
 

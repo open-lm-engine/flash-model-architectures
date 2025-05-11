@@ -80,8 +80,12 @@ class _GRU_Cute(torch.autograd.Function):
 
         if cu_seqlens is None:
             gru_backward_triton(
-                weight=weight,
                 output=output,
+                weight=weight,
+                forget_input=forget_input,
+                forget_weight=forget_weight,
+                reset_input=reset_input,
+                reset_weight=reset_weight,
                 input_state=input_state,
                 output_grad=output_grad,
                 input_grad=input_grad,
