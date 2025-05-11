@@ -29,6 +29,7 @@ class _GRU_Cute(torch.autograd.Function):
         output = torch.empty_like(input)
         forget_gate = torch.empty_like(input)
         reset_gate = torch.empty_like(input)
+        output_update = torch.empty_like(input)
 
         if cu_seqlens is None:
             assert max_seqlen is None
@@ -42,6 +43,7 @@ class _GRU_Cute(torch.autograd.Function):
                 reset_input=reset_input,
                 reset_weight=reset_weight,
                 reset_gate=reset_gate,
+                output_update=output_update,
                 input_state=input_state,
                 output=output,
                 BLOCK_SIZE_B=BLOCK_SIZE_B_forward,

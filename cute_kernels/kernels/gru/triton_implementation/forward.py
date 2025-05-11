@@ -31,6 +31,7 @@ def gru_forward_triton_kernel(
     reset_input_ptr,
     reset_weight_ptr,
     reset_gate_ptr,
+    output_update_ptr,
     HAS_INPUT_STATE: tl.constexpr,
     input_state_ptr,
     input_state_stride_b,
@@ -96,7 +97,7 @@ def gru_forward_triton_kernel(
         reset_gate_ptrs = reset_gate_ptr + indices
         tl.store(reset_gate_ptrs, reset_gate, mask=mask_bh)
 
-        possible_new_state = tanh(
+        output_update = tanh(
             _load_and_dot(
                 input_ptr=input_ptr,
                 indices=indices,
@@ -108,6 +109,9 @@ def gru_forward_triton_kernel(
                 cast_dtype=cast_dtype,
             )
         )
+
+        output_update_ptrs = output_update_ptr + indices
+        tl.store(output_update_ptrs, output_update, mask=mask_bh)
 
         forget_gate = sigmoid(
             _load_and_dot(
@@ -125,7 +129,7 @@ def gru_forward_triton_kernel(
         forget_gate_ptrs = forget_gate_ptr + indices
         tl.store(forget_gate_ptrs, forget_gate, mask=mask_bh)
 
-        input_state = forget_gate * input_state + (1 - forget_gate) * possible_new_state
+        input_state = forget_gate * input_state + (1 - forget_gate) * output_update
 
         output_ptrs = output_ptr + indices
         tl.store(output_ptrs, input_state, mask=mask_bh)
@@ -143,6 +147,7 @@ def gru_forward_triton(
     reset_input: torch.Tensor,
     reset_weight: torch.Tensor,
     reset_gate: torch.Tensor,
+    output_update: torch.Tensor,
     input_state: torch.Tensor | None,
     output: torch.Tensor,
     BLOCK_SIZE_B: int,
@@ -167,6 +172,7 @@ def gru_forward_triton(
             reset_input_ptr=reset_input,
             reset_weight_ptr=reset_weight,
             reset_gate_ptr=reset_gate,
+            output_update_ptr=output_update,
             HAS_INPUT_STATE=has_input_state,
             input_state_ptr=input_state,
             input_state_stride_b=input_state.stride(0) if has_input_state else None,
