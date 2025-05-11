@@ -6,7 +6,7 @@ from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
 from ....triton_math import clamp
 from ....utils import cute_op
-from ...rnn.triton_implementation.backward import _sigmoid_backward, _tanh_backward
+from ...rnn.triton_implementation.backward import _backward_rnn_update, _sigmoid_backward, _tanh_backward
 
 
 @triton.jit
@@ -74,12 +74,6 @@ def gru_backward_triton_kernel(
 
         forget_gate_grad = output_grad + input_state_grad
         forget_gate_grad *= forget_gate - output_update
-        # forget_gate_grad *= _sigmoid_backward(forget_gate)
-
-        input_grad_ptrs = input_grad_ptr + indices
-        tl.store(input_grad_ptrs, input_grad, mask=mask_bh)
-
-        input_state_grad = tl.dot(input_grad, weight.T, allow_tf32=True).to(input_state_grad.dtype)
 
         if s == 0:
             if HAS_INPUT_STATE:
@@ -92,6 +86,21 @@ def gru_backward_triton_kernel(
         else:
             output_ptrs -= output_stride_s
             output_prev = tl.load(output_ptrs, mask=mask_bh, other=0)
+
+        _backward_rnn_update(
+            output=forget_gate,
+            weight=forget_weight,
+            output_grad=forget_gate_grad,
+            weight_grad=forget_gate_grad,
+            output_prev=output_prev,
+            ACTIVATION_FUNCTION="sigmoid",
+            relu_negative_slope=None,
+        )
+
+        input_grad_ptrs = input_grad_ptr + indices
+        tl.store(input_grad_ptrs, input_grad, mask=mask_bh)
+
+        input_state_grad = tl.dot(input_grad, weight.T, allow_tf32=True).to(input_state_grad.dtype)
 
         weight_grad = tl.dot(output_prev.T, input_grad, weight_grad, allow_tf32=True)
         output = output_prev
