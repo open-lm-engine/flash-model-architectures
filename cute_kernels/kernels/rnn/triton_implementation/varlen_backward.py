@@ -6,6 +6,7 @@ from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
 from ....triton_math import clamp, leaky_relu_backward, sigmoid_backward, tanh_backward
 from ....utils import cute_op
+from .backward import _backward_rnn_update
 
 
 @triton.jit
@@ -101,13 +102,6 @@ def rnn_varlen_backward_triton_kernel(
         output_grad = tl.load(output_grad_ptrs, mask=mask, other=0)
         output_grad += input_state_grad
 
-        if ACTIVATION_FUNCTION == "leaky_relu":
-            input_grad = output_grad * leaky_relu_backward(output, relu_negative_slope)
-        elif ACTIVATION_FUNCTION == "sigmoid":
-            input_grad = output_grad * sigmoid_backward(output)
-        elif ACTIVATION_FUNCTION == "tanh":
-            input_grad = output_grad * tanh_backward(output)
-
         input_grad_ptrs = input_grad_ptr + indices
 
         indices -= output_stride_t
@@ -131,8 +125,15 @@ def rnn_varlen_backward_triton_kernel(
             tl.load(output_ptrs, mask=mask & (indices >= 0), other=0),
         )
 
-        input_state_grad = tl.dot(input_grad, weight.T, allow_tf32=True).to(input_state_grad.dtype)
-        weight_grad = tl.dot(output_prev.T, input_grad, weight_grad, allow_tf32=True)
+        input_grad, weight_grad, input_state_grad = _backward_rnn_update(
+            output=output,
+            weight=weight,
+            output_grad=output_grad,
+            weight_grad=weight_grad,
+            output_prev=output_prev,
+            ACTIVATION_FUNCTION=ACTIVATION_FUNCTION,
+            relu_negative_slope=relu_negative_slope,
+        )
 
         tl.store(input_grad_ptrs, input_grad, mask=mask)
 
