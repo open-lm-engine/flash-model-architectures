@@ -1,7 +1,9 @@
+from typing import Callable
+
 import torch
 from parameterized import parameterized
 
-from cute_kernels import gru_torch, set_seed
+from cute_kernels import gru_cute, gru_torch, set_seed
 
 from ..test_commons import TestCommons
 
@@ -10,6 +12,96 @@ _SEED = 42
 
 
 class GRUTest(TestCommons):
+    @parameterized.expand(
+        TestCommons.make_args_matrix(
+            [torch.device("cuda")],
+            [torch.float32, torch.float16],
+            [4],  # batch_size
+            [1024],  # sequence_length
+            [64],  # head_dim
+            [4],  # num_heads
+            [False, True],  # has_input_state
+            [gru_cute, torch.compile(gru_cute, fullgraph=True)],  # function
+        )
+    )
+    def test_rnn(
+        self,
+        device: torch.device,
+        dtype: torch.dtype,
+        batch_size: int,
+        sequence_length: int,
+        head_dim: int,
+        num_heads: int,
+        has_input_state: bool,
+        function: Callable,
+    ) -> None:
+        set_seed(_SEED)
+
+        (
+            input_packed_kernel,
+            input_packed_expected,
+            weight_kernel,
+            weight_expected,
+            forget_input_packed_kernel,
+            forget_input_packed_expected,
+            forget_weight_kernel,
+            forget_weight_expected,
+            reset_input_packed_kernel,
+            reset_input_packed_expected,
+            reset_weight_kernel,
+            reset_weight_expected,
+            input_state_kernel,
+            input_state_expected,
+        ) = self._get_packed_tensor_inputs(
+            batch_size=batch_size,
+            sequence_length=sequence_length,
+            total_tokens=None,
+            num_heads=num_heads,
+            head_dim=head_dim,
+            has_input_state=has_input_state,
+            dtype=dtype,
+            device=device,
+        )
+
+        y_kernel = function(
+            input=input_packed_kernel,
+            weight=weight_kernel,
+            forget_input=forget_input_packed_kernel,
+            forget_weight=forget_weight_kernel,
+            reset_input=reset_input_packed_kernel,
+            reset_weight=reset_weight_kernel,
+            input_state=input_state_kernel,
+        )
+
+        y_expected = gru_torch(
+            input=input_packed_expected,
+            weight=weight_expected,
+            forget_input=forget_input_packed_expected,
+            forget_weight=forget_weight_expected,
+            reset_input=reset_input_packed_expected,
+            reset_weight=reset_weight_expected,
+            input_state=input_state_expected,
+        )
+
+        # y_kernel.sum().backward()
+        # y_expected.sum().backward()
+
+        self.assert_equal_tensors(
+            y_kernel, y_expected, False, atol_float32=4e-6, rtol_float32=0, atol_float16=6.5e-5, rtol_float16=0
+        )
+        # self.assert_equal_tensors(
+        #     x_kernel.grad, x_expected.grad, False, atol_float32=6e-3, rtol_float32=0, atol_float16=2e-3, rtol_float16=0
+        # )
+        # self.assert_equal_tensors(
+        #     weight_kernel.grad,
+        #     weight_expected.grad,
+        #     False,
+        #     atol_float32=6e-3,
+        #     rtol_float32=0,
+        #     atol_float16=2.2e-2,
+        #     rtol_float16=0,
+        # )
+
     @parameterized.expand(
         TestCommons.make_args_matrix(
             [torch.device("cuda")],
@@ -35,38 +127,31 @@ class GRUTest(TestCommons):
         cu_seqlens = torch.tensor(cu_seqlens, device=device)
         max_seqlen = (cu_seqlens[1:] - cu_seqlens[:-1]).max()
 
-        input_packed_kernel, input_packed_expected = self.get_random_duplicated_tensors(
-            (cu_seqlens[-1], num_heads, head_dim), device=device, dtype=dtype, std=0.01
+        (
+            input_packed_kernel,
+            input_packed_expected,
+            weight_kernel,
+            weight_expected,
+            forget_input_packed_kernel,
+            forget_input_packed_expected,
+            forget_weight_kernel,
+            forget_weight_expected,
+            reset_input_packed_kernel,
+            reset_input_packed_expected,
+            reset_weight_kernel,
+            reset_weight_expected,
+            input_state_kernel,
+            input_state_expected,
+        ) = self._get_packed_tensor_inputs(
+            batch_size=batch_size,
+            sequence_length=None,
+            total_tokens=cu_seqlens[-1],
+            num_heads=num_heads,
+            head_dim=head_dim,
+            has_input_state=has_input_state,
+            dtype=dtype,
+            device=device,
         )
-
-        weight_kernel, weight_expected = self.get_random_duplicated_tensors(
-            (num_heads, head_dim, head_dim), device=device, dtype=dtype, std=0.01
-        )
-
-        # forget
-        forget_input_packed_kernel, forget_input_packed_expected = self.get_random_duplicated_tensors(
-            (cu_seqlens[-1], num_heads, head_dim), device=device, dtype=dtype, std=0.01
-        )
-
-        forget_weight_kernel, forget_weight_expected = self.get_random_duplicated_tensors(
-            (num_heads, head_dim, head_dim), device=device, dtype=dtype, std=0.01
-        )
-
-        # reset
-        reset_input_packed_kernel, reset_input_packed_expected = self.get_random_duplicated_tensors(
-            (cu_seqlens[-1], num_heads, head_dim), device=device, dtype=dtype, std=0.01
-        )
-
-        reset_weight_kernel, reset_weight_expected = self.get_random_duplicated_tensors(
-            (num_heads, head_dim, head_dim), device=device, dtype=dtype, std=0.01
-        )
-
-        input_state_kernel = None
-        input_state_expected = None
-        if has_input_state:
-            input_state_kernel, input_state_expected = self.get_random_duplicated_tensors(
-                (batch_size, num_heads, head_dim), device=device, dtype=dtype, std=0.01
-            )
 
         y_kernel = gru_torch(
             input=input_packed_kernel,
@@ -137,4 +222,86 @@ class GRUTest(TestCommons):
             rtol_float16=0,
             atol_bfloat16=6e-3,
             rtol_bfloat16=0,
+        )
+
+    def _get_packed_tensor_inputs(
+        self,
+        batch_size: int,
+        sequence_length: int | None,
+        total_tokens: int | None,
+        num_heads: int,
+        head_dim: int,
+        has_input_state: bool,
+        dtype: torch.dtype,
+        device: torch.device,
+    ) -> tuple[torch.Tensor | None]:
+        input_packed_kernel, input_packed_expected = self.get_random_duplicated_tensors(
+            (
+                (batch_size, sequence_length, num_heads, head_dim)
+                if total_tokens is None
+                else (total_tokens, num_heads, head_dim)
+            ),
+            device=device,
+            dtype=dtype,
+            std=0.01,
+        )
+
+        weight_kernel, weight_expected = self.get_random_duplicated_tensors(
+            (num_heads, head_dim, head_dim), device=device, dtype=dtype, std=0.01
+        )
+
+        # forget
+        forget_input_packed_kernel, forget_input_packed_expected = self.get_random_duplicated_tensors(
+            (
+                (batch_size, sequence_length, num_heads, head_dim)
+                if total_tokens is None
+                else (total_tokens, num_heads, head_dim)
+            ),
+            device=device,
+            dtype=dtype,
+            std=0.01,
+        )
+
+        forget_weight_kernel, forget_weight_expected = self.get_random_duplicated_tensors(
+            (num_heads, head_dim, head_dim), device=device, dtype=dtype, std=0.01
+        )
+
+        # reset
+        reset_input_packed_kernel, reset_input_packed_expected = self.get_random_duplicated_tensors(
+            (
+                (batch_size, sequence_length, num_heads, head_dim)
+                if total_tokens is None
+                else (total_tokens, num_heads, head_dim)
+            ),
+            device=device,
+            dtype=dtype,
+            std=0.01,
+        )
+
+        reset_weight_kernel, reset_weight_expected = self.get_random_duplicated_tensors(
+            (num_heads, head_dim, head_dim), device=device, dtype=dtype, std=0.01
+        )
+
+        input_state_kernel = None
+        input_state_expected = None
+        if has_input_state:
+            input_state_kernel, input_state_expected = self.get_random_duplicated_tensors(
+                (batch_size, num_heads, head_dim), device=device, dtype=dtype, std=0.01
+            )
+
+        return (
+            input_packed_kernel,
+            input_packed_expected,
+            weight_kernel,
+            weight_expected,
+            forget_input_packed_kernel,
+            forget_input_packed_expected,
+            forget_weight_kernel,
+            forget_weight_expected,
+            reset_input_packed_kernel,
+            reset_input_packed_expected,
+            reset_weight_kernel,
+            reset_weight_expected,
+            input_state_kernel,
+            input_state_expected,
         )
