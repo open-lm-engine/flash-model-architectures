@@ -1,6 +1,5 @@
 import torch
 
-from ...math import ceil_divide
 from ...utils import ensure_contiguous, get_num_elements_and_hidden_size
 from .cuda_implementation import (
     cutlass_gemm_cuda,

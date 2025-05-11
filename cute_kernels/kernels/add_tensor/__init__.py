@@ -1,7 +1,6 @@
 import torch
 
 from ...kernel_backend import KernelBackend, is_cuda_kernel_backend_allowed, is_triton_kernel_backend_allowed
-from ...math import ceil_divide
 from ...utils import ensure_same_strides, is_nvidia_gpu
 from .cuda_implementation import add_tensor_cuda
 from .torch_implementation import add_tensor_torch
