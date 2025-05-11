@@ -227,10 +227,13 @@ class RNNTest(TestCommons):
         head_dim: int,
         num_heads: int,
     ) -> None:
+        input_size = 79
+        output_size = 93
+
         rnn = RNN(
-            input_size=64,
+            input_size=input_size,
             state_size=num_heads * head_dim,
-            output_size=64,
+            output_size=output_size,
             num_heads=num_heads,
             add_bias=False,
             gradient_clipping=None,
@@ -243,15 +246,15 @@ class RNNTest(TestCommons):
         max_seqlen = None if cu_seqlens is None else (cu_seqlens[1:] - cu_seqlens[:-1]).max()
 
         input = (
-            torch.randn(batch_size, 1024, num_heads * head_dim, device=device, dtype=dtype)
+            torch.randn(batch_size, 1024, input_size, device=device, dtype=dtype)
             if cu_seqlens is None
-            else torch.randn(cu_seqlens[-1], num_heads * head_dim, device=device, dtype=dtype)
+            else torch.randn(cu_seqlens[-1], input_size, device=device, dtype=dtype)
         )
-        input_state = torch.randn(batch_size, num_heads, head_dim, device=device, dtype=dtype)
+        input_state = torch.randn(batch_size, num_heads * head_dim, device=device, dtype=dtype)
 
         output, output_state = rnn(
             input=input, input_state=input_state, cu_seqlens=cu_seqlens, max_seqlen=max_seqlen, use_kernel=True
         )
 
-        assert output.size() == input.size()
+        assert output.size() == (*input.size()[:-1], output_size)
         assert output_state.size() == input_state.size()
