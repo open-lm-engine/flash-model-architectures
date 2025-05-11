@@ -6,7 +6,7 @@ from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
 from ....triton_math import clamp, sigmoid_backward, tanh_backward
 from ....utils import cute_op
-from ...rnn.triton_implementation.backward import _backward_rnn_update, _load_previous_output
+from ...rnn.triton_implementation.backward import _load_previous_output, _rnn_backward_update
 
 
 @triton.jit
