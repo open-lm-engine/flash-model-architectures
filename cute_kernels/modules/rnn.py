@@ -42,6 +42,9 @@ class RNN(nn.Module):
         input = self.input_projection(input)
         input = input.view(*input.size()[:-1], self.num_heads, self.state_head_dim)
 
+        if input_state is not None:
+            input_state = input_state.view(-1, self.num_heads, self.state_head_dim)
+
         input = (rnn_cute if use_kernel else rnn_torch)(
             input=input,
             weight=self.state_weight,
@@ -57,6 +60,9 @@ class RNN(nn.Module):
             input_state = input[:, -1]
         else:
             input_state = input[cu_seqlens[1:] - 1]
+
+        if input_state is not None:
+            input_state = input_state.view(-1, self.num_heads, self.state_head_dim)
 
         input = input.view(*input.size()[:-2], -1)
         input = self.output_projection(input)
