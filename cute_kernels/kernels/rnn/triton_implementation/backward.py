@@ -9,6 +9,17 @@ from ....utils import cute_op
 
 
 @triton.jit
+def _sigmoid_backward(y):
+    dtype = y.dtype
+
+    y = y.to(tl.float32)
+    y = y * (1 - y)
+    y = y.to(dtype)
+
+    return y
+
+
+@triton.jit
 def _tanh_backward(y):
     dtype = y.dtype
 
@@ -82,10 +93,12 @@ def rnn_backward_triton_kernel(
             input_state_grad = clamp(input_state_grad, min_value=-gradient_clipping, max_value=gradient_clipping)
 
         input_grad = output_grad + input_state_grad
-        if activation_function == "tanh":
-            input_grad *= _tanh_backward(output)
-        elif activation_function == "leaky_relu":
+        if activation_function == "leaky_relu":
             input_grad *= _leaky_relu_backward(output, relu_negative_slope)
+        elif activation_function == "sigmoid":
+            input_grad *= _sigmoid_backward(output)
+        elif activation_function == "tanh":
+            input_grad *= _tanh_backward(output)
 
         input_grad_ptrs = input_grad_ptr + indices
         tl.store(input_grad_ptrs, input_grad, mask=mask_bh)
