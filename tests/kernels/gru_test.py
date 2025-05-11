@@ -252,7 +252,14 @@ class GRUTest(TestCommons):
 
         # forget
         forget_input_packed_kernel, forget_input_packed_expected = self.get_random_duplicated_tensors(
-            (batch_size, num_heads, head_dim), device=device, dtype=dtype, std=0.01
+            (
+                (batch_size, sequence_length, num_heads, head_dim)
+                if total_tokens is None
+                else (total_tokens, num_heads, head_dim)
+            ),
+            device=device,
+            dtype=dtype,
+            std=0.01,
         )
 
         forget_weight_kernel, forget_weight_expected = self.get_random_duplicated_tensors(
@@ -261,7 +268,14 @@ class GRUTest(TestCommons):
 
         # reset
         reset_input_packed_kernel, reset_input_packed_expected = self.get_random_duplicated_tensors(
-            (batch_size, num_heads, head_dim), device=device, dtype=dtype, std=0.01
+            (
+                (batch_size, sequence_length, num_heads, head_dim)
+                if total_tokens is None
+                else (total_tokens, num_heads, head_dim)
+            ),
+            device=device,
+            dtype=dtype,
+            std=0.01,
         )
 
         reset_weight_kernel, reset_weight_expected = self.get_random_duplicated_tensors(
