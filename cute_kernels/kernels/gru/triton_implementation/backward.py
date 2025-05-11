@@ -4,9 +4,9 @@ import triton.language as tl
 
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
-from ....triton_math import clamp
+from ....triton_math import clamp, sigmoid_backward, tanh_backward
 from ....utils import cute_op
-from ...rnn.triton_implementation.backward import _backward_rnn_update, _sigmoid_backward, _tanh_backward
+from ...rnn.triton_implementation.backward import _backward_rnn_update
 
 
 @triton.jit
