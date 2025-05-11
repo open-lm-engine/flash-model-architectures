@@ -133,7 +133,7 @@ def rnn_cute(
     BLOCK_SIZE_B_forward: int = 32,
     BLOCK_SIZE_B_backward: int = 32,
 ) -> torch.Tensor:
-    """computes multihead RNN: tanh(`input_state` @ `weight` + `input`)
+    """computes multihead RNN recurrent update over the sequence length: tanh(`input_state` @ `weight` + `input`)
 
     Args:
         input (torch.Tensor): input tensor of shape (B, S, N, H) where N is the number of heads and H is the head
