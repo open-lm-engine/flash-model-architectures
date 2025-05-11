@@ -55,7 +55,12 @@ def gru_torch(
             input_state = input_state.clone()
 
         weight = weight.unsqueeze(0)
+        forget_weight = forget_weight.unsqueeze(0)
+        reset_weight = reset_weight.unsqueeze(0)
+
         input = input.unsqueeze(-2)
+        forget_input = forget_input.unsqueeze(-2)
+        reset_input = reset_input.unsqueeze(-2)
 
         # input -> (cu_seqlens[-1], N, 1, H)
         # weight -> (1, N, H, H)
