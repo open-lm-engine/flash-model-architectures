@@ -73,7 +73,7 @@ def rnn_torch(
             input_state = input_state.unsqueeze(-2)
 
             # (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
-            input_state = input_state @ weight + input[:, s, ...]
+            input_state = input_state @ weight + input[:, s]
 
             input_state = _activation_with_clipped_gradients(
                 x=input_state,

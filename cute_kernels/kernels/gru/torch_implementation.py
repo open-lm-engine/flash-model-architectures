@@ -11,6 +11,15 @@ def _sigmoid(x: torch.Tensor) -> torch.Tensor:
     return x
 
 
+def _tanh(x: torch.Tensor) -> torch.Tensor:
+    dtype = x.dtype
+
+    x = F.tanh(x)
+    x = x.to(dtype)
+
+    return x
+
+
 def gru_torch(
     input: torch.Tensor,
     weight: torch.Tensor,
@@ -52,18 +61,11 @@ def gru_torch(
         for s in range(S):
             input_state = input_state.unsqueeze(-2)
 
-            forget_gate = _sigmoid(forget_input[:, s] + input_state @ forget_weight)
-            reset_gate = _sigmoid(reset_input[:, s] + input_state @ reset_weight)
+            forget_gate = _sigmoid(input_state @ forget_weight + forget_input[:, s])
+            reset_gate = _sigmoid(input_state @ reset_weight + reset_input[:, s])
 
-            # (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
-            input_state = input_state @ weight + input[:, s, ...]
-
-            input_state = _activation_with_clipped_gradients(
-                x=input_state,
-                activation_function=activation_function,
-                relu_negative_slope=relu_negative_slope,
-                gradient_clipping=gradient_clipping,
-            )
+            new_state = _tanh((input_state * reset_gate) @ weight + input[:, s])
+            input_state = forget_gate * input_state + (1 - forget_gate) * new_state
 
             input_state = input_state.squeeze(-2)
 
