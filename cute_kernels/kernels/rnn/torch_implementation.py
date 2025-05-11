@@ -1,6 +1,8 @@
 import torch
 import torch.nn.functional as F
 
+from ...torch_math import tanh
+
 
 class _GradientClipping(torch.autograd.Function):
     @staticmethod
@@ -18,12 +20,8 @@ class _GradientClipping(torch.autograd.Function):
 def _activation_with_clipped_gradients(
     x: torch.Tensor, activation_function: str, relu_negative_slope: float | None, gradient_clipping: float | None
 ) -> torch.Tensor:
-    original_dtype = x.dtype
-
     if activation_function == "tanh":
-        x = x.float()
-        x = F.tanh(x)
-        x = x.to(original_dtype)
+        x = tanh(x)
     elif activation_function == "leaky_relu":
         x = F.leaky_relu(x, negative_slope=relu_negative_slope)
     else:
@@ -55,25 +53,25 @@ def rnn_torch(
 
     output = torch.empty_like(input)
 
+    weight = weight.unsqueeze(0)
+    input = input.unsqueeze(-2)
+
     if cu_seqlens is None:
         assert max_seqlen is None
-        B, S, N, H = input.size()
+        B, S, N, _, H = input.size()
 
         if input_state is None:
             input_state = torch.zeros(B, N, H, device=input.device, dtype=input.dtype)
 
-        weight = weight.unsqueeze(0)
-        input = input.unsqueeze(-2)
+        input_state = input_state.unsqueeze(-2)
 
         # input -> (B, S, N, 1, H)
         # weight -> (1, N, H, H)
-        # input_state -> (B, N, H)
+        # input_state -> (B, N, 1, H)
 
         for s in range(S):
-            input_state = input_state.unsqueeze(-2)
-
             # (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
-            input_state = input_state @ weight + input[:, s, ...]
+            input_state = input_state @ weight + input[:, s]
 
             input_state = _activation_with_clipped_gradients(
                 x=input_state,
@@ -82,21 +80,16 @@ def rnn_torch(
                 gradient_clipping=gradient_clipping,
             )
 
-            input_state = input_state.squeeze(-2)
-
-            output[:, s, ...] = input_state
+            output[:, s] = input_state.squeeze(-2)
     else:
         assert max_seqlen is not None
         B = cu_seqlens.numel() - 1
-        _, N, H = input.size()
+        _, N, _, H = input.size()
 
         if input_state is None:
             input_state = torch.zeros(B, N, H, device=input.device, dtype=input.dtype)
         else:
             input_state = input_state.clone()
-
-        weight = weight.unsqueeze(0)
-        input = input.unsqueeze(-2)
 
         # input -> (cu_seqlens[-1], N, 1, H)
         # weight -> (1, N, H, H)
@@ -110,9 +103,11 @@ def rnn_torch(
             unfinished = offset < end
             new_state = input_state.unsqueeze(-2)
 
+            offset_unfinished = offset[unfinished]
+
             # don't update the finished sequences
             # (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
-            new_state = new_state[unfinished] @ weight + input[offset[unfinished], ...]
+            new_state = new_state[unfinished] @ weight + input[offset_unfinished]
 
             new_state = _activation_with_clipped_gradients(
                 x=new_state,
@@ -123,7 +118,7 @@ def rnn_torch(
 
             new_state = new_state.squeeze(-2)
 
-            output[offset[unfinished], ...] = new_state
+            output[offset_unfinished] = new_state
             input_state[unfinished] = new_state
 
     return output
