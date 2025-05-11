@@ -93,32 +93,27 @@ def rnn_backward_triton_kernel(
     input_state_grad = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=weight_ptr.dtype.element_ty)
     weight_grad = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
 
-    weight_ptrs = weight_ptr + indices_weight
-    weight = tl.load(weight_ptrs, mask=mask_hh, other=0)
+    weight = tl.load(weight_ptr + indices_weight, mask=mask_hh, other=0)
 
     indices = indices_b[:, None] * output_stride_b + (S - 1) * output_stride_s + pid_n * H + indices_h[None, :]
-
-    output_ptrs = output_ptr + indices
-    output = tl.load(output_ptrs, mask=mask_bh, other=0)
+    output = tl.load(output_ptr + indices, mask=mask_bh, other=0)
 
     # backward counting reduces 1 instruction since we need to compare s == 0, otherwise we have to compare s == S - 1
     for s in range(S - 1, -1, -1):
         if HAS_GRADIENT_CLIPPING:
             input_state_grad = clamp(input_state_grad, min_value=-gradient_clipping, max_value=gradient_clipping)
 
-        output_grad_ptrs = output_grad_ptr + indices
-        output_grad = tl.load(output_grad_ptrs, mask=mask_bh, other=0)
+        output_grad = tl.load(output_grad_ptr + indices, mask=mask_bh, other=0)
         output_grad += input_state_grad
 
         input_grad_ptrs = input_grad_ptr + indices
         indices -= output_stride_s
-        output_ptrs = output_ptr + indices
 
         output_prev = _load_previous_output(
             HAS_INPUT_STATE=HAS_INPUT_STATE,
             input_state_ptr=input_state_ptr,
             input_state_stride_b=input_state_stride_b,
-            output_ptrs=output_ptrs,
+            output_ptrs=output_ptr + indices,
             pid_n=pid_n,
             H=H,
             indices_b=indices_b,
@@ -143,8 +138,7 @@ def rnn_backward_triton_kernel(
         tl.store(input_grad_ptrs, input_grad, mask=mask_bh)
         output = output_prev
 
-    weight_grad_ptrs = weight_grad_ptr + indices_weight
-    tl.store(weight_grad_ptrs, weight_grad, mask=mask_hh)
+    tl.store(weight_grad_ptr + indices_weight, weight_grad, mask=mask_hh)
 
 
 @cute_op(f"{LIBRARY_NAME}::rnn_backward_triton", mutates_args={"input_grad", "weight_grad"})
