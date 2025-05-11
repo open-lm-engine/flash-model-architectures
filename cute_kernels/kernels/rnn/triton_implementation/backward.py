@@ -40,6 +40,22 @@ def _leaky_relu_backward(y, relu_negative_slope):
     return y
 
 
+def _backward_rnn_update(
+    output_grad, output, weight, output_prev, ACTIVATION_FUNCTION: tl.constexpr, relu_negative_slope
+):
+    if ACTIVATION_FUNCTION == "leaky_relu":
+        input_grad = output_grad * _leaky_relu_backward(output, relu_negative_slope)
+    elif ACTIVATION_FUNCTION == "sigmoid":
+        input_grad = output_grad * _sigmoid_backward(output)
+    elif ACTIVATION_FUNCTION == "tanh":
+        input_grad = output_grad * _tanh_backward(output)
+
+    input_state_grad = tl.dot(input_grad, weight.T, allow_tf32=True).to(input_state_grad.dtype)
+    weight_grad = tl.dot(output_prev.T, input_grad, weight_grad, allow_tf32=True)
+
+    return input_grad, weight_grad, input_state_grad
+
+
 @triton.jit
 def rnn_backward_triton_kernel(
     weight_ptr,
@@ -86,13 +102,12 @@ def rnn_backward_triton_kernel(
 
     # backward counting reduces 1 instruction since we need to compare s == 0, otherwise we have to compare s == S - 1
     for s in range(S - 1, -1, -1):
-        output_grad_ptrs = output_grad_ptr + indices
-        output_grad = tl.load(output_grad_ptrs, mask=mask_bh, other=0)
-
         if HAS_GRADIENT_CLIPPING:
             input_state_grad = clamp(input_state_grad, min_value=-gradient_clipping, max_value=gradient_clipping)
 
-        input_grad = output_grad + input_state_grad
+        output_grad_ptrs = output_grad_ptr + indices
+        output_grad = tl.load(output_grad_ptrs, mask=mask_bh, other=0)
+        output_grad += input_state_grad
 
         if s == 0:
             if HAS_INPUT_STATE:
@@ -106,21 +121,19 @@ def rnn_backward_triton_kernel(
             output_ptrs -= output_stride_s
             output_prev = tl.load(output_ptrs, mask=mask_bh, other=0)
 
-        if ACTIVATION_FUNCTION == "leaky_relu":
-            input_grad *= _leaky_relu_backward(output, relu_negative_slope)
-        elif ACTIVATION_FUNCTION == "sigmoid":
-            input_grad *= _sigmoid_backward(output)
-        elif ACTIVATION_FUNCTION == "tanh":
-            input_grad *= _tanh_backward(output)
+        input_grad, weight_grad, input_state_grad = _backward_rnn_update(
+            output_grad=output_grad,
+            output=output,
+            weight=weight,
+            output_prev=output_prev,
+            ACTIVATION_FUNCTION=ACTIVATION_FUNCTION,
+            relu_negative_slope=relu_negative_slope,
+        )
 
         input_grad_ptrs = input_grad_ptr + indices
         tl.store(input_grad_ptrs, input_grad, mask=mask_bh)
 
-        input_state_grad = tl.dot(input_grad, weight.T, allow_tf32=True).to(input_state_grad.dtype)
-        weight_grad = tl.dot(output_prev.T, input_grad, weight_grad, allow_tf32=True)
-
         output = output_prev
-
         indices -= output_stride_s
 
     weight_grad_ptrs = weight_grad_ptr + pid_n * weight_stride_n + indices_h[:, None] * H + indices_h[None, :]
