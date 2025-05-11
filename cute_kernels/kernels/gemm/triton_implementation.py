@@ -15,8 +15,8 @@ def gemm_triton_kernel(
     output_ptr,
     alpha,
     beta,
-    is_A_transposed: tl.constexpr,
-    is_B_transposed: tl.constexpr,
+    IS_A_TRANSPOSED: tl.constexpr,
+    IS_B_TRANSPOSED: tl.constexpr,
     M,
     K,
     N,
@@ -46,7 +46,7 @@ def gemm_triton_kernel(
         indices_k = k * BLOCK_SIZE_K + tl.arange(0, BLOCK_SIZE_K)
         mask_k = indices_k < K
 
-        if is_A_transposed:
+        if IS_A_TRANSPOSED:
             mask_A = mask_k[:, None] & mask_m[None, :]
             A_ptrs = A_ptr + indices_k[:, None] * M + indices_m[None, :]
         else:
@@ -55,10 +55,10 @@ def gemm_triton_kernel(
 
         A = tl.load(A_ptrs, mask=mask_A, other=0)
 
-        if is_A_transposed:
+        if IS_A_TRANSPOSED:
             A = A.T
 
-        if is_B_transposed:
+        if IS_B_TRANSPOSED:
             mask_B = mask_n[:, None] & mask_k[None, :]
             B_ptrs = B_ptr + indices_n[:, None] * K + indices_k[None, :]
         else:
@@ -67,7 +67,7 @@ def gemm_triton_kernel(
 
         B = tl.load(B_ptrs, mask=mask_B, other=0)
 
-        if is_B_transposed:
+        if IS_B_TRANSPOSED:
             B = B.T
 
         accumulator = tl.dot(A, B, accumulator, allow_tf32=True)
@@ -112,8 +112,8 @@ def gemm_triton(
             output_ptr=output,
             alpha=alpha,
             beta=beta,
-            is_A_transposed=is_A_transposed,
-            is_B_transposed=is_B_transposed,
+            IS_A_TRANSPOSED=is_A_transposed,
+            IS_B_TRANSPOSED=is_B_transposed,
             M=M,
             K=K,
             N=N,

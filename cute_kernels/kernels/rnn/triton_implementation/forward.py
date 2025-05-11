@@ -15,11 +15,11 @@ def rnn_forward_triton_kernel(
     input_stride_s,
     weight_ptr,
     weight_stride_n,
-    has_input_state: tl.constexpr,
+    HAS_INPUT_STATE: tl.constexpr,
     input_state_ptr,
     input_state_stride_b,
     output_ptr,
-    activation_function: tl.constexpr,
+    ACTIVATION_FUNCTION: tl.constexpr,
     relu_negative_slope,
     B,
     S,
@@ -40,7 +40,7 @@ def rnn_forward_triton_kernel(
     weight_ptrs = weight_ptr + pid_n * weight_stride_n + indices_h[:, None] * H + indices_h[None, :]
     weight = tl.load(weight_ptrs, mask=mask_h[:, None] & mask_h[None, :], other=0)
 
-    if has_input_state:
+    if HAS_INPUT_STATE:
         input_state_ptrs = input_state_ptr + indices_b[:, None] * input_state_stride_b + pid_n * H + indices_h[None, :]
         input_state = tl.load(input_state_ptrs, mask=mask_bh)
     else:
@@ -62,9 +62,9 @@ def rnn_forward_triton_kernel(
 
         input_state = tl.dot(input_state, weight, input, allow_tf32=True, out_dtype=out_dtype).to(cast_dtype)
 
-        if activation_function == "tanh":
+        if ACTIVATION_FUNCTION == "tanh":
             input_state = tanh(input_state)
-        elif activation_function == "leaky_relu":
+        elif ACTIVATION_FUNCTION == "leaky_relu":
             input_state = leaky_relu(input_state, relu_negative_slope)
 
         output_ptrs = output_ptr + indices
@@ -97,11 +97,11 @@ def rnn_forward_triton(
             input_stride_s=input.stride(1),
             weight_ptr=weight,
             weight_stride_n=weight.stride(0),
-            has_input_state=has_input_state,
+            HAS_INPUT_STATE=has_input_state,
             input_state_ptr=input_state,
             input_state_stride_b=input_state.stride(0) if has_input_state else None,
             output_ptr=output,
-            activation_function=activation_function,
+            ACTIVATION_FUNCTION=activation_function,
             relu_negative_slope=relu_negative_slope,
             B=B,
             S=S,

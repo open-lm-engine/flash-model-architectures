@@ -10,13 +10,13 @@ from ....utils import cute_op, get_num_elements_and_hidden_size, get_sm_count
 @triton.jit
 def rmsnorm_backward_triton_kernel(
     x_ptr,
-    has_weight: tl.constexpr,
+    HAS_WEIGHT: tl.constexpr,
     weight_ptr,
     output_grad_ptr,
     x_grad_ptr,
     weight_grad_ptr,
     eps,
-    has_rmsnorm_denominator: tl.constexpr,
+    HAS_RMSNORM_DENOMINATOR: tl.constexpr,
     rmsnorm_denominator_ptr,
     B,
     H,
@@ -39,7 +39,7 @@ def rmsnorm_backward_triton_kernel(
 
     x_dtype = x_ptr.dtype.element_ty
 
-    if has_weight:
+    if HAS_WEIGHT:
         weight = tl.load(weight_ptr + indices_h, mask=mask_h)[None, :]
         weight_grad = tl.zeros((BLOCK_SIZE_H,), dtype=tl.float32)
 
@@ -53,7 +53,7 @@ def rmsnorm_backward_triton_kernel(
         x_ptrs = x_ptr + indices_bh
         x = tl.load(x_ptrs, mask=mask_bh).to(tl.float32)
 
-        if has_rmsnorm_denominator:
+        if HAS_RMSNORM_DENOMINATOR:
             inverse_rms = tl.load(rmsnorm_denominator_ptr + indices_b, mask=mask_b)
         else:
             squared_sum = tl.sum(x * x, axis=1)
@@ -63,7 +63,7 @@ def rmsnorm_backward_triton_kernel(
         output_grad = tl.load(output_grad_ptrs, mask=mask_bh)
 
         output_grad_weight = output_grad
-        if has_weight:
+        if HAS_WEIGHT:
             output_grad_weight *= weight
 
         output_grad_weight = output_grad_weight.to(tl.float32)
@@ -82,10 +82,10 @@ def rmsnorm_backward_triton_kernel(
         x_grad_ptrs = x_grad_ptr + indices_bh
         tl.store(x_grad_ptrs, x_grad, mask=mask_bh)
 
-        if has_weight:
+        if HAS_WEIGHT:
             weight_grad += tl.sum(output_grad * (x * inverse_rms[:, None]).to(x_dtype), axis=0)
 
-    if has_weight:
+    if HAS_WEIGHT:
         tl.atomic_add(weight_grad_ptr + indices_h, weight_grad, mask=mask_h)
 
 
@@ -111,13 +111,13 @@ def rmsnorm_backward_triton(
     with torch.device(x.device):
         rmsnorm_backward_triton_kernel[num_programs,](
             x_ptr=x,
-            has_weight=weight is not None,
+            HAS_WEIGHT=weight is not None,
             weight_ptr=weight,
             output_grad_ptr=output_grad,
             x_grad_ptr=x_grad,
             weight_grad_ptr=weight_grad,
             eps=eps,
-            has_rmsnorm_denominator=rmsnorm_denominator is not None,
+            HAS_RMSNORM_DENOMINATOR=rmsnorm_denominator is not None,
             rmsnorm_denominator_ptr=rmsnorm_denominator,
             B=B,
             H=H,
