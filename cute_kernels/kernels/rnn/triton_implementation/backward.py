@@ -57,6 +57,7 @@ def _backward_rnn_update(
     return input_grad, weight_grad, input_state_grad
 
 
+@triton.jit
 def _load_previous_output(
     HAS_INPUT_STATE: tl.constexpr,
     input_state_ptr,
