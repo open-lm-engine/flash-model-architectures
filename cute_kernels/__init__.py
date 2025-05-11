@@ -20,6 +20,7 @@ from .kernels import (
     fused_residual_add_rmsnorm_torch,
     gemm_cute,
     gemm_torch,
+    gru_cute,
     gru_torch,
     linear_cute,
     linear_torch,
