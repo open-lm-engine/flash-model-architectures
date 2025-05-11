@@ -13,7 +13,6 @@ from ...rnn.triton_implementation.backward import _load_previous_output, _rnn_ba
 def gru_backward_triton_kernel(
     weight_ptr,
     weight_stride_n,
-    output_ptr,
     output_stride_b,
     output_stride_s,
     forget_weight_ptr,
@@ -21,6 +20,7 @@ def gru_backward_triton_kernel(
     forget_input_grad_ptr,
     reset_weight_ptr,
     reset_gate_ptr,
+    reset_input_grad_ptr,
     output_update_ptr,
     HAS_INPUT_STATE: tl.constexpr,
     input_state_ptr,
@@ -60,7 +60,6 @@ def gru_backward_triton_kernel(
     reset_weight = tl.load(reset_weight_ptr + indices, mask=mask_hh, other=0)
 
     indices = indices_b[:, None] * output_stride_b + (S - 1) * output_stride_s + pid_n * H + indices_h[None, :]
-    output = tl.load(output_ptr + indices, mask=mask_bh, other=0)
 
     # backward counting reduces 1 instruction since we need to compare s == 0, otherwise we have to compare s == S - 1
     for s in range(S - 1, -1, -1):
