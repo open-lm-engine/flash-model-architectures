@@ -20,12 +20,12 @@ class _GradientClipping(torch.autograd.Function):
 def _activation_with_clipped_gradients(
     x: torch.Tensor, activation_function: str, relu_negative_slope: float | None, gradient_clipping: float | None
 ) -> torch.Tensor:
-    if activation_function == "tanh":
-        x = tanh(x)
+    if activation_function == "leaky_relu":
+        x = F.leaky_relu(x, negative_slope=relu_negative_slope)
     elif activation_function == "sigmoid":
         x = sigmoid(x)
-    elif activation_function == "leaky_relu":
-        x = F.leaky_relu(x, negative_slope=relu_negative_slope)
+    elif activation_function == "tanh":
+        x = tanh(x)
     else:
         raise ValueError(f"unexpected activation_function ({activation_function})")
 
@@ -45,6 +45,8 @@ def rnn_torch(
     activation_function: str = "tanh",
     relu_negative_slope: float | None = None,
 ) -> torch.Tensor:
+    assert activation_function in ["leaky_relu", "sigmoid", "tanh"]
+
     if activation_function == "leaky_relu":
         assert relu_negative_slope is not None
     else:

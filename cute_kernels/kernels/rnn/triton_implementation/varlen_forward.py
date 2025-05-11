@@ -4,7 +4,7 @@ import triton.language as tl
 
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
-from ....triton_math import leaky_relu, tanh
+from ....triton_math import leaky_relu, sigmoid, tanh
 from ....utils import cute_op
 
 
@@ -75,10 +75,12 @@ def rnn_varlen_forward_triton_kernel(
 
         new_state = tl.dot(input_state, weight, input, allow_tf32=True, out_dtype=out_dtype).to(cast_dtype)
 
-        if activation_function == "tanh":
-            new_state = tanh(new_state)
-        elif activation_function == "leaky_relu":
+        if activation_function == "leaky_relu":
             new_state = leaky_relu(new_state, relu_negative_slope)
+        elif activation_function == "sigmoid":
+            new_state = sigmoid(new_state)
+        elif activation_function == "tanh":
+            new_state = tanh(new_state)
 
         input_state = new_state * unfinished + input_state * (1 - unfinished)
         input_state = input_state.to(cast_dtype)
