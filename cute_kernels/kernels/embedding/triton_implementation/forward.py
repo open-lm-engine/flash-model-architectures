@@ -29,8 +29,11 @@ def embedding_forward_triton_kernel(
     x = tl.load(x_ptr + indices_b, mask=mask_b)
     word_embeddings = tl.load(weight_ptr + x[:, None] * H + indices_h[None, :], mask=mask_h[None, :])
 
-    output_ptrs = output_ptr + indices_b[:, None] * H + indices_h[None, :]
-    tl.store(output_ptrs, word_embeddings, mask=mask_b[:, None] & mask_h[None, :])
+    tl.store(
+        output_ptr + indices_b[:, None] * H + indices_h[None, :],
+        word_embeddings,
+        mask=mask_b[:, None] & mask_h[None, :],
+    )
 
 
 @cute_op(f"{LIBRARY_NAME}::embedding_forward_triton", mutates_args={"output"})
