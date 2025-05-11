@@ -57,6 +57,37 @@ def _backward_rnn_update(
     return input_grad, weight_grad, input_state_grad
 
 
+def _load_previous_output(
+    HAS_INPUT_STATE: tl.constexpr,
+    input_state_ptr,
+    input_state_stride_b,
+    output_ptrs,
+    output_stride_s,
+    pid_n,
+    H,
+    indices_b,
+    indices_h,
+    mask_bh,
+    BLOCK_SIZE_B: tl.constexpr,
+    BLOCK_SIZE_H: tl.constexpr,
+    s,
+    dtype,
+):
+    if s == 0:
+        if HAS_INPUT_STATE:
+            input_state_ptrs = (
+                input_state_ptr + indices_b[:, None] * input_state_stride_b + pid_n * H + indices_h[None, :]
+            )
+            output_prev = tl.load(input_state_ptrs, mask=mask_bh, other=0)
+        else:
+            output_prev = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=dtype)
+    else:
+        output_ptrs -= output_stride_s
+        output_prev = tl.load(output_ptrs, mask=mask_bh, other=0)
+
+    return output_prev
+
+
 @triton.jit
 def rnn_backward_triton_kernel(
     weight_ptr,
@@ -110,17 +141,22 @@ def rnn_backward_triton_kernel(
         output_grad = tl.load(output_grad_ptrs, mask=mask_bh, other=0)
         output_grad += input_state_grad
 
-        if s == 0:
-            if HAS_INPUT_STATE:
-                input_state_ptrs = (
-                    input_state_ptr + indices_b[:, None] * input_state_stride_b + pid_n * H + indices_h[None, :]
-                )
-                output_prev = tl.load(input_state_ptrs, mask=mask_bh, other=0)
-            else:
-                output_prev = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=weight.dtype)
-        else:
-            output_ptrs -= output_stride_s
-            output_prev = tl.load(output_ptrs, mask=mask_bh, other=0)
+        output_prev = _load_previous_output(
+            HAS_INPUT_STATE=HAS_INPUT_STATE,
+            input_state_ptr=input_state_ptr,
+            input_state_stride_b=input_state_stride_b,
+            output_ptrs=output_ptrs,
+            output_stride_s=output_stride_s,
+            pid_n=pid_n,
+            H=H,
+            indices_b=indices_b,
+            indices_h=indices_h,
+            mask_bh=mask_bh,
+            BLOCK_SIZE_B=BLOCK_SIZE_B,
+            BLOCK_SIZE_H=BLOCK_SIZE_H,
+            s=s,
+            dtype=weight.dtype,
+        )
 
         input_grad, weight_grad, input_state_grad = _backward_rnn_update(
             output=output,
