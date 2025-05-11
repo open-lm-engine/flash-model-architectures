@@ -111,8 +111,6 @@ def rnn_varlen_backward_triton_kernel(
         input_grad_ptrs = input_grad_ptr + indices
         tl.store(input_grad_ptrs, input_grad, mask=mask)
 
-        input_state_grad = tl.dot(input_grad, weight.T, allow_tf32=True).to(input_state_grad.dtype)
-
         indices -= output_stride_t
         output_ptrs = output_ptr + indices
 
@@ -134,9 +132,10 @@ def rnn_varlen_backward_triton_kernel(
             tl.load(output_ptrs, mask=mask & (indices >= 0), other=0),
         )
 
-        end -= 1
-
+        input_state_grad = tl.dot(input_grad, weight.T, allow_tf32=True).to(input_state_grad.dtype)
         weight_grad = tl.dot(output_prev.T, input_grad, weight_grad, allow_tf32=True)
+
+        end -= 1
         output = output_prev
 
     weight_grad_ptrs = weight_grad_ptr + indices_weight
