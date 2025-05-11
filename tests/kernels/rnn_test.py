@@ -3,7 +3,7 @@ from typing import Callable
 import torch
 from parameterized import parameterized
 
-from cute_kernels import rnn_cute, rnn_torch, set_seed
+from cute_kernels import RNN, rnn_cute, rnn_torch, set_seed
 
 from ..test_commons import TestCommons
 
@@ -209,3 +209,52 @@ class RNNTest(TestCommons):
             atol_bfloat16=6e-3,
             rtol_bfloat16=0,
         )
+
+    @parameterized.expand(
+        TestCommons.make_args_matrix(
+            [torch.device("cuda")],
+            TestCommons.get_dtypes(),
+            [[0, 7, 19, 27, 93], None],  # cu_seqlens
+            [64],  # head_dim
+            [4],  # num_heads
+        )
+    )
+    def test_rnn_module(
+        self,
+        device: torch.device,
+        dtype: torch.dtype,
+        cu_seqlens: list[int] | None,
+        head_dim: int,
+        num_heads: int,
+    ) -> None:
+        input_size = 79
+        output_size = 93
+
+        rnn = RNN(
+            input_size=input_size,
+            state_size=num_heads * head_dim,
+            output_size=output_size,
+            num_heads=num_heads,
+            add_bias=False,
+            gradient_clipping=None,
+            activation_function="tanh",
+            relu_negative_slope=None,
+        ).to(device, dtype)
+
+        batch_size = 4 if cu_seqlens is None else len(cu_seqlens) - 1
+        cu_seqlens = None if cu_seqlens is None else torch.tensor(cu_seqlens, device=device)
+        max_seqlen = None if cu_seqlens is None else (cu_seqlens[1:] - cu_seqlens[:-1]).max()
+
+        input = (
+            torch.randn(batch_size, 1024, input_size, device=device, dtype=dtype)
+            if cu_seqlens is None
+            else torch.randn(cu_seqlens[-1], input_size, device=device, dtype=dtype)
+        )
+        input_state = torch.randn(batch_size, num_heads * head_dim, device=device, dtype=dtype)
+
+        output, output_state = rnn(
+            input=input, input_state=input_state, cu_seqlens=cu_seqlens, max_seqlen=max_seqlen, use_kernel=True
+        )
+
+        assert output.size() == (*input.size()[:-1], output_size)
+        assert output_state.size() == input_state.size()
