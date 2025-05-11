@@ -51,46 +51,34 @@ def gru_backward_triton_kernel(
     indices = pid_n * weight_stride_n + indices_h[:, None] * H + indices_h[None, :]
     mask_hh = mask_h[:, None] & mask_h[None, :]
 
-    weight_ptrs = weight_ptr + indices
-    weight = tl.load(weight_ptrs, mask=mask_hh, other=0)
-
-    forget_weight_ptrs = forget_weight_ptr + indices
-    forget_weight = tl.load(forget_weight_ptrs, mask=mask_hh, other=0)
-
-    reset_weight_ptrs = reset_weight_ptr + indices
-    reset_weight = tl.load(reset_weight_ptrs, mask=mask_hh, other=0)
-
-    weight_ptrs = weight_ptr + indices
-    weight = tl.load(weight_ptrs, mask=mask_hh, other=0)
+    weight = tl.load(weight_ptr + indices, mask=mask_hh, other=0)
+    forget_weight = tl.load(forget_weight_ptr + indices, mask=mask_hh, other=0)
+    reset_weight = tl.load(reset_weight_ptr + indices, mask=mask_hh, other=0)
+    weight = tl.load(weight_ptr + indices, mask=mask_hh, other=0)
 
     indices = indices_b[:, None] * output_stride_b + (S - 1) * output_stride_s + pid_n * H + indices_h[None, :]
-
-    output_ptrs = output_ptr + indices
-    output = tl.load(output_ptrs, mask=mask_bh, other=0)
+    output = tl.load(output_ptr + indices, mask=mask_bh, other=0)
 
     # backward counting reduces 1 instruction since we need to compare s == 0, otherwise we have to compare s == S - 1
     for s in range(S - 1, -1, -1):
-        output_grad_ptrs = output_grad_ptr + indices
-        output_grad = tl.load(output_grad_ptrs, mask=mask_bh, other=0)
-
         if HAS_GRADIENT_CLIPPING:
             input_state_grad = clamp(input_state_grad, min_value=-gradient_clipping, max_value=gradient_clipping)
 
-        forget_gate_ptrs = forget_gate_ptr + indices
-        forget_gate = tl.load(forget_gate_ptrs, mask=mask_bh)
-
-        output_update_ptrs = output_update_ptr + indices
-        output_update = tl.load(output_update_ptrs, mask=mask_bh)
+        output_grad = tl.load(output_grad_ptr + indices, mask=mask_bh, other=0)
+        forget_gate = tl.load(forget_gate_ptr + indices, mask=mask_bh)
+        output_update = tl.load(output_update_ptr + indices, mask=mask_bh)
 
         output_grad += input_state_grad
         forget_gate_grad = output_grad * (forget_gate - output_update)
 
-        output_ptrs -= output_stride_s
+        input_grad_ptrs = input_grad_ptr + indices
+        indices -= output_stride_s
+
         output_prev = _load_previous_output(
             HAS_INPUT_STATE=HAS_INPUT_STATE,
             input_state_ptr=input_state_ptr,
             input_state_stride_b=input_state_stride_b,
-            output_ptrs=output_ptrs,
+            output_ptrs=output_ptr + indices,
             pid_n=pid_n,
             indices_b=indices_b,
             indices_h=indices_h,
@@ -111,15 +99,11 @@ def gru_backward_triton_kernel(
             relu_negative_slope=None,
         )
 
-        input_grad_ptrs = input_grad_ptr + indices
         tl.store(input_grad_ptrs, input_grad, mask=mask_bh)
-
         input_state_grad = tl.dot(input_grad, weight.T, allow_tf32=True).to(input_state_grad.dtype)
 
         weight_grad = tl.dot(output_prev.T, input_grad, weight_grad, allow_tf32=True)
         output = output_prev
-
-        indices -= output_stride_s
 
     weight_grad_ptrs = weight_grad_ptr + pid_n * weight_stride_n + indices_h[:, None] * H + indices_h[None, :]
     tl.store(weight_grad_ptrs, weight_grad, mask=mask_h[:, None] & mask_h[None, :])
