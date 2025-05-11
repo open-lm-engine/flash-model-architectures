@@ -2,7 +2,7 @@ import torch
 
 from ...utils import ensure_contiguous
 from .torch_implementation import gru_torch
-from .triton_implementation import gru_forward_triton
+from .triton_implementation import gru_backward_triton, gru_forward_triton
 
 
 class _GRU_Cute(torch.autograd.Function):
@@ -74,7 +74,7 @@ class _GRU_Cute(torch.autograd.Function):
         gradient_clipping = ctx.gradient_clipping
 
         if cu_seqlens is None:
-            rnn_backward_triton(
+            gru_backward_triton(
                 weight=weight,
                 output=output,
                 input_state=input_state,
