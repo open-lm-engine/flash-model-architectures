@@ -136,9 +136,9 @@ def rnn_varlen_backward_triton_kernel(
         )
 
         tl.store(input_grad_ptrs, input_grad, mask=mask)
+        output = output_prev
 
         end -= 1
-        output = output_prev
 
     weight_grad_ptrs = weight_grad_ptr + indices_weight
     tl.store(weight_grad_ptrs, weight_grad, mask=mask_hh)
