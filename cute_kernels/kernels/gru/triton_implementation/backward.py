@@ -6,27 +6,7 @@ from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
 from ....triton_math import clamp
 from ....utils import cute_op
-
-
-@triton.jit
-def _tanh_backward(y):
-    dtype = y.dtype
-
-    y = y.to(tl.float32)
-    y = 1 - y * y
-    y = y.to(dtype)
-
-    return y
-
-
-@triton.jit
-def _leaky_relu_backward(y, relu_negative_slope):
-    dtype = y.dtype
-
-    y = tl.where(y >= 0, 1, relu_negative_slope)
-    y = y.to(dtype)
-
-    return y
+from ...rnn.triton_implementation.backward import _tanh_backward
 
 
 @triton.jit
