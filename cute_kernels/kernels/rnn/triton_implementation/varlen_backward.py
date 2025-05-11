@@ -76,12 +76,14 @@ def rnn_varlen_backward_triton_kernel(
 
     cu_seqlens_ptrs = cu_seqlens_ptr + indices_b[:, None]
     start = tl.load(cu_seqlens_ptrs, mask=mask_b[:, None])
-    end = tl.load(cu_seqlens_ptrs + 1, mask=mask_b[:, None]) - 1
+    end = tl.load(cu_seqlens_ptrs + 1, mask=mask_b[:, None])
 
     if IS_MAX_SEQLEN_TENSOR:
         max_seqlen = tl.load(max_seqlen_ptr)
     else:
         max_seqlen = max_seqlen_ptr
+
+    end -= 1
 
     indices = end * output_stride_t + pid_n * H + indices_h[None, :]
 
