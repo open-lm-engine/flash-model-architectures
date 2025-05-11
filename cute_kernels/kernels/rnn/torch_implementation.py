@@ -64,14 +64,13 @@ def rnn_torch(
 
         weight = weight.unsqueeze(0)
         input = input.unsqueeze(-2)
+        input_state = input_state.unsqueeze(-2)
 
         # input -> (B, S, N, 1, H)
         # weight -> (1, N, H, H)
-        # input_state -> (B, N, H)
+        # input_state -> (B, N, 1, H)
 
         for s in range(S):
-            input_state = input_state.unsqueeze(-2)
-
             # (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
             input_state = input_state @ weight + input[:, s]
 
@@ -82,9 +81,7 @@ def rnn_torch(
                 gradient_clipping=gradient_clipping,
             )
 
-            input_state = input_state.squeeze(-2)
-
-            output[:, s, ...] = input_state
+            output[:, s, ...] = input_state.squeeze(-2)
     else:
         assert max_seqlen is not None
         B = cu_seqlens.numel() - 1
