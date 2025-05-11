@@ -66,7 +66,10 @@ class _GRU_Cute(torch.autograd.Function):
                 BLOCK_SIZE_B=BLOCK_SIZE_B_forward,
             )
 
-        ctx.save_for_backward(weight, output, input_state, cu_seqlens, max_seqlen)
+        ctx.save_for_backward(
+            weight, forget_weight, forget_gate, reset_weight, reset_gate, output, input_state, cu_seqlens, max_seqlen
+        )
+
         ctx.gradient_clipping = gradient_clipping
         ctx.BLOCK_SIZE_B_backward = BLOCK_SIZE_B_backward
 
@@ -75,7 +78,9 @@ class _GRU_Cute(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
     def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor]:
-        weight, output, input_state, cu_seqlens, max_seqlen = ctx.saved_tensors
+        weight, forget_weight, forget_gate, reset_weight, reset_gate, output, input_state, cu_seqlens, max_seqlen = (
+            ctx.saved_tensors
+        )
         input_grad = torch.empty_like(output)
         weight_grad = torch.empty_like(weight)
 
@@ -84,12 +89,12 @@ class _GRU_Cute(torch.autograd.Function):
 
         if cu_seqlens is None:
             gru_backward_triton(
-                output=output,
                 weight=weight,
-                forget_input=forget_input,
+                output=output,
                 forget_weight=forget_weight,
-                reset_input=reset_input,
+                forget_gate=forget_gate,
                 reset_weight=reset_weight,
+                reset_gate=reset_gate,
                 input_state=input_state,
                 output_grad=output_grad,
                 input_grad=input_grad,
@@ -101,8 +106,8 @@ class _GRU_Cute(torch.autograd.Function):
             is_max_seqlen_tensor = isinstance(max_seqlen, torch.Tensor)
 
             gru_varlen_backward_triton(
-                weight=weight,
                 output=output,
+                weight=weight,
                 input_state=input_state,
                 output_grad=output_grad,
                 input_grad=input_grad,
