@@ -110,7 +110,11 @@ def rnn_backward_triton_kernel(
         output_grad = tl.load(output_grad_ptrs, mask=mask_bh, other=0)
         output_grad += input_state_grad
 
-        output_ptrs -= output_stride_s
+        input_grad_ptrs = input_grad_ptr + indices
+
+        indices -= output_stride_s
+        output_ptrs = output_ptr + indices
+
         output_prev = _load_previous_output(
             HAS_INPUT_STATE=HAS_INPUT_STATE,
             input_state_ptr=input_state_ptr,
@@ -137,11 +141,8 @@ def rnn_backward_triton_kernel(
             relu_negative_slope=relu_negative_slope,
         )
 
-        input_grad_ptrs = input_grad_ptr + indices
         tl.store(input_grad_ptrs, input_grad, mask=mask_bh)
-
         output = output_prev
-        indices -= output_stride_s
 
     weight_grad_ptrs = weight_grad_ptr + indices_weight
     tl.store(weight_grad_ptrs, weight_grad, mask=mask_hh)
