@@ -42,7 +42,7 @@ def _leaky_relu_backward(y, relu_negative_slope):
 
 @triton.jit
 def _backward_rnn_update(
-    output_grad, output, weight, output_prev, ACTIVATION_FUNCTION: tl.constexpr, relu_negative_slope
+    output, weight, output_grad, weight_grad, output_prev, ACTIVATION_FUNCTION: tl.constexpr, relu_negative_slope
 ):
     if ACTIVATION_FUNCTION == "leaky_relu":
         input_grad = output_grad * _leaky_relu_backward(output, relu_negative_slope)
@@ -123,9 +123,10 @@ def rnn_backward_triton_kernel(
             output_prev = tl.load(output_ptrs, mask=mask_bh, other=0)
 
         input_grad, weight_grad, input_state_grad = _backward_rnn_update(
-            output_grad=output_grad,
             output=output,
             weight=weight,
+            output_grad=output_grad,
+            weight_grad=weight_grad,
             output_prev=output_prev,
             ACTIVATION_FUNCTION=ACTIVATION_FUNCTION,
             relu_negative_slope=relu_negative_slope,
