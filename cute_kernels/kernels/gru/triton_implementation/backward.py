@@ -13,6 +13,7 @@ from ...rnn.triton_implementation.backward import _load_previous_output, _rnn_ba
 def gru_backward_triton_kernel(
     weight_ptr,
     weight_stride_n,
+    output_ptr,
     output_stride_b,
     output_stride_s,
     forget_weight_ptr,
@@ -80,9 +81,24 @@ def gru_backward_triton_kernel(
         input_grad = -forget_gate * output_grad * tanh_backward(output_update)
         tl.store(input_grad_ptr + indices, input_grad, mask=mask_bh)
 
-        weight_grad = tl.dot((reset_gate * output_prev).T, input_grad, weight_grad)
-
         forget_gate_grad = output_grad * (forget_gate - output_update)
+
+        indices -= output_stride_s
+
+        output_prev = _load_previous_output(
+            HAS_INPUT_STATE=HAS_INPUT_STATE,
+            input_state_ptr=input_state_ptr,
+            input_state_stride_b=input_state_stride_b,
+            output_ptrs=output_ptr + indices,
+            pid_n=pid_n,
+            indices_b=indices_b,
+            indices_h=indices_h,
+            mask_bh=mask_bh,
+            BLOCK_SIZE_B=BLOCK_SIZE_B,
+            BLOCK_SIZE_H=BLOCK_SIZE_H,
+            s=s,
+            dtype=weight.dtype,
+        )
 
         input_grad, weight_grad, output_update_grad = _rnn_backward_update(
             output=output_update,
@@ -118,23 +134,6 @@ def gru_backward_triton_kernel(
         input_state_grad += input_state_grad_from_reset_gate
 
         tl.store(reset_input_grad_ptrs, reset_input_grad, mask=mask_bh)
-
-        indices -= output_stride_s
-
-        output_prev = _load_previous_output(
-            HAS_INPUT_STATE=HAS_INPUT_STATE,
-            input_state_ptr=input_state_ptr,
-            input_state_stride_b=input_state_stride_b,
-            output_ptrs=output_ptr + indices,
-            pid_n=pid_n,
-            indices_b=indices_b,
-            indices_h=indices_h,
-            mask_bh=mask_bh,
-            BLOCK_SIZE_B=BLOCK_SIZE_B,
-            BLOCK_SIZE_H=BLOCK_SIZE_H,
-            s=s,
-            dtype=weight.dtype,
-        )
 
         tl.store(input_grad_ptrs, input_grad, mask=mask_bh)
         output = output_prev
