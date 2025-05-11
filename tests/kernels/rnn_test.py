@@ -41,6 +41,9 @@ class RNNTest(TestCommons):
             self._get_packed_tensor_inputs(
                 batch_size=batch_size,
                 sequence_length=sequence_length,
+                total_tokens=None,
+                batch_size=batch_size,
+                sequence_length=sequence_length,
                 num_heads=num_heads,
                 head_dim=head_dim,
                 has_input_state=has_input_state,
@@ -104,8 +107,9 @@ class RNNTest(TestCommons):
             input_state_kernel,
             input_state_expected,
         ) = self._get_packed_tensor_inputs(
-            batch_size=cu_seqlens[-1],
+            batch_size=batch_size,
             sequence_length=None,
+            total_tokens=cu_seqlens[-1],
             num_heads=num_heads,
             head_dim=head_dim,
             has_input_state=has_input_state,
@@ -171,8 +175,9 @@ class RNNTest(TestCommons):
 
         x_kernel, x_expected, weight_kernel, weight_expected, input_state_kernel, input_state_expected = (
             self._get_packed_tensor_inputs(
-                batch_size=cu_seqlens[-1],
+                batch_size=batch_size,
                 sequence_length=None,
+                total_tokens=cu_seqlens[-1],
                 num_heads=num_heads,
                 head_dim=head_dim,
                 has_input_state=has_input_state,
@@ -259,7 +264,8 @@ class RNNTest(TestCommons):
     def _get_packed_tensor_inputs(
         self,
         batch_size: int,
-        sequence_length: int,
+        sequence_length: int | None,
+        total_tokens: int | None,
         num_heads: int,
         head_dim: int,
         has_input_state: bool,
@@ -268,9 +274,9 @@ class RNNTest(TestCommons):
     ) -> tuple[torch.Tensor | None]:
         x_kernel, x_expected = self.get_random_duplicated_tensors(
             (
-                (batch_size, num_heads, head_dim)
-                if sequence_length is None
-                else (batch_size, sequence_length, num_heads, head_dim)
+                (batch_size, sequence_length, num_heads, head_dim)
+                if total_tokens is None
+                else (total_tokens, num_heads, head_dim)
             ),
             device=device,
             dtype=dtype,
