@@ -30,8 +30,7 @@ def swiglu_unchunked_backward_triton_kernel(
     gate_ptrs = up_ptrs + (H >> 1)
     gate = tl.load(gate_ptrs, mask=mask_bh).to(tl.float32)
 
-    output_grad_ptrs = output_grad_ptr + indices_b[:, None] * half_H + indices_h[None, :]
-    output_grad = tl.load(output_grad_ptrs, mask=mask_bh)
+    output_grad = tl.load(output_grad_ptr + indices_b[:, None] * half_H + indices_h[None, :], mask=mask_bh)
 
     gate_sigmoid = sigmoid(gate)
     gate_silu = gate * gate_sigmoid
