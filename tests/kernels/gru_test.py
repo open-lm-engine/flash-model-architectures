@@ -38,16 +38,16 @@ class GRUTest(TestCommons):
         set_seed(_SEED)
 
         (
-            input_packed_kernel,
-            input_packed_expected,
+            input_kernel,
+            input_expected,
             weight_kernel,
             weight_expected,
-            forget_input_packed_kernel,
-            forget_input_packed_expected,
+            forget_input_kernel,
+            forget_input_expected,
             forget_weight_kernel,
             forget_weight_expected,
-            reset_input_packed_kernel,
-            reset_input_packed_expected,
+            reset_input_kernel,
+            reset_input_expected,
             reset_weight_kernel,
             reset_weight_expected,
             input_state_kernel,
@@ -64,21 +64,21 @@ class GRUTest(TestCommons):
         )
 
         y_kernel = function(
-            input=input_packed_kernel,
+            input=input_kernel,
             weight=weight_kernel,
-            forget_input=forget_input_packed_kernel,
+            forget_input=forget_input_kernel,
             forget_weight=forget_weight_kernel,
-            reset_input=reset_input_packed_kernel,
+            reset_input=reset_input_kernel,
             reset_weight=reset_weight_kernel,
             input_state=input_state_kernel,
         )
 
         y_expected = gru_torch(
-            input=input_packed_expected,
+            input=input_expected,
             weight=weight_expected,
-            forget_input=forget_input_packed_expected,
+            forget_input=forget_input_expected,
             forget_weight=forget_weight_expected,
-            reset_input=reset_input_packed_expected,
+            reset_input=reset_input_expected,
             reset_weight=reset_weight_expected,
             input_state=input_state_expected,
         )
@@ -91,8 +91,8 @@ class GRUTest(TestCommons):
         )
 
         self.assert_equal_tensors(
-            input_packed_kernel.grad,
-            input_packed_expected.grad,
+            input_kernel.grad,
+            input_expected.grad,
             False,
             atol_float32=6e-3,
             rtol_float32=0,
@@ -101,8 +101,8 @@ class GRUTest(TestCommons):
         )
 
         self.assert_equal_tensors(
-            forget_input_packed_kernel.grad,
-            forget_input_packed_expected.grad,
+            forget_input_kernel.grad,
+            forget_input_expected.grad,
             False,
             atol_float32=6e-3,
             rtol_float32=0,
@@ -111,8 +111,8 @@ class GRUTest(TestCommons):
         )
 
         self.assert_equal_tensors(
-            reset_input_packed_kernel.grad,
-            reset_input_packed_expected.grad,
+            reset_input_kernel.grad,
+            reset_input_expected.grad,
             False,
             atol_float32=6e-3,
             rtol_float32=0,
