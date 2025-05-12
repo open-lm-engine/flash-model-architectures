@@ -113,7 +113,7 @@ def gru_backward_triton_kernel(
         forget_input_grad, forget_weight_grad, input_state_grad_from_forget_gate = _rnn_backward_update(
             output=forget_gate,
             weight=forget_weight,
-            output_grad=output_grad * (forget_gate - output_update),
+            output_grad=output_grad * (output_prev - output_update),
             weight_grad=forget_weight_grad,
             output_prev=output_prev,
             ACTIVATION_FUNCTION="sigmoid",
