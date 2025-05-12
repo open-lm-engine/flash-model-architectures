@@ -20,7 +20,7 @@ def _rnn_backward_update(
         input_grad = output_grad * tanh_backward(output)
 
     input_state_grad = input_grad * weight
-    weight_grad += output_prev * input_grad
+    weight_grad += tl.sum(output_prev * input_grad, axis=0)
 
     return input_grad, weight_grad, input_state_grad
 
