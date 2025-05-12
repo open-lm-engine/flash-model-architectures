@@ -87,6 +87,7 @@ def gru_backward_triton_kernel(
             input_state_stride_b=input_state_stride_b,
             output_ptrs=output_ptr + indices,
             pid_n=pid_n,
+            H=H,
             indices_b=indices_b,
             indices_h=indices_h,
             mask_bh=mask_bh,
