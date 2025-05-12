@@ -3,7 +3,7 @@ import triton
 import triton.language as tl
 
 from ....constants import LIBRARY_NAME
-from ....math import ceil_divide
+from ....math import ceil_divide, get_next_power_of_2
 from ....triton_math import clamp, leaky_relu_backward, sigmoid_backward, tanh_backward
 from ....utils import cute_op
 
@@ -140,10 +140,10 @@ def scalar_rnn_backward_triton(
     gradient_clipping: float | None,
     activation_function: str,
     relu_negative_slope: float | None,
-    BLOCK_SIZE_B: int,
     BLOCK_SIZE_N: int,
 ) -> None:
     B, S, N, _ = output.size()
+    BLOCK_SIZE_B = get_next_power_of_2(B)
 
     with torch.device(output.device):
         scalar_rnn_backward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), ceil_divide(N, BLOCK_SIZE_N)](
