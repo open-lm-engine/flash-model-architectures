@@ -100,7 +100,7 @@ def gru_backward_triton_kernel(
         input_grad, weight_grad, reset_gate_times_input_state_grad = _rnn_backward_update(
             output=output_update,
             weight=weight,
-            output_grad=-forget_gate * output_grad,
+            output_grad=(1 - forget_gate) * output_grad,
             weight_grad=weight_grad,
             output_prev=reset_gate * output_prev,
             ACTIVATION_FUNCTION="tanh",
