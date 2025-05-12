@@ -14,7 +14,7 @@ def _load_input_state(
     HAS_INPUT_STATE,
     input_state_ptr,
     input_state_stride_b,
-    pid_n,
+    pid,
     indices_b,
     indices_h,
     mask_bh,
@@ -24,7 +24,7 @@ def _load_input_state(
     dtype,
 ):
     if HAS_INPUT_STATE:
-        output_ptrs = input_state_ptr + indices_b[:, None] * input_state_stride_b + pid_n * H + indices_h[None, :]
+        output_ptrs = input_state_ptr + indices_b[:, None] * input_state_stride_b + pid * H + indices_h[None, :]
         output_prev = tl.load(output_ptrs, mask=mask_bh, other=0)
     else:
         output_prev = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=dtype)
@@ -56,12 +56,11 @@ def rnn_varlen_backward_triton_kernel(
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
-    pid_b = tl.program_id(axis=0)
-    pid_n = tl.program_id(axis=1)
+    pid = tl.program_id(axis=1)
 
-    indices_b = pid_b * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
+    indices_b = tl.arange(0, BLOCK_SIZE_B)
     indices_h = tl.arange(0, BLOCK_SIZE_H)
-    indices_weight = pid_n * weight_stride_n + indices_h[:, None] * H + indices_h[None, :]
+    indices_weight = pid * weight_stride_n + indices_h[:, None] * H + indices_h[None, :]
 
     mask_b = indices_b < B
     mask_h = indices_h < H
@@ -84,7 +83,7 @@ def rnn_varlen_backward_triton_kernel(
 
     end -= 1
 
-    indices = end * output_stride_t + pid_n * H + indices_h[None, :]
+    indices = end * output_stride_t + pid * H + indices_h[None, :]
     output = tl.load(output_ptr + indices, mask=mask_bh, other=0)
 
     # backward counting reduces 1 instruction since we need to compare s == 0, otherwise we have to compare s == S - 1
@@ -107,7 +106,7 @@ def rnn_varlen_backward_triton_kernel(
                 HAS_INPUT_STATE=HAS_INPUT_STATE,
                 input_state_ptr=input_state_ptr,
                 input_state_stride_b=input_state_stride_b,
-                pid_n=pid_n,
+                pid=pid,
                 indices_b=indices_b,
                 indices_h=indices_h,
                 mask_bh=mask_bh,
@@ -151,19 +150,17 @@ def rnn_varlen_backward_triton(
     gradient_clipping: float | None,
     activation_function: str,
     relu_negative_slope: float | None,
-    BLOCK_SIZE_B: int,
 ) -> None:
     _, N, H = output.size()
     B = cu_seqlens.size(0) - 1
 
-    BLOCK_SIZE_H = get_next_power_of_2(H)
-    BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
+    BLOCK_SIZE_B, BLOCK_SIZE_H = [max(16, get_next_power_of_2(i)) for i in (B, H)]
 
     has_input_state = input_state is not None
     is_max_seqlen_tensor = max_seqlen_tensor is not None
 
     with torch.device(output.device):
-        rnn_varlen_backward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), N](
+        rnn_varlen_backward_triton_kernel[N,](
             weight_ptr=weight,
             weight_stride_n=weight.stride(0),
             output_ptr=output,

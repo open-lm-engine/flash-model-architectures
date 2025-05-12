@@ -31,7 +31,7 @@ def _load_previous_output(
     input_state_ptr,
     input_state_stride_b,
     output_ptrs,
-    pid_n,
+    pid,
     H,
     indices_b,
     indices_h,
@@ -44,7 +44,7 @@ def _load_previous_output(
     if s == 0:
         if HAS_INPUT_STATE:
             output_prev = tl.load(
-                input_state_ptr + indices_b[:, None] * input_state_stride_b + pid_n * H + indices_h[None, :],
+                input_state_ptr + indices_b[:, None] * input_state_stride_b + pid * H + indices_h[None, :],
                 mask=mask_bh,
                 other=0,
             )
@@ -79,11 +79,11 @@ def rnn_backward_triton_kernel(
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
-    pid_n = tl.program_id(axis=0)
+    pid = tl.program_id(axis=0)
 
     indices_b = tl.arange(0, BLOCK_SIZE_B)
     indices_h = tl.arange(0, BLOCK_SIZE_H)
-    indices_weight = pid_n * weight_stride_n + indices_h[:, None] * H + indices_h[None, :]
+    indices_weight = pid * weight_stride_n + indices_h[:, None] * H + indices_h[None, :]
 
     mask_b = indices_b < B
     mask_h = indices_h < H
@@ -95,7 +95,7 @@ def rnn_backward_triton_kernel(
 
     weight = tl.load(weight_ptr + indices_weight, mask=mask_hh, other=0)
 
-    indices = indices_b[:, None] * output_stride_b + (S - 1) * output_stride_s + pid_n * H + indices_h[None, :]
+    indices = indices_b[:, None] * output_stride_b + (S - 1) * output_stride_s + pid * H + indices_h[None, :]
     output = tl.load(output_ptr + indices, mask=mask_bh, other=0)
 
     # backward counting reduces 1 instruction since we need to compare s == 0, otherwise we have to compare s == S - 1
@@ -114,7 +114,7 @@ def rnn_backward_triton_kernel(
             input_state_ptr=input_state_ptr,
             input_state_stride_b=input_state_stride_b,
             output_ptrs=output_ptr + indices,
-            pid_n=pid_n,
+            pid=pid,
             H=H,
             indices_b=indices_b,
             indices_h=indices_h,
