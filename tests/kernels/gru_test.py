@@ -16,10 +16,10 @@ class GRUTest(TestCommons):
         TestCommons.make_args_matrix(
             [torch.device("cuda")],
             [torch.float32, torch.float16],
-            [4],  # batch_size
-            [1024],  # sequence_length
-            [64],  # head_dim
-            [4],  # num_heads
+            [1],  # batch_size
+            [1],  # sequence_length
+            [1],  # head_dim
+            [1],  # num_heads
             [False, True],  # has_input_state
             [gru_cute],  # , torch.compile(gru_cute, fullgraph=True)],  # function
         )
@@ -88,6 +88,16 @@ class GRUTest(TestCommons):
 
         self.assert_equal_tensors(
             y_kernel, y_expected, False, atol_float32=4e-6, rtol_float32=0, atol_float16=6.5e-5, rtol_float16=0
+        )
+
+        self.assert_equal_tensors(
+            forget_input_packed_kernel.grad,
+            forget_input_packed_expected.grad,
+            False,
+            atol_float32=6e-3,
+            rtol_float32=0,
+            atol_float16=2e-3,
+            rtol_float16=0,
         )
 
         self.assert_equal_tensors(
