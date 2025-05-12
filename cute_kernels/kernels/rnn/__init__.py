@@ -25,7 +25,9 @@ class _RNN_Cute(torch.autograd.Function):
         activation_function: str,
         relu_negative_slope: float | None,
         BLOCK_SIZE_B_forward: int,
+        BLOCK_SIZE_N_forward: int,
         BLOCK_SIZE_B_backward: int,
+        BLOCK_SIZE_N_backward: int,
     ) -> torch.Tensor:
         assert activation_function in ["leaky_relu", "sigmoid", "tanh"]
         assert input.dim() == 4
@@ -94,6 +96,7 @@ class _RNN_Cute(torch.autograd.Function):
         ctx.activation_function = activation_function
         ctx.relu_negative_slope = relu_negative_slope
         ctx.BLOCK_SIZE_B_backward = BLOCK_SIZE_B_backward
+        ctx.BLOCK_SIZE_N_backward = BLOCK_SIZE_N_backward
 
         return output
 
@@ -155,7 +158,9 @@ def rnn_cute(
     relu_negative_slope: float | None = None,
     *,
     BLOCK_SIZE_B_forward: int = 32,
+    BLOCK_SIZE_N_forward: int = 32,
     BLOCK_SIZE_B_backward: int = 32,
+    BLOCK_SIZE_N_backward: int = 32,
 ) -> torch.Tensor:
     """computes multihead RNN recurrent update over the sequence length: tanh(`input_state` @ `weight` + `input`)
 
@@ -173,8 +178,12 @@ def rnn_cute(
         relu_negative_slope (float): negative slope for leaky_relu. Defaults to "tanh".
         BLOCK_SIZE_B_forward (int, optional): block size for forward along batch dimension for forward. Defaults to
             32.
+        BLOCK_SIZE_N_forward (int, optional): block size for forward along num_heads dimension for forward, only used if
+            head_dim is 1. Defaults to 32.
         BLOCK_SIZE_B_backward (int, optional): block size for backward along batch dimension for backward. Defaults to
             32.
+        BLOCK_SIZE_N_backward (int, optional): block size for backward along num_heads dimension for forward, only used if
+            head_dim is 1. Defaults to 32.
 
     Returns:
         torch.Tensor: output tensor of shape (B, S, N, H)
@@ -190,5 +199,7 @@ def rnn_cute(
         activation_function,
         relu_negative_slope,
         BLOCK_SIZE_B_forward,
+        BLOCK_SIZE_N_forward,
         BLOCK_SIZE_B_backward,
+        BLOCK_SIZE_N_backward,
     )
