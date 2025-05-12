@@ -56,7 +56,7 @@ def rnn_varlen_backward_triton_kernel(
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
-    pid = tl.program_id(axis=1)
+    pid = tl.program_id(axis=0)
 
     indices_b = tl.arange(0, BLOCK_SIZE_B)
     indices_h = tl.arange(0, BLOCK_SIZE_H)
