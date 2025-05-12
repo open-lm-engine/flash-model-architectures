@@ -3,7 +3,7 @@ import triton
 import triton.language as tl
 
 from ....constants import LIBRARY_NAME
-from ....math import ceil_divide, get_next_power_of_2
+from ....math import get_next_power_of_2
 from ....triton_math import clamp
 from ....utils import cute_op
 from ...rnn.triton_implementation.backward import _load_previous_output, _rnn_backward_update
@@ -39,10 +39,9 @@ def gru_backward_triton_kernel(
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
-    pid_b = tl.program_id(axis=0)
-    pid_n = tl.program_id(axis=1)
+    pid = tl.program_id(axis=0)
 
-    indices_b = pid_b * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
+    indices_b = tl.arange(0, BLOCK_SIZE_B)
     indices_h = tl.arange(0, BLOCK_SIZE_H)
 
     mask_b = indices_b < B
@@ -55,14 +54,14 @@ def gru_backward_triton_kernel(
     forget_weight_grad = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
     reset_weight_grad = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
 
-    indices = pid_n * weight_stride_n + indices_h[:, None] * H + indices_h[None, :]
+    indices = pid * weight_stride_n + indices_h[:, None] * H + indices_h[None, :]
     mask_hh = mask_h[:, None] & mask_h[None, :]
 
     weight = tl.load(weight_ptr + indices, mask=mask_hh, other=0)
     forget_weight = tl.load(forget_weight_ptr + indices, mask=mask_hh, other=0)
     reset_weight = tl.load(reset_weight_ptr + indices, mask=mask_hh, other=0)
 
-    indices = indices_b[:, None] * output_stride_b + (S - 1) * output_stride_s + pid_n * H + indices_h[None, :]
+    indices = indices_b[:, None] * output_stride_b + (S - 1) * output_stride_s + pid * H + indices_h[None, :]
 
     # backward counting reduces 1 instruction since we need to compare s == 0, otherwise we have to compare s == S - 1
     for s in range(S - 1, -1, -1):
@@ -88,7 +87,7 @@ def gru_backward_triton_kernel(
             input_state_ptr=input_state_ptr,
             input_state_stride_b=input_state_stride_b,
             output_ptrs=output_ptr + indices,
-            pid_n=pid_n,
+            pid=pid,
             H=H,
             indices_b=indices_b,
             indices_h=indices_h,
@@ -138,7 +137,7 @@ def gru_backward_triton_kernel(
         input_state_grad += input_state_grad_from_reset_gate
         tl.store(reset_input_grad_ptrs, reset_input_grad, mask=mask_bh)
 
-    indices = pid_n * weight_stride_n + indices_h[:, None] * H + indices_h[None, :]
+    indices = pid * weight_stride_n + indices_h[:, None] * H + indices_h[None, :]
 
     tl.store(weight_grad_ptr + indices, weight_grad, mask=mask_hh)
     tl.store(forget_weight_grad_ptr + indices, forget_weight_grad, mask=mask_hh)
@@ -173,15 +172,12 @@ def gru_backward_triton(
     input_grad: torch.Tensor,
     weight_grad: torch.Tensor,
     gradient_clipping: float | None,
-    BLOCK_SIZE_B: int,
 ) -> None:
     B, S, N, H = output.size()
-
-    BLOCK_SIZE_H = get_next_power_of_2(H)
-    BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
+    BLOCK_SIZE_B, BLOCK_SIZE_H = [max(16, get_next_power_of_2(i)) for i in (B, H)]
 
     with torch.device(output.device):
-        gru_backward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), N](
+        gru_backward_triton_kernel[N,](
             weight_ptr=weight,
             weight_stride_n=weight.stride(0),
             output_ptr=output,
