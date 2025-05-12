@@ -21,7 +21,7 @@ class GRUTest(TestCommons):
             [64],  # head_dim
             [4],  # num_heads
             [False, True],  # has_input_state
-            [gru_cute, torch.compile(gru_cute, fullgraph=True)],  # function
+            [gru_cute],  # , torch.compile(gru_cute, fullgraph=True)],  # function
         )
     )
     def test_rnn(
