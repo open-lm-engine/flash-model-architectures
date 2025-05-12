@@ -142,22 +142,34 @@ def gru_backward_triton_kernel(
     tl.store(reset_weight_grad_ptr + indices, reset_weight_grad, mask=mask_hh)
 
 
-@cute_op(f"{LIBRARY_NAME}::gru_backward_triton", mutates_args={"input_grad", "weight_grad"})
+@cute_op(
+    f"{LIBRARY_NAME}::gru_backward_triton",
+    mutates_args={
+        "forget_input_grad",
+        "forget_weight_grad",
+        "reset_input_grad",
+        "reset_weight_grad",
+        "input_grad",
+        "weight_grad",
+    },
+)
 def gru_backward_triton(
     weight: torch.Tensor,
     output: torch.Tensor,
     forget_weight: torch.Tensor,
     forget_gate: torch.Tensor,
+    forget_input_grad: torch.Tensor,
+    forget_weight_grad: torch.Tensor,
     reset_weight: torch.Tensor,
     reset_gate: torch.Tensor,
+    reset_input_grad: torch.Tensor,
+    reset_weight_grad: torch.Tensor,
     output_update: torch.Tensor,
     input_state: torch.Tensor | None,
     output_grad: torch.Tensor,
     input_grad: torch.Tensor,
     weight_grad: torch.Tensor,
     gradient_clipping: float | None,
-    activation_function: str,
-    relu_negative_slope: float | None,
     BLOCK_SIZE_B: int,
 ) -> None:
     B, S, N, H = output.size()
@@ -172,10 +184,14 @@ def gru_backward_triton(
             output_ptr=output,
             output_stride_b=output.stride(0),
             output_stride_s=output.stride(1),
-            forget_weight_str=forget_weight,
-            forget_gate_str=forget_gate,
-            reset_weight_str=reset_weight,
-            reset_gate_str=reset_gate,
+            forget_weight_ptr=forget_weight,
+            forget_gate_ptr=forget_gate,
+            forget_input_grad_ptr=forget_input_grad,
+            forget_weight_grad_ptr=forget_weight_grad,
+            reset_weight_ptr=reset_weight,
+            reset_gate_ptr=reset_gate,
+            reset_input_grad_ptr=reset_input_grad,
+            reset_weight_grad_ptr=reset_weight_grad,
             output_update_ptr=output_update,
             HAS_INPUT_STATE=input_state is not None,
             input_state_ptr=input_state,
@@ -185,8 +201,6 @@ def gru_backward_triton(
             weight_grad_ptr=weight_grad,
             HAS_GRADIENT_CLIPPING=gradient_clipping is not None,
             gradient_clipping=gradient_clipping,
-            ACTIVATION_FUNCTION=activation_function,
-            relu_negative_slope=relu_negative_slope,
             B=B,
             S=S,
             H=H,

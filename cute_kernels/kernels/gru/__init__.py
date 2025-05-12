@@ -83,7 +83,7 @@ class _GRU_Cute(torch.autograd.Function):
 
     @staticmethod
     @ensure_contiguous
-    def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor]:
+    def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
         (
             weight,
             forget_weight,
@@ -96,8 +96,13 @@ class _GRU_Cute(torch.autograd.Function):
             cu_seqlens,
             max_seqlen,
         ) = ctx.saved_tensors
+
         input_grad = torch.empty_like(output)
+        forget_input_grad = torch.empty_like(output)
+        reset_input_grad = torch.empty_like(output)
         weight_grad = torch.empty_like(weight)
+        forget_weight_grad = torch.empty_like(weight)
+        reset_weight_grad = torch.empty_like(weight)
 
         BLOCK_SIZE_B = ctx.BLOCK_SIZE_B_backward
         gradient_clipping = ctx.gradient_clipping
@@ -108,8 +113,13 @@ class _GRU_Cute(torch.autograd.Function):
                 output=output,
                 forget_weight=forget_weight,
                 forget_gate=forget_gate,
+                forget_input_grad=forget_input_grad,
+                forget_weight_grad=forget_weight_grad,
                 reset_weight=reset_weight,
                 reset_gate=reset_gate,
+                reset_input_grad=reset_input_grad,
+                reset_weight_grad=reset_weight_grad,
+                output_update=output_update,
                 input_state=input_state,
                 output_grad=output_grad,
                 input_grad=input_grad,
@@ -134,7 +144,15 @@ class _GRU_Cute(torch.autograd.Function):
                 BLOCK_SIZE_B=BLOCK_SIZE_B,
             )
 
-        return input_grad, weight_grad, *[None] * 8
+        return (
+            input_grad,
+            weight_grad,
+            forget_input_grad,
+            forget_weight_grad,
+            reset_input_grad,
+            reset_weight_grad,
+            *[None] * 6,
+        )
 
 
 def gru_cute(
