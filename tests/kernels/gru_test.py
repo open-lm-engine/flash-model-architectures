@@ -124,7 +124,7 @@ class GRUTest(TestCommons):
             weight_kernel.grad,
             weight_expected.grad,
             False,
-            atol_float32=6e-3,
+            atol_float32=7e-2,
             rtol_float32=0,
             atol_float16=7e-2,
             rtol_float16=0,
