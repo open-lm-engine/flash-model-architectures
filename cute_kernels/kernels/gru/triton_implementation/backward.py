@@ -4,7 +4,7 @@ import triton.language as tl
 
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
-from ....triton_math import clamp, sigmoid_backward, tanh_backward
+from ....triton_math import clamp
 from ....utils import cute_op
 from ...rnn.triton_implementation.backward import _load_previous_output, _rnn_backward_update
 
@@ -106,9 +106,10 @@ def gru_backward_triton_kernel(
             relu_negative_slope=None,
         )
 
+        input_state_grad = reset_gate_times_input_state_grad * reset_gate
         tl.store(input_grad_ptrs, input_grad, mask=mask_bh)
 
-        forget_input_grad, forget_weight_grad, input_state_grad = _rnn_backward_update(
+        forget_input_grad, forget_weight_grad, input_state_grad_from_forget_gate = _rnn_backward_update(
             output=forget_gate,
             weight=forget_weight,
             output_grad=output_grad * (forget_gate - output_update),
@@ -118,18 +119,20 @@ def gru_backward_triton_kernel(
             relu_negative_slope=None,
         )
 
+        input_state_grad += input_state_grad_from_forget_gate
         tl.store(forget_input_grad_ptrs, forget_input_grad, mask=mask_bh)
 
         reset_input_grad, reset_weight_grad, input_state_grad_from_reset_gate = _rnn_backward_update(
             output=reset_gate,
             weight=reset_weight,
-            output_grad=reset_gate_grad,
+            output_grad=reset_gate_times_input_state_grad * output_prev,
             weight_grad=reset_weight_grad,
             output_prev=output_prev,
             ACTIVATION_FUNCTION="sigmoid",
             relu_negative_slope=None,
         )
 
+        input_state_grad += input_state_grad_from_reset_gate
         tl.store(reset_input_grad_ptrs, reset_input_grad, mask=mask_bh)
 
     indices = pid_n * weight_stride_n + indices_h[:, None] * H + indices_h[None, :]
