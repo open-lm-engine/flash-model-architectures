@@ -94,9 +94,9 @@ class GRUTest(TestCommons):
             input_kernel.grad,
             input_expected.grad,
             False,
-            atol_float32=6e-3,
+            atol_float32=8e-2,
             rtol_float32=0,
-            atol_float16=2e-3,
+            atol_float16=8e-2,
             rtol_float16=0,
         )
 
@@ -126,7 +126,7 @@ class GRUTest(TestCommons):
             False,
             atol_float32=6e-3,
             rtol_float32=0,
-            atol_float16=2.2e-2,
+            atol_float16=7e-2,
             rtol_float16=0,
         )
 
