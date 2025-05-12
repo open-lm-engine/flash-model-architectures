@@ -3,7 +3,7 @@ import triton
 import triton.language as tl
 
 from ....constants import LIBRARY_NAME
-from ....math import ceil_divide, get_next_power_of_2
+from ....math import ceil_divide
 from ....triton_math import clamp, leaky_relu_backward, sigmoid_backward, tanh_backward
 from ....utils import cute_op
 
@@ -19,8 +19,8 @@ def _rnn_backward_update(
     elif ACTIVATION_FUNCTION == "tanh":
         input_grad = output_grad * tanh_backward(output)
 
-    input_state_grad = tl.dot(input_grad, weight.T, allow_tf32=True).to(input_grad.dtype)
-    weight_grad = tl.dot(output_prev.T, input_grad, weight_grad, allow_tf32=True)
+    input_state_grad = input_grad * weight
+    weight_grad += output_prev * input_grad
 
     return input_grad, weight_grad, input_state_grad
 
@@ -29,29 +29,23 @@ def _rnn_backward_update(
 def _load_previous_output(
     HAS_INPUT_STATE: tl.constexpr,
     input_state_ptr,
-    input_state_stride_b,
     output_ptrs,
-    pid_n,
-    H,
+    N,
     indices_b,
-    indices_h,
-    mask_bh,
+    indices_n,
+    mask_bn,
     BLOCK_SIZE_B: tl.constexpr,
-    BLOCK_SIZE_H: tl.constexpr,
+    BLOCK_SIZE_N: tl.constexpr,
     s,
     dtype,
 ):
     if s == 0:
         if HAS_INPUT_STATE:
-            output_prev = tl.load(
-                input_state_ptr + indices_b[:, None] * input_state_stride_b + pid_n * H + indices_h[None, :],
-                mask=mask_bh,
-                other=0,
-            )
+            output_prev = tl.load(input_state_ptr + indices_b[:, None] * N + indices_n[None, :], mask=mask_bn)
         else:
-            output_prev = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=dtype)
+            output_prev = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_N), dtype=dtype)
     else:
-        output_prev = tl.load(output_ptrs, mask=mask_bh, other=0)
+        output_prev = tl.load(output_ptrs, mask=mask_bn)
 
     return output_prev
 
@@ -59,13 +53,10 @@ def _load_previous_output(
 @triton.jit
 def scalar_rnn_backward_triton_kernel(
     weight_ptr,
-    weight_stride_n,
     output_ptr,
     output_stride_b,
-    output_stride_s,
     HAS_INPUT_STATE: tl.constexpr,
     input_state_ptr,
-    input_state_stride_b,
     output_grad_ptr,
     input_grad_ptr,
     weight_grad_ptr,
@@ -75,53 +66,49 @@ def scalar_rnn_backward_triton_kernel(
     relu_negative_slope,
     B,
     S,
-    H,
+    N,
     BLOCK_SIZE_B: tl.constexpr,
-    BLOCK_SIZE_H: tl.constexpr,
+    BLOCK_SIZE_N: tl.constexpr,
 ):
     pid_b = tl.program_id(axis=0)
     pid_n = tl.program_id(axis=1)
 
     indices_b = pid_b * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
-    indices_h = tl.arange(0, BLOCK_SIZE_H)
-    indices_weight = pid_n * weight_stride_n + indices_h[:, None] * H + indices_h[None, :]
+    indices_n = pid_n * BLOCK_SIZE_N + tl.arange(0, BLOCK_SIZE_N)
 
     mask_b = indices_b < B
-    mask_h = indices_h < H
-    mask_bh = mask_b[:, None] & mask_h[None, :]
-    mask_hh = mask_h[:, None] & mask_h[None, :]
+    mask_n = indices_n < N
+    mask_bn = mask_b[:, None] & mask_n[None, :]
 
-    input_state_grad = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=weight_ptr.dtype.element_ty)
-    weight_grad = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
+    input_state_grad = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_N), dtype=weight_ptr.dtype.element_ty)
+    weight_grad = tl.zeros((BLOCK_SIZE_N,), dtype=tl.float32)
 
-    weight = tl.load(weight_ptr + indices_weight, mask=mask_hh, other=0)
+    weight = tl.load(weight_ptr + indices_n, mask=mask_n)
 
-    indices = indices_b[:, None] * output_stride_b + (S - 1) * output_stride_s + pid_n * H + indices_h[None, :]
-    output = tl.load(output_ptr + indices, mask=mask_bh, other=0)
+    indices = indices_b[:, None] * output_stride_b + (S - 1) * N + indices_n[None, :]
+    output = tl.load(output_ptr + indices, mask=mask_bn)
 
     # backward counting reduces 1 instruction since we need to compare s == 0, otherwise we have to compare s == S - 1
     for s in range(S - 1, -1, -1):
         if HAS_GRADIENT_CLIPPING:
             input_state_grad = clamp(input_state_grad, min_value=-gradient_clipping, max_value=gradient_clipping)
 
-        output_grad = tl.load(output_grad_ptr + indices, mask=mask_bh, other=0)
+        output_grad = tl.load(output_grad_ptr + indices, mask=mask_bn)
         output_grad += input_state_grad
 
         input_grad_ptrs = input_grad_ptr + indices
-        indices -= output_stride_s
+        indices -= N
 
         output_prev = _load_previous_output(
             HAS_INPUT_STATE=HAS_INPUT_STATE,
             input_state_ptr=input_state_ptr,
-            input_state_stride_b=input_state_stride_b,
             output_ptrs=output_ptr + indices,
-            pid_n=pid_n,
-            H=H,
+            N=N,
             indices_b=indices_b,
-            indices_h=indices_h,
-            mask_bh=mask_bh,
+            indices_n=indices_n,
+            mask_bn=mask_bn,
             BLOCK_SIZE_B=BLOCK_SIZE_B,
-            BLOCK_SIZE_H=BLOCK_SIZE_H,
+            BLOCK_SIZE_N=BLOCK_SIZE_N,
             s=s,
             dtype=weight.dtype,
         )
@@ -136,10 +123,10 @@ def scalar_rnn_backward_triton_kernel(
             relu_negative_slope=relu_negative_slope,
         )
 
-        tl.store(input_grad_ptrs, input_grad, mask=mask_bh)
+        tl.store(input_grad_ptrs, input_grad, mask=mask_bn)
         output = output_prev
 
-    tl.store(weight_grad_ptr + indices_weight, weight_grad, mask=mask_hh)
+    tl.store(weight_grad_ptr + indices_n, weight_grad, mask=mask_n)
 
 
 @cute_op(f"{LIBRARY_NAME}::scalar_rnn_backward_triton", mutates_args={"input_grad", "weight_grad"})
@@ -161,13 +148,10 @@ def scalar_rnn_backward_triton(
     with torch.device(output.device):
         scalar_rnn_backward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), ceil_divide(N, BLOCK_SIZE_N)](
             weight_ptr=weight,
-            weight_stride_n=weight.stride(0),
             output_ptr=output,
             output_stride_b=output.stride(0),
-            output_stride_s=output.stride(1),
             HAS_INPUT_STATE=input_state is not None,
             input_state_ptr=input_state,
-            input_state_stride_b=None if input_state is None else input_state.stride(0),
             output_grad_ptr=output_grad,
             input_grad_ptr=input_grad,
             weight_grad_ptr=weight_grad,
