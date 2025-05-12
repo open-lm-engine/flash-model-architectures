@@ -3,7 +3,7 @@ from typing import Callable
 import torch
 from parameterized import parameterized
 
-from cute_kernels import RNN, rnn_cute, rnn_torch, set_seed
+from cute_kernels import RNN, divide_if_divisible, rnn_cute, rnn_torch, set_seed
 
 from ..test_commons import TestCommons
 
@@ -18,8 +18,8 @@ class RNNTest(TestCommons):
             [torch.float32, torch.float16],
             [4],  # batch_size
             [1024],  # sequence_length
-            [64],  # head_dim
-            [4],  # num_heads
+            [256],  # state_size
+            [4, 256],  # num_heads
             [False, True],  # has_input_state
             [rnn_cute, torch.compile(rnn_cute, fullgraph=True)],  # function
         )
@@ -30,7 +30,7 @@ class RNNTest(TestCommons):
         dtype: torch.dtype,
         batch_size: int,
         sequence_length: int,
-        head_dim: int,
+        state_size: int,
         num_heads: int,
         has_input_state: bool,
         function: Callable,
@@ -43,7 +43,7 @@ class RNNTest(TestCommons):
                 sequence_length=sequence_length,
                 total_tokens=None,
                 num_heads=num_heads,
-                head_dim=head_dim,
+                head_dim=divide_if_divisible(state_size, num_heads),
                 has_input_state=has_input_state,
                 dtype=dtype,
                 device=device,

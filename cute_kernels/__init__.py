@@ -39,7 +39,7 @@ from .kernels import (
     unpack_sequence_cute,
     unpack_sequence_torch,
 )
-from .math import ceil_divide, get_powers_of_2
+from .math import ceil_divide, divide_if_divisible, get_powers_of_2
 from .modules import GRU, RNN
 from .tensor import CuteTensor
 from .utils import device_synchronize, get_ptx_from_triton_kernel, get_triton_num_warps, set_seed
