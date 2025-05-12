@@ -32,8 +32,7 @@ def swiglu_unchunked_forward_triton_kernel(
 
     output = up * gate * sigmoid(gate)
 
-    output_ptrs = output_ptr + indices_b[:, None] * half_H + indices_h[None, :]
-    tl.store(output_ptrs, output, mask=mask_bh)
+    tl.store(output_ptr + indices_b[:, None] * half_H + indices_h[None, :], output, mask=mask_bh)
 
 
 @cute_op(f"{LIBRARY_NAME}::swiglu_unchunked_forward_triton", mutates_args={"output"})

@@ -54,8 +54,7 @@ def fused_residual_add_rmsnorm_backward_triton_kernel(
         mask_b = indices_b < program_end
         mask_bh = mask_b[:, None] & mask_h[None, :]
 
-        added_x_residual_ptrs = added_x_residual_ptr + indices_bh
-        added_x_residual = tl.load(added_x_residual_ptrs, mask=mask_bh).to(tl.float32)
+        added_x_residual = tl.load(added_x_residual_ptr + indices_bh, mask=mask_bh).to(tl.float32)
 
         if HAS_RMSNORM_DENOMINATOR:
             inverse_rms = tl.load(rmsnorm_denominator_ptr + indices_b, mask=mask_b)
@@ -63,8 +62,7 @@ def fused_residual_add_rmsnorm_backward_triton_kernel(
             squared_sum = tl.sum(added_x_residual * added_x_residual, axis=1)
             inverse_rms = tl.rsqrt(squared_sum / H + eps)
 
-        output_grad_ptrs = output_grad_ptr + indices_bh
-        output_grad = tl.load(output_grad_ptrs, mask=mask_bh)
+        output_grad = tl.load(output_grad_ptr + indices_bh, mask=mask_bh)
 
         output_grad_weight = output_grad
         if HAS_WEIGHT:
@@ -82,19 +80,15 @@ def fused_residual_add_rmsnorm_backward_triton_kernel(
             * tl.sum(output_grad_weight * added_x_residual, axis=1, keep_dims=True)
         )
 
-        added_x_residual_grad_ptrs = added_x_residual_grad_ptr + indices_bh
-        added_x_residual_grad = tl.load(added_x_residual_grad_ptrs, mask=mask_bh)
-
+        added_x_residual_grad = tl.load(added_x_residual_grad_ptr + indices_bh, mask=mask_bh)
         x_grad += added_x_residual_grad
 
-        residual_grad_ptrs = residual_grad_ptr + indices_bh
-        tl.store(residual_grad_ptrs, x_grad, mask=mask_bh)
+        tl.store(residual_grad_ptr + indices_bh, x_grad, mask=mask_bh)
 
         if HAS_MULTIPLIER:
             x_grad *= multiplier
 
-        x_grad_ptrs = x_grad_ptr + indices_bh
-        tl.store(x_grad_ptrs, x_grad, mask=mask_bh)
+        tl.store(x_grad_ptr + indices_bh, x_grad, mask=mask_bh)
 
         if HAS_WEIGHT:
             weight_grad += tl.sum(output_grad * (added_x_residual * inverse_rms[:, None]).to(x_dtype), axis=0)

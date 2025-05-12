@@ -9,7 +9,7 @@ from ....utils import cute_op
 
 
 @triton.jit
-def _rnn_forward_update(input_state, weight, input, out_dtype, cast_dtype, relu_negative_slope, ACTIVATION_FUNCTION):
+def _rnn_forward_update(input_state, weight, input, out_dtype, cast_dtype, ACTIVATION_FUNCTION, relu_negative_slope):
     input_state = tl.dot(input_state, weight, input, allow_tf32=True, out_dtype=out_dtype).to(cast_dtype)
 
     if ACTIVATION_FUNCTION == "leaky_relu":
@@ -51,12 +51,16 @@ def rnn_forward_triton_kernel(
     mask_h = indices_h < H
     mask_bh = mask_b[:, None] & mask_h[None, :]
 
-    weight_ptrs = weight_ptr + pid_n * weight_stride_n + indices_h[:, None] * H + indices_h[None, :]
-    weight = tl.load(weight_ptrs, mask=mask_h[:, None] & mask_h[None, :], other=0)
+    weight = tl.load(
+        weight_ptr + pid_n * weight_stride_n + indices_h[:, None] * H + indices_h[None, :],
+        mask=mask_h[:, None] & mask_h[None, :],
+        other=0,
+    )
 
     if HAS_INPUT_STATE:
-        input_state_ptrs = input_state_ptr + indices_b[:, None] * input_state_stride_b + pid_n * H + indices_h[None, :]
-        input_state = tl.load(input_state_ptrs, mask=mask_bh)
+        input_state = tl.load(
+            input_state_ptr + indices_b[:, None] * input_state_stride_b + pid_n * H + indices_h[None, :], mask=mask_bh
+        )
     else:
         input_state = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=input_ptr.dtype.element_ty)
 
@@ -71,22 +75,17 @@ def rnn_forward_triton_kernel(
         cast_dtype = tl.bfloat16
 
     for _ in range(S):
-        input_ptrs = input_ptr + indices
-        input = tl.load(input_ptrs, mask=mask_bh, other=0).to(input_dtype)
-
         input_state = _rnn_forward_update(
             input_state=input_state,
             weight=weight,
-            input=input,
+            input=tl.load(input_ptr + indices, mask=mask_bh, other=0).to(input_dtype),
             out_dtype=out_dtype,
             cast_dtype=cast_dtype,
-            relu_negative_slope=relu_negative_slope,
             ACTIVATION_FUNCTION=ACTIVATION_FUNCTION,
+            relu_negative_slope=relu_negative_slope,
         )
 
-        output_ptrs = output_ptr + indices
-        tl.store(output_ptrs, input_state, mask=mask_bh)
-
+        tl.store(output_ptr + indices, input_state, mask=mask_bh)
         indices += input_stride_s
 
 
