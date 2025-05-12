@@ -83,8 +83,8 @@ class GRUTest(TestCommons):
             input_state=input_state_expected,
         )
 
-        # y_kernel.sum().backward()
-        # y_expected.sum().backward()
+        y_kernel.sum().backward()
+        y_expected.sum().backward()
 
         self.assert_equal_tensors(
             y_kernel, y_expected, False, atol_float32=4e-6, rtol_float32=0, atol_float16=6.5e-5, rtol_float16=0
@@ -92,15 +92,15 @@ class GRUTest(TestCommons):
         # self.assert_equal_tensors(
         #     x_kernel.grad, x_expected.grad, False, atol_float32=6e-3, rtol_float32=0, atol_float16=2e-3, rtol_float16=0
         # )
-        # self.assert_equal_tensors(
-        #     weight_kernel.grad,
-        #     weight_expected.grad,
-        #     False,
-        #     atol_float32=6e-3,
-        #     rtol_float32=0,
-        #     atol_float16=2.2e-2,
-        #     rtol_float16=0,
-        # )
+        self.assert_equal_tensors(
+            weight_kernel.grad,
+            weight_expected.grad,
+            False,
+            atol_float32=6e-3,
+            rtol_float32=0,
+            atol_float16=2.2e-2,
+            rtol_float16=0,
+        )
 
     @parameterized.expand(
         TestCommons.make_args_matrix(
