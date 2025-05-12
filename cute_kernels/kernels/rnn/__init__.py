@@ -30,7 +30,7 @@ class _RNN_Cute(torch.autograd.Function):
         BLOCK_SIZE_N_backward: int,
     ) -> torch.Tensor:
         assert activation_function in ["leaky_relu", "sigmoid", "tanh"]
-        assert input.dim() == 4
+        assert input.dim() in [3, 4]
         assert weight.dim() == 3
 
         N, H = input.size()[-2:]
