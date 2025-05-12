@@ -16,10 +16,10 @@ class GRUTest(TestCommons):
         TestCommons.make_args_matrix(
             [torch.device("cuda")],
             [torch.float32, torch.float16],
-            [1],  # batch_size
-            [1],  # sequence_length
-            [1],  # head_dim
-            [1],  # num_heads
+            [4],  # batch_size
+            [1024],  # sequence_length
+            [64],  # head_dim
+            [4],  # num_heads
             [False, True],  # has_input_state
             [gru_cute],  # , torch.compile(gru_cute, fullgraph=True)],  # function
         )
