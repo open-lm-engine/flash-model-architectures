@@ -256,6 +256,8 @@ class RNNTest(TestCommons):
             input=input, input_state=input_state, cu_seqlens=cu_seqlens, max_seqlen=max_seqlen, use_kernel=True
         )
 
+        output.sum().backward()
+
         assert output.size() == (*input.size()[:-1], output_size)
         assert output_state.size() == input_state.size()
 

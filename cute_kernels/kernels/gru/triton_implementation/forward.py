@@ -70,7 +70,7 @@ def gru_forward_triton_kernel(
         reset_gate = _rnn_forward_update(
             input_state=input_state,
             weight=reset_weight,
-            input=tl.load(reset_input_ptr + indices, mask=mask_bh),
+            input=tl.load(reset_input_ptr + indices, mask=mask_bh).to(input_dtype),
             out_dtype=out_dtype,
             cast_dtype=cast_dtype,
             ACTIVATION_FUNCTION="sigmoid",
@@ -82,7 +82,7 @@ def gru_forward_triton_kernel(
         output_update = _rnn_forward_update(
             input_state=input_state * reset_gate,
             weight=weight,
-            input=tl.load(input_ptr + indices, mask=mask_bh),
+            input=tl.load(input_ptr + indices, mask=mask_bh).to(input_dtype),
             out_dtype=out_dtype,
             cast_dtype=cast_dtype,
             ACTIVATION_FUNCTION="tanh",
@@ -94,7 +94,7 @@ def gru_forward_triton_kernel(
         forget_gate = _rnn_forward_update(
             input_state=input_state,
             weight=forget_weight,
-            input=tl.load(forget_input_ptr + indices, mask=mask_bh),
+            input=tl.load(forget_input_ptr + indices, mask=mask_bh).to(input_dtype),
             out_dtype=out_dtype,
             cast_dtype=cast_dtype,
             ACTIVATION_FUNCTION="sigmoid",
