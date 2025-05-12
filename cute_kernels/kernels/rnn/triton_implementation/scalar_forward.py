@@ -83,16 +83,13 @@ def scalar_rnn_forward_triton(
 ) -> None:
     B, S, N, _ = input.size()
 
-    has_input_state = input_state is not None
-
     with torch.device(input.device):
         scalar_rnn_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), ceil_divide(N, BLOCK_SIZE_N)](
             input_ptr=input,
             input_stride_b=input.stride(0),
             weight_ptr=weight,
-            HAS_INPUT_STATE=has_input_state,
+            HAS_INPUT_STATE=input_state is not None,
             input_state_ptr=input_state,
-            input_state_stride_b=input_state.stride(0) if has_input_state else None,
             output_ptr=output,
             ACTIVATION_FUNCTION=activation_function,
             relu_negative_slope=relu_negative_slope,
