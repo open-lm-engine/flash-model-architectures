@@ -70,7 +70,7 @@ def scalar_rnn_forward_triton_kernel(
         indices += N
 
 
-@cute_op(f"{LIBRARY_NAME}::rnn_forward_triton", mutates_args={"output"})
+@cute_op(f"{LIBRARY_NAME}::scalar_rnn_forward_triton", mutates_args={"output"})
 def scalar_rnn_forward_triton(
     input: torch.Tensor,
     weight: torch.Tensor,
