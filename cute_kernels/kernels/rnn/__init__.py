@@ -47,12 +47,6 @@ class _RNN_Cute(torch.autograd.Function):
         if gradient_clipping is not None and gradient_clipping < 0:
             gradient_clipping = -gradient_clipping
 
-        if cu_seqlens is None:
-            assert max_seqlen is None
-        else:
-            assert max_seqlen is not None
-            is_max_seqlen_tensor = isinstance(max_seqlen, torch.Tensor)
-
         output = torch.empty_like(input)
 
         kwargs = {
@@ -66,11 +60,16 @@ class _RNN_Cute(torch.autograd.Function):
         }
 
         if cu_seqlens is None:
+            assert max_seqlen is None
+
             if H == 1:
                 scalar_rnn_forward_triton(**kwargs, BLOCK_SIZE_N=BLOCK_SIZE_N_forward)
             else:
                 rnn_forward_triton(**kwargs)
         else:
+            assert max_seqlen is not None
+            is_max_seqlen_tensor = isinstance(max_seqlen, torch.Tensor)
+
             kwargs["cu_seqlens"] = cu_seqlens
             kwargs["max_seqlen_tensor"] = max_seqlen if is_max_seqlen_tensor else None
             kwargs["max_seqlen"] = None if is_max_seqlen_tensor else max_seqlen
