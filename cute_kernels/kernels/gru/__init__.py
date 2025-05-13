@@ -94,6 +94,7 @@ class _GRU_Cute(torch.autograd.Function):
 
         ctx.gradient_clipping = gradient_clipping
         ctx.BLOCK_SIZE_B_backward = BLOCK_SIZE_B_backward
+        ctx.BLOCK_SIZE_N_backward = BLOCK_SIZE_N_backward
 
         return output
 
