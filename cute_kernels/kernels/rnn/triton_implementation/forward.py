@@ -67,12 +67,12 @@ def rnn_forward_triton_kernel(
     indices = indices_b[:, None] * input_stride_b + pid_n * H + indices_h[None, :]
 
     input_dtype = input_ptr.dtype.element_ty
-    out_dtype = input_dtype
     cast_dtype = input_dtype
     if input_dtype == tl.bfloat16:
         input_dtype = tl.float32
-        out_dtype = tl.float32
         cast_dtype = tl.bfloat16
+
+    out_dtype = input_dtype
 
     for _ in range(S):
         input_state = _rnn_forward_update(
