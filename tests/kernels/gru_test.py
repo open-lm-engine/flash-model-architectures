@@ -19,7 +19,7 @@ class GRUTest(TestCommons):
             [4],  # batch_size
             [1024],  # sequence_length
             [256],  # state_size
-            [4],  # num_heads
+            [4, 256],  # num_heads
             [False, True],  # has_input_state
             [gru_cute],  # , torch.compile(gru_cute, fullgraph=True)],  # function
         )
