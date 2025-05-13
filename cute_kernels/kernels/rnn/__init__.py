@@ -219,5 +219,6 @@ def rnn_cute(
         relu_negative_slope,
         BLOCK_SIZE_B_forward,
         BLOCK_SIZE_N_forward,
+        BLOCK_SIZE_B_backward,
         BLOCK_SIZE_N_backward,
     )
