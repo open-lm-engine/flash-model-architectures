@@ -9,6 +9,7 @@ from .triton_implementation import (
     rnn_varlen_forward_triton,
     scalar_rnn_backward_triton,
     scalar_rnn_forward_triton,
+    scalar_rnn_varlen_forward_triton,
 )
 
 
@@ -66,7 +67,19 @@ class _RNN_Cute(torch.autograd.Function):
                     BLOCK_SIZE_N=BLOCK_SIZE_N_forward,
                 )
             else:
-                pass
+                scalar_rnn_varlen_forward_triton(
+                    input=input,
+                    weight=weight,
+                    input_state=input_state,
+                    output=output,
+                    cu_seqlens=cu_seqlens,
+                    max_seqlen_tensor=max_seqlen if is_max_seqlen_tensor else None,
+                    max_seqlen=None if is_max_seqlen_tensor else max_seqlen,
+                    activation_function=activation_function,
+                    relu_negative_slope=relu_negative_slope,
+                    BLOCK_SIZE_B=BLOCK_SIZE_B_forward,
+                    BLOCK_SIZE_N=BLOCK_SIZE_N_forward,
+                )
         else:
             if cu_seqlens is None:
                 rnn_forward_triton(
