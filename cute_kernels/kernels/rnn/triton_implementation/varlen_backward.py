@@ -134,7 +134,7 @@ def rnn_varlen_backward_triton_kernel(
 
         end -= 1
 
-    tl.store(weight_grad_ptr + indices_weight, weight_grad, mask=mask_hh)
+    tl.atomic_add(weight_grad_ptr + indices_weight, weight_grad, mask=mask_hh)
 
 
 @cute_op(f"{LIBRARY_NAME}::rnn_varlen_backward_triton", mutates_args={"input_grad", "weight_grad"})

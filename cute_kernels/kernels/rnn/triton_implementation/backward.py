@@ -139,7 +139,7 @@ def rnn_backward_triton_kernel(
         tl.store(input_grad_ptrs, input_grad, mask=mask_bh)
         output = output_prev
 
-    tl.store(weight_grad_ptr + indices_weight, weight_grad, mask=mask_hh)
+    tl.atomic_add(weight_grad_ptr + indices_weight, weight_grad, mask=mask_hh)
 
 
 @cute_op(f"{LIBRARY_NAME}::rnn_backward_triton", mutates_args={"input_grad", "weight_grad"})

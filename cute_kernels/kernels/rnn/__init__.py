@@ -80,7 +80,7 @@ class _RNN_Cute(torch.autograd.Function):
     def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor]:
         weight, output, input_state, cu_seqlens, max_seqlen = ctx.saved_tensors
         input_grad = torch.empty_like(output)
-        weight_grad = torch.empty_like(weight)
+        weight_grad = torch.zeros_like(weight, dtype=torch.float32)
 
         BLOCK_SIZE_B = ctx.BLOCK_SIZE_B_backward
         gradient_clipping = ctx.gradient_clipping
@@ -118,6 +118,8 @@ class _RNN_Cute(torch.autograd.Function):
                 relu_negative_slope=relu_negative_slope,
                 BLOCK_SIZE_B=BLOCK_SIZE_B,
             )
+
+        weight_grad = weight_grad.type_as(weight)
 
         return input_grad, weight_grad, *[None] * 8
 
