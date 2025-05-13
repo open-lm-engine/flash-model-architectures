@@ -55,55 +55,36 @@ class _RNN_Cute(torch.autograd.Function):
 
         output = torch.empty_like(input)
 
+        kwargs = {
+            "input": input,
+            "weight": weight,
+            "input_state": input_state,
+            "output": output,
+            "activation_function": activation_function,
+            "relu_negative_slope": relu_negative_slope,
+            "BLOCK_SIZE_B": BLOCK_SIZE_B_forward,
+        }
+
         if H == 1:
             if cu_seqlens is None:
-                scalar_rnn_forward_triton(
-                    input=input,
-                    weight=weight,
-                    input_state=input_state,
-                    output=output,
-                    activation_function=activation_function,
-                    relu_negative_slope=relu_negative_slope,
-                    BLOCK_SIZE_B=BLOCK_SIZE_B_forward,
-                    BLOCK_SIZE_N=BLOCK_SIZE_N_forward,
-                )
+                scalar_rnn_forward_triton(**kwargs, BLOCK_SIZE_N=BLOCK_SIZE_N_forward)
             else:
                 scalar_rnn_varlen_forward_triton(
-                    input=input,
-                    weight=weight,
-                    input_state=input_state,
-                    output=output,
+                    **kwargs,
                     cu_seqlens=cu_seqlens,
                     max_seqlen_tensor=max_seqlen if is_max_seqlen_tensor else None,
                     max_seqlen=None if is_max_seqlen_tensor else max_seqlen,
-                    activation_function=activation_function,
-                    relu_negative_slope=relu_negative_slope,
-                    BLOCK_SIZE_B=BLOCK_SIZE_B_forward,
                     BLOCK_SIZE_N=BLOCK_SIZE_N_forward,
                 )
         else:
             if cu_seqlens is None:
-                rnn_forward_triton(
-                    input=input,
-                    weight=weight,
-                    input_state=input_state,
-                    output=output,
-                    activation_function=activation_function,
-                    relu_negative_slope=relu_negative_slope,
-                    BLOCK_SIZE_B=BLOCK_SIZE_B_forward,
-                )
+                rnn_forward_triton(**kwargs)
             else:
                 rnn_varlen_forward_triton(
-                    input=input,
-                    weight=weight,
-                    input_state=input_state,
-                    output=output,
+                    **kwargs,
                     cu_seqlens=cu_seqlens,
                     max_seqlen_tensor=max_seqlen if is_max_seqlen_tensor else None,
                     max_seqlen=None if is_max_seqlen_tensor else max_seqlen,
-                    activation_function=activation_function,
-                    relu_negative_slope=relu_negative_slope,
-                    BLOCK_SIZE_B=BLOCK_SIZE_B_forward,
                 )
 
         ctx.save_for_backward(weight, output, input_state, cu_seqlens, max_seqlen)
