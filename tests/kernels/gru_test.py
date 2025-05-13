@@ -3,7 +3,7 @@ from typing import Callable
 import torch
 from parameterized import parameterized
 
-from cute_kernels import GRU, gru_cute, gru_torch, set_seed
+from cute_kernels import GRU, divide_if_divisible, gru_cute, gru_torch, set_seed
 
 from ..test_commons import TestCommons
 
@@ -18,19 +18,19 @@ class GRUTest(TestCommons):
             [torch.float32, torch.float16],
             [4],  # batch_size
             [1024],  # sequence_length
-            [64],  # head_dim
-            [4],  # num_heads
+            [256],  # state_size
+            [4, 256],  # num_heads
             [False, True],  # has_input_state
             [gru_cute],  # , torch.compile(gru_cute, fullgraph=True)],  # function
         )
     )
-    def test_rnn(
+    def test_gru(
         self,
         device: torch.device,
         dtype: torch.dtype,
         batch_size: int,
         sequence_length: int,
-        head_dim: int,
+        state_size: int,
         num_heads: int,
         has_input_state: bool,
         function: Callable,
@@ -57,7 +57,7 @@ class GRUTest(TestCommons):
             sequence_length=sequence_length,
             total_tokens=None,
             num_heads=num_heads,
-            head_dim=head_dim,
+            state_size=state_size,
             has_input_state=has_input_state,
             dtype=dtype,
             device=device,
@@ -155,17 +155,17 @@ class GRUTest(TestCommons):
             [torch.device("cuda")],
             TestCommons.get_dtypes(),
             [[0, 7, 19, 27, 93]],  # cu_seqlens
-            [64],  # head_dim
+            [256],  # state_size
             [4],  # num_heads
             [False, True],  # has_input_state
         )
     )
-    def test_rnn_varlen_torch(
+    def test_gru_varlen_torch(
         self,
         device: torch.device,
         dtype: torch.dtype,
         cu_seqlens: list[int],
-        head_dim: int,
+        state_size: int,
         num_heads: int,
         has_input_state: bool,
     ) -> None:
@@ -195,7 +195,7 @@ class GRUTest(TestCommons):
             sequence_length=None,
             total_tokens=cu_seqlens[-1],
             num_heads=num_heads,
-            head_dim=head_dim,
+            state_size=state_size,
             has_input_state=has_input_state,
             dtype=dtype,
             device=device,
@@ -278,7 +278,7 @@ class GRUTest(TestCommons):
             TestCommons.get_dtypes(),
             [None],  # cu_seqlens
             # [[0, 7, 19, 27, 93], None],  # cu_seqlens
-            [64],  # head_dim
+            [256],  # state_size
             [4],  # num_heads
         )
     )
@@ -287,7 +287,7 @@ class GRUTest(TestCommons):
         device: torch.device,
         dtype: torch.dtype,
         cu_seqlens: list[int] | None,
-        head_dim: int,
+        state_size: int,
         num_heads: int,
     ) -> None:
         input_size = 79
@@ -295,7 +295,7 @@ class GRUTest(TestCommons):
 
         gru = GRU(
             input_size=input_size,
-            state_size=num_heads * head_dim,
+            state_size=state_size,
             output_size=output_size,
             num_heads=num_heads,
             add_bias=False,
@@ -311,7 +311,7 @@ class GRUTest(TestCommons):
             if cu_seqlens is None
             else torch.randn(cu_seqlens[-1], input_size, device=device, dtype=dtype)
         )
-        input_state = torch.randn(batch_size, num_heads * head_dim, device=device, dtype=dtype)
+        input_state = torch.randn(batch_size, state_size, device=device, dtype=dtype)
 
         output, output_state = gru(
             input=input, input_state=input_state, cu_seqlens=cu_seqlens, max_seqlen=max_seqlen, use_kernel=True
@@ -328,12 +328,14 @@ class GRUTest(TestCommons):
         sequence_length: int | None,
         total_tokens: int | None,
         num_heads: int,
-        head_dim: int,
+        state_size: int,
         has_input_state: bool,
         dtype: torch.dtype,
         device: torch.device,
     ) -> tuple[torch.Tensor | None]:
-        input_packed_kernel, input_packed_expected = self.get_random_duplicated_tensors(
+        head_dim = divide_if_divisible(state_size, num_heads)
+
+        input_kernel, input_expected = self.get_random_duplicated_tensors(
             (
                 (batch_size, sequence_length, num_heads, head_dim)
                 if total_tokens is None
@@ -349,7 +351,7 @@ class GRUTest(TestCommons):
         )
 
         # forget
-        forget_input_packed_kernel, forget_input_packed_expected = self.get_random_duplicated_tensors(
+        forget_input_kernel, forget_input_expected = self.get_random_duplicated_tensors(
             (
                 (batch_size, sequence_length, num_heads, head_dim)
                 if total_tokens is None
@@ -365,7 +367,7 @@ class GRUTest(TestCommons):
         )
 
         # reset
-        reset_input_packed_kernel, reset_input_packed_expected = self.get_random_duplicated_tensors(
+        reset_input_kernel, reset_input_expected = self.get_random_duplicated_tensors(
             (
                 (batch_size, sequence_length, num_heads, head_dim)
                 if total_tokens is None
@@ -388,16 +390,16 @@ class GRUTest(TestCommons):
             )
 
         return (
-            input_packed_kernel,
-            input_packed_expected,
+            input_kernel,
+            input_expected,
             weight_kernel,
             weight_expected,
-            forget_input_packed_kernel,
-            forget_input_packed_expected,
+            forget_input_kernel,
+            forget_input_expected,
             forget_weight_kernel,
             forget_weight_expected,
-            reset_input_packed_kernel,
-            reset_input_packed_expected,
+            reset_input_kernel,
+            reset_input_expected,
             reset_weight_kernel,
             reset_weight_expected,
             input_state_kernel,
