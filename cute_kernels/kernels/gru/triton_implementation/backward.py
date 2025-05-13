@@ -44,23 +44,21 @@ def gru_backward_triton_kernel(
 
     indices_b = pid_b * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
     indices_h = tl.arange(0, BLOCK_SIZE_H)
+    indices_weight = pid_n * weight_stride_n + indices_h[:, None] * H + indices_h[None, :]
 
     mask_b = indices_b < B
     mask_h = indices_h < H
     mask_bh = mask_b[:, None] & mask_h[None, :]
+    mask_hh = mask_h[:, None] & mask_h[None, :]
 
     input_state_grad = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=weight_ptr.dtype.element_ty)
-
     weight_grad = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
     forget_weight_grad = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
     reset_weight_grad = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
 
-    indices = pid_n * weight_stride_n + indices_h[:, None] * H + indices_h[None, :]
-    mask_hh = mask_h[:, None] & mask_h[None, :]
-
-    weight = tl.load(weight_ptr + indices, mask=mask_hh, other=0)
-    forget_weight = tl.load(forget_weight_ptr + indices, mask=mask_hh, other=0)
-    reset_weight = tl.load(reset_weight_ptr + indices, mask=mask_hh, other=0)
+    weight = tl.load(weight_ptr + indices_weight, mask=mask_hh, other=0)
+    forget_weight = tl.load(forget_weight_ptr + indices_weight, mask=mask_hh, other=0)
+    reset_weight = tl.load(reset_weight_ptr + indices_weight, mask=mask_hh, other=0)
 
     indices = indices_b[:, None] * output_stride_b + (S - 1) * output_stride_s + pid_n * H + indices_h[None, :]
 
@@ -138,11 +136,9 @@ def gru_backward_triton_kernel(
         input_state_grad += input_state_grad_from_reset_gate
         tl.store(reset_input_grad_ptrs, reset_input_grad, mask=mask_bh)
 
-    indices = pid_n * weight_stride_n + indices_h[:, None] * H + indices_h[None, :]
-
-    tl.atomic_add(weight_grad_ptr + indices, weight_grad, mask=mask_hh)
-    tl.atomic_add(forget_weight_grad_ptr + indices, forget_weight_grad, mask=mask_hh)
-    tl.atomic_add(reset_weight_grad_ptr + indices, reset_weight_grad, mask=mask_hh)
+    tl.atomic_add(weight_grad_ptr + indices_weight, weight_grad, mask=mask_hh)
+    tl.atomic_add(forget_weight_grad_ptr + indices_weight, forget_weight_grad, mask=mask_hh)
+    tl.atomic_add(reset_weight_grad_ptr + indices_weight, reset_weight_grad, mask=mask_hh)
 
 
 @cute_op(

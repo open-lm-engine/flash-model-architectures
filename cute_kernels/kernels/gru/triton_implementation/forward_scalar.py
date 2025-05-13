@@ -12,7 +12,6 @@ from ...rnn.triton_implementation.forward_scalar import _rnn_forward_update
 def gru_forward_triton_kernel(
     input_ptr,
     input_stride_b,
-    input_stride_s,
     weight_ptr,
     forget_input_ptr,
     forget_weight_ptr,
@@ -85,7 +84,7 @@ def gru_forward_triton_kernel(
         input_state = forget_gate * input_state + (1 - forget_gate) * output_update
         tl.store(output_ptr + indices, input_state, mask=mask_bn)
 
-        indices += input_stride_s
+        indices += N
 
 
 @cute_op(f"{LIBRARY_NAME}::scalar_gru_forward_triton", mutates_args={"forget_gate", "reset_gate", "output"})
@@ -110,7 +109,6 @@ def scalar_gru_forward_triton(
         gru_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), N](
             input_ptr=input,
             input_stride_b=input.stride(0),
-            input_stride_s=input.stride(1),
             weight_ptr=weight,
             forget_input_ptr=forget_input,
             forget_weight_ptr=forget_weight,
