@@ -152,8 +152,7 @@ def gru_varlen_forward_triton(
     with torch.device(input.device):
         gru_varlen_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), N](
             input_ptr=input,
-            input_stride_b=input.stride(0),
-            input_stride_s=input.stride(1),
+            input_stride_t=input.stride(0),
             weight_ptr=weight,
             weight_stride_n=weight.stride(0),
             forget_input_ptr=forget_input,
