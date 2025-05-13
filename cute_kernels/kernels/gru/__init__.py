@@ -100,9 +100,9 @@ class _GRU_Cute(torch.autograd.Function):
         input_grad = torch.empty_like(output)
         forget_input_grad = torch.empty_like(output)
         reset_input_grad = torch.empty_like(output)
-        weight_grad = torch.empty_like(weight)
-        forget_weight_grad = torch.empty_like(weight)
-        reset_weight_grad = torch.empty_like(weight)
+        weight_grad = torch.zeros_like(weight)
+        forget_weight_grad = torch.zeros_like(weight)
+        reset_weight_grad = torch.zeros_like(weight)
 
         BLOCK_SIZE_B = ctx.BLOCK_SIZE_B_backward
         gradient_clipping = ctx.gradient_clipping
