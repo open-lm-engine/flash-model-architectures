@@ -4,21 +4,16 @@ import triton.language as tl
 
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide
-from ....triton_math import leaky_relu, sigmoid, tanh
 from ....utils import cute_op
+from .utils import _activation
 
 
 @triton.jit
 def _rnn_forward_update(input_state, weight, input, ACTIVATION_FUNCTION, relu_negative_slope):
     input_state = weight[None, :] * input_state + input
-
-    if ACTIVATION_FUNCTION == "leaky_relu":
-        input_state = leaky_relu(input_state, relu_negative_slope)
-    elif ACTIVATION_FUNCTION == "sigmoid":
-        input_state = sigmoid(input_state)
-    elif ACTIVATION_FUNCTION == "tanh":
-        input_state = tanh(input_state)
-
+    input_state = _activation(
+        x=input_state, ACTIVATION_FUNCTION=ACTIVATION_FUNCTION, relu_negative_slope=relu_negative_slope
+    )
     return input_state
 
 
