@@ -4,21 +4,28 @@ import triton.language as tl
 
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
-from ....triton_math import leaky_relu, sigmoid, tanh
+from ....triton_math import leaky_relu, leaky_relu_backward, sigmoid, sigmoid_backward, tanh, tanh_backward
 from ....utils import cute_op
+
+
+@triton.jit
+def _activation(x, ACTIVATION_FUNCTION, relu_negative_slope):
+    if ACTIVATION_FUNCTION == "leaky_relu":
+        x = leaky_relu(x, relu_negative_slope)
+    elif ACTIVATION_FUNCTION == "sigmoid":
+        x = sigmoid(x)
+    elif ACTIVATION_FUNCTION == "tanh":
+        x = tanh(x)
+
+    return x
 
 
 @triton.jit
 def _rnn_forward_update(input_state, weight, input, out_dtype, cast_dtype, ACTIVATION_FUNCTION, relu_negative_slope):
     input_state = tl.dot(input_state, weight, input, allow_tf32=True, out_dtype=out_dtype).to(cast_dtype)
-
-    if ACTIVATION_FUNCTION == "leaky_relu":
-        input_state = leaky_relu(input_state, relu_negative_slope)
-    elif ACTIVATION_FUNCTION == "sigmoid":
-        input_state = sigmoid(input_state)
-    elif ACTIVATION_FUNCTION == "tanh":
-        input_state = tanh(input_state)
-
+    input_state = _activation(
+        x=input_state, ACTIVATION_FUNCTION=ACTIVATION_FUNCTION, relu_negative_slope=relu_negative_slope
+    )
     return input_state
 
 
