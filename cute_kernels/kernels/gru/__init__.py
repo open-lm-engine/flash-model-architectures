@@ -58,7 +58,7 @@ class _GRU_Cute(torch.autograd.Function):
             if H == 1:
                 assert False
             else:
-                gru_forward_triton(**kwargs, BLOCK_SIZE_B=BLOCK_SIZE_B_forward)
+                gru_forward_triton(**kwargs)
         else:
             assert max_seqlen is not None
             is_max_seqlen_tensor = isinstance(max_seqlen, torch.Tensor)
