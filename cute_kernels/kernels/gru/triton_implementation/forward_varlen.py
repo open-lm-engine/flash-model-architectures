@@ -9,7 +9,7 @@ from ...rnn.triton_implementation.forward_varlen import _rnn_forward_update
 
 
 @triton.jit
-def gru_forward_triton_kernel(
+def gru_varlen_forward_triton_kernel(
     input_ptr,
     input_stride_t,
     weight_ptr,
@@ -38,12 +38,11 @@ def gru_forward_triton_kernel(
 
     indices_b = pid_b * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
     indices_h = tl.arange(0, BLOCK_SIZE_H)
+    indices = pid_n * weight_stride_n + indices_h[:, None] * H + indices_h[None, :]
 
     mask_b = indices_b < B
     mask_h = indices_h < H
     mask_bh = mask_b[:, None] & mask_h[None, :]
-
-    indices = pid_n * weight_stride_n + indices_h[:, None] * H + indices_h[None, :]
     mask_hh = mask_h[:, None] & mask_h[None, :]
 
     weight = tl.load(weight_ptr + indices, mask=mask_hh, other=0)
@@ -136,17 +135,22 @@ def gru_varlen_forward_triton(
     output_update: torch.Tensor,
     input_state: torch.Tensor | None,
     output: torch.Tensor,
+    cu_seqlens: torch.Tensor,
+    max_seqlen_tensor: torch.Tensor | None,
+    max_seqlen: int | None,
     BLOCK_SIZE_B: int,
 ) -> None:
-    B, S, N, H = input.size()
+    _, N, H = input.size()
+    B = cu_seqlens.size(0) - 1
 
     BLOCK_SIZE_H = get_next_power_of_2(H)
     BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
 
     has_input_state = input_state is not None
+    is_max_seqlen_tensor = max_seqlen_tensor is not None
 
     with torch.device(input.device):
-        gru_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), N](
+        gru_varlen_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), N](
             input_ptr=input,
             input_stride_b=input.stride(0),
             input_stride_s=input.stride(1),
@@ -163,8 +167,10 @@ def gru_varlen_forward_triton(
             input_state_ptr=input_state,
             input_state_stride_b=input_state.stride(0) if has_input_state else None,
             output_ptr=output,
+            cu_seqlens_ptr=cu_seqlens,
+            IS_MAX_SEQLEN_TENSOR=is_max_seqlen_tensor,
+            max_seqlen_ptr=max_seqlen_tensor if is_max_seqlen_tensor else max_seqlen,
             B=B,
-            S=S,
             H=H,
             BLOCK_SIZE_B=BLOCK_SIZE_B,
             BLOCK_SIZE_H=BLOCK_SIZE_H,
