@@ -120,7 +120,7 @@ def scalar_rnn_varlen_backward_triton_kernel(
             relu_negative_slope=relu_negative_slope,
         )
 
-        tl.store(input_grad_ptrs, input_grad, mask=c)
+        tl.store(input_grad_ptrs, input_grad, mask=mask)
         output = output_prev
 
         end -= 1
