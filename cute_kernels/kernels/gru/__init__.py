@@ -79,12 +79,7 @@ class _GRU_Cute(torch.autograd.Function):
             if H == 1:
                 assert False
             else:
-                gru_varlen_forward_triton(
-                    **kwargs,
-                    cu_seqlens=cu_seqlens,
-                    max_seqlen_tensor=max_seqlen if is_max_seqlen_tensor else None,
-                    max_seqlen=None if is_max_seqlen_tensor else max_seqlen,
-                )
+                gru_varlen_forward_triton(**kwargs)
 
         ctx.save_for_backward(
             weight,
@@ -160,15 +155,14 @@ class _GRU_Cute(torch.autograd.Function):
         else:
             is_max_seqlen_tensor = isinstance(max_seqlen, torch.Tensor)
 
+            kwargs["cu_seqlens"] = cu_seqlens
+            kwargs["max_seqlen_tensor"] = max_seqlen if is_max_seqlen_tensor else None
+            kwargs["max_seqlen"] = None if is_max_seqlen_tensor else max_seqlen
+
             if H == 1:
                 assert False
             else:
-                gru_varlen_backward_triton(
-                    **kwargs,
-                    cu_seqlens=cu_seqlens,
-                    max_seqlen_tensor=max_seqlen if is_max_seqlen_tensor else None,
-                    max_seqlen=None if is_max_seqlen_tensor else max_seqlen,
-                )
+                gru_varlen_backward_triton(**kwargs)
 
         weight_grad = weight_grad.type_as(weight)
         forget_weight_grad = forget_weight_grad.type_as(forget_weight)
