@@ -70,7 +70,7 @@ class _GRU_Cute(torch.autograd.Function):
             if H == 1:
                 assert False
             else:
-                gru_varlen_forward_triton(**kwargs, BLOCK_SIZE_B=BLOCK_SIZE_B_forward)
+                gru_varlen_forward_triton(**kwargs)
 
         ctx.save_for_backward(
             weight,
@@ -114,45 +114,52 @@ class _GRU_Cute(torch.autograd.Function):
         reset_weight_grad = torch.zeros_like(weight, dtype=torch.float32)
 
         H = weight.size(-1)
-        BLOCK_SIZE_B = ctx.BLOCK_SIZE_B_backward
-        gradient_clipping = ctx.gradient_clipping
+
+        kwargs = {
+            "weight": weight,
+            "output": output,
+            "forget_weight": forget_weight,
+            "forget_gate": forget_gate,
+            "forget_input_grad": forget_input_grad,
+            "forget_weight_grad": forget_weight_grad,
+            "reset_weight": reset_weight,
+            "reset_gate": reset_gate,
+            "reset_input_grad": reset_input_grad,
+            "reset_weight_grad": reset_weight_grad,
+            "output_update": output_update,
+            "input_state": input_state,
+            "output_grad": output_grad,
+            "input_grad": input_grad,
+            "weight_grad": weight_grad,
+            "gradient_clipping": ctx.gradient_clipping,
+            "output": output,
+            "BLOCK_SIZE_B": ctx.BLOCK_SIZE_B_backward,
+        }
 
         if cu_seqlens is None:
-            gru_backward_triton(
-                weight=weight,
-                output=output,
-                forget_weight=forget_weight,
-                forget_gate=forget_gate,
-                forget_input_grad=forget_input_grad,
-                forget_weight_grad=forget_weight_grad,
-                reset_weight=reset_weight,
-                reset_gate=reset_gate,
-                reset_input_grad=reset_input_grad,
-                reset_weight_grad=reset_weight_grad,
-                output_update=output_update,
-                input_state=input_state,
-                output_grad=output_grad,
-                input_grad=input_grad,
-                weight_grad=weight_grad,
-                gradient_clipping=gradient_clipping,
-                BLOCK_SIZE_B=BLOCK_SIZE_B,
-            )
+            if H == 1:
+                assert False
+            else:
+                gru_backward_triton(**kwargs)
         else:
             is_max_seqlen_tensor = isinstance(max_seqlen, torch.Tensor)
 
-            gru_varlen_backward_triton(
-                output=output,
-                weight=weight,
-                input_state=input_state,
-                output_grad=output_grad,
-                input_grad=input_grad,
-                weight_grad=weight_grad,
-                cu_seqlens=cu_seqlens,
-                max_seqlen_tensor=max_seqlen if is_max_seqlen_tensor else None,
-                max_seqlen=None if is_max_seqlen_tensor else max_seqlen,
-                gradient_clipping=gradient_clipping,
-                BLOCK_SIZE_B=BLOCK_SIZE_B,
-            )
+            if H == 1:
+                assert False
+            else:
+                gru_varlen_backward_triton(
+                    output=output,
+                    weight=weight,
+                    input_state=input_state,
+                    output_grad=output_grad,
+                    input_grad=input_grad,
+                    weight_grad=weight_grad,
+                    cu_seqlens=cu_seqlens,
+                    max_seqlen_tensor=max_seqlen if is_max_seqlen_tensor else None,
+                    max_seqlen=None if is_max_seqlen_tensor else max_seqlen,
+                    gradient_clipping=gradient_clipping,
+                    BLOCK_SIZE_B=BLOCK_SIZE_B,
+                )
 
         weight_grad = weight_grad.type_as(weight)
         forget_weight_grad = forget_weight_grad.type_as(forget_weight)
