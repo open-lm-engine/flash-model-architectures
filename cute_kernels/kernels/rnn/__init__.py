@@ -103,67 +103,39 @@ class _RNN_Cute(torch.autograd.Function):
         relu_negative_slope = ctx.relu_negative_slope
         is_max_seqlen_tensor = isinstance(max_seqlen, torch.Tensor)
 
+        kwargs = {
+            "weight": weight,
+            "output": output,
+            "input_state": input_state,
+            "output_grad": output_grad,
+            "input_grad": input_grad,
+            "weight_grad": weight_grad,
+            "gradient_clipping": gradient_clipping,
+            "activation_function": activation_function,
+            "relu_negative_slope": relu_negative_slope,
+            "BLOCK_SIZE_B": BLOCK_SIZE_B,
+        }
+
         if weight.size(-1) == 1:
             if cu_seqlens is None:
-                scalar_rnn_backward_triton(
-                    weight=weight,
-                    output=output,
-                    input_state=input_state,
-                    output_grad=output_grad,
-                    input_grad=input_grad,
-                    weight_grad=weight_grad,
-                    gradient_clipping=gradient_clipping,
-                    activation_function=activation_function,
-                    relu_negative_slope=relu_negative_slope,
-                    BLOCK_SIZE_B=BLOCK_SIZE_B,
-                    BLOCK_SIZE_N=BLOCK_SIZE_N,
-                )
+                scalar_rnn_backward_triton(**kwargs, BLOCK_SIZE_N=BLOCK_SIZE_N)
             else:
                 scalar_rnn_varlen_backward_triton(
-                    weight=weight,
-                    output=output,
-                    input_state=input_state,
-                    output_grad=output_grad,
-                    input_grad=input_grad,
-                    weight_grad=weight_grad,
+                    **kwargs,
                     cu_seqlens=cu_seqlens,
                     max_seqlen_tensor=max_seqlen if is_max_seqlen_tensor else None,
                     max_seqlen=None if is_max_seqlen_tensor else max_seqlen,
-                    gradient_clipping=gradient_clipping,
-                    activation_function=activation_function,
-                    relu_negative_slope=relu_negative_slope,
-                    BLOCK_SIZE_B=BLOCK_SIZE_B,
                     BLOCK_SIZE_N=BLOCK_SIZE_N,
                 )
         else:
             if cu_seqlens is None:
-                rnn_backward_triton(
-                    weight=weight,
-                    output=output,
-                    input_state=input_state,
-                    output_grad=output_grad,
-                    input_grad=input_grad,
-                    weight_grad=weight_grad,
-                    gradient_clipping=gradient_clipping,
-                    activation_function=activation_function,
-                    relu_negative_slope=relu_negative_slope,
-                    BLOCK_SIZE_B=BLOCK_SIZE_B,
-                )
+                rnn_backward_triton(**kwargs)
             else:
                 rnn_varlen_backward_triton(
-                    weight=weight,
-                    output=output,
-                    input_state=input_state,
-                    output_grad=output_grad,
-                    input_grad=input_grad,
-                    weight_grad=weight_grad,
+                    **kwargs,
                     cu_seqlens=cu_seqlens,
                     max_seqlen_tensor=max_seqlen if is_max_seqlen_tensor else None,
                     max_seqlen=None if is_max_seqlen_tensor else max_seqlen,
-                    gradient_clipping=gradient_clipping,
-                    activation_function=activation_function,
-                    relu_negative_slope=relu_negative_slope,
-                    BLOCK_SIZE_B=BLOCK_SIZE_B,
                 )
 
         return input_grad, weight_grad, *[None] * 10
