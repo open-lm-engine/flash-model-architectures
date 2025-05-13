@@ -140,9 +140,9 @@ def gru_backward_triton_kernel(
 
     indices = pid_n * weight_stride_n + indices_h[:, None] * H + indices_h[None, :]
 
-    tl.store(weight_grad_ptr + indices, weight_grad, mask=mask_hh)
-    tl.store(forget_weight_grad_ptr + indices, forget_weight_grad, mask=mask_hh)
-    tl.store(reset_weight_grad_ptr + indices, reset_weight_grad, mask=mask_hh)
+    tl.atomic_add(weight_grad_ptr + indices, weight_grad, mask=mask_hh)
+    tl.atomic_add(forget_weight_grad_ptr + indices, forget_weight_grad, mask=mask_hh)
+    tl.atomic_add(reset_weight_grad_ptr + indices, reset_weight_grad, mask=mask_hh)
 
 
 @cute_op(
