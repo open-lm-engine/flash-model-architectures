@@ -120,7 +120,7 @@ def scalar_rnn_varlen_backward_triton_kernel(
             relu_negative_slope=relu_negative_slope,
         )
 
-        tl.store(input_grad_ptrs, input_grad, mask=mask_bn)
+        tl.store(input_grad_ptrs, input_grad, mask=c)
         output = output_prev
 
         end -= 1
@@ -145,7 +145,7 @@ def scalar_rnn_varlen_backward_triton(
     BLOCK_SIZE_B: int,
     BLOCK_SIZE_N: int,
 ) -> None:
-    _, N, H = output.size()
+    N = output.size(1)
     B = cu_seqlens.size(0) - 1
 
     has_input_state = input_state is not None
