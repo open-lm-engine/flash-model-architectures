@@ -21,6 +21,7 @@ class _GRU_Cute(torch.autograd.Function):
         cu_seqlens: torch.Tensor | None,
         max_seqlen: torch.Tensor | int | None,
         BLOCK_SIZE_B_forward: int,
+        BLOCK_SIZE_B_backward: int,
     ) -> torch.Tensor:
         if gradient_clipping is not None and gradient_clipping < 0:
             gradient_clipping = -gradient_clipping
@@ -76,6 +77,7 @@ class _GRU_Cute(torch.autograd.Function):
         )
 
         ctx.gradient_clipping = gradient_clipping
+        ctx.BLOCK_SIZE_B_backward = BLOCK_SIZE_B_backward
 
         return output
 
@@ -102,6 +104,7 @@ class _GRU_Cute(torch.autograd.Function):
         forget_weight_grad = torch.empty_like(weight)
         reset_weight_grad = torch.empty_like(weight)
 
+        BLOCK_SIZE_B = ctx.BLOCK_SIZE_B_backward
         gradient_clipping = ctx.gradient_clipping
 
         if cu_seqlens is None:
@@ -122,6 +125,7 @@ class _GRU_Cute(torch.autograd.Function):
                 input_grad=input_grad,
                 weight_grad=weight_grad,
                 gradient_clipping=gradient_clipping,
+                BLOCK_SIZE_B=BLOCK_SIZE_B,
             )
         else:
             is_max_seqlen_tensor = isinstance(max_seqlen, torch.Tensor)
@@ -164,6 +168,7 @@ def gru_cute(
     max_seqlen: torch.Tensor | int | None = None,
     *,
     BLOCK_SIZE_B_forward: int = 32,
+    BLOCK_SIZE_B_backward: int = 32,
 ) -> torch.Tensor:
     """computes multihead RNN: tanh(`input_state` @ `weight` + `input`)
 
@@ -178,6 +183,8 @@ def gru_cute(
         cu_seqlens (torch.Tensor | None, optional): cumulative sequence length (must contain 0 as first element). Defaults to None.
         max_seqlen (torch.Tensor | int | None, optional): max sequence length in the batch. Defaults to None.
         BLOCK_SIZE_B_forward (int, optional): block size for forward along batch dimension for forward. Defaults to
+            32.
+        BLOCK_SIZE_B_backward (int, optional): block size for backward along batch dimension for backward. Defaults to
             32.
 
     Returns:
@@ -196,4 +203,5 @@ def gru_cute(
         cu_seqlens,
         max_seqlen,
         BLOCK_SIZE_B_forward,
+        BLOCK_SIZE_B_backward,
     )
