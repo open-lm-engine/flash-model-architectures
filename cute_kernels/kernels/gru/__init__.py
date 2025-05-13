@@ -2,7 +2,12 @@ import torch
 
 from ...utils import ensure_contiguous
 from .torch_implementation import gru_torch
-from .triton_implementation import gru_backward_triton, gru_forward_triton
+from .triton_implementation import (
+    gru_backward_triton,
+    gru_forward_triton,
+    scalar_gru_backward_triton,
+    scalar_gru_forward_triton,
+)
 
 
 class _GRU_Cute(torch.autograd.Function):
@@ -21,7 +26,9 @@ class _GRU_Cute(torch.autograd.Function):
         cu_seqlens: torch.Tensor | None,
         max_seqlen: torch.Tensor | int | None,
         BLOCK_SIZE_B_forward: int,
+        BLOCK_SIZE_N_forward: int,
         BLOCK_SIZE_B_backward: int,
+        BLOCK_SIZE_N_backward: int,
     ) -> torch.Tensor:
         assert input.dim() in [3, 4]
         assert weight.dim() == 3
@@ -56,7 +63,7 @@ class _GRU_Cute(torch.autograd.Function):
             assert max_seqlen is None
 
             if H == 1:
-                assert False
+                scalar_gru_forward_triton(**kwargs, BLOCK_SIZE_N=BLOCK_SIZE_N_forward)
             else:
                 gru_forward_triton(**kwargs)
         else:
@@ -114,6 +121,7 @@ class _GRU_Cute(torch.autograd.Function):
         reset_weight_grad = torch.zeros_like(weight, dtype=torch.float32)
 
         H = weight.size(-1)
+        BLOCK_SIZE_N = ctx.BLOCK_SIZE_N_backward
 
         kwargs = {
             "weight": weight,
@@ -138,7 +146,7 @@ class _GRU_Cute(torch.autograd.Function):
 
         if cu_seqlens is None:
             if H == 1:
-                assert False
+                scalar_gru_backward_triton(**kwargs, BLOCK_SIZE_N=BLOCK_SIZE_N)
             else:
                 gru_backward_triton(**kwargs)
         else:
@@ -189,7 +197,9 @@ def gru_cute(
     max_seqlen: torch.Tensor | int | None = None,
     *,
     BLOCK_SIZE_B_forward: int = 32,
+    BLOCK_SIZE_N_forward: int = 32,
     BLOCK_SIZE_B_backward: int = 32,
+    BLOCK_SIZE_N_backward: int = 32,
 ) -> torch.Tensor:
     """computes multihead RNN: tanh(`input_state` @ `weight` + `input`)
 
@@ -205,8 +215,12 @@ def gru_cute(
         max_seqlen (torch.Tensor | int | None, optional): max sequence length in the batch. Defaults to None.
         BLOCK_SIZE_B_forward (int, optional): block size for forward along batch dimension for forward. Defaults to
             32.
+        BLOCK_SIZE_N_forward (int, optional): block size for forward along num_heads dimension for forward, only used if
+            head_dim is 1. Defaults to 32.
         BLOCK_SIZE_B_backward (int, optional): block size for backward along batch dimension for backward. Defaults to
             32.
+        BLOCK_SIZE_N_backward (int, optional): block size for backward along num_heads dimension for forward, only used if
+            head_dim is 1. Defaults to 32.
 
     Returns:
         torch.Tensor: output tensor of shape (B, S, N, H)
@@ -224,5 +238,7 @@ def gru_cute(
         cu_seqlens,
         max_seqlen,
         BLOCK_SIZE_B_forward,
+        BLOCK_SIZE_N_forward,
         BLOCK_SIZE_B_backward,
+        BLOCK_SIZE_N_backward,
     )

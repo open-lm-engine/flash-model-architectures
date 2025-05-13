@@ -97,7 +97,6 @@ class _RNN_Cute(torch.autograd.Function):
 
         H = weight.size(-1)
         BLOCK_SIZE_N = ctx.BLOCK_SIZE_N_backward
-        is_max_seqlen_tensor = isinstance(max_seqlen, torch.Tensor)
 
         kwargs = {
             "weight": weight,
@@ -118,6 +117,8 @@ class _RNN_Cute(torch.autograd.Function):
             else:
                 rnn_backward_triton(**kwargs)
         else:
+            is_max_seqlen_tensor = isinstance(max_seqlen, torch.Tensor)
+
             kwargs["cu_seqlens"] = cu_seqlens
             kwargs["max_seqlen_tensor"] = max_seqlen if is_max_seqlen_tensor else None
             kwargs["max_seqlen"] = None if is_max_seqlen_tensor else max_seqlen
