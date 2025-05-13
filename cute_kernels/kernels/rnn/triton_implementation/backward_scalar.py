@@ -6,7 +6,7 @@ from ....constants import LIBRARY_NAME
 from ....math import ceil_divide
 from ....triton_math import clamp
 from ....utils import cute_op
-from .utils import _activation_backward
+from .backward import _activation_backward
 
 
 @triton.jit

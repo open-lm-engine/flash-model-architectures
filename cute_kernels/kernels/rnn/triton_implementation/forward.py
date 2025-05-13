@@ -4,8 +4,20 @@ import triton.language as tl
 
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
+from ....triton_math import leaky_relu, leaky_relu_backward, sigmoid, sigmoid_backward, tanh, tanh_backward
 from ....utils import cute_op
-from .utils import _activation
+
+
+@triton.jit
+def _activation(x, ACTIVATION_FUNCTION, relu_negative_slope):
+    if ACTIVATION_FUNCTION == "leaky_relu":
+        x = leaky_relu(x, relu_negative_slope)
+    elif ACTIVATION_FUNCTION == "sigmoid":
+        x = sigmoid(x)
+    elif ACTIVATION_FUNCTION == "tanh":
+        x = tanh(x)
+
+    return x
 
 
 @triton.jit

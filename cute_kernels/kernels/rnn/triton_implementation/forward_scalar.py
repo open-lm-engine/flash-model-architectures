@@ -5,7 +5,7 @@ import triton.language as tl
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide
 from ....utils import cute_op
-from .utils import _activation
+from .forward import _activation
 
 
 @triton.jit
