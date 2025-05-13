@@ -97,9 +97,6 @@ class _RNN_Cute(torch.autograd.Function):
 
         H = weight.size(-1)
         BLOCK_SIZE_N = ctx.BLOCK_SIZE_N_backward
-        gradient_clipping = ctx.gradient_clipping
-        activation_function = ctx.activation_function
-        relu_negative_slope = ctx.relu_negative_slope
         is_max_seqlen_tensor = isinstance(max_seqlen, torch.Tensor)
 
         kwargs = {
@@ -109,9 +106,9 @@ class _RNN_Cute(torch.autograd.Function):
             "output_grad": output_grad,
             "input_grad": input_grad,
             "weight_grad": weight_grad,
-            "gradient_clipping": gradient_clipping,
-            "activation_function": activation_function,
-            "relu_negative_slope": relu_negative_slope,
+            "gradient_clipping": ctx.gradient_clipping,
+            "activation_function": ctx.activation_function,
+            "relu_negative_slope": ctx.relu_negative_slope,
             "BLOCK_SIZE_B": ctx.BLOCK_SIZE_B_backward,
         }
 
