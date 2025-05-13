@@ -3,7 +3,7 @@ import triton
 import triton.language as tl
 
 from ....constants import LIBRARY_NAME
-from ....math import ceil_divide, get_next_power_of_2
+from ....math import ceil_divide
 from ....triton_math import clamp, leaky_relu_backward, sigmoid_backward, tanh_backward
 from ....utils import cute_op
 
