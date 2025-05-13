@@ -5,7 +5,7 @@ import triton.language as tl
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide
 from ....utils import cute_op
-from .forward import _rnn_forward_update
+from .forward_scalar import _rnn_forward_update
 
 
 @triton.jit
