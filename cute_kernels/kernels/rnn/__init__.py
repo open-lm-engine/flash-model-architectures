@@ -96,7 +96,7 @@ class _RNN_Cute(torch.autograd.Function):
         input_grad = torch.empty_like(output)
         weight_grad = torch.zeros_like(weight, dtype=torch.float32)
 
-        BLOCK_SIZE_B = ctx.BLOCK_SIZE_B_backward
+        H = weight.size(-1)
         BLOCK_SIZE_N = ctx.BLOCK_SIZE_N_backward
         gradient_clipping = ctx.gradient_clipping
         activation_function = ctx.activation_function
@@ -113,30 +113,23 @@ class _RNN_Cute(torch.autograd.Function):
             "gradient_clipping": gradient_clipping,
             "activation_function": activation_function,
             "relu_negative_slope": relu_negative_slope,
-            "BLOCK_SIZE_B": BLOCK_SIZE_B,
+            "BLOCK_SIZE_B": ctx.BLOCK_SIZE_B_backward,
         }
 
-        if weight.size(-1) == 1:
-            if cu_seqlens is None:
+        if cu_seqlens is None:
+            if H == 1:
                 scalar_rnn_backward_triton(**kwargs, BLOCK_SIZE_N=BLOCK_SIZE_N)
             else:
-                scalar_rnn_varlen_backward_triton(
-                    **kwargs,
-                    cu_seqlens=cu_seqlens,
-                    max_seqlen_tensor=max_seqlen if is_max_seqlen_tensor else None,
-                    max_seqlen=None if is_max_seqlen_tensor else max_seqlen,
-                    BLOCK_SIZE_N=BLOCK_SIZE_N,
-                )
-        else:
-            if cu_seqlens is None:
                 rnn_backward_triton(**kwargs)
+        else:
+            kwargs["cu_seqlens"] = cu_seqlens
+            kwargs["max_seqlen_tensor"] = max_seqlen if is_max_seqlen_tensor else None
+            kwargs["max_seqlen"] = None if is_max_seqlen_tensor else max_seqlen
+
+            if H == 1:
+                scalar_rnn_varlen_backward_triton(**kwargs, BLOCK_SIZE_N=BLOCK_SIZE_N)
             else:
-                rnn_varlen_backward_triton(
-                    **kwargs,
-                    cu_seqlens=cu_seqlens,
-                    max_seqlen_tensor=max_seqlen if is_max_seqlen_tensor else None,
-                    max_seqlen=None if is_max_seqlen_tensor else max_seqlen,
-                )
+                rnn_varlen_backward_triton(**kwargs)
 
         return input_grad, weight_grad, *[None] * 10
 
