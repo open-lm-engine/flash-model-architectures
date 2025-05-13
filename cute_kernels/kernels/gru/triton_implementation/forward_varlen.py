@@ -5,14 +5,13 @@ import triton.language as tl
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
 from ....utils import cute_op
-from ...rnn.triton_implementation.forward import _rnn_forward_update
+from ...rnn.triton_implementation.forward_varlen import _rnn_forward_update
 
 
 @triton.jit
 def gru_forward_triton_kernel(
     input_ptr,
-    input_stride_b,
-    input_stride_s,
+    input_stride_t,
     weight_ptr,
     weight_stride_n,
     forget_input_ptr,
@@ -26,8 +25,10 @@ def gru_forward_triton_kernel(
     input_state_ptr,
     input_state_stride_b,
     output_ptr,
+    cu_seqlens_ptr,
+    IS_MAX_SEQLEN_TENSOR: tl.constexpr,
+    max_seqlen_ptr,
     B,
-    S,
     H,
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
@@ -56,7 +57,16 @@ def gru_forward_triton_kernel(
     else:
         input_state = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=input_ptr.dtype.element_ty)
 
-    indices = indices_b[:, None] * input_stride_b + pid_n * H + indices_h[None, :]
+    cu_seqlens_ptrs = cu_seqlens_ptr + indices_b[:, None]
+    start = tl.load(cu_seqlens_ptrs, mask=mask_b[:, None])
+    end = tl.load(cu_seqlens_ptrs + 1, mask=mask_b[:, None])
+
+    if IS_MAX_SEQLEN_TENSOR:
+        max_seqlen = tl.load(max_seqlen_ptr)
+    else:
+        max_seqlen = max_seqlen_ptr
+
+    indices = start * input_stride_t + pid_n * H + indices_h[None, :]
 
     input_dtype = input_ptr.dtype.element_ty
     out_dtype = input_dtype
@@ -66,51 +76,55 @@ def gru_forward_triton_kernel(
         out_dtype = tl.float32
         cast_dtype = tl.bfloat16
 
-    for _ in range(S):
+    for _ in range(max_seqlen):
+        unfinished = start < end
+        mask = unfinished & mask_h[None, :]
+
         reset_gate = _rnn_forward_update(
             input_state=input_state,
             weight=reset_weight,
-            input=tl.load(reset_input_ptr + indices, mask=mask_bh).to(input_dtype),
+            input=tl.load(reset_input_ptr + indices, mask=mask).to(input_dtype),
             out_dtype=out_dtype,
             cast_dtype=cast_dtype,
             ACTIVATION_FUNCTION="sigmoid",
             relu_negative_slope=None,
         )
 
-        tl.store(reset_gate_ptr + indices, reset_gate, mask=mask_bh)
+        tl.store(reset_gate_ptr + indices, reset_gate, mask=mask)
 
         output_update = _rnn_forward_update(
             input_state=input_state * reset_gate,
             weight=weight,
-            input=tl.load(input_ptr + indices, mask=mask_bh).to(input_dtype),
+            input=tl.load(input_ptr + indices, mask=mask).to(input_dtype),
             out_dtype=out_dtype,
             cast_dtype=cast_dtype,
             ACTIVATION_FUNCTION="tanh",
             relu_negative_slope=None,
         )
 
-        tl.store(output_update_ptr + indices, output_update, mask=mask_bh)
+        tl.store(output_update_ptr + indices, output_update, mask=mask)
 
         forget_gate = _rnn_forward_update(
             input_state=input_state,
             weight=forget_weight,
-            input=tl.load(forget_input_ptr + indices, mask=mask_bh).to(input_dtype),
+            input=tl.load(forget_input_ptr + indices, mask=mask).to(input_dtype),
             out_dtype=out_dtype,
             cast_dtype=cast_dtype,
             ACTIVATION_FUNCTION="sigmoid",
             relu_negative_slope=None,
         )
 
-        tl.store(forget_gate_ptr + indices, forget_gate, mask=mask_bh)
+        tl.store(forget_gate_ptr + indices, forget_gate, mask=mask)
 
         input_state = forget_gate * input_state + (1 - forget_gate) * output_update
-        tl.store(output_ptr + indices, input_state, mask=mask_bh)
+        tl.store(output_ptr + indices, input_state, mask=mask)
 
-        indices += input_stride_s
+        indices += input_stride_t
+        start += 1
 
 
-@cute_op(f"{LIBRARY_NAME}::gru_forward_triton", mutates_args={"forget_gate", "reset_gate", "output_update", "output"})
-def gru_forward_triton(
+@cute_op(f"{LIBRARY_NAME}::gru_varlen_forward_triton", mutates_args={"forget_gate", "reset_gate", "output"})
+def gru_varlen_forward_triton(
     input: torch.Tensor,
     weight: torch.Tensor,
     forget_input: torch.Tensor,
