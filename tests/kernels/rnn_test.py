@@ -43,7 +43,7 @@ class RNNTest(TestCommons):
                 sequence_length=sequence_length,
                 total_tokens=None,
                 num_heads=num_heads,
-                head_dim=divide_if_divisible(state_size, num_heads),
+                state_size=state_size,
                 has_input_state=has_input_state,
                 dtype=dtype,
                 device=device,
@@ -77,7 +77,7 @@ class RNNTest(TestCommons):
             [torch.device("cuda")],
             TestCommons.get_dtypes(),
             [[0, 7, 19, 27, 93]],  # cu_seqlens
-            [64],  # head_dim
+            [256],  # state_size
             [4],  # num_heads
             [False, True],  # has_input_state
         )
@@ -87,7 +87,7 @@ class RNNTest(TestCommons):
         device: torch.device,
         dtype: torch.dtype,
         cu_seqlens: list[int],
-        head_dim: int,
+        state_size: int,
         num_heads: int,
         has_input_state: bool,
     ) -> None:
@@ -109,7 +109,7 @@ class RNNTest(TestCommons):
             sequence_length=None,
             total_tokens=cu_seqlens[-1],
             num_heads=num_heads,
-            head_dim=head_dim,
+            state_size=state_size,
             has_input_state=has_input_state,
             dtype=dtype,
             device=device,
@@ -151,7 +151,7 @@ class RNNTest(TestCommons):
             [torch.device("cuda")],
             TestCommons.get_dtypes(),
             [[0, 7, 19, 27, 93]],  # cu_seqlens
-            [64],  # head_dim
+            [256],  # state_size
             [4],  # num_heads
             [False, True],  # has_input_state
         )
@@ -161,7 +161,7 @@ class RNNTest(TestCommons):
         device: torch.device,
         dtype: torch.dtype,
         cu_seqlens: list[int],
-        head_dim: int,
+        state_size: int,
         num_heads: int,
         has_input_state: bool,
     ) -> None:
@@ -177,7 +177,7 @@ class RNNTest(TestCommons):
                 sequence_length=None,
                 total_tokens=cu_seqlens[-1],
                 num_heads=num_heads,
-                head_dim=head_dim,
+                state_size=state_size,
                 has_input_state=has_input_state,
                 dtype=dtype,
                 device=device,
@@ -215,7 +215,7 @@ class RNNTest(TestCommons):
             [torch.device("cuda")],
             TestCommons.get_dtypes(),
             [[0, 7, 19, 27, 93], None],  # cu_seqlens
-            [64],  # head_dim
+            [256],  # state_size
             [4],  # num_heads
         )
     )
@@ -224,7 +224,7 @@ class RNNTest(TestCommons):
         device: torch.device,
         dtype: torch.dtype,
         cu_seqlens: list[int] | None,
-        head_dim: int,
+        state_size: int,
         num_heads: int,
     ) -> None:
         input_size = 79
@@ -232,7 +232,7 @@ class RNNTest(TestCommons):
 
         rnn = RNN(
             input_size=input_size,
-            state_size=num_heads * head_dim,
+            state_size=state_size,
             output_size=output_size,
             num_heads=num_heads,
             add_bias=False,
@@ -250,7 +250,7 @@ class RNNTest(TestCommons):
             if cu_seqlens is None
             else torch.randn(cu_seqlens[-1], input_size, device=device, dtype=dtype)
         )
-        input_state = torch.randn(batch_size, num_heads * head_dim, device=device, dtype=dtype)
+        input_state = torch.randn(batch_size, state_size, device=device, dtype=dtype)
 
         output, output_state = rnn(
             input=input, input_state=input_state, cu_seqlens=cu_seqlens, max_seqlen=max_seqlen, use_kernel=True
@@ -267,11 +267,13 @@ class RNNTest(TestCommons):
         sequence_length: int | None,
         total_tokens: int | None,
         num_heads: int,
-        head_dim: int,
+        state_size: int,
         has_input_state: bool,
         dtype: torch.dtype,
         device: torch.device,
     ) -> tuple[torch.Tensor | None]:
+        head_dim = divide_if_divisible(state_size, num_heads)
+
         x_kernel, x_expected = self.get_random_duplicated_tensors(
             (
                 (batch_size, sequence_length, num_heads, head_dim)
