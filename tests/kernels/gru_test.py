@@ -276,8 +276,7 @@ class GRUTest(TestCommons):
         TestCommons.make_args_matrix(
             [torch.device("cuda")],
             TestCommons.get_dtypes(),
-            [None],  # cu_seqlens
-            # [[0, 7, 19, 27, 93], None],  # cu_seqlens
+            [[0, 7, 19, 27, 93], None],  # cu_seqlens
             [256],  # state_size
             [4],  # num_heads
         )
