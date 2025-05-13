@@ -67,6 +67,7 @@ def rnn_varlen_forward_triton_kernel(
         )
 
         tl.store(output_ptr + indices, input_state, mask=mask)
+
         indices += input_stride_t
         start += 1
 
@@ -85,7 +86,7 @@ def scalar_rnn_varlen_forward_triton(
     BLOCK_SIZE_B: int,
     BLOCK_SIZE_N: int,
 ) -> None:
-    _, N, H = input.size()
+    N = input.size(1)
     B = cu_seqlens.size(0) - 1
 
     is_max_seqlen_tensor = max_seqlen_tensor is not None
