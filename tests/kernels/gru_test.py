@@ -24,7 +24,7 @@ class GRUTest(TestCommons):
             [gru_cute],  # , torch.compile(gru_cute, fullgraph=True)],  # function
         )
     )
-    def test_rnn(
+    def test_gru(
         self,
         device: torch.device,
         dtype: torch.dtype,
@@ -160,7 +160,7 @@ class GRUTest(TestCommons):
             [False, True],  # has_input_state
         )
     )
-    def test_rnn_varlen_torch(
+    def test_gru_varlen_torch(
         self,
         device: torch.device,
         dtype: torch.dtype,
