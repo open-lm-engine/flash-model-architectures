@@ -78,7 +78,7 @@ class RNNTest(TestCommons):
             TestCommons.get_dtypes(),
             [[0, 7, 19, 27, 93]],  # cu_seqlens
             [256],  # state_size
-            [4, 256],  # num_heads
+            [4],  # num_heads
             [False, True],  # has_input_state
         )
     )
@@ -152,7 +152,7 @@ class RNNTest(TestCommons):
             TestCommons.get_dtypes(),
             [[0, 7, 19, 27, 93]],  # cu_seqlens
             [256],  # state_size
-            [4],  # num_heads
+            [4, 256],  # num_heads
             [False, True],  # has_input_state
         )
     )
