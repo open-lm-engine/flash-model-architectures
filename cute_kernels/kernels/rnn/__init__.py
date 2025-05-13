@@ -24,6 +24,7 @@ class _RNN_Cute(torch.autograd.Function):
         activation_function: str,
         relu_negative_slope: float | None,
         BLOCK_SIZE_B_forward: int,
+        BLOCK_SIZE_B_backward: int,
     ) -> torch.Tensor:
         assert activation_function in ["leaky_relu", "sigmoid", "tanh"]
 
@@ -70,6 +71,7 @@ class _RNN_Cute(torch.autograd.Function):
         ctx.gradient_clipping = gradient_clipping
         ctx.activation_function = activation_function
         ctx.relu_negative_slope = relu_negative_slope
+        ctx.BLOCK_SIZE_B_backward = BLOCK_SIZE_B_backward
 
         return output
 
@@ -80,6 +82,7 @@ class _RNN_Cute(torch.autograd.Function):
         input_grad = torch.empty_like(output)
         weight_grad = torch.empty_like(weight)
 
+        BLOCK_SIZE_B = ctx.BLOCK_SIZE_B_backward
         gradient_clipping = ctx.gradient_clipping
         activation_function = ctx.activation_function
         relu_negative_slope = ctx.relu_negative_slope
@@ -95,6 +98,7 @@ class _RNN_Cute(torch.autograd.Function):
                 gradient_clipping=gradient_clipping,
                 activation_function=activation_function,
                 relu_negative_slope=relu_negative_slope,
+                BLOCK_SIZE_B=BLOCK_SIZE_B,
             )
         else:
             is_max_seqlen_tensor = isinstance(max_seqlen, torch.Tensor)
@@ -112,9 +116,10 @@ class _RNN_Cute(torch.autograd.Function):
                 gradient_clipping=gradient_clipping,
                 activation_function=activation_function,
                 relu_negative_slope=relu_negative_slope,
+                BLOCK_SIZE_B=BLOCK_SIZE_B,
             )
 
-        return input_grad, weight_grad, *[None] * 7
+        return input_grad, weight_grad, *[None] * 8
 
 
 def rnn_cute(
@@ -128,6 +133,7 @@ def rnn_cute(
     relu_negative_slope: float | None = None,
     *,
     BLOCK_SIZE_B_forward: int = 32,
+    BLOCK_SIZE_B_backward: int = 32,
 ) -> torch.Tensor:
     """computes multihead RNN recurrent update over the sequence length: tanh(`input_state` @ `weight` + `input`)
 
@@ -145,6 +151,8 @@ def rnn_cute(
         relu_negative_slope (float): negative slope for leaky_relu. Defaults to "tanh".
         BLOCK_SIZE_B_forward (int, optional): block size for forward along batch dimension for forward. Defaults to
             32.
+        BLOCK_SIZE_B_backward (int, optional): block size for backward along batch dimension for backward. Defaults to
+            32.
 
     Returns:
         torch.Tensor: output tensor of shape (B, S, N, H)
@@ -160,4 +168,5 @@ def rnn_cute(
         activation_function,
         relu_negative_slope,
         BLOCK_SIZE_B_forward,
+        BLOCK_SIZE_B_backward,
     )
