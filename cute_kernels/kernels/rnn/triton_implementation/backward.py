@@ -172,7 +172,7 @@ def rnn_backward_triton(
             input_state_stride_b=None if input_state is None else input_state.stride(0),
             output_grad_ptr=output_grad,
             input_grad_ptr=input_grad,
-            weight_grad_ptr=weight_grad,
+            weight_grad_ptr=weight_grad.float(),
             HAS_GRADIENT_CLIPPING=gradient_clipping is not None,
             gradient_clipping=gradient_clipping,
             ACTIVATION_FUNCTION=activation_function,
