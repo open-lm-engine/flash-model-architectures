@@ -65,27 +65,20 @@ class _RNN_Cute(torch.autograd.Function):
             "BLOCK_SIZE_B": BLOCK_SIZE_B_forward,
         }
 
-        if H == 1:
-            if cu_seqlens is None:
+        if cu_seqlens is None:
+            if H == 1:
                 scalar_rnn_forward_triton(**kwargs, BLOCK_SIZE_N=BLOCK_SIZE_N_forward)
             else:
-                scalar_rnn_varlen_forward_triton(
-                    **kwargs,
-                    cu_seqlens=cu_seqlens,
-                    max_seqlen_tensor=max_seqlen if is_max_seqlen_tensor else None,
-                    max_seqlen=None if is_max_seqlen_tensor else max_seqlen,
-                    BLOCK_SIZE_N=BLOCK_SIZE_N_forward,
-                )
-        else:
-            if cu_seqlens is None:
                 rnn_forward_triton(**kwargs)
+        else:
+            kwargs["cu_seqlens"] = cu_seqlens
+            kwargs["max_seqlen_tensor"] = max_seqlen if is_max_seqlen_tensor else None
+            kwargs["max_seqlen"] = None if is_max_seqlen_tensor else max_seqlen
+
+            if H == 1:
+                scalar_rnn_varlen_forward_triton(**kwargs, BLOCK_SIZE_N=BLOCK_SIZE_N_forward)
             else:
-                rnn_varlen_forward_triton(
-                    **kwargs,
-                    cu_seqlens=cu_seqlens,
-                    max_seqlen_tensor=max_seqlen if is_max_seqlen_tensor else None,
-                    max_seqlen=None if is_max_seqlen_tensor else max_seqlen,
-                )
+                rnn_varlen_forward_triton(**kwargs)
 
         ctx.save_for_backward(weight, output, input_state, cu_seqlens, max_seqlen)
         ctx.gradient_clipping = gradient_clipping
