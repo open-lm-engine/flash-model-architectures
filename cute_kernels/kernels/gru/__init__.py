@@ -5,6 +5,8 @@ from .torch_implementation import gru_torch
 from .triton_implementation import (
     gru_backward_triton,
     gru_forward_triton,
+    gru_varlen_backward_triton,
+    gru_varlen_forward_triton,
     scalar_gru_backward_triton,
     scalar_gru_forward_triton,
 )
@@ -153,22 +155,14 @@ class _GRU_Cute(torch.autograd.Function):
         else:
             is_max_seqlen_tensor = isinstance(max_seqlen, torch.Tensor)
 
+            kwargs["cu_seqlens"] = cu_seqlens
+            kwargs["max_seqlen_tensor"] = max_seqlen if is_max_seqlen_tensor else None
+            kwargs["max_seqlen"] = None if is_max_seqlen_tensor else max_seqlen
+
             if H == 1:
                 assert False
             else:
-                gru_varlen_backward_triton(
-                    output=output,
-                    weight=weight,
-                    input_state=input_state,
-                    output_grad=output_grad,
-                    input_grad=input_grad,
-                    weight_grad=weight_grad,
-                    cu_seqlens=cu_seqlens,
-                    max_seqlen_tensor=max_seqlen if is_max_seqlen_tensor else None,
-                    max_seqlen=None if is_max_seqlen_tensor else max_seqlen,
-                    gradient_clipping=gradient_clipping,
-                    BLOCK_SIZE_B=BLOCK_SIZE_B,
-                )
+                gru_varlen_backward_triton(**kwargs)
 
         weight_grad = weight_grad.type_as(weight)
         forget_weight_grad = forget_weight_grad.type_as(forget_weight)

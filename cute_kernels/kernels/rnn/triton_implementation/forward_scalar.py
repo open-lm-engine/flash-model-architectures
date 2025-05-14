@@ -62,6 +62,7 @@ def scalar_rnn_forward_triton_kernel(
         )
 
         tl.store(output_ptr + indices, input_state, mask=mask_bn)
+
         indices += N
 
 
