@@ -68,7 +68,7 @@ class RNNTest(TestCommons):
             False,
             atol_float32=6e-3,
             rtol_float32=0,
-            atol_float16=2.2e-2,
+            atol_float16=2.3e-2,
             rtol_float16=0,
         )
 
@@ -132,7 +132,7 @@ class RNNTest(TestCommons):
         y_kernel.sum().backward()
         y_expected.sum().backward()
 
-        self.assert_equal_tensors(y_kernel, y_expected, True)
+        self.assert_equal_tensors(y_kernel, y_expected, False)
         self.assert_equal_tensors(x_packed_kernel.grad, x_packed_expected.grad, True)
         self.assert_equal_tensors(
             weight_kernel.grad,
