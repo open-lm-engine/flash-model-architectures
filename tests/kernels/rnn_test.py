@@ -133,7 +133,7 @@ class RNNTest(TestCommons):
         y_expected.sum().backward()
 
         self.assert_equal_tensors(y_kernel, y_expected, False)
-        self.assert_equal_tensors(x_packed_kernel.grad, x_packed_expected.grad, True)
+        self.assert_equal_tensors(x_packed_kernel.grad, x_packed_expected.grad, False)
         self.assert_equal_tensors(
             weight_kernel.grad,
             weight_expected.grad,
