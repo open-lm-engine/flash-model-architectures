@@ -107,7 +107,7 @@ def scalar_rnn_varlen_backward_triton_kernel(
                 BLOCK_SIZE_N=BLOCK_SIZE_N,
                 dtype=weight.dtype,
             ),
-            tl.load(output_ptr + indices, mask=mask & (indices >= 0), other=0),
+            tl.load(output_ptr + indices, mask=mask & (indices >= 0)),
         )
 
         input_grad, weight_grad, input_state_grad = _rnn_backward_update(

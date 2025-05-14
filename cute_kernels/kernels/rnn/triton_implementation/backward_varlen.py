@@ -25,7 +25,7 @@ def _load_input_state(
 ):
     if HAS_INPUT_STATE:
         output_ptrs = input_state_ptr + indices_b[:, None] * input_state_stride_b + pid_n * H + indices_h[None, :]
-        output_prev = tl.load(output_ptrs, mask=mask_bh, other=0)
+        output_prev = tl.load(output_ptrs, mask=mask_bh)
     else:
         output_prev = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=dtype)
 
@@ -71,7 +71,7 @@ def rnn_varlen_backward_triton_kernel(
     input_state_grad = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=weight_ptr.dtype.element_ty)
     weight_grad = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
 
-    weight = tl.load(weight_ptr + indices_weight, mask=mask_hh, other=0)
+    weight = tl.load(weight_ptr + indices_weight, mask=mask_hh)
 
     cu_seqlens_ptrs = cu_seqlens_ptr + indices_b[:, None]
     start = tl.load(cu_seqlens_ptrs, mask=mask_b[:, None])
@@ -85,7 +85,7 @@ def rnn_varlen_backward_triton_kernel(
     end -= 1
 
     indices = end * output_stride_t + pid_n * H + indices_h[None, :]
-    output = tl.load(output_ptr + indices, mask=mask_bh, other=0)
+    output = tl.load(output_ptr + indices, mask=mask_bh)
 
     # backward counting reduces 1 instruction since we need to compare s == 0, otherwise we have to compare s == S - 1
     for _ in range(max_seqlen - 1, -1, -1):
@@ -95,7 +95,7 @@ def rnn_varlen_backward_triton_kernel(
         unfinished = end >= start
         mask = unfinished & mask_h[None, :]
 
-        output_grad = tl.load(output_grad_ptr + indices, mask=mask, other=0)
+        output_grad = tl.load(output_grad_ptr + indices, mask=mask)
         output_grad += input_state_grad
 
         input_grad_ptrs = input_grad_ptr + indices
@@ -116,7 +116,7 @@ def rnn_varlen_backward_triton_kernel(
                 BLOCK_SIZE_H=BLOCK_SIZE_H,
                 dtype=weight.dtype,
             ),
-            tl.load(output_ptr + indices, mask=mask & (indices >= 0), other=0),
+            tl.load(output_ptr + indices, mask=mask & (indices >= 0)),
         )
 
         input_grad, weight_grad, input_state_grad = _rnn_backward_update(

@@ -56,7 +56,7 @@ def scatter2scatter_triton_kernel(
     acc = tl.zeros((BLOCK_M, BLOCK_N), dtype=tl.float32)
     E_first_idx = tl.min(E_idxs)
     E_last_idx = tl.minimum(tl.max(E_idxs), E - 1)
-    M_idx = tl.load(grouped_idx_ptr + M_block, mask=M_boundary_mask, other=0).to(tl.int32)
+    M_idx = tl.load(grouped_idx_ptr + M_block, mask=M_boundary_mask).to(tl.int32)
 
     # iters = E_last_idx - E_first_idx + 1
     # for i in range(iters):
@@ -256,7 +256,7 @@ def group_triton_kernel(
     N_blk = N_block_id * BLOCK_N + tl.arange(0, BLOCK_N)
     N_mask = N_blk < N
     N_blk = tl.max_contiguous(tl.multiple_of(N_blk % N, BLOCK_N), BLOCK_N)
-    N_idx = tl.load(grouped_idx_ptr + N_blk, mask=N_mask, other=0)
+    N_idx = tl.load(grouped_idx_ptr + N_blk, mask=N_mask)
 
     K_blk = tl.arange(0, BLOCK_K)
     src_blk_ptrs = src_ptr + (N_idx // FAN_OUT)[:, None] * stride_sn + K_blk[None, :] * stride_sk

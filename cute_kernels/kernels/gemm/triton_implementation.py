@@ -53,7 +53,7 @@ def gemm_triton_kernel(
             mask_A = mask_m[:, None] & mask_k[None, :]
             A_ptrs = A_ptr + indices_m[:, None] * K + indices_k[None, :]
 
-        A = tl.load(A_ptrs, mask=mask_A, other=0)
+        A = tl.load(A_ptrs, mask=mask_A)
 
         if IS_A_TRANSPOSED:
             A = A.T
@@ -65,7 +65,7 @@ def gemm_triton_kernel(
             mask_B = mask_k[:, None] & mask_n[None, :]
             B_ptrs = B_ptr + indices_k[:, None] * N + indices_n[None, :]
 
-        B = tl.load(B_ptrs, mask=mask_B, other=0)
+        B = tl.load(B_ptrs, mask=mask_B)
 
         if IS_B_TRANSPOSED:
             B = B.T

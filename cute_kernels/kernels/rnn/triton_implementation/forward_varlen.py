@@ -41,7 +41,6 @@ def rnn_varlen_forward_triton_kernel(
     weight = tl.load(
         weight_ptr + pid_n * weight_stride_n + indices_h[:, None] * H + indices_h[None, :],
         mask=mask_h[:, None] & mask_h[None, :],
-        other=0,
     )
 
     if HAS_INPUT_STATE:
@@ -77,7 +76,7 @@ def rnn_varlen_forward_triton_kernel(
         input_state = _rnn_forward_update(
             input_state=input_state,
             weight=weight,
-            input=tl.load(input_ptr + indices, mask=mask, other=0).to(input_dtype),
+            input=tl.load(input_ptr + indices, mask=mask).to(input_dtype),
             out_dtype=out_dtype,
             cast_dtype=cast_dtype,
             ACTIVATION_FUNCTION=ACTIVATION_FUNCTION,
