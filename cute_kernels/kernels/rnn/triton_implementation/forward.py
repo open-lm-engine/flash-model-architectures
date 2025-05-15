@@ -119,7 +119,7 @@ def rnn_forward_triton(
             x_stride_s=input.stride(1),
             W_ptr=weight,
             W_stride_n=weight.stride(0),
-            HAS_h_1=has_input_state,
+            HAS_INPUT_STATE=has_input_state,
             h_1_ptr=input_state,
             h_1_stride_b=input_state.stride(0) if has_input_state else None,
             y_ptr=output,
