@@ -12,7 +12,7 @@ from .backward_scalar import _rnn_backward_update
 @triton.jit
 def _load_input_state(
     HAS_INPUT_STATE,
-    input_state_ptr,
+    h_ptr,
     indices_b,
     indices_n,
     mask_bn,
@@ -22,26 +22,26 @@ def _load_input_state(
     dtype,
 ):
     if HAS_INPUT_STATE:
-        output_prev = tl.load(input_state_ptr + indices_b[:, None] * N + indices_n[None, :], mask=mask_bn)
+        y_prev = tl.load(h_ptr + indices_b[:, None] * N + indices_n[None, :], mask=mask_bn)
     else:
-        output_prev = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_N), dtype=dtype)
+        y_prev = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_N), dtype=dtype)
 
-    return output_prev
+    return y_prev
 
 
 @triton.jit
 def scalar_rnn_varlen_backward_triton_kernel(
-    weight_ptr,
-    output_ptr,
-    output_stride_t,
+    W_ptr,
+    y_ptr,
+    y_stride_t,
     HAS_INPUT_STATE: tl.constexpr,
-    input_state_ptr,
-    output_grad_ptr,
+    h_ptr,
+    dy_ptr,
     cu_seqlens_ptr,
     IS_MAX_SEQLEN_TENSOR: tl.constexpr,
     max_seqlen_ptr,
-    input_grad_ptr,
-    weight_grad_ptr,
+    dx_ptr,
+    dW_ptr,
     HAS_GRADIENT_CLIPPING: tl.constexpr,
     gradient_clipping,
     ACTIVATION_FUNCTION: tl.constexpr,
@@ -61,10 +61,10 @@ def scalar_rnn_varlen_backward_triton_kernel(
     mask_n = indices_n < N
     mask_bn = mask_b[:, None] & mask_n[None, :]
 
-    input_state_grad = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_N), dtype=weight_ptr.dtype.element_ty)
-    weight_grad = tl.zeros((BLOCK_SIZE_N,), dtype=tl.float32)
+    dh = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_N), dtype=W_ptr.dtype.element_ty)
+    dW = tl.zeros((BLOCK_SIZE_N,), dtype=tl.float32)
 
-    weight = tl.load(weight_ptr + indices_n, mask=mask_n)
+    W = tl.load(W_ptr + indices_n, mask=mask_n)
 
     cu_seqlens_ptrs = cu_seqlens_ptr + indices_b[:, None]
     start = tl.load(cu_seqlens_ptrs, mask=mask_b[:, None])
@@ -77,55 +77,54 @@ def scalar_rnn_varlen_backward_triton_kernel(
 
     end -= 1
 
-    indices = end * output_stride_t + indices_n[None, :]
-    output = tl.load(output_ptr + indices, mask=mask_bn)
+    indices = end * y_stride_t + indices_n[None, :]
+    y = tl.load(y_ptr + indices, mask=mask_bn)
 
     # backward counting reduces 1 instruction since we need to compare s == 0, otherwise we have to compare s == S - 1
     for _ in range(max_seqlen - 1, -1, -1):
         if HAS_GRADIENT_CLIPPING:
-            input_state_grad = clamp(input_state_grad, min_value=-gradient_clipping, max_value=gradient_clipping)
+            dh = clamp(dh, min_value=-gradient_clipping, max_value=gradient_clipping)
 
         unfinished = end >= start
         mask = unfinished & mask_n[None, :]
 
-        output_grad = tl.load(output_grad_ptr + indices, mask=mask)
-        output_grad += input_state_grad
+        dy = tl.load(dy_ptr + indices, mask=mask) + dh
 
-        input_grad_ptrs = input_grad_ptr + indices
-        indices -= output_stride_t
+        dx_ptrs = dx_ptr + indices
+        indices -= y_stride_t
 
-        output_prev = tl.where(
+        y_prev = tl.where(
             start == end,
             _load_input_state(
                 HAS_INPUT_STATE=HAS_INPUT_STATE,
-                input_state_ptr=input_state_ptr,
+                h_ptr=h_ptr,
                 indices_b=indices_b,
                 indices_n=indices_n,
                 mask_bn=mask_bn,
                 N=N,
                 BLOCK_SIZE_B=BLOCK_SIZE_B,
                 BLOCK_SIZE_N=BLOCK_SIZE_N,
-                dtype=weight.dtype,
+                dtype=W.dtype,
             ),
-            tl.load(output_ptr + indices, mask=mask & (indices >= 0)),
+            tl.load(y_ptr + indices, mask=mask & (indices >= 0)),
         )
 
-        input_grad, weight_grad, input_state_grad = _rnn_backward_update(
-            output=output,
-            weight=weight,
-            output_grad=output_grad,
-            weight_grad=weight_grad,
-            output_prev=output_prev,
+        dx, dW, dh = _rnn_backward_update(
+            y=y,
+            W=W,
+            dy=dy,
+            dW=dW,
+            y_prev=y_prev,
             ACTIVATION_FUNCTION=ACTIVATION_FUNCTION,
             relu_negative_slope=relu_negative_slope,
         )
 
-        tl.store(input_grad_ptrs, input_grad, mask=mask)
-        output = output_prev
+        tl.store(dx_ptrs, dx, mask=mask)
+        y = y_prev
 
         end -= 1
 
-    tl.atomic_add(weight_grad_ptr + indices_n, weight_grad, mask=mask_n)
+    tl.atomic_add(dW_ptr + indices_n, dW, mask=mask_n)
 
 
 @cute_op(f"{LIBRARY_NAME}::scalar_rnn_varlen_backward_triton", mutates_args={"input_grad", "weight_grad"})
@@ -153,17 +152,17 @@ def scalar_rnn_varlen_backward_triton(
 
     with torch.device(output.device):
         scalar_rnn_varlen_backward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), ceil_divide(N, BLOCK_SIZE_N)](
-            weight_ptr=weight,
-            output_ptr=output,
-            output_stride_t=output.stride(0),
+            W_ptr=weight,
+            y_ptr=output,
+            y_stride_t=output.stride(0),
             HAS_INPUT_STATE=has_input_state,
-            input_state_ptr=input_state if has_input_state else None,
-            output_grad_ptr=output_grad,
+            h_ptr=input_state if has_input_state else None,
+            dy_ptr=output_grad,
             cu_seqlens_ptr=cu_seqlens,
             IS_MAX_SEQLEN_TENSOR=is_max_seqlen_tensor,
             max_seqlen_ptr=max_seqlen_tensor if is_max_seqlen_tensor else max_seqlen,
-            input_grad_ptr=input_grad,
-            weight_grad_ptr=weight_grad,
+            dx_ptr=input_grad,
+            dW_ptr=weight_grad,
             HAS_GRADIENT_CLIPPING=gradient_clipping is not None,
             gradient_clipping=gradient_clipping,
             ACTIVATION_FUNCTION=activation_function,

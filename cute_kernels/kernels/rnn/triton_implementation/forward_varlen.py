@@ -10,14 +10,14 @@ from .forward import _rnn_forward_update
 
 @triton.jit
 def rnn_varlen_forward_triton_kernel(
-    input_ptr,
-    input_stride_t,
-    weight_ptr,
-    weight_stride_n,
+    x_ptr,
+    x_stride_t,
+    W_ptr,
+    W_stride_n,
     HAS_INPUT_STATE: tl.constexpr,
-    input_state_ptr,
-    input_state_stride_b,
-    output_ptr,
+    h_ptr,
+    h_stride_b,
+    y_ptr,
     cu_seqlens_ptr,
     IS_MAX_SEQLEN_TENSOR: tl.constexpr,
     max_seqlen_ptr,
@@ -38,17 +38,15 @@ def rnn_varlen_forward_triton_kernel(
     mask_h = indices_h < H
     mask_bh = mask_b[:, None] & mask_h[None, :]
 
-    weight = tl.load(
-        weight_ptr + pid_n * weight_stride_n + indices_h[:, None] * H + indices_h[None, :],
+    W = tl.load(
+        W_ptr + pid_n * W_stride_n + indices_h[:, None] * H + indices_h[None, :],
         mask=mask_h[:, None] & mask_h[None, :],
     )
 
     if HAS_INPUT_STATE:
-        input_state = tl.load(
-            input_state_ptr + indices_b[:, None] * input_state_stride_b + pid_n * H + indices_h[None, :], mask=mask_bh
-        )
+        h = tl.load(h_ptr + indices_b[:, None] * h_stride_b + pid_n * H + indices_h[None, :], mask=mask_bh)
     else:
-        input_state = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=input_ptr.dtype.element_ty)
+        h = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=x_ptr.dtype.element_ty)
 
     cu_seqlens_ptrs = cu_seqlens_ptr + indices_b[:, None]
     start = tl.load(cu_seqlens_ptrs, mask=mask_b[:, None])
@@ -59,33 +57,36 @@ def rnn_varlen_forward_triton_kernel(
     else:
         max_seqlen = max_seqlen_ptr
 
-    indices = start * input_stride_t + pid_n * H + indices_h[None, :]
+    indices = start * x_stride_t + pid_n * H + indices_h[None, :]
 
-    input_dtype = input_ptr.dtype.element_ty
-    out_dtype = input_dtype
+    input_dtype = x_ptr.dtype.element_ty
     cast_dtype = input_dtype
     if input_dtype == tl.bfloat16:
         input_dtype = tl.float32
-        out_dtype = tl.float32
         cast_dtype = tl.bfloat16
+
+    out_dtype = input_dtype
 
     for _ in range(max_seqlen):
         unfinished = start < end
         mask = unfinished & mask_h[None, :]
 
-        input_state = _rnn_forward_update(
-            input_state=input_state,
-            weight=weight,
-            input=tl.load(input_ptr + indices, mask=mask).to(input_dtype),
+        h = _rnn_forward_update(
+            h=h,
+            W=W,
+            x=tl.load(x_ptr + indices, mask=mask).to(input_dtype),
             out_dtype=out_dtype,
             cast_dtype=cast_dtype,
             ACTIVATION_FUNCTION=ACTIVATION_FUNCTION,
             relu_negative_slope=relu_negative_slope,
         )
 
-        tl.store(output_ptr + indices, input_state, mask=mask)
+        y = h
+        h = h
 
-        indices += input_stride_t
+        tl.store(y_ptr + indices, y, mask=mask)
+
+        indices += x_stride_t
         start += 1
 
 
@@ -102,8 +103,8 @@ def rnn_varlen_forward_triton(
     relu_negative_slope: float | None,
     BLOCK_SIZE_B: int,
 ) -> None:
-    _, N, H = input.size()
     B = cu_seqlens.size(0) - 1
+    _, N, H = input.size()
 
     BLOCK_SIZE_H = get_next_power_of_2(H)
     BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
@@ -113,14 +114,14 @@ def rnn_varlen_forward_triton(
 
     with torch.device(input.device):
         rnn_varlen_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), N](
-            input_ptr=input,
-            input_stride_t=input.stride(0),
-            weight_ptr=weight,
-            weight_stride_n=weight.stride(0),
+            x_ptr=input,
+            x_stride_t=input.stride(0),
+            W_ptr=weight,
+            W_stride_n=weight.stride(0),
             HAS_INPUT_STATE=has_input_state,
-            input_state_ptr=input_state,
-            input_state_stride_b=input_state.stride(0) if has_input_state else None,
-            output_ptr=output,
+            h_ptr=input_state,
+            h_stride_b=input_state.stride(0) if has_input_state else None,
+            y_ptr=output,
             cu_seqlens_ptr=cu_seqlens,
             IS_MAX_SEQLEN_TENSOR=is_max_seqlen_tensor,
             max_seqlen_ptr=max_seqlen_tensor if is_max_seqlen_tensor else max_seqlen,

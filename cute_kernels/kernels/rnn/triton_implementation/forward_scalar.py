@@ -9,22 +9,20 @@ from .forward import _activation
 
 
 @triton.jit
-def _rnn_forward_update(input_state, weight, input, ACTIVATION_FUNCTION, relu_negative_slope):
-    input_state = weight[None, :] * input_state + input
-    input_state = _activation(
-        x=input_state, ACTIVATION_FUNCTION=ACTIVATION_FUNCTION, relu_negative_slope=relu_negative_slope
-    )
-    return input_state
+def _rnn_forward_update(h, W, x, ACTIVATION_FUNCTION, relu_negative_slope):
+    h = W[None, :] * h + x
+    h = _activation(x=h, ACTIVATION_FUNCTION=ACTIVATION_FUNCTION, relu_negative_slope=relu_negative_slope)
+    return h
 
 
 @triton.jit
 def scalar_rnn_forward_triton_kernel(
-    input_ptr,
-    input_stride_b,
-    weight_ptr,
+    x_ptr,
+    x_stride_b,
+    W_ptr,
     HAS_INPUT_STATE: tl.constexpr,
-    input_state_ptr,
-    output_ptr,
+    h_ptr,
+    y_ptr,
     ACTIVATION_FUNCTION: tl.constexpr,
     relu_negative_slope,
     B,
@@ -43,25 +41,25 @@ def scalar_rnn_forward_triton_kernel(
     mask_n = indices_n < N
     mask_bn = mask_b[:, None] & mask_n[None, :]
 
-    weight = tl.load(weight_ptr + indices_n, mask=mask_n)
+    W = tl.load(W_ptr + indices_n, mask=mask_n)
 
     if HAS_INPUT_STATE:
-        input_state = tl.load(input_state_ptr + indices_b[:, None] * N + indices_n[None, :], mask=mask_bn)
+        h = tl.load(h_ptr + indices_b[:, None] * N + indices_n[None, :], mask=mask_bn)
     else:
-        input_state = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_N), dtype=input_ptr.dtype.element_ty)
+        h = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_N), dtype=x_ptr.dtype.element_ty)
 
-    indices = indices_b[:, None] * input_stride_b + indices_n[None, :]
+    indices = indices_b[:, None] * x_stride_b + indices_n[None, :]
 
     for _ in range(S):
-        input_state = _rnn_forward_update(
-            input_state=input_state,
-            weight=weight,
-            input=tl.load(input_ptr + indices, mask=mask_bn),
+        h = _rnn_forward_update(
+            h=h,
+            W=W,
+            x=tl.load(x_ptr + indices, mask=mask_bn),
             ACTIVATION_FUNCTION=ACTIVATION_FUNCTION,
             relu_negative_slope=relu_negative_slope,
         )
 
-        tl.store(output_ptr + indices, input_state, mask=mask_bn)
+        tl.store(y_ptr + indices, h, mask=mask_bn)
 
         indices += N
 
@@ -81,12 +79,12 @@ def scalar_rnn_forward_triton(
 
     with torch.device(input.device):
         scalar_rnn_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), ceil_divide(N, BLOCK_SIZE_N)](
-            input_ptr=input,
-            input_stride_b=input.stride(0),
-            weight_ptr=weight,
+            x_ptr=input,
+            x_stride_b=input.stride(0),
+            W_ptr=weight,
             HAS_INPUT_STATE=input_state is not None,
-            input_state_ptr=input_state,
-            output_ptr=output,
+            h_ptr=input_state,
+            y_ptr=output,
             ACTIVATION_FUNCTION=activation_function,
             relu_negative_slope=relu_negative_slope,
             B=B,
