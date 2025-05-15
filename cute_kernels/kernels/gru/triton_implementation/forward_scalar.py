@@ -108,7 +108,7 @@ def scalar_gru_forward_triton(
     B, S, N, _ = input.size()
 
     with torch.device(input.device):
-        scalar_gru_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), N](
+        scalar_gru_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), ceil_divide(N, BLOCK_SIZE_N)](
             input_ptr=input,
             input_stride_b=input.stride(0),
             weight_ptr=weight,

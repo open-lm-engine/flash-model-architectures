@@ -92,7 +92,7 @@ def scalar_rnn_varlen_forward_triton(
     is_max_seqlen_tensor = max_seqlen_tensor is not None
 
     with torch.device(input.device):
-        rnn_varlen_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), N](
+        rnn_varlen_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), ceil_divide(N, BLOCK_SIZE_N)](
             input_ptr=input,
             input_stride_t=input.stride(0),
             weight_ptr=weight,
