@@ -21,8 +21,8 @@ def _activation(x, ACTIVATION_FUNCTION, relu_negative_slope):
 
 
 @triton.jit
-def _rnn_forward_update(h_1, W, x, out_dtype, cast_dtype, ACTIVATION_FUNCTION, relu_negative_slope):
-    h = tl.dot(h_1, W, x, allow_tf32=True, out_dtype=out_dtype).to(cast_dtype)
+def _rnn_forward_update(h, W, x, out_dtype, cast_dtype, ACTIVATION_FUNCTION, relu_negative_slope):
+    h = tl.dot(h, W, x, allow_tf32=True, out_dtype=out_dtype).to(cast_dtype)
     h = _activation(x=h, ACTIVATION_FUNCTION=ACTIVATION_FUNCTION, relu_negative_slope=relu_negative_slope)
     return h
 
@@ -35,8 +35,8 @@ def rnn_forward_triton_kernel(
     W_ptr,
     W_stride_n,
     HAS_INPUT_STATE: tl.constexpr,
-    h_1_ptr,
-    h_1_stride_b,
+    h_ptr,
+    h_stride_b,
     y_ptr,
     ACTIVATION_FUNCTION: tl.constexpr,
     relu_negative_slope,
@@ -62,9 +62,9 @@ def rnn_forward_triton_kernel(
     )
 
     if HAS_INPUT_STATE:
-        h_1 = tl.load(h_1_ptr + indices_b[:, None] * h_1_stride_b + pid_n * H + indices_h[None, :], mask=mask_bh)
+        h = tl.load(h_ptr + indices_b[:, None] * h_stride_b + pid_n * H + indices_h[None, :], mask=mask_bh)
     else:
-        h_1 = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=x_ptr.dtype.element_ty)
+        h = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=x_ptr.dtype.element_ty)
 
     indices = indices_b[:, None] * x_stride_b + pid_n * H + indices_h[None, :]
 
@@ -78,7 +78,7 @@ def rnn_forward_triton_kernel(
 
     for _ in range(S):
         h = _rnn_forward_update(
-            h_1=h_1,
+            h=h,
             W=W,
             x=tl.load(x_ptr + indices, mask=mask_bh).to(input_dtype),
             out_dtype=out_dtype,
@@ -87,10 +87,7 @@ def rnn_forward_triton_kernel(
             relu_negative_slope=relu_negative_slope,
         )
 
-        y = h
-        h_1 = h
-
-        tl.store(y_ptr + indices, y, mask=mask_bh)
+        tl.store(y_ptr + indices, h, mask=mask_bh)
 
         indices += x_stride_s
 
@@ -120,8 +117,8 @@ def rnn_forward_triton(
             W_ptr=weight,
             W_stride_n=weight.stride(0),
             HAS_INPUT_STATE=has_input_state,
-            h_1_ptr=input_state,
-            h_1_stride_b=input_state.stride(0) if has_input_state else None,
+            h_ptr=input_state,
+            h_stride_b=input_state.stride(0) if has_input_state else None,
             y_ptr=output,
             ACTIVATION_FUNCTION=activation_function,
             relu_negative_slope=relu_negative_slope,
