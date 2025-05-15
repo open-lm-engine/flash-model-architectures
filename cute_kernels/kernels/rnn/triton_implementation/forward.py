@@ -86,9 +86,11 @@ def rnn_forward_triton_kernel(
             ACTIVATION_FUNCTION=ACTIVATION_FUNCTION,
             relu_negative_slope=relu_negative_slope,
         )
+
+        y = h
         h_1 = h
 
-        tl.store(y_ptr + indices, h, mask=mask_bh)
+        tl.store(y_ptr + indices, y, mask=mask_bh)
 
         indices += x_stride_s
 
