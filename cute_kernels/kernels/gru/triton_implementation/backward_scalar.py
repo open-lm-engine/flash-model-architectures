@@ -10,7 +10,7 @@ from ...rnn.triton_implementation.backward_scalar import _load_previous_output, 
 
 
 @triton.jit
-def gru_backward_triton_kernel(
+def scalar_gru_backward_triton_kernel(
     weight_ptr,
     output_ptr,
     output_stride_b,
@@ -168,7 +168,7 @@ def scalar_gru_backward_triton(
     B, S, N, _ = output.size()
 
     with torch.device(output.device):
-        gru_backward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), ceil_divide(N, BLOCK_SIZE_N)](
+        scalar_gru_backward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), ceil_divide(N, BLOCK_SIZE_N)](
             weight_ptr=weight,
             output_ptr=output,
             output_stride_b=output.stride(0),

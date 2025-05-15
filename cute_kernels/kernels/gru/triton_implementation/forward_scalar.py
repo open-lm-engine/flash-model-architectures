@@ -9,7 +9,7 @@ from ...rnn.triton_implementation.forward_scalar import _rnn_forward_update
 
 
 @triton.jit
-def gru_forward_triton_kernel(
+def scalar_gru_forward_triton_kernel(
     input_ptr,
     input_stride_b,
     weight_ptr,
@@ -108,7 +108,7 @@ def scalar_gru_forward_triton(
     B, S, N, _ = input.size()
 
     with torch.device(input.device):
-        gru_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), N](
+        scalar_gru_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), N](
             input_ptr=input,
             input_stride_b=input.stride(0),
             weight_ptr=weight,
