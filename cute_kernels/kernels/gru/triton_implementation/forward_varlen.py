@@ -45,9 +45,9 @@ def gru_varlen_forward_triton_kernel(
     mask_bh = mask_b[:, None] & mask_h[None, :]
     mask_hh = mask_h[:, None] & mask_h[None, :]
 
-    weight = tl.load(weight_ptr + indices, mask=mask_hh, other=0)
-    forget_weight = tl.load(forget_weight_ptr + indices, mask=mask_hh, other=0)
-    reset_weight = tl.load(reset_weight_ptr + indices, mask=mask_hh, other=0)
+    weight = tl.load(weight_ptr + indices, mask=mask_hh)
+    forget_weight = tl.load(forget_weight_ptr + indices, mask=mask_hh)
+    reset_weight = tl.load(reset_weight_ptr + indices, mask=mask_hh)
 
     if HAS_INPUT_STATE:
         input_state = tl.load(

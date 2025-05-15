@@ -56,9 +56,9 @@ def gru_backward_triton_kernel(
     forget_weight_grad = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
     reset_weight_grad = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
 
-    weight = tl.load(weight_ptr + indices_weight, mask=mask_hh, other=0)
-    forget_weight = tl.load(forget_weight_ptr + indices_weight, mask=mask_hh, other=0)
-    reset_weight = tl.load(reset_weight_ptr + indices_weight, mask=mask_hh, other=0)
+    weight = tl.load(weight_ptr + indices_weight, mask=mask_hh)
+    forget_weight = tl.load(forget_weight_ptr + indices_weight, mask=mask_hh)
+    reset_weight = tl.load(reset_weight_ptr + indices_weight, mask=mask_hh)
 
     indices = indices_b[:, None] * output_stride_b + (S - 1) * output_stride_s + pid_n * H + indices_h[None, :]
 
@@ -67,7 +67,7 @@ def gru_backward_triton_kernel(
         if HAS_GRADIENT_CLIPPING:
             input_state_grad = clamp(input_state_grad, min_value=-gradient_clipping, max_value=gradient_clipping)
 
-        output_grad = tl.load(output_grad_ptr + indices, mask=mask_bh, other=0)
+        output_grad = tl.load(output_grad_ptr + indices, mask=mask_bh)
         forget_gate = tl.load(forget_gate_ptr + indices, mask=mask_bh)
         reset_gate = tl.load(reset_gate_ptr + indices, mask=mask_bh)
         output_update = tl.load(output_update_ptr + indices, mask=mask_bh)

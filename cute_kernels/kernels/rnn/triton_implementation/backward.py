@@ -55,12 +55,11 @@ def _load_previous_output(
             output_prev = tl.load(
                 input_state_ptr + indices_b[:, None] * input_state_stride_b + pid_n * H + indices_h[None, :],
                 mask=mask_bh,
-                other=0,
             )
         else:
             output_prev = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=dtype)
     else:
-        output_prev = tl.load(output_ptrs, mask=mask_bh, other=0)
+        output_prev = tl.load(output_ptrs, mask=mask_bh)
 
     return output_prev
 
@@ -103,17 +102,17 @@ def rnn_backward_triton_kernel(
     input_state_grad = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=weight_ptr.dtype.element_ty)
     weight_grad = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
 
-    weight = tl.load(weight_ptr + indices_weight, mask=mask_hh, other=0)
+    weight = tl.load(weight_ptr + indices_weight, mask=mask_hh)
 
     indices = indices_b[:, None] * output_stride_b + (S - 1) * output_stride_s + pid_n * H + indices_h[None, :]
-    output = tl.load(output_ptr + indices, mask=mask_bh, other=0)
+    output = tl.load(output_ptr + indices, mask=mask_bh)
 
     # backward counting reduces 1 instruction since we need to compare s == 0, otherwise we have to compare s == S - 1
     for s in range(S - 1, -1, -1):
         if HAS_GRADIENT_CLIPPING:
             input_state_grad = clamp(input_state_grad, min_value=-gradient_clipping, max_value=gradient_clipping)
 
-        output_grad = tl.load(output_grad_ptr + indices, mask=mask_bh, other=0)
+        output_grad = tl.load(output_grad_ptr + indices, mask=mask_bh)
         output_grad += input_state_grad
 
         input_grad_ptrs = input_grad_ptr + indices

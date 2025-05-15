@@ -57,9 +57,9 @@ def gru_varlen_backward_triton_kernel(
     forget_weight_grad = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
     reset_weight_grad = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
 
-    weight = tl.load(weight_ptr + indices_weight, mask=mask_hh, other=0)
-    forget_weight = tl.load(forget_weight_ptr + indices_weight, mask=mask_hh, other=0)
-    reset_weight = tl.load(reset_weight_ptr + indices_weight, mask=mask_hh, other=0)
+    weight = tl.load(weight_ptr + indices_weight, mask=mask_hh)
+    forget_weight = tl.load(forget_weight_ptr + indices_weight, mask=mask_hh)
+    reset_weight = tl.load(reset_weight_ptr + indices_weight, mask=mask_hh)
 
     cu_seqlens_ptrs = cu_seqlens_ptr + indices_b[:, None]
     start = tl.load(cu_seqlens_ptrs, mask=mask_b[:, None])
@@ -73,7 +73,7 @@ def gru_varlen_backward_triton_kernel(
     end -= 1
 
     indices = end * output_stride_t + pid_n * H + indices_h[None, :]
-    output = tl.load(output_ptr + indices, mask=mask_bh, other=0)
+    output = tl.load(output_ptr + indices, mask=mask_bh)
 
     # backward counting reduces 1 instruction since we need to compare s == 0, otherwise we have to compare s == S - 1
     for _ in range(max_seqlen - 1, -1, -1):
@@ -83,7 +83,7 @@ def gru_varlen_backward_triton_kernel(
         unfinished = end >= start
         mask = unfinished & mask_h[None, :]
 
-        output_grad = tl.load(output_grad_ptr + indices, mask=mask, other=0)
+        output_grad = tl.load(output_grad_ptr + indices, mask=mask)
         forget_gate = tl.load(forget_gate_ptr + indices, mask=mask)
         reset_gate = tl.load(reset_gate_ptr + indices, mask=mask)
         output_update = tl.load(output_update_ptr + indices, mask=mask)
@@ -112,7 +112,7 @@ def gru_varlen_backward_triton_kernel(
                 BLOCK_SIZE_H=BLOCK_SIZE_H,
                 dtype=weight.dtype,
             ),
-            tl.load(output_ptr + indices, mask=mask & (indices >= 0), other=0),
+            tl.load(output_ptr + indices, mask=mask & (indices >= 0)),
         )
 
         input_grad, weight_grad, reset_gate_times_input_state_grad = _rnn_backward_update(
