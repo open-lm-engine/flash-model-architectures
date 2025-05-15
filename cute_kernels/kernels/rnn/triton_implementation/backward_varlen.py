@@ -12,8 +12,8 @@ from .backward import _rnn_backward_update
 @triton.jit
 def _load_input_state(
     HAS_INPUT_STATE,
-    input_state_ptr,
-    input_state_stride_b,
+    h_ptr,
+    h_stride_b,
     pid_n,
     indices_b,
     indices_h,
@@ -24,29 +24,29 @@ def _load_input_state(
     dtype,
 ):
     if HAS_INPUT_STATE:
-        output_ptrs = input_state_ptr + indices_b[:, None] * input_state_stride_b + pid_n * H + indices_h[None, :]
-        output_prev = tl.load(output_ptrs, mask=mask_bh)
+        y_ptrs = h_ptr + indices_b[:, None] * h_stride_b + pid_n * H + indices_h[None, :]
+        y_prev = tl.load(y_ptrs, mask=mask_bh)
     else:
-        output_prev = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=dtype)
+        y_prev = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=dtype)
 
-    return output_prev
+    return y_prev
 
 
 @triton.jit
 def rnn_varlen_backward_triton_kernel(
-    weight_ptr,
-    weight_stride_n,
-    output_ptr,
-    output_stride_t,
+    W_ptr,
+    W_stride_n,
+    y_ptr,
+    y_stride_t,
     HAS_INPUT_STATE: tl.constexpr,
-    input_state_ptr,
-    input_state_stride_b,
-    output_grad_ptr,
+    h_ptr,
+    h_stride_b,
+    dy_ptr,
     cu_seqlens_ptr,
     IS_MAX_SEQLEN_TENSOR: tl.constexpr,
     max_seqlen_ptr,
-    input_grad_ptr,
-    weight_grad_ptr,
+    dx_ptr,
+    dW_ptr,
     HAS_GRADIENT_CLIPPING: tl.constexpr,
     gradient_clipping,
     ACTIVATION_FUNCTION: tl.constexpr,
@@ -61,17 +61,17 @@ def rnn_varlen_backward_triton_kernel(
 
     indices_b = pid_b * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
     indices_h = tl.arange(0, BLOCK_SIZE_H)
-    indices_weight = pid_n * weight_stride_n + indices_h[:, None] * H + indices_h[None, :]
+    indices_W = pid_n * W_stride_n + indices_h[:, None] * H + indices_h[None, :]
 
     mask_b = indices_b < B
     mask_h = indices_h < H
     mask_bh = mask_b[:, None] & mask_h[None, :]
     mask_hh = mask_h[:, None] & mask_h[None, :]
 
-    input_state_grad = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=weight_ptr.dtype.element_ty)
-    weight_grad = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
+    dh = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=W_ptr.dtype.element_ty)
+    dW = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
 
-    weight = tl.load(weight_ptr + indices_weight, mask=mask_hh)
+    W = tl.load(W_ptr + indices_W, mask=mask_hh)
 
     cu_seqlens_ptrs = cu_seqlens_ptr + indices_b[:, None]
     start = tl.load(cu_seqlens_ptrs, mask=mask_b[:, None])
@@ -84,29 +84,28 @@ def rnn_varlen_backward_triton_kernel(
 
     end -= 1
 
-    indices = end * output_stride_t + pid_n * H + indices_h[None, :]
-    output = tl.load(output_ptr + indices, mask=mask_bh)
+    indices = end * y_stride_t + pid_n * H + indices_h[None, :]
+    y = tl.load(y_ptr + indices, mask=mask_bh)
 
     # backward counting reduces 1 instruction since we need to compare s == 0, otherwise we have to compare s == S - 1
     for _ in range(max_seqlen - 1, -1, -1):
         if HAS_GRADIENT_CLIPPING:
-            input_state_grad = clamp(input_state_grad, min_value=-gradient_clipping, max_value=gradient_clipping)
+            dh = clamp(dh, min_value=-gradient_clipping, max_value=gradient_clipping)
 
         unfinished = end >= start
         mask = unfinished & mask_h[None, :]
 
-        output_grad = tl.load(output_grad_ptr + indices, mask=mask)
-        output_grad += input_state_grad
+        dy = tl.load(dy_ptr + indices, mask=mask) + dh
 
-        input_grad_ptrs = input_grad_ptr + indices
-        indices -= output_stride_t
+        dx_ptrs = dx_ptr + indices
+        indices -= y_stride_t
 
-        output_prev = tl.where(
+        y_prev = tl.where(
             start == end,
             _load_input_state(
                 HAS_INPUT_STATE=HAS_INPUT_STATE,
-                input_state_ptr=input_state_ptr,
-                input_state_stride_b=input_state_stride_b,
+                h_ptr=h_ptr,
+                h_stride_b=h_stride_b,
                 pid_n=pid_n,
                 indices_b=indices_b,
                 indices_h=indices_h,
@@ -114,27 +113,27 @@ def rnn_varlen_backward_triton_kernel(
                 H=H,
                 BLOCK_SIZE_B=BLOCK_SIZE_B,
                 BLOCK_SIZE_H=BLOCK_SIZE_H,
-                dtype=weight.dtype,
+                dtype=W.dtype,
             ),
-            tl.load(output_ptr + indices, mask=mask & (indices >= 0)),
+            tl.load(y_ptr + indices, mask=mask & (indices >= 0)),
         )
 
-        input_grad, weight_grad, input_state_grad = _rnn_backward_update(
-            output=output,
-            weight=weight,
-            output_grad=output_grad,
-            weight_grad=weight_grad,
-            output_prev=output_prev,
+        dx, dW, dh = _rnn_backward_update(
+            y=y,
+            W=W,
+            dy=dy,
+            dW=dW,
+            y_prev=y_prev,
             ACTIVATION_FUNCTION=ACTIVATION_FUNCTION,
             relu_negative_slope=relu_negative_slope,
         )
 
-        tl.store(input_grad_ptrs, input_grad, mask=mask)
-        output = output_prev
+        tl.store(dx_ptrs, dx, mask=mask)
+        y = y_prev
 
         end -= 1
 
-    tl.atomic_add(weight_grad_ptr + indices_weight, weight_grad, mask=mask_hh)
+    tl.atomic_add(dW_ptr + indices_W, dW, mask=mask_hh)
 
 
 @cute_op(f"{LIBRARY_NAME}::rnn_varlen_backward_triton", mutates_args={"input_grad", "weight_grad"})
@@ -164,19 +163,19 @@ def rnn_varlen_backward_triton(
 
     with torch.device(output.device):
         rnn_varlen_backward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), N](
-            weight_ptr=weight,
-            weight_stride_n=weight.stride(0),
-            output_ptr=output,
-            output_stride_t=output.stride(0),
+            W_ptr=weight,
+            W_stride_n=weight.stride(0),
+            y_ptr=output,
+            y_stride_t=output.stride(0),
             HAS_INPUT_STATE=has_input_state,
-            input_state_ptr=input_state if has_input_state else None,
-            input_state_stride_b=input_state.stride(0) if has_input_state else None,
-            output_grad_ptr=output_grad,
+            h_ptr=input_state if has_input_state else None,
+            h_stride_b=input_state.stride(0) if has_input_state else None,
+            dy_ptr=output_grad,
             cu_seqlens_ptr=cu_seqlens,
             IS_MAX_SEQLEN_TENSOR=is_max_seqlen_tensor,
             max_seqlen_ptr=max_seqlen_tensor if is_max_seqlen_tensor else max_seqlen,
-            input_grad_ptr=input_grad,
-            weight_grad_ptr=weight_grad,
+            dx_ptr=input_grad,
+            dW_ptr=weight_grad,
             HAS_GRADIENT_CLIPPING=gradient_clipping is not None,
             gradient_clipping=gradient_clipping,
             ACTIVATION_FUNCTION=activation_function,

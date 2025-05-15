@@ -107,8 +107,7 @@ def rnn_backward_triton_kernel(
         if HAS_GRADIENT_CLIPPING:
             dh = clamp(dh, min_value=-gradient_clipping, max_value=gradient_clipping)
 
-        dy = tl.load(dy_ptr + indices, mask=mask_bh)
-        dy += dh
+        dy = tl.load(dy_ptr + indices, mask=mask_bh) + dh
 
         dx_ptrs = dx_ptr + indices
         indices -= y_stride_s
