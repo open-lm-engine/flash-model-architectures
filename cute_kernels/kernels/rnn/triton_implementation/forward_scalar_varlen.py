@@ -10,12 +10,12 @@ from .forward_scalar import _rnn_forward_update
 
 @triton.jit
 def rnn_varlen_forward_triton_kernel(
-    input_ptr,
-    input_stride_t,
-    weight_ptr,
+    x_ptr,
+    x_stride_t,
+    W_ptr,
     HAS_INPUT_STATE: tl.constexpr,
-    input_state_ptr,
-    output_ptr,
+    h_ptr,
+    y_ptr,
     cu_seqlens_ptr,
     IS_MAX_SEQLEN_TENSOR: tl.constexpr,
     max_seqlen_ptr,
@@ -36,12 +36,12 @@ def rnn_varlen_forward_triton_kernel(
     mask_n = indices_n < N
     mask_bn = mask_b[:, None] & mask_n[None, :]
 
-    weight = tl.load(weight_ptr + indices_n, mask=mask_n)
+    W = tl.load(W_ptr + indices_n, mask=mask_n)
 
     if HAS_INPUT_STATE:
-        input_state = tl.load(input_state_ptr + indices_b[:, None] * N + indices_n[None, :], mask=mask_bn)
+        h = tl.load(h_ptr + indices_b[:, None] * N + indices_n[None, :], mask=mask_bn)
     else:
-        input_state = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_N), dtype=input_ptr.dtype.element_ty)
+        h = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_N), dtype=x_ptr.dtype.element_ty)
 
     cu_seqlens_ptrs = cu_seqlens_ptr + indices_b[:, None]
     start = tl.load(cu_seqlens_ptrs, mask=mask_b[:, None])
@@ -52,23 +52,23 @@ def rnn_varlen_forward_triton_kernel(
     else:
         max_seqlen = max_seqlen_ptr
 
-    indices = start * input_stride_t + indices_n[None, :]
+    indices = start * x_stride_t + indices_n[None, :]
 
     for _ in range(max_seqlen):
         unfinished = start < end
         mask = unfinished & mask_n[None, :]
 
-        input_state = _rnn_forward_update(
-            input_state=input_state,
-            weight=weight,
-            input=tl.load(input_ptr + indices, mask=mask),
+        h = _rnn_forward_update(
+            h=h,
+            W=W,
+            x=tl.load(x_ptr + indices, mask=mask),
             ACTIVATION_FUNCTION=ACTIVATION_FUNCTION,
             relu_negative_slope=relu_negative_slope,
         )
 
-        tl.store(output_ptr + indices, input_state, mask=mask)
+        tl.store(y_ptr + indices, h, mask=mask)
 
-        indices += input_stride_t
+        indices += x_stride_t
         start += 1
 
 
@@ -86,19 +86,19 @@ def scalar_rnn_varlen_forward_triton(
     BLOCK_SIZE_B: int,
     BLOCK_SIZE_N: int,
 ) -> None:
-    N = input.size(1)
     B = cu_seqlens.size(0) - 1
+    N = input.size(1)
 
     is_max_seqlen_tensor = max_seqlen_tensor is not None
 
     with torch.device(input.device):
         rnn_varlen_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), N](
-            input_ptr=input,
-            input_stride_t=input.stride(0),
-            weight_ptr=weight,
+            x_ptr=input,
+            x_stride_t=input.stride(0),
+            W_ptr=weight,
             HAS_INPUT_STATE=input_state is not None,
-            input_state_ptr=input_state,
-            output_ptr=output,
+            h_ptr=input_state,
+            y_ptr=output,
             cu_seqlens_ptr=cu_seqlens,
             IS_MAX_SEQLEN_TENSOR=is_max_seqlen_tensor,
             max_seqlen_ptr=max_seqlen_tensor if is_max_seqlen_tensor else max_seqlen,
