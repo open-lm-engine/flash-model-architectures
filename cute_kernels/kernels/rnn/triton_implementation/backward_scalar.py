@@ -37,13 +37,13 @@ def _load_previous_output(
 ):
     if s == 0:
         if HAS_INPUT_STATE:
-            output_prev = tl.load(input_state_ptr + indices_b[:, None] * N + indices_n[None, :], mask=mask_bn)
+            y_prev = tl.load(h_ptr + indices_b[:, None] * N + indices_n[None, :], mask=mask_bn)
         else:
-            output_prev = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_N), dtype=dtype)
+            y_prev = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_N), dtype=dtype)
     else:
-        output_prev = tl.load(output_ptrs, mask=mask_bn)
+        y_prev = tl.load(y_ptrs, mask=mask_bn)
 
-    return output_prev
+    return y_prev
 
 
 @triton.jit
