@@ -87,7 +87,9 @@ def gru_forward_triton_kernel(
         indices += N
 
 
-@cute_op(f"{LIBRARY_NAME}::scalar_gru_forward_triton", mutates_args={"forget_gate", "reset_gate", "output"})
+@cute_op(
+    f"{LIBRARY_NAME}::scalar_gru_forward_triton", mutates_args={"forget_gate", "reset_gate", "output_update", "output"}
+)
 def scalar_gru_forward_triton(
     input: torch.Tensor,
     weight: torch.Tensor,
