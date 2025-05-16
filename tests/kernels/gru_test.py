@@ -15,7 +15,7 @@ class GRUTest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(
             [torch.device("cuda")],
-            [torch.float32, torch.float16][:1],
+            TestCommons.get_dtypes(),
             [4],  # batch_size
             [1024],  # sequence_length
             [256],  # state_size
@@ -87,13 +87,13 @@ class GRUTest(TestCommons):
         y_expected.sum().backward()
 
         self.assert_equal_tensors(
-            y_kernel, y_expected, False, atol_float32=4e-6, rtol_float32=0, atol_float16=6.5e-5, rtol_float16=0
+            y_kernel, y_expected, True, atol_float32=4e-6, rtol_float32=0, atol_float16=6.5e-5, rtol_float16=0
         )
 
         self.assert_equal_tensors(
             input_kernel.grad,
             input_expected.grad,
-            False,
+            True,
             atol_float32=1.3e-4,
             rtol_float32=0,
             atol_float16=3e-3,
@@ -103,7 +103,7 @@ class GRUTest(TestCommons):
         self.assert_equal_tensors(
             forget_input_kernel.grad,
             forget_input_expected.grad,
-            False,
+            True,
             atol_float32=2.5e-6,
             rtol_float32=0,
             atol_float16=2e-3,
@@ -113,7 +113,7 @@ class GRUTest(TestCommons):
         self.assert_equal_tensors(
             reset_input_kernel.grad,
             reset_input_expected.grad,
-            False,
+            True,
             atol_float32=1.3e-6,
             rtol_float32=0,
             atol_float16=2e-3,
@@ -123,7 +123,7 @@ class GRUTest(TestCommons):
         self.assert_equal_tensors(
             weight_kernel.grad,
             weight_expected.grad,
-            False,
+            True,
             atol_float32=1e-3,
             rtol_float32=1e-3,
             atol_float16=7e-2,
@@ -133,7 +133,7 @@ class GRUTest(TestCommons):
         self.assert_equal_tensors(
             forget_weight_kernel.grad,
             forget_weight_expected.grad,
-            False,
+            True,
             atol_float32=6.3e-5,
             rtol_float32=0,
             atol_float16=2.2e-2,
@@ -143,7 +143,7 @@ class GRUTest(TestCommons):
         self.assert_equal_tensors(
             reset_weight_kernel.grad,
             reset_weight_expected.grad,
-            False,
+            True,
             atol_float32=1.4e-5,
             rtol_float32=2e-3,
             atol_float16=2.2e-2,
