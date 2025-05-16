@@ -144,7 +144,7 @@ def gru_backward_triton_kernel(
 @cute_op(
     f"{LIBRARY_NAME}::gru_backward_triton",
     mutates_args={
-        "forget_input_grad",
+        "forget_input",
         "forget_weight_grad",
         "reset_input_grad",
         "reset_weight_grad",
