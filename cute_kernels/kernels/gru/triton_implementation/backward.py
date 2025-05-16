@@ -97,7 +97,7 @@ def gru_backward_triton_kernel(
             dtype=W.dtype,
         )
 
-        dx, dW, drh = _rnn_backward_update(
+        dx, dW, _dh = _rnn_backward_update(
             y=z,
             W=W,
             dy=dy * (1 - f),
@@ -107,10 +107,10 @@ def gru_backward_triton_kernel(
             relu_negative_slope=None,
         )
 
-        dh += drh * r
+        dh += _dh * r
         tl.store(dx_ptrs, dx, mask=mask_bh)
 
-        dxf, dWf, dhf = _rnn_backward_update(
+        dxf, dWf, _dh = _rnn_backward_update(
             y=f,
             W=Wf,
             dy=dy * (y_prev - z),
@@ -120,7 +120,7 @@ def gru_backward_triton_kernel(
             relu_negative_slope=None,
         )
 
-        dh += dhf
+        dh += _dh
         tl.store(dxf_ptrs, dxf, mask=mask_bh)
 
         dxr, dWr, dh_from_r = _rnn_backward_update(
