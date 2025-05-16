@@ -11,16 +11,16 @@ from ...rnn.triton_implementation.backward import _load_previous_output, _rnn_ba
 
 @triton.jit
 def gru_backward_triton_kernel(
-    weight_ptr,
+    W_ptr,
     weight_stride_n,
     output_ptr,
     output_stride_b,
     output_stride_s,
-    forget_weight_ptr,
+    Wf_ptr,
     f_ptr,
     forget_input_grad_ptr,
-    forget_weight_grad_ptr,
-    reset_weight_ptr,
+    dWf_ptr,
+    Wr_ptr,
     r_ptr,
     reset_input_grad_ptr,
     reset_weight_grad_ptr,
@@ -51,14 +51,14 @@ def gru_backward_triton_kernel(
     mask_bh = mask_b[:, None] & mask_h[None, :]
     mask_hh = mask_h[:, None] & mask_h[None, :]
 
-    input_state_grad = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=weight_ptr.dtype.element_ty)
+    input_state_grad = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=W_ptr.dtype.element_ty)
     weight_grad = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
     forget_weight_grad = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
     reset_weight_grad = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
 
-    weight = tl.load(weight_ptr + indices_weight, mask=mask_hh)
-    forget_weight = tl.load(forget_weight_ptr + indices_weight, mask=mask_hh)
-    reset_weight = tl.load(reset_weight_ptr + indices_weight, mask=mask_hh)
+    weight = tl.load(W_ptr + indices_weight, mask=mask_hh)
+    forget_weight = tl.load(Wf_ptr + indices_weight, mask=mask_hh)
+    reset_weight = tl.load(Wr_ptr + indices_weight, mask=mask_hh)
 
     indices = indices_b[:, None] * output_stride_b + (S - 1) * output_stride_s + pid_n * H + indices_h[None, :]
 
@@ -137,7 +137,7 @@ def gru_backward_triton_kernel(
         tl.store(reset_input_grad_ptrs, reset_input_grad, mask=mask_bh)
 
     tl.atomic_add(weight_grad_ptr + indices_weight, weight_grad, mask=mask_hh)
-    tl.atomic_add(forget_weight_grad_ptr + indices_weight, forget_weight_grad, mask=mask_hh)
+    tl.atomic_add(dWf_ptr + indices_weight, forget_weight_grad, mask=mask_hh)
     tl.atomic_add(reset_weight_grad_ptr + indices_weight, reset_weight_grad, mask=mask_hh)
 
 
@@ -178,16 +178,16 @@ def gru_backward_triton(
 
     with torch.device(output.device):
         gru_backward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), N](
-            weight_ptr=weight,
+            W_ptr=weight,
             weight_stride_n=weight.stride(0),
             output_ptr=output,
             output_stride_b=output.stride(0),
             output_stride_s=output.stride(1),
-            forget_weight_ptr=forget_weight,
+            Wf_ptr=forget_weight,
             f_ptr=forget_gate,
             forget_input_grad_ptr=forget_input_grad,
-            forget_weight_grad_ptr=forget_weight_grad,
-            reset_weight_ptr=reset_weight,
+            dWf_ptr=forget_weight_grad,
+            Wr_ptr=reset_weight,
             r_ptr=reset_gate,
             reset_input_grad_ptr=reset_input_grad,
             reset_weight_grad_ptr=reset_weight_grad,
