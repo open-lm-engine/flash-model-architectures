@@ -67,16 +67,14 @@ def gru_backward_triton_kernel(
         if HAS_GRADIENT_CLIPPING:
             dh = clamp(dh, min_value=-gradient_clipping, max_value=gradient_clipping)
 
+        dy = tl.load(dy_ptr + indices, mask=mask_bh) + dh
         f = tl.load(f_ptr + indices, mask=mask_bh)
         r = tl.load(r_ptr + indices, mask=mask_bh)
         z = tl.load(z_ptr + indices, mask=mask_bh)
-        dy = tl.load(dy_ptr + indices, mask=mask_bh) + f * dh
 
         dx_ptrs = dx_ptr + indices
         dxf_ptrs = dxf_ptr + indices
         dxr_ptrs = dxr_ptr + indices
-
-        dh = dy
 
         indices -= y_stride_s
 
@@ -96,10 +94,14 @@ def gru_backward_triton_kernel(
             dtype=W.dtype,
         )
 
+        dh = f * dy
+        dz = dy * (1 - f)
+        df = dy * (y_prev - z)
+
         dx, dW, drh = _rnn_backward_update(
             y=z,
             W=W,
-            dy=dy * (1 - f),
+            dy=dz,
             dW=dW,
             y_prev=r * y_prev,
             ACTIVATION_FUNCTION="tanh",
@@ -112,7 +114,7 @@ def gru_backward_triton_kernel(
         dxf, dWf, _dh = _rnn_backward_update(
             y=f,
             W=Wf,
-            dy=dy * (y_prev - z),
+            dy=df,
             dW=dWf,
             y_prev=y_prev,
             ACTIVATION_FUNCTION="sigmoid",
@@ -122,17 +124,19 @@ def gru_backward_triton_kernel(
         dh += _dh
         tl.store(dxf_ptrs, dxf, mask=mask_bh)
 
-        dxr, dWr, dh_from_r = _rnn_backward_update(
+        dr = drh * y_prev
+
+        dxr, dWr, _dh = _rnn_backward_update(
             y=r,
             W=Wr,
-            dy=drh * y_prev,
+            dy=dr,
             dW=dWr,
             y_prev=y_prev,
             ACTIVATION_FUNCTION="sigmoid",
             relu_negative_slope=None,
         )
 
-        dh += dh_from_r
+        dh += _dh
         tl.store(dxr_ptrs, dxr, mask=mask_bh)
 
     tl.atomic_add(dW_ptr + indices_W, dW, mask=mask_hh)
