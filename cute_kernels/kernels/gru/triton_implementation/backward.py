@@ -22,15 +22,15 @@ def gru_backward_triton_kernel(
     dWf_ptr,
     Wr_ptr,
     r_ptr,
-    reset_input_grad_ptr,
-    reset_weight_grad_ptr,
+    dxr_ptr,
+    dWr_ptr,
     output_update_ptr,
     HAS_INPUT_STATE: tl.constexpr,
     input_state_ptr,
     input_state_stride_b,
     dy_ptr,
     input_grad_ptr,
-    weight_grad_ptr,
+    dW_ptr,
     HAS_GRADIENT_CLIPPING: tl.constexpr,
     gradient_clipping,
     B,
@@ -74,7 +74,7 @@ def gru_backward_triton_kernel(
 
         input_grad_ptrs = input_grad_ptr + indices
         dxf_ptrs = dxf_ptr + indices
-        reset_input_grad_ptrs = reset_input_grad_ptr + indices
+        dxr_ptrs = dxr_ptr + indices
 
         dy += f * input_state_grad
         input_state_grad = dy
@@ -134,11 +134,11 @@ def gru_backward_triton_kernel(
         )
 
         input_state_grad += input_state_grad_from_r
-        tl.store(reset_input_grad_ptrs, reset_input_grad, mask=mask_bh)
+        tl.store(dxr_ptrs, reset_input_grad, mask=mask_bh)
 
-    tl.atomic_add(weight_grad_ptr + indices_weight, weight_grad, mask=mask_hh)
+    tl.atomic_add(dW_ptr + indices_weight, weight_grad, mask=mask_hh)
     tl.atomic_add(dWf_ptr + indices_weight, forget_weight_grad, mask=mask_hh)
-    tl.atomic_add(reset_weight_grad_ptr + indices_weight, reset_weight_grad, mask=mask_hh)
+    tl.atomic_add(dWr_ptr + indices_weight, reset_weight_grad, mask=mask_hh)
 
 
 @cute_op(
@@ -189,15 +189,15 @@ def gru_backward_triton(
             dWf_ptr=forget_weight_grad,
             Wr_ptr=reset_weight,
             r_ptr=reset_gate,
-            reset_input_grad_ptr=reset_input_grad,
-            reset_weight_grad_ptr=reset_weight_grad,
+            dxr_ptr=reset_input_grad,
+            dWr_ptr=reset_weight_grad,
             output_update_ptr=output_update,
             HAS_INPUT_STATE=input_state is not None,
             input_state_ptr=input_state,
             input_state_stride_b=None if input_state is None else input_state.stride(0),
             dy_ptr=output_grad,
             input_grad_ptr=input_grad,
-            weight_grad_ptr=weight_grad,
+            dW_ptr=weight_grad,
             HAS_GRADIENT_CLIPPING=gradient_clipping is not None,
             gradient_clipping=gradient_clipping,
             B=B,
