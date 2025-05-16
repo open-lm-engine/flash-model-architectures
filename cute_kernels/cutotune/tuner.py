@@ -31,8 +31,6 @@ class _CutoTune:
         in_place_op: bool = False,
         reset_to_zero: dict = {},
     ) -> None:
-        assert len(configs) > 0, "no cutotune config is passed"
-
         assert default_config is not None
         self.default_config = default_config
 
