@@ -17,7 +17,7 @@ def gru_backward_triton_kernel(
     output_stride_b,
     output_stride_s,
     forget_weight_ptr,
-    forget_gate_ptr,
+    f_ptr,
     forget_input_grad_ptr,
     forget_weight_grad_ptr,
     reset_weight_ptr,
@@ -28,7 +28,7 @@ def gru_backward_triton_kernel(
     HAS_INPUT_STATE: tl.constexpr,
     input_state_ptr,
     input_state_stride_b,
-    output_grad_ptr,
+    dy_ptr,
     input_grad_ptr,
     weight_grad_ptr,
     HAS_GRADIENT_CLIPPING: tl.constexpr,
@@ -67,8 +67,8 @@ def gru_backward_triton_kernel(
         if HAS_GRADIENT_CLIPPING:
             input_state_grad = clamp(input_state_grad, min_value=-gradient_clipping, max_value=gradient_clipping)
 
-        output_grad = tl.load(output_grad_ptr + indices, mask=mask_bh)
-        forget_gate = tl.load(forget_gate_ptr + indices, mask=mask_bh)
+        dy = tl.load(dy_ptr + indices, mask=mask_bh)
+        f = tl.load(f_ptr + indices, mask=mask_bh)
         reset_gate = tl.load(reset_gate_ptr + indices, mask=mask_bh)
         output_update = tl.load(output_update_ptr + indices, mask=mask_bh)
 
@@ -76,8 +76,8 @@ def gru_backward_triton_kernel(
         forget_input_grad_ptrs = forget_input_grad_ptr + indices
         reset_input_grad_ptrs = reset_input_grad_ptr + indices
 
-        output_grad += forget_gate * input_state_grad
-        input_state_grad = output_grad
+        dy += f * input_state_grad
+        input_state_grad = dy
 
         indices -= output_stride_s
 
@@ -100,7 +100,7 @@ def gru_backward_triton_kernel(
         input_grad, weight_grad, reset_gate_times_input_state_grad = _rnn_backward_update(
             y=output_update,
             W=weight,
-            dy=output_grad * (1 - forget_gate),
+            dy=dy * (1 - f),
             dW=weight_grad,
             y_prev=reset_gate * output_prev,
             ACTIVATION_FUNCTION="tanh",
@@ -110,17 +110,17 @@ def gru_backward_triton_kernel(
         input_state_grad += reset_gate_times_input_state_grad * reset_gate
         tl.store(input_grad_ptrs, input_grad, mask=mask_bh)
 
-        forget_input_grad, forget_weight_grad, input_state_grad_from_forget_gate = _rnn_backward_update(
-            y=forget_gate,
+        forget_input_grad, forget_weight_grad, input_state_grad_from_f = _rnn_backward_update(
+            y=f,
             W=forget_weight,
-            dy=output_grad * (output_prev - output_update),
+            dy=dy * (output_prev - output_update),
             dW=forget_weight_grad,
             y_prev=output_prev,
             ACTIVATION_FUNCTION="sigmoid",
             relu_negative_slope=None,
         )
 
-        input_state_grad += input_state_grad_from_forget_gate
+        input_state_grad += input_state_grad_from_f
         tl.store(forget_input_grad_ptrs, forget_input_grad, mask=mask_bh)
 
         reset_input_grad, reset_weight_grad, input_state_grad_from_reset_gate = _rnn_backward_update(
@@ -184,7 +184,7 @@ def gru_backward_triton(
             output_stride_b=output.stride(0),
             output_stride_s=output.stride(1),
             forget_weight_ptr=forget_weight,
-            forget_gate_ptr=forget_gate,
+            f_ptr=forget_gate,
             forget_input_grad_ptr=forget_input_grad,
             forget_weight_grad_ptr=forget_weight_grad,
             reset_weight_ptr=reset_weight,
@@ -195,7 +195,7 @@ def gru_backward_triton(
             HAS_INPUT_STATE=input_state is not None,
             input_state_ptr=input_state,
             input_state_stride_b=None if input_state is None else input_state.stride(0),
-            output_grad_ptr=output_grad,
+            dy_ptr=output_grad,
             input_grad_ptr=input_grad,
             weight_grad_ptr=weight_grad,
             HAS_GRADIENT_CLIPPING=gradient_clipping is not None,
