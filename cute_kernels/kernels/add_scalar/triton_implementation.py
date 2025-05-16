@@ -3,12 +3,8 @@ import triton
 import triton.language as tl
 
 from ...constants import LIBRARY_NAME
-from ...cutotune import CutoTuneConfig, cutotune
 from ...math import ceil_divide
 from ...utils import cute_op
-
-
-_CUTOTUNE_CONFIG = CutoTuneConfig({"BLOCK_SIZE": 4096, "NUM_WARPS": 32})
 
 
 @triton.jit
@@ -17,7 +13,7 @@ def _add_scalar(x_ptr, y, output_ptr, indices, mask):
     tl.store(output_ptr + indices, x + y, mask=mask)
 
 
-@triton.autotune(configs=[triton.Config({"BLOCK_SIZE": 1024}, num_warps=32)], key=[])
+@triton.autotune(configs=[triton.Config({"BLOCK_SIZE": 4096}, num_warps=32)], key=[])
 @triton.jit
 def add_scalar_triton_kernel(x_ptr, y, output_ptr, N, BLOCK_SIZE: tl.constexpr):
     BLOCK_ID = tl.program_id(axis=0)
