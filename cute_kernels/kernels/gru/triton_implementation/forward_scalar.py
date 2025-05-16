@@ -10,19 +10,19 @@ from ...rnn.triton_implementation.forward_scalar import _rnn_forward_update
 
 @triton.jit
 def gru_forward_triton_kernel(
-    input_ptr,
-    input_stride_b,
-    weight_ptr,
-    forget_input_ptr,
-    forget_weight_ptr,
-    forget_gate_ptr,
-    reset_input_ptr,
-    reset_weight_ptr,
-    reset_gate_ptr,
-    output_update_ptr,
+    x_ptr,
+    x_stride_b,
+    W_ptr,
+    xf_ptr,
+    Wf_ptr,
+    f_ptr,
+    xr_ptr,
+    Wr_ptr,
+    r_ptr,
+    z_ptr,
     HAS_INPUT_STATE: tl.constexpr,
-    input_state_ptr,
-    output_ptr,
+    h_ptr,
+    y_ptr,
     B,
     S,
     N,
@@ -39,50 +39,50 @@ def gru_forward_triton_kernel(
     mask_n = indices_n < N
     mask_bn = mask_b[:, None] & mask_n[None, :]
 
-    weight = tl.load(weight_ptr + indices_n, mask=mask_n)
-    forget_weight = tl.load(forget_weight_ptr + indices_n, mask=mask_n)
-    reset_weight = tl.load(reset_weight_ptr + indices_n, mask=mask_n)
+    W = tl.load(W_ptr + indices_n, mask=mask_n)
+    Wf = tl.load(Wf_ptr + indices_n, mask=mask_n)
+    Wr = tl.load(Wr_ptr + indices_n, mask=mask_n)
 
     if HAS_INPUT_STATE:
-        input_state = tl.load(input_state_ptr + indices_b[:, None] * N + indices_n[None, :], mask=mask_bn)
+        h = tl.load(h_ptr + indices_b[:, None] * N + indices_n[None, :], mask=mask_bn)
     else:
-        input_state = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_N), dtype=input_ptr.dtype.element_ty)
+        h = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_N), dtype=h_ptr.dtype.element_ty)
 
-    indices = indices_b[:, None] * input_stride_b + indices_n[None, :]
+    indices = indices_b[:, None] * x_stride_b + indices_n[None, :]
 
     for _ in range(S):
-        reset_gate = _rnn_forward_update(
-            input_state=input_state,
-            weight=reset_weight,
-            input=tl.load(reset_input_ptr + indices, mask=mask_bn),
+        r = _rnn_forward_update(
+            h=h,
+            W=Wr,
+            x=tl.load(xr_ptr + indices, mask=mask_bn),
             ACTIVATION_FUNCTION="sigmoid",
             relu_negative_slope=None,
         )
 
-        tl.store(reset_gate_ptr + indices, reset_gate, mask=mask_bn)
+        tl.store(r_ptr + indices, r, mask=mask_bn)
 
-        output_update = _rnn_forward_update(
-            input_state=input_state * reset_gate,
-            weight=weight,
-            input=tl.load(input_ptr + indices, mask=mask_bn),
+        z = _rnn_forward_update(
+            h=h * r,
+            W=W,
+            x=tl.load(x_ptr + indices, mask=mask_bn),
             ACTIVATION_FUNCTION="tanh",
             relu_negative_slope=None,
         )
 
-        tl.store(output_update_ptr + indices, output_update, mask=mask_bn)
+        tl.store(z_ptr + indices, z, mask=mask_bn)
 
-        forget_gate = _rnn_forward_update(
-            input_state=input_state,
-            weight=forget_weight,
-            input=tl.load(forget_input_ptr + indices, mask=mask_bn),
+        f = _rnn_forward_update(
+            h=h,
+            W=Wf,
+            x=tl.load(xf_ptr + indices, mask=mask_bn),
             ACTIVATION_FUNCTION="sigmoid",
             relu_negative_slope=None,
         )
 
-        tl.store(forget_gate_ptr + indices, forget_gate, mask=mask_bn)
+        tl.store(f_ptr + indices, f, mask=mask_bn)
 
-        input_state = forget_gate * input_state + (1 - forget_gate) * output_update
-        tl.store(output_ptr + indices, input_state, mask=mask_bn)
+        h = f * h + (1 - f) * z
+        tl.store(y_ptr + indices, h, mask=mask_bn)
 
         indices += N
 
@@ -107,19 +107,19 @@ def scalar_gru_forward_triton(
 
     with torch.device(input.device):
         gru_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), N](
-            input_ptr=input,
-            input_stride_b=input.stride(0),
-            weight_ptr=weight,
-            forget_input_ptr=forget_input,
-            forget_weight_ptr=forget_weight,
-            forget_gate_ptr=forget_gate,
-            reset_input_ptr=reset_input,
-            reset_weight_ptr=reset_weight,
-            reset_gate_ptr=reset_gate,
-            output_update_ptr=output_update,
+            x_ptr=input,
+            x_stride_b=input.stride(0),
+            W_ptr=weight,
+            xf_ptr=forget_input,
+            Wf_ptr=forget_weight,
+            f_ptr=forget_gate,
+            xr_ptr=reset_input,
+            Wr_ptr=reset_weight,
+            r_ptr=reset_gate,
+            z_ptr=output_update,
             HAS_INPUT_STATE=input_state is not None,
-            input_state_ptr=input_state,
-            output_ptr=output,
+            h_ptr=input_state,
+            y_ptr=output,
             B=B,
             S=S,
             N=N,
