@@ -51,10 +51,10 @@ def gru_backward_triton_kernel(
     mask_bh = mask_b[:, None] & mask_h[None, :]
     mask_hh = mask_h[:, None] & mask_h[None, :]
 
-    input_state_grad = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=W_ptr.dtype.element_ty)
-    weight_grad = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
-    forget_weight_grad = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
-    reset_weight_grad = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
+    dh = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=W_ptr.dtype.element_ty)
+    dW = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
+    dWf = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
+    dWr = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
 
     weight = tl.load(W_ptr + indices_weight, mask=mask_hh)
     forget_weight = tl.load(Wf_ptr + indices_weight, mask=mask_hh)
@@ -65,19 +65,19 @@ def gru_backward_triton_kernel(
     # backward counting reduces 1 instruction since we need to compare s == 0, otherwise we have to compare s == S - 1
     for s in range(S - 1, -1, -1):
         if HAS_GRADIENT_CLIPPING:
-            input_state_grad = clamp(input_state_grad, min_value=-gradient_clipping, max_value=gradient_clipping)
+            dh = clamp(dh, min_value=-gradient_clipping, max_value=gradient_clipping)
 
         dy = tl.load(dy_ptr + indices, mask=mask_bh)
         f = tl.load(f_ptr + indices, mask=mask_bh)
         r = tl.load(r_ptr + indices, mask=mask_bh)
-        output_update = tl.load(z_ptr + indices, mask=mask_bh)
+        z = tl.load(z_ptr + indices, mask=mask_bh)
 
         dx_ptrs = dx_ptr + indices
         dxf_ptrs = dxf_ptr + indices
         dxr_ptrs = dxr_ptr + indices
 
-        dy += f * input_state_grad
-        input_state_grad = dy
+        dy += f * dh
+        dh = dy
 
         indices -= y_stride_s
 
@@ -97,59 +97,59 @@ def gru_backward_triton_kernel(
             dtype=weight.dtype,
         )
 
-        input_grad, weight_grad, r_times_input_state_grad = _rnn_backward_update(
-            y=output_update,
+        input_grad, dW, r_times_dh = _rnn_backward_update(
+            y=z,
             W=weight,
             dy=dy * (1 - f),
-            dW=weight_grad,
+            dW=dW,
             y_prev=r * y_prev,
             ACTIVATION_FUNCTION="tanh",
             relu_negative_slope=None,
         )
 
-        input_state_grad += r_times_input_state_grad * r
+        dh += r_times_dh * r
         tl.store(dx_ptrs, input_grad, mask=mask_bh)
 
-        forget_input_grad, forget_weight_grad, input_state_grad_from_f = _rnn_backward_update(
+        dxf, dWf, dh_from_f = _rnn_backward_update(
             y=f,
             W=forget_weight,
-            dy=dy * (y_prev - output_update),
-            dW=forget_weight_grad,
+            dy=dy * (y_prev - z),
+            dW=dWf,
             y_prev=y_prev,
             ACTIVATION_FUNCTION="sigmoid",
             relu_negative_slope=None,
         )
 
-        input_state_grad += input_state_grad_from_f
-        tl.store(dxf_ptrs, forget_input_grad, mask=mask_bh)
+        dh += dh_from_f
+        tl.store(dxf_ptrs, dxf, mask=mask_bh)
 
-        reset_input_grad, reset_weight_grad, input_state_grad_from_r = _rnn_backward_update(
+        reset_input_grad, dWr, dh_from_r = _rnn_backward_update(
             y=r,
             W=reset_weight,
-            dy=r_times_input_state_grad * y_prev,
-            dW=reset_weight_grad,
+            dy=r_times_dh * y_prev,
+            dW=dWr,
             y_prev=y_prev,
             ACTIVATION_FUNCTION="sigmoid",
             relu_negative_slope=None,
         )
 
-        input_state_grad += input_state_grad_from_r
+        dh += dh_from_r
         tl.store(dxr_ptrs, reset_input_grad, mask=mask_bh)
 
-    tl.atomic_add(dW_ptr + indices_weight, weight_grad, mask=mask_hh)
-    tl.atomic_add(dWf_ptr + indices_weight, forget_weight_grad, mask=mask_hh)
-    tl.atomic_add(dWr_ptr + indices_weight, reset_weight_grad, mask=mask_hh)
+    tl.atomic_add(dW_ptr + indices_weight, dW, mask=mask_hh)
+    tl.atomic_add(dWf_ptr + indices_weight, dWf, mask=mask_hh)
+    tl.atomic_add(dWr_ptr + indices_weight, dWr, mask=mask_hh)
 
 
 @cute_op(
     f"{LIBRARY_NAME}::gru_backward_triton",
     mutates_args={
-        "forget_input_grad",
-        "forget_weight_grad",
+        "dxf",
+        "dWf",
         "reset_input_grad",
-        "reset_weight_grad",
+        "dWr",
         "input_grad",
-        "weight_grad",
+        "dW",
     },
 )
 def gru_backward_triton(
@@ -157,17 +157,17 @@ def gru_backward_triton(
     output: torch.Tensor,
     forget_weight: torch.Tensor,
     forget_gate: torch.Tensor,
-    forget_input_grad: torch.Tensor,
-    forget_weight_grad: torch.Tensor,
+    dxf: torch.Tensor,
+    dWf: torch.Tensor,
     reset_weight: torch.Tensor,
     reset_gate: torch.Tensor,
     reset_input_grad: torch.Tensor,
-    reset_weight_grad: torch.Tensor,
-    output_update: torch.Tensor,
+    dWr: torch.Tensor,
+    z: torch.Tensor,
     input_state: torch.Tensor | None,
     output_grad: torch.Tensor,
     input_grad: torch.Tensor,
-    weight_grad: torch.Tensor,
+    dW: torch.Tensor,
     gradient_clipping: float | None,
     BLOCK_SIZE_B: int,
 ) -> None:
@@ -185,19 +185,19 @@ def gru_backward_triton(
             y_stride_s=output.stride(1),
             Wf_ptr=forget_weight,
             f_ptr=forget_gate,
-            dxf_ptr=forget_input_grad,
-            dWf_ptr=forget_weight_grad,
+            dxf_ptr=dxf,
+            dWf_ptr=dWf,
             Wr_ptr=reset_weight,
             r_ptr=reset_gate,
             dxr_ptr=reset_input_grad,
-            dWr_ptr=reset_weight_grad,
-            z_ptr=output_update,
+            dWr_ptr=dWr,
+            z_ptr=z,
             HAS_INPUT_STATE=input_state is not None,
             h_ptr=input_state,
             h_stride_b=None if input_state is None else input_state.stride(0),
             dy_ptr=output_grad,
             dx_ptr=input_grad,
-            dW_ptr=weight_grad,
+            dW_ptr=dW,
             HAS_GRADIENT_CLIPPING=gradient_clipping is not None,
             gradient_clipping=gradient_clipping,
             B=B,
