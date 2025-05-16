@@ -97,7 +97,7 @@ def gru_backward_triton_kernel(
             dtype=W.dtype,
         )
 
-        input_grad, dW, r_times_dh = _rnn_backward_update(
+        dx, dW, drh = _rnn_backward_update(
             y=z,
             W=W,
             dy=dy * (1 - f),
@@ -107,10 +107,10 @@ def gru_backward_triton_kernel(
             relu_negative_slope=None,
         )
 
-        dh += r_times_dh * r
-        tl.store(dx_ptrs, input_grad, mask=mask_bh)
+        dh += drh * r
+        tl.store(dx_ptrs, dx, mask=mask_bh)
 
-        dxf, dWf, dh_from_f = _rnn_backward_update(
+        dxf, dWf, dhf = _rnn_backward_update(
             y=f,
             W=Wf,
             dy=dy * (y_prev - z),
@@ -120,13 +120,13 @@ def gru_backward_triton_kernel(
             relu_negative_slope=None,
         )
 
-        dh += dh_from_f
+        dh += dhf
         tl.store(dxf_ptrs, dxf, mask=mask_bh)
 
-        reset_input_grad, dWr, dh_from_r = _rnn_backward_update(
+        dxr, dWr, dh_from_r = _rnn_backward_update(
             y=r,
             W=Wr,
-            dy=r_times_dh * y_prev,
+            dy=drh * y_prev,
             dW=dWr,
             y_prev=y_prev,
             ACTIVATION_FUNCTION="sigmoid",
@@ -134,7 +134,7 @@ def gru_backward_triton_kernel(
         )
 
         dh += dh_from_r
-        tl.store(dxr_ptrs, reset_input_grad, mask=mask_bh)
+        tl.store(dxr_ptrs, dxr, mask=mask_bh)
 
     tl.atomic_add(dW_ptr + indices_W, dW, mask=mask_hh)
     tl.atomic_add(dWf_ptr + indices_W, dWf, mask=mask_hh)
