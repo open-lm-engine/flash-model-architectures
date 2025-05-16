@@ -67,10 +67,10 @@ def gru_backward_triton_kernel(
         if HAS_GRADIENT_CLIPPING:
             dh = clamp(dh, min_value=-gradient_clipping, max_value=gradient_clipping)
 
-        dy = tl.load(dy_ptr + indices, mask=mask_bh) + f * dh
         f = tl.load(f_ptr + indices, mask=mask_bh)
         r = tl.load(r_ptr + indices, mask=mask_bh)
         z = tl.load(z_ptr + indices, mask=mask_bh)
+        dy = tl.load(dy_ptr + indices, mask=mask_bh) + f * dh
 
         dx_ptrs = dx_ptr + indices
         dxf_ptrs = dxf_ptr + indices
