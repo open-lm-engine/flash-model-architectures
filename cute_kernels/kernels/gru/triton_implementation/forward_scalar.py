@@ -46,7 +46,7 @@ def gru_forward_triton_kernel(
     if HAS_INPUT_STATE:
         h = tl.load(h_ptr + indices_b[:, None] * N + indices_n[None, :], mask=mask_bn)
     else:
-        h = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_N), dtype=h_ptr.dtype.element_ty)
+        h = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_N), dtype=x_ptr.dtype.element_ty)
 
     indices = indices_b[:, None] * x_stride_b + indices_n[None, :]
 
