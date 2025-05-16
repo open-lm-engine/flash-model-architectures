@@ -8,6 +8,9 @@ from ...math import ceil_divide
 from ...utils import cute_op
 
 
+_CUTOTUNE_CONFIG = CutoTuneConfig({"BLOCK_SIZE": 4096, "NUM_WARPS": 32})
+
+
 @triton.jit
 def _add_scalar(x_ptr, y, output_ptr, indices, mask):
     x = tl.load(x_ptr + indices, mask=mask)
@@ -27,7 +30,7 @@ def add_scalar_triton_kernel(x_ptr, y, output_ptr, N, BLOCK_SIZE: tl.constexpr):
         _add_scalar(x_ptr=x_ptr, y=y, output_ptr=output_ptr, indices=indices, mask=indices < N)
 
 
-@cutotune(configs=[CutoTuneConfig({"BLOCK_SIZE": 4096, "NUM_WARPS": 32})])
+@cutotune(configs=[_CUTOTUNE_CONFIG], default_config=_CUTOTUNE_CONFIG)
 @cute_op(f"{LIBRARY_NAME}::add_scalar_triton", mutates_args={"output"})
 def add_scalar_triton(x: torch.Tensor, y: float, output: torch.Tensor, BLOCK_SIZE: int, NUM_WARPS: int) -> None:
     N = x.numel()
