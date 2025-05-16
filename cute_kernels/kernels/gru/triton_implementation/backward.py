@@ -21,7 +21,7 @@ def gru_backward_triton_kernel(
     forget_input_grad_ptr,
     forget_weight_grad_ptr,
     reset_weight_ptr,
-    reset_gate_ptr,
+    r_ptr,
     reset_input_grad_ptr,
     reset_weight_grad_ptr,
     output_update_ptr,
@@ -69,7 +69,7 @@ def gru_backward_triton_kernel(
 
         dy = tl.load(dy_ptr + indices, mask=mask_bh)
         f = tl.load(f_ptr + indices, mask=mask_bh)
-        reset_gate = tl.load(reset_gate_ptr + indices, mask=mask_bh)
+        r = tl.load(r_ptr + indices, mask=mask_bh)
         output_update = tl.load(output_update_ptr + indices, mask=mask_bh)
 
         input_grad_ptrs = input_grad_ptr + indices
@@ -97,17 +97,17 @@ def gru_backward_triton_kernel(
             dtype=weight.dtype,
         )
 
-        input_grad, weight_grad, reset_gate_times_input_state_grad = _rnn_backward_update(
+        input_grad, weight_grad, r_times_input_state_grad = _rnn_backward_update(
             y=output_update,
             W=weight,
             dy=dy * (1 - f),
             dW=weight_grad,
-            y_prev=reset_gate * output_prev,
+            y_prev=r * output_prev,
             ACTIVATION_FUNCTION="tanh",
             relu_negative_slope=None,
         )
 
-        input_state_grad += reset_gate_times_input_state_grad * reset_gate
+        input_state_grad += r_times_input_state_grad * r
         tl.store(input_grad_ptrs, input_grad, mask=mask_bh)
 
         forget_input_grad, forget_weight_grad, input_state_grad_from_f = _rnn_backward_update(
@@ -123,17 +123,17 @@ def gru_backward_triton_kernel(
         input_state_grad += input_state_grad_from_f
         tl.store(forget_input_grad_ptrs, forget_input_grad, mask=mask_bh)
 
-        reset_input_grad, reset_weight_grad, input_state_grad_from_reset_gate = _rnn_backward_update(
-            y=reset_gate,
+        reset_input_grad, reset_weight_grad, input_state_grad_from_r = _rnn_backward_update(
+            y=r,
             W=reset_weight,
-            dy=reset_gate_times_input_state_grad * output_prev,
+            dy=r_times_input_state_grad * output_prev,
             dW=reset_weight_grad,
             y_prev=output_prev,
             ACTIVATION_FUNCTION="sigmoid",
             relu_negative_slope=None,
         )
 
-        input_state_grad += input_state_grad_from_reset_gate
+        input_state_grad += input_state_grad_from_r
         tl.store(reset_input_grad_ptrs, reset_input_grad, mask=mask_bh)
 
     tl.atomic_add(weight_grad_ptr + indices_weight, weight_grad, mask=mask_hh)
@@ -188,7 +188,7 @@ def gru_backward_triton(
             forget_input_grad_ptr=forget_input_grad,
             forget_weight_grad_ptr=forget_weight_grad,
             reset_weight_ptr=reset_weight,
-            reset_gate_ptr=reset_gate,
+            r_ptr=reset_gate,
             reset_input_grad_ptr=reset_input_grad,
             reset_weight_grad_ptr=reset_weight_grad,
             output_update_ptr=output_update,
