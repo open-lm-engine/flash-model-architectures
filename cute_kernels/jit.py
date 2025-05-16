@@ -13,7 +13,7 @@ _GLOBAL_RANK = int(os.getenv("RANK", 0))
 _WORLD_SIZE = int(os.getenv("WORLD_SIZE", 1))
 
 
-@torch._dynamo.disable
+@torch.compiler.disable
 def _get_cpp_function(function_name: str, source_files: list[str], build_directory: str) -> Callable:
     module_name = f"{_CPP_MODULE_PREFIX}_{function_name}"
 

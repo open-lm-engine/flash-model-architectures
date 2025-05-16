@@ -15,7 +15,7 @@ def _unwrap(x: CuteTensor) -> torch.Tensor:
 class CuteTensor(torch.Tensor):
     element: torch.Tensor
 
-    @torch._dynamo.disable
+    @torch.compiler.disable
     @staticmethod
     def __new__(cls, element: torch.Tensor) -> CuteTensor:
         tensor = torch.Tensor._make_wrapper_subclass(  # type: ignore[attr-defined]

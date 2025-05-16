@@ -132,7 +132,7 @@ class _CutoTune:
 
         return result
 
-    @torch._dynamo.disable
+    @torch.compiler.disable
     @torch.inference_mode()
     def _cutotune(self, *args, **kwargs) -> tuple[CutoTuneConfig, float, list[tuple[CutoTuneConfig, float]]]:
         best_config = None
