@@ -38,8 +38,6 @@ def add_tensor_cute(
     *,
     kernel_backend: KernelBackend = KernelBackend.cuda,
     BLOCK_SIZE_CUDA: int = 1024,
-    BLOCK_SIZE_TRITON: int = 4096,
-    NUM_WARPS_TRITON: int = 32,
 ) -> torch.Tensor:
     """add 2 tensors
 
