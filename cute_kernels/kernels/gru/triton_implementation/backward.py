@@ -81,7 +81,7 @@ def gru_backward_triton_kernel(
 
         indices -= y_stride_s
 
-        output_prev = _load_previous_output(
+        y_prev = _load_previous_output(
             HAS_INPUT_STATE=HAS_INPUT_STATE,
             h_ptr=h_ptr,
             h_stride_b=h_stride_b,
@@ -102,7 +102,7 @@ def gru_backward_triton_kernel(
             W=weight,
             dy=dy * (1 - f),
             dW=weight_grad,
-            y_prev=r * output_prev,
+            y_prev=r * y_prev,
             ACTIVATION_FUNCTION="tanh",
             relu_negative_slope=None,
         )
@@ -113,9 +113,9 @@ def gru_backward_triton_kernel(
         forget_input_grad, forget_weight_grad, input_state_grad_from_f = _rnn_backward_update(
             y=f,
             W=forget_weight,
-            dy=dy * (output_prev - output_update),
+            dy=dy * (y_prev - output_update),
             dW=forget_weight_grad,
-            y_prev=output_prev,
+            y_prev=y_prev,
             ACTIVATION_FUNCTION="sigmoid",
             relu_negative_slope=None,
         )
@@ -126,9 +126,9 @@ def gru_backward_triton_kernel(
         reset_input_grad, reset_weight_grad, input_state_grad_from_r = _rnn_backward_update(
             y=r,
             W=reset_weight,
-            dy=r_times_input_state_grad * output_prev,
+            dy=r_times_input_state_grad * y_prev,
             dW=reset_weight_grad,
-            y_prev=output_prev,
+            y_prev=y_prev,
             ACTIVATION_FUNCTION="sigmoid",
             relu_negative_slope=None,
         )
