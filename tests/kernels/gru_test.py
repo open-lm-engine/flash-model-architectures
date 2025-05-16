@@ -122,25 +122,29 @@ class GRUTest(TestCommons):
             rtol_bfloat16=0,
         )
 
-        # self.assert_equal_tensors(
-        #     reset_input_kernel.grad,
-        #     reset_input_expected.grad,
-        #     True,
-        #     atol_float32=1.3e-6,
-        #     rtol_float32=0,
-        #     atol_float16=2e-3,
-        #     rtol_float16=0,
-        # )
+        self.assert_equal_tensors(
+            reset_input_kernel.grad,
+            reset_input_expected.grad,
+            False,
+            atol_float32=1.3e-6,
+            rtol_float32=0,
+            atol_float16=2e-6,
+            rtol_float16=0,
+            atol_bfloat16=1.2e-5,
+            rtol_bfloat16=0,
+        )
 
-        # self.assert_equal_tensors(
-        #     weight_kernel.grad,
-        #     weight_expected.grad,
-        #     True,
-        #     atol_float32=1e-3,
-        #     rtol_float32=1e-3,
-        #     atol_float16=7e-2,
-        #     rtol_float16=0,
-        # )
+        self.assert_equal_tensors(
+            weight_kernel.grad,
+            weight_expected.grad,
+            False,
+            atol_float32=1e-3,
+            rtol_float32=1e-3,
+            atol_float16=1.3e-2,
+            rtol_float16=0,
+            atol_bfloat16=7.5e-2,
+            rtol_bfloat16=0,
+        )
 
         # self.assert_equal_tensors(
         #     forget_weight_kernel.grad,
