@@ -24,12 +24,12 @@ def gru_backward_triton_kernel(
     r_ptr,
     dxr_ptr,
     dWr_ptr,
-    output_update_ptr,
+    z_ptr,
     HAS_INPUT_STATE: tl.constexpr,
-    input_state_ptr,
-    input_state_stride_b,
+    h_ptr,
+    h_stride_b,
     dy_ptr,
-    input_grad_ptr,
+    dx_ptr,
     dW_ptr,
     HAS_GRADIENT_CLIPPING: tl.constexpr,
     gradient_clipping,
@@ -70,9 +70,9 @@ def gru_backward_triton_kernel(
         dy = tl.load(dy_ptr + indices, mask=mask_bh)
         f = tl.load(f_ptr + indices, mask=mask_bh)
         r = tl.load(r_ptr + indices, mask=mask_bh)
-        output_update = tl.load(output_update_ptr + indices, mask=mask_bh)
+        output_update = tl.load(z_ptr + indices, mask=mask_bh)
 
-        input_grad_ptrs = input_grad_ptr + indices
+        dx_ptrs = dx_ptr + indices
         dxf_ptrs = dxf_ptr + indices
         dxr_ptrs = dxr_ptr + indices
 
@@ -83,8 +83,8 @@ def gru_backward_triton_kernel(
 
         output_prev = _load_previous_output(
             HAS_INPUT_STATE=HAS_INPUT_STATE,
-            h_ptr=input_state_ptr,
-            h_stride_b=input_state_stride_b,
+            h_ptr=h_ptr,
+            h_stride_b=h_stride_b,
             y_ptrs=y_ptr + indices,
             pid_n=pid_n,
             H=H,
@@ -108,7 +108,7 @@ def gru_backward_triton_kernel(
         )
 
         input_state_grad += r_times_input_state_grad * r
-        tl.store(input_grad_ptrs, input_grad, mask=mask_bh)
+        tl.store(dx_ptrs, input_grad, mask=mask_bh)
 
         forget_input_grad, forget_weight_grad, input_state_grad_from_f = _rnn_backward_update(
             y=f,
@@ -191,12 +191,12 @@ def gru_backward_triton(
             r_ptr=reset_gate,
             dxr_ptr=reset_input_grad,
             dWr_ptr=reset_weight_grad,
-            output_update_ptr=output_update,
+            z_ptr=output_update,
             HAS_INPUT_STATE=input_state is not None,
-            input_state_ptr=input_state,
-            input_state_stride_b=None if input_state is None else input_state.stride(0),
+            h_ptr=input_state,
+            h_stride_b=None if input_state is None else input_state.stride(0),
             dy_ptr=output_grad,
-            input_grad_ptr=input_grad,
+            dx_ptr=input_grad,
             dW_ptr=weight_grad,
             HAS_GRADIENT_CLIPPING=gradient_clipping is not None,
             gradient_clipping=gradient_clipping,
