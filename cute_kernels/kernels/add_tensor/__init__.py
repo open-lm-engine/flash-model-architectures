@@ -10,13 +10,7 @@ from .triton_implementation import add_tensor_triton
 class _AddTensor_Cute(torch.autograd.Function):
     @staticmethod
     def forward(
-        ctx,
-        x: torch.Tensor,
-        y: torch.Tensor,
-        kernel_backend: KernelBackend,
-        BLOCK_SIZE_CUDA: int,
-        BLOCK_SIZE_TRITON: int,
-        NUM_WARPS_TRITON: int,
+        ctx, x: torch.Tensor, y: torch.Tensor, kernel_backend: KernelBackend, BLOCK_SIZE_CUDA: int
     ) -> torch.Tensor:
         assert x.size() == y.size(), "tensors x and y should have same shape"
         assert x.type() == y.type(), "tensors x and y should have same dtype"
@@ -27,7 +21,7 @@ class _AddTensor_Cute(torch.autograd.Function):
         if is_cuda_kernel_backend_allowed(kernel_backend) and is_nvidia_gpu() and x.is_cuda and y.is_cuda:
             add_tensor_cuda(x=x, y=y, output=output, BLOCK_SIZE=BLOCK_SIZE_CUDA)
         elif is_triton_kernel_backend_allowed(kernel_backend):
-            add_tensor_triton(x=x, y=y, output=output, BLOCK_SIZE=BLOCK_SIZE_TRITON, NUM_WARPS=NUM_WARPS_TRITON)
+            add_tensor_triton(x=x, y=y, output=output)
         else:
             raise ValueError("unexpected kernel_backend")
 
@@ -54,11 +48,9 @@ def add_tensor_cute(
         y (torch.Tensor): second tensor
         kernel_backend (KernelBackend, optional): kernel backend to prioritize. Defaults to KernelBackend.cuda.
         BLOCK_SIZE_CUDA (int, optional): block size for CUDA backend. Defaults to 1024.
-        BLOCK_SIZE_TRITON (int, optional): block size for triton backend. Defaults to 4096.
-        NUM_WARPS_TRITON (int, optional): warps for triton backend. Defaults to 32.
 
     Returns:
         torch.Tensor: output tensor
     """
 
-    return _AddTensor_Cute.apply(x, y, kernel_backend, BLOCK_SIZE_CUDA, BLOCK_SIZE_TRITON, NUM_WARPS_TRITON)
+    return _AddTensor_Cute.apply(x, y, kernel_backend, BLOCK_SIZE_CUDA)

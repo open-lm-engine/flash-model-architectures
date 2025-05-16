@@ -14,6 +14,7 @@ def _add_tensor(x_ptr, y_ptr, output_ptr, indices, mask):
     tl.store(output_ptr + indices, x + y, mask=mask)
 
 
+@triton.autotune(configs=[triton.Config({"BLOCK_SIZE": 4096}, num_warps=32)], key=[])
 @triton.jit
 def add_tensor_triton_kernel(x_ptr, y_ptr, output_ptr, N, BLOCK_SIZE: tl.constexpr):
     BLOCK_ID = tl.program_id(axis=0)
@@ -28,15 +29,9 @@ def add_tensor_triton_kernel(x_ptr, y_ptr, output_ptr, N, BLOCK_SIZE: tl.constex
 
 
 @cute_op(f"{LIBRARY_NAME}::add_tensor_triton", mutates_args={"output"})
-def add_tensor_triton(x: torch.Tensor, y: torch.Tensor, output: torch.Tensor, BLOCK_SIZE: int, NUM_WARPS: int) -> None:
+def add_tensor_triton(x: torch.Tensor, y: torch.Tensor, output: torch.Tensor) -> None:
     N = x.numel()
+    NUM_BLOCKS = lambda meta: (ceil_divide(N, meta["BLOCK_SIZE"]),)
 
     with torch.device(x.device):
-        add_tensor_triton_kernel[ceil_divide(N, BLOCK_SIZE),](
-            x_ptr=x,
-            y_ptr=y,
-            output_ptr=output,
-            N=N,
-            BLOCK_SIZE=BLOCK_SIZE,
-            num_warps=NUM_WARPS,
-        )
+        add_tensor_triton_kernel[NUM_BLOCKS](x_ptr=x, y_ptr=y, output_ptr=output, N=N)
