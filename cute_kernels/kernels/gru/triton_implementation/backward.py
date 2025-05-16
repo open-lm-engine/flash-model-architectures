@@ -144,7 +144,7 @@ def gru_backward_triton_kernel(
 @cute_op(
     f"{LIBRARY_NAME}::gru_backward_triton",
     mutates_args={
-        "forget_input",
+        "forget_input_grad",
         "forget_weight_grad",
         "reset_input_grad",
         "reset_weight_grad",
@@ -157,7 +157,7 @@ def gru_backward_triton(
     output: torch.Tensor,
     forget_weight: torch.Tensor,
     forget_gate: torch.Tensor,
-    forget_input: torch.Tensor,
+    forget_input_grad: torch.Tensor,
     forget_weight_grad: torch.Tensor,
     reset_weight: torch.Tensor,
     reset_gate: torch.Tensor,
@@ -185,7 +185,7 @@ def gru_backward_triton(
             y_stride_s=output.stride(1),
             Wf_ptr=forget_weight,
             f_ptr=forget_gate,
-            dxf_ptr=forget_input,
+            dxf_ptr=forget_input_grad,
             dWf_ptr=forget_weight_grad,
             Wr_ptr=reset_weight,
             r_ptr=reset_gate,
