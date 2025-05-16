@@ -5,8 +5,6 @@ from .torch_implementation import gru_torch
 from .triton_implementation import (
     gru_backward_triton,
     gru_forward_triton,
-    gru_varlen_backward_triton,
-    gru_varlen_forward_triton,
     scalar_gru_backward_triton,
     scalar_gru_forward_triton,
 )
