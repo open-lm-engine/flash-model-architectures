@@ -144,12 +144,12 @@ def gru_backward_triton_kernel(
 @cute_op(
     f"{LIBRARY_NAME}::gru_backward_triton",
     mutates_args={
-        "dxf",
-        "dWf",
+        "forget_input_grad",
+        "forget_weight_grad",
         "reset_input_grad",
-        "dWr",
+        "reset_weight_grad",
         "input_grad",
-        "dW",
+        "weight_grad",
     },
 )
 def gru_backward_triton(
@@ -191,7 +191,7 @@ def gru_backward_triton(
             r_ptr=reset_gate,
             dxr_ptr=reset_input_grad,
             dWr_ptr=reset_weight_grad,
-            z_ptr=z,
+            z_ptr=output_update,
             HAS_INPUT_STATE=input_state is not None,
             h_ptr=input_state,
             h_stride_b=None if input_state is None else input_state.stride(0),
