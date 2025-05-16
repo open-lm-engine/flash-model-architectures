@@ -17,7 +17,7 @@ def _add_scalar(x_ptr, y, output_ptr, indices, mask):
     tl.store(output_ptr + indices, x + y, mask=mask)
 
 
-@triton.autotune(configs=[triton.Config({"BLOCK_SIZE": 1024}, num_warps=32)])
+@triton.autotune(configs=[triton.Config({"BLOCK_SIZE": 1024}, num_warps=32)], key=[])
 @triton.jit
 def add_scalar_triton_kernel(x_ptr, y, output_ptr, N, BLOCK_SIZE: tl.constexpr):
     BLOCK_ID = tl.program_id(axis=0)
