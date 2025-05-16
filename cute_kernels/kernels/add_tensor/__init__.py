@@ -1,5 +1,6 @@
 import torch
 
+from ...cutotune import CutoTuneParameter
 from ...kernel_backend import KernelBackend, is_cuda_kernel_backend_allowed, is_triton_kernel_backend_allowed
 from ...utils import ensure_same_strides, is_nvidia_gpu
 from .cuda_implementation import add_tensor_cuda
@@ -9,9 +10,7 @@ from .triton_implementation import add_tensor_triton
 
 class _AddTensor_Cute(torch.autograd.Function):
     @staticmethod
-    def forward(
-        ctx, x: torch.Tensor, y: torch.Tensor, kernel_backend: KernelBackend, BLOCK_SIZE_CUDA: int
-    ) -> torch.Tensor:
+    def forward(ctx, x: torch.Tensor, y: torch.Tensor, kernel_backend: KernelBackend) -> torch.Tensor:
         assert x.size() == y.size(), "tensors x and y should have same shape"
         assert x.type() == y.type(), "tensors x and y should have same dtype"
 
@@ -19,7 +18,7 @@ class _AddTensor_Cute(torch.autograd.Function):
         output = torch.empty_like(x)
 
         if is_cuda_kernel_backend_allowed(kernel_backend) and is_nvidia_gpu() and x.is_cuda and y.is_cuda:
-            add_tensor_cuda(x=x, y=y, output=output, BLOCK_SIZE=BLOCK_SIZE_CUDA)
+            add_tensor_cuda(x=x, y=y, output=output, BLOCK_SIZE=CutoTuneParameter())
         elif is_triton_kernel_backend_allowed(kernel_backend):
             add_tensor_triton(x=x, y=y, output=output)
         else:
@@ -29,7 +28,7 @@ class _AddTensor_Cute(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
-        return output_grad, output_grad, *[None] * 4
+        return output_grad, output_grad, None
 
 
 def add_tensor_cute(
@@ -37,7 +36,6 @@ def add_tensor_cute(
     y: torch.Tensor,
     *,
     kernel_backend: KernelBackend = KernelBackend.cuda,
-    BLOCK_SIZE_CUDA: int = 1024,
 ) -> torch.Tensor:
     """add 2 tensors
 
@@ -51,4 +49,4 @@ def add_tensor_cute(
         torch.Tensor: output tensor
     """
 
-    return _AddTensor_Cute.apply(x, y, kernel_backend, BLOCK_SIZE_CUDA)
+    return _AddTensor_Cute.apply(x, y, kernel_backend)
