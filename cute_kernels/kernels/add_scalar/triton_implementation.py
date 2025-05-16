@@ -30,7 +30,7 @@ def add_scalar_triton_kernel(x_ptr, y, output_ptr, N, BLOCK_SIZE: tl.constexpr):
 @cute_op(f"{LIBRARY_NAME}::add_scalar_triton", mutates_args={"output"})
 def add_scalar_triton(x: torch.Tensor, y: float, output: torch.Tensor) -> None:
     N = x.numel()
-    NUM_BLOCKS = (lambda meta: ceil_divide(N, meta["BLOCK_SIZE"]),)
+    NUM_BLOCKS = lambda meta: (ceil_divide(N, meta["BLOCK_SIZE"]),)
 
     with torch.device(x.device):
         add_scalar_triton_kernel[NUM_BLOCKS](x_ptr=x, y=y, output_ptr=output, N=N)
