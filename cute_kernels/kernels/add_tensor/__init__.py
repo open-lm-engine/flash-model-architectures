@@ -17,12 +17,17 @@ from .triton_implementation import add_tensor_triton
             and kwargs["x"].is_cuda
             and kwargs["y"].is_cuda,
         ),
-        CutoTuneConfig({"kernel_backend": KernelBackend.triton}),
+        CutoTuneConfig(
+            {"kernel_backend": KernelBackend.triton},
+            condition=lambda **kwargs: is_triton_kernel_backend_allowed(kwargs["kernel_backend"]),
+        ),
     ],
     default_config=CutoTuneConfig({"kernel_backend": KernelBackend.triton}),
     reset_to_zero={"output": None},
 )
-def _forward(x: torch.Tensor, y: float, output: torch.Tensor, kernel_backend: KernelBackend) -> None:
+def _forward(
+    x: torch.Tensor, y: float, output: torch.Tensor, kernel_backend: KernelBackend | CutoTuneParameter
+) -> None:
     if kernel_backend == KernelBackend.cuda:
         add_tensor_cuda(x=x, y=y, output=output, BLOCK_SIZE=CutoTuneParameter())
     elif kernel_backend == KernelBackend.triton:
@@ -57,7 +62,8 @@ def add_tensor_cute(
     Args:
         x (torch.Tensor): first tensor
         y (torch.Tensor): second tensor
-        kernel_backend (KernelBackend, optional): kernel backend to prioritize. Defaults to KernelBackend.cuda.
+        kernel_backend (KernelBackend | CutoTuneParameter, optional): kernel backend to prioritize.
+            Defaults to CutoTuneParameter().
 
     Returns:
         torch.Tensor: output tensor

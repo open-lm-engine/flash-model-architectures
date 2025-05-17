@@ -50,7 +50,7 @@ class _AddScalar_Cute(torch.autograd.Function):
 
 
 def add_scalar_cute(
-    x: torch.Tensor, y: float, *, kernel_backend: KernelBackend | CutoTuneParameter = CutoTuneParameter()
+    x: torch.Tensor, y: NUMERIC_TYPE, *, kernel_backend: KernelBackend | CutoTuneParameter = CutoTuneParameter()
 ) -> torch.Tensor:
     """
     Args:
