@@ -24,7 +24,9 @@ from .triton_implementation import add_scalar_triton
     default_config=CutoTuneConfig({"kernel_backend": KernelBackend.triton}),
     reset_to_zero={"output": None},
 )
-def _forward(x: torch.Tensor, y: float, output: torch.Tensor, kernel_backend: KernelBackend) -> None:
+def _forward(
+    x: torch.Tensor, y: float, output: torch.Tensor, kernel_backend: KernelBackend | CutoTuneParameter
+) -> None:
     if kernel_backend == KernelBackend.cuda:
         add_scalar_cuda(x=x, y=y, output=output, BLOCK_SIZE=CutoTuneParameter())
     elif kernel_backend == KernelBackend.triton:
@@ -35,7 +37,11 @@ def _forward(x: torch.Tensor, y: float, output: torch.Tensor, kernel_backend: Ke
 
 class _AddScalar_Cute(torch.autograd.Function):
     @staticmethod
-    def forward(ctx, x: torch.Tensor, y: float, kernel_backend: KernelBackend) -> torch.Tensor:
+    def forward(ctx, x: torch.Tensor, y: float, kernel_backend: KernelBackend | CutoTuneParameter) -> torch.Tensor:
+        assert isinstance(
+            kernel_backend, (KernelBackend, CutoTuneParameter)
+        ), f"unexpected kernel_backend ({kernel_backend})"
+
         output = torch.empty_like(x)
         _forward(x=x, y=y, output=output, kernel_backend=kernel_backend)
 
