@@ -2,7 +2,6 @@ import torch
 
 from ...cutotune import CutoTuneConfig, CutoTuneParameter, cutotune
 from ...kernel_backend import KernelBackend, is_cuda_kernel_backend_allowed, is_triton_kernel_backend_allowed
-from ...types import NUMERIC_TYPE
 from ...utils import is_nvidia_gpu
 from .cuda_implementation import add_scalar_cuda
 from .torch_implementation import add_scalar_torch
@@ -50,12 +49,12 @@ class _AddScalar_Cute(torch.autograd.Function):
 
 
 def add_scalar_cute(
-    x: torch.Tensor, y: NUMERIC_TYPE, *, kernel_backend: KernelBackend | CutoTuneParameter = CutoTuneParameter()
+    x: torch.Tensor, y: int | float, *, kernel_backend: KernelBackend | CutoTuneParameter = CutoTuneParameter()
 ) -> torch.Tensor:
     """
     Args:
         x (torch.Tensor): input tensor
-        y (float): float value to add to `x`
+        y (int | float): float value to add to `x`
         kernel_backend (KernelBackend | CutoTuneParameter, optional): kernel backend to prioritize.
             Defaults to CutoTuneParameter().
 
@@ -64,7 +63,7 @@ def add_scalar_cute(
     """
 
     assert isinstance(x, torch.Tensor)
-    assert isinstance(y, NUMERIC_TYPE), "y needs to be a numeric type"
+    assert isinstance(y, (int, float)), "y needs to be a numeric type"
     assert isinstance(
         kernel_backend, (KernelBackend, CutoTuneParameter)
     ), f"unexpected kernel_backend ({kernel_backend})"
