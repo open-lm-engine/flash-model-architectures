@@ -12,7 +12,6 @@ from .parameter import CutoTuneParameter
 
 
 _DEBUG_CUTOTUNE = get_boolean_env_variable("DEBUG_CUTOTUNE", False)
-_DISABLE_CUTOTUNE = get_boolean_env_variable("DISABLE_CUTOTUNE", False)
 _SEPARATOR = "."
 _DEFAULT_WARMUP_ITERATIONS = 5
 _BENCHMARK_ITERATIONS = 10
@@ -58,10 +57,7 @@ class _CutoTune:
         override_cutotune_parameters = self._check_all_or_no_args_are_cutotune_parameters(*args, **kwargs)
         lookup_key = self._get_lookup_key(*args, **kwargs)
 
-        if _DISABLE_CUTOTUNE or torch.compiler.is_compiling():
-            best_config = self.default_config
-        else:
-            best_config = self.cache.get_config(function_hash=self.function_hash, lookup_key=lookup_key)
+        best_config = self.cache.get_config(function_hash=self.function_hash, lookup_key=lookup_key)
 
         if best_config is None:
             best_config, best_time, _ = self._cutotune(*args, **kwargs)
@@ -127,7 +123,7 @@ class _CutoTune:
 
         return result
 
-    @torch.compiler.disable
+    @torch.compiler.set_stance("force_eager")
     @torch.inference_mode()
     def _cutotune(self, *args, **kwargs) -> tuple[CutoTuneConfig, float, list[tuple[CutoTuneConfig, float]]]:
         best_config = None
