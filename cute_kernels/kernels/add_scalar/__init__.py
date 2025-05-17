@@ -2,6 +2,7 @@ import torch
 
 from ...cutotune import CutoTuneConfig, CutoTuneParameter, cutotune
 from ...kernel_backend import KernelBackend, is_cuda_kernel_backend_allowed, is_triton_kernel_backend_allowed
+from ...types import NUMERIC_TYPE
 from ...utils import is_nvidia_gpu
 from .cuda_implementation import add_scalar_cuda
 from .torch_implementation import add_scalar_torch
@@ -38,10 +39,6 @@ def _forward(
 class _AddScalar_Cute(torch.autograd.Function):
     @staticmethod
     def forward(ctx, x: torch.Tensor, y: float, kernel_backend: KernelBackend | CutoTuneParameter) -> torch.Tensor:
-        assert isinstance(
-            kernel_backend, (KernelBackend, CutoTuneParameter)
-        ), f"unexpected kernel_backend ({kernel_backend})"
-
         output = torch.empty_like(x)
         _forward(x=x, y=y, output=output, kernel_backend=kernel_backend)
 
@@ -65,6 +62,12 @@ def add_scalar_cute(
     Returns:
         torch.Tensor: output tensor
     """
+
+    assert isinstance(x, torch.Tensor)
+    assert isinstance(y, NUMERIC_TYPE), "y needs to be a numeric type"
+    assert isinstance(
+        kernel_backend, (KernelBackend, CutoTuneParameter)
+    ), f"unexpected kernel_backend ({kernel_backend})"
 
     if y == 0:
         return x
