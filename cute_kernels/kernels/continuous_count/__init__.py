@@ -1,10 +1,17 @@
 import torch
 
+from ...cutotune import CutoTuneConfig, CutoTuneParameter, cutotune
 from .cuda_implementation import continuous_count_cuda
 from .torch_implementation import continuous_count_torch
 
 
 @torch.no_grad()
+@cutotune(
+    configs=[
+        CutoTuneConfig({"BLOCK_SIZE": 1024, "THREAD_BLOCK_CLUSTER_SIZE": thread_block_cluster_size})
+        for thread_block_cluster_size in [1, 2, 4, 8]
+    ],
+)
 def continuous_count_cute(
     x: torch.Tensor, size: int, *, BLOCK_SIZE: int = 1024, THREAD_BLOCK_CLUSTER_SIZE: int = 8
 ) -> torch.Tensor:

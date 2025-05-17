@@ -22,7 +22,6 @@ class _CutoTune:
         self,
         function: Callable,
         configs: list[CutoTuneConfig],
-        default_config: CutoTuneConfig,
         triggers: set[str],
         warmup_iterations: int,
         benchmark_iterations: int,
@@ -30,9 +29,6 @@ class _CutoTune:
         reset_to_zero: dict = {},
     ) -> None:
         assert len(configs) > 0, "no cutotune config is passed"
-
-        assert default_config is not None
-        self.default_config = default_config
 
         self.function = function
         self.configs = configs
@@ -297,7 +293,6 @@ class _CutoTune:
 
 def cutotune(
     configs: list[CutoTuneConfig],
-    default_config: CutoTuneConfig,
     triggers: set[str] = set(),
     functional_triggers: dict[str, Callable] = {},
     warmup_iterations: int = _DEFAULT_WARMUP_ITERATIONS,
@@ -308,7 +303,6 @@ def cutotune(
         return _CutoTune(
             function=function,
             configs=configs,
-            default_config=default_config,
             triggers=triggers,
             warmup_iterations=warmup_iterations,
             benchmark_iterations=benchmark_iterations,
