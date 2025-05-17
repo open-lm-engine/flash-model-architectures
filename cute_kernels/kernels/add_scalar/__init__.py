@@ -20,7 +20,6 @@ from .triton_implementation import add_scalar_triton
             {"kernel_backend": KernelBackend.triton},
             condition=lambda **kwargs: is_triton_kernel_backend_allowed(kwargs["kernel_backend"]),
         ),
-        CutoTuneConfig({"kernel_backend": None}),
     ],
     default_config=CutoTuneConfig({"kernel_backend": KernelBackend.triton}),
     reset_to_zero={"output": None},
