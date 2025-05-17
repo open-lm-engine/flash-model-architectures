@@ -39,6 +39,12 @@ def _forward(
 class _AddTensor_Cute(torch.autograd.Function):
     @staticmethod
     def forward(ctx, x: torch.Tensor, y: torch.Tensor, kernel_backend: KernelBackend) -> torch.Tensor:
+        assert isinstance(x, torch.Tensor)
+        assert isinstance(y, torch.Tensor)
+        assert isinstance(
+            kernel_backend, (KernelBackend, CutoTuneParameter)
+        ), f"unexpected kernel_backend ({kernel_backend})"
+
         assert x.size() == y.size(), "tensors x and y should have same shape"
         assert x.type() == y.type(), "tensors x and y should have same dtype"
 
