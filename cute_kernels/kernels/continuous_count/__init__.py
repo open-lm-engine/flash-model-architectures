@@ -1,19 +1,17 @@
 import torch
 
-from ...cutotune import CutoTuneConfig, cutotune
+from ...cutotune import CutoTuneParameter
 from .cuda_implementation import continuous_count_cuda
 from .torch_implementation import continuous_count_torch
 
 
 @torch.no_grad()
-@cutotune(
-    configs=[
-        CutoTuneConfig({"BLOCK_SIZE": 1024, "THREAD_BLOCK_CLUSTER_SIZE": thread_block_cluster_size})
-        for thread_block_cluster_size in [1, 2, 4, 8]
-    ],
-)
 def continuous_count_cute(
-    x: torch.Tensor, size: int, *, BLOCK_SIZE: int = 1024, THREAD_BLOCK_CLUSTER_SIZE: int = 8
+    x: torch.Tensor,
+    size: int,
+    *,
+    BLOCK_SIZE: int | CutoTuneParameter = CutoTuneParameter(),
+    THREAD_BLOCK_CLUSTER_SIZE: int | CutoTuneParameter = CutoTuneParameter(),
 ) -> torch.Tensor:
     """counts the number of occurances of the values [0, 1, ..., `size`) in the input tensor (`size` is excluded).
         NOTE: the user is responsible for ensuring that the values lie in the valid range, any values outside this
@@ -22,9 +20,10 @@ def continuous_count_cute(
     Args:
         x (torch.Tensor): input tensor
         size (int): values [0, 1, ..., `size`) are counted (`size` is excluded)
-        BLOCK_SIZE (int, optional): block size for CUDA backend. Defaults to 1024.
-        THREAD_BLOCK_CLUSTER_SIZE (int, optional): thread block cluster size refers to the size of the cluster for
-            hierarchical accumulation, 1 means no thread block clusters. Defaults to 8.
+        BLOCK_SIZE (int | CutoTuneParameter, optional): block size for CUDA backend. Defaults to CutoTuneParameter().
+        THREAD_BLOCK_CLUSTER_SIZE (int | CutoTuneParameter, optional): thread block cluster size refers to the size
+            of the cluster for hierarchical accumulation, 1 means no thread block clusters. Defaults to
+            CutoTuneParameter().
 
     Returns:
         torch.Tensor: output tensor
