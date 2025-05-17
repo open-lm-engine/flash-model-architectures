@@ -1,6 +1,6 @@
 import torch
 
-from ...cutotune import CutoTuneConfig, CutoTuneParameter, cutotune
+from ...cutotune import CutoTuneConfig, cutotune
 from .cuda_implementation import continuous_count_cuda
 from .torch_implementation import continuous_count_torch
 
