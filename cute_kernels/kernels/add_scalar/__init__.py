@@ -16,15 +16,19 @@ from .triton_implementation import add_scalar_triton
             and is_nvidia_gpu()
             and kwargs["x"].is_cuda,
         ),
-        CutoTuneConfig({"kernel_backend": KernelBackend.triton}),
+        CutoTuneConfig(
+            {"kernel_backend": KernelBackend.triton},
+            condition=lambda **kwargs: is_triton_kernel_backend_allowed(kwargs["kernel_backend"]),
+        ),
+        CutoTuneConfig({"kernel_backend": None}),
     ],
     default_config=CutoTuneConfig({"kernel_backend": KernelBackend.triton}),
     reset_to_zero={"output": None},
 )
 def _forward(x: torch.Tensor, y: float, output: torch.Tensor, kernel_backend: KernelBackend) -> None:
-    if is_cuda_kernel_backend_allowed(kernel_backend) and is_nvidia_gpu() and x.is_cuda:
+    if kernel_backend == KernelBackend.cuda:
         add_scalar_cuda(x=x, y=y, output=output, BLOCK_SIZE=CutoTuneParameter())
-    elif is_triton_kernel_backend_allowed(kernel_backend):
+    elif kernel_backend == KernelBackend.triton:
         add_scalar_triton(x=x, y=y, output=output)
     else:
         raise ValueError("unexpected kernel_backend")
