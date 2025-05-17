@@ -47,13 +47,15 @@ class _AddScalar_Cute(torch.autograd.Function):
         return output_grad, None, None
 
 
-def add_scalar_cute(x: torch.Tensor, y: float, *, kernel_backend: KernelBackend = KernelBackend.cuda) -> torch.Tensor:
-    """adds a float value to a tensor
-
+def add_scalar_cute(
+    x: torch.Tensor, y: float, *, kernel_backend: KernelBackend | CutoTuneParameter = CutoTuneParameter()
+) -> torch.Tensor:
+    """
     Args:
         x (torch.Tensor): input tensor
         y (float): float value to add to `x`
-        kernel_backend (KernelBackend, optional): kernel backend to prioritize. Defaults to KernelBackend.cuda.
+        kernel_backend (KernelBackend | CutoTuneParameter, optional): kernel backend to prioritize.
+            Defaults to CutoTuneParameter().
 
     Returns:
         torch.Tensor: output tensor
