@@ -38,7 +38,9 @@ def _forward(
 
 class _AddTensor_Cute(torch.autograd.Function):
     @staticmethod
-    def forward(ctx, x: torch.Tensor, y: torch.Tensor, kernel_backend: KernelBackend) -> torch.Tensor:
+    def forward(
+        ctx, x: torch.Tensor, y: torch.Tensor, kernel_backend: KernelBackend | CutoTuneParameter
+    ) -> torch.Tensor:
         assert isinstance(x, torch.Tensor)
         assert isinstance(y, torch.Tensor)
         assert isinstance(
@@ -61,7 +63,7 @@ class _AddTensor_Cute(torch.autograd.Function):
 
 
 def add_tensor_cute(
-    x: torch.Tensor, y: torch.Tensor, *, kernel_backend: KernelBackend = KernelBackend.cuda
+    x: torch.Tensor, y: torch.Tensor, *, kernel_backend: KernelBackend | CutoTuneParameter = CutoTuneParameter()
 ) -> torch.Tensor:
     """add 2 tensors
 
