@@ -28,7 +28,6 @@ class _CutoTune:
         warmup_iterations: int,
         benchmark_iterations: int,
         functional_triggers: dict[str, Callable] = {},
-        in_place_op: bool = False,
         reset_to_zero: dict = {},
     ) -> None:
         assert len(configs) > 0, "no cutotune config is passed"
@@ -40,7 +39,6 @@ class _CutoTune:
         self.configs = configs
         self.warmup_iterations = warmup_iterations
         self.benchmark_iterations = benchmark_iterations
-        self.in_place_op = in_place_op
 
         self.signature = inspect.getfullargspec(function)
         self.cutotuneable_parameters = set(self.configs[0].get_key_values().keys())
@@ -50,9 +48,6 @@ class _CutoTune:
 
         self.functional_triggers = functional_triggers
         self.reset_to_zero = reset_to_zero
-
-        if self.in_place_op:
-            raise NotImplementedError()
 
         self.filename = inspect.stack()[2].filename.split("cute_kernels")[1][1:]
         self.function_hash = f"{self.filename}->{function.__name__}"
@@ -228,7 +223,7 @@ class _CutoTune:
                 elapsed_time += start.elapsed_time(end)
 
                 for variable_name, function in self.reset_to_zero.items():
-                    if function(**kwargs):
+                    if function is None or function(**kwargs):
                         variable = kwargs[variable_name]
                         assert isinstance(variable, torch.Tensor)
 
@@ -311,7 +306,6 @@ def cutotune(
     functional_triggers: dict[str, Callable] = {},
     warmup_iterations: int = _DEFAULT_WARMUP_ITERATIONS,
     benchmark_iterations: int = _BENCHMARK_ITERATIONS,
-    in_place_op: bool = False,
     reset_to_zero: dict = {},
 ) -> _CutoTune:
     def inner(function: Callable) -> Callable:
@@ -323,7 +317,6 @@ def cutotune(
             warmup_iterations=warmup_iterations,
             benchmark_iterations=benchmark_iterations,
             functional_triggers=functional_triggers,
-            in_place_op=in_place_op,
             reset_to_zero=reset_to_zero,
         ).__call__
 
