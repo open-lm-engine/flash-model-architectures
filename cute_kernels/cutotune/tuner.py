@@ -56,7 +56,13 @@ class _CutoTune:
         best_config = self.cache.get_config(self.function_hash, lookup_key)
 
         if best_config is None:
-            best_config, best_time, _ = self._cutotune(*args, **kwargs)
+            # bypass cutotune for single config
+            if len(self.configs) == 1:
+                best_config = self.configs[0]
+                best_time = 0
+            else:
+                best_config, best_time, _ = self._cutotune(*args, **kwargs)
+
             self.cache.add_config(function_hash=self.function_hash, lookup_key=lookup_key, config=best_config)
 
             if _DEBUG_CUTOTUNE and (not torch.distributed.is_initialized() or torch.distributed.get_rank() == 0):
