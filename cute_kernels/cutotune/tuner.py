@@ -53,7 +53,7 @@ class _CutoTune:
         override_cutotune_parameters = self._check_all_or_no_args_are_cutotune_parameters(*args, **kwargs)
         lookup_key = self._get_lookup_key(*args, **kwargs)
 
-        best_config = self.cache.get_config(function_hash=self.function_hash, lookup_key=lookup_key)
+        best_config = self.cache.get_config(self.function_hash, lookup_key)
 
         if best_config is None:
             best_config, best_time, _ = self._cutotune(*args, **kwargs)
