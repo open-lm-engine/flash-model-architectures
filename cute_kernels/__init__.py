@@ -1,4 +1,4 @@
-from .counter import get_counter, increment_counter, reset_counters
+from .counter import get_counter, increment_counter, reset_all_counters, reset_counter
 from .cute_inductor import CuteInductor
 from .cutotune import (
     CutoTuneConfig,

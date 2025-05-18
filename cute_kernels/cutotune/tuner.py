@@ -5,6 +5,7 @@ from typing import Any, Callable
 import torch
 from tqdm import tqdm
 
+from ..counter import reset_counter
 from ..utils import device_synchronize, get_boolean_env_variable
 from .cache import get_cutotune_cache
 from .config import CutoTuneConfig
@@ -64,6 +65,8 @@ class _CutoTune:
                     f"config {best_config} achieved the best time ({best_time} sec) for {lookup_key} for "
                     f"function {self.function.__name__}"
                 )
+
+        reset_counter(self)
 
         output = self.function(
             **self._get_function_arguments(

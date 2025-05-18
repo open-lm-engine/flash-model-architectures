@@ -8,7 +8,11 @@ def get_counter(func: Callable) -> None:
     return getattr(func, "_counter", 0)
 
 
-def reset_counters() -> None:
+def reset_counter(func: Callable) -> None:
+    func._counter = 0
+
+
+def reset_all_counters() -> None:
     for func in _FUNCTIONS_WITH_COUNTERS:
         func._counter = 0
 
