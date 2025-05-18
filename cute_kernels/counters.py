@@ -3,7 +3,7 @@ from collections import defaultdict
 
 class Counter:
     def __init__(self):
-        self._counter = defaultdict()
+        self._counter = defaultdict(int)
 
     def increment(self, key: int, increment: int = 1) -> dict:
         self._counter[key] += increment
