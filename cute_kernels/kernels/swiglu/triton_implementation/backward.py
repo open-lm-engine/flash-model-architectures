@@ -5,14 +5,16 @@ import triton.language as tl
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide
 from ....triton_math import sigmoid
-from ....utils import cute_op
+from ....utils import cute_op, get_num_elements_and_hidden_size
 
 
 @triton.jit
-def _swiglu_backward(gate_ptr, up_ptr, output_grad_ptr, gate_grad_ptr, up_grad_ptr, indices, mask):
-    gate = tl.load(gate_ptr + indices, mask=mask).to(tl.float32)
-    up = tl.load(up_ptr + indices, mask=mask)
-    output_grad = tl.load(output_grad_ptr + indices, mask=mask)
+def _swiglu_backward(
+    gate_ptr, up_ptr, output_grad_ptr, gate_grad_ptr, up_grad_ptr, indices_gate, indices_output, mask
+):
+    gate = tl.load(gate_ptr + indices_gate, mask=mask).to(tl.float32)
+    up = tl.load(up_ptr + indices_gate, mask=mask)
+    output_grad = tl.load(output_grad_ptr + indices_output, mask=mask)
 
     gate_sigmoid = sigmoid(gate)
     gate_silu = gate * gate_sigmoid
@@ -20,39 +22,45 @@ def _swiglu_backward(gate_ptr, up_ptr, output_grad_ptr, gate_grad_ptr, up_grad_p
     gate_grad = output_grad * up * (gate_sigmoid + gate_silu * (1 - gate_sigmoid))
     up_grad = output_grad * gate_silu
 
-    tl.store(gate_grad_ptr + indices, gate_grad, mask=mask)
-    tl.store(up_grad_ptr + indices, up_grad, mask=mask)
+    tl.store(gate_grad_ptr + indices_gate, gate_grad, mask=mask)
+    tl.store(up_grad_ptr + indices_gate, up_grad, mask=mask)
 
 
 @triton.jit
 def swiglu_backward_triton_kernel(
-    gate_ptr, up_ptr, output_grad_ptr, gate_grad_ptr, up_grad_ptr, N, BLOCK_SIZE: tl.constexpr
+    gate_ptr,
+    gate_stride_b,
+    up_ptr,
+    output_grad_ptr,
+    output_grad_stride_b,
+    gate_grad_ptr,
+    up_grad_ptr,
+    B,
+    H,
+    BLOCK_SIZE_B: tl.constexpr,
+    BLOCK_SIZE_H: tl.constexpr,
 ):
-    BLOCK_ID = tl.program_id(axis=0)
-    NUM_BLOCKS = tl.num_programs(axis=0)
+    BLOCK_ID_B = tl.program_id(axis=0)
+    BLOCK_ID_H = tl.program_id(axis=1)
 
-    indices = BLOCK_ID * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
+    indices_b = BLOCK_ID_B * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
+    indices_h = BLOCK_ID_H * BLOCK_SIZE_H + tl.arange(0, BLOCK_SIZE_H)
 
-    if BLOCK_ID < NUM_BLOCKS - 1:
-        _swiglu_backward(
-            gate_ptr=gate_ptr,
-            up_ptr=up_ptr,
-            output_grad_ptr=output_grad_ptr,
-            gate_grad_ptr=gate_grad_ptr,
-            up_grad_ptr=up_grad_ptr,
-            indices=indices,
-            mask=None,
-        )
-    else:
-        _swiglu_backward(
-            gate_ptr=gate_ptr,
-            up_ptr=up_ptr,
-            output_grad_ptr=output_grad_ptr,
-            gate_grad_ptr=gate_grad_ptr,
-            up_grad_ptr=up_grad_ptr,
-            indices=indices,
-            mask=indices < N,
-        )
+    half_H = H >> 1
+
+    mask_b = indices_b < B
+    mask_h = indices_h < half_H
+
+    _swiglu_backward(
+        gate_ptr=gate_ptr,
+        up_ptr=up_ptr,
+        output_grad_ptr=output_grad_ptr,
+        gate_grad_ptr=gate_grad_ptr,
+        up_grad_ptr=up_grad_ptr,
+        indices_gate=indices_b[:, None] * gate_stride_b + indices_h[None, :],
+        indices_output=indices_b[:, None] * output_grad_stride_b + indices_h[None, :],
+        mask=mask_b[:, None] & mask_h[None, :],
+    )
 
 
 @cute_op(f"{LIBRARY_NAME}::swiglu_backward_triton", mutates_args={"gate_grad", "up_grad"})
@@ -62,19 +70,23 @@ def swiglu_backward_triton(
     output_grad: torch.Tensor,
     gate_grad: torch.Tensor,
     up_grad: torch.Tensor,
-    BLOCK_SIZE: int,
-    NUM_WARPS: int,
+    BLOCK_SIZE_B: int,
+    BLOCK_SIZE_H: int,
 ) -> None:
-    N = gate.numel()
+    B, H = get_num_elements_and_hidden_size(gate)
+    H *= 2
 
     with torch.device(gate.device):
-        swiglu_backward_triton_kernel[ceil_divide(N, BLOCK_SIZE),](
+        swiglu_backward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), ceil_divide(H, BLOCK_SIZE_H)](
             gate_ptr=gate,
+            gate_stride_b=gate.stride(0),
             up_ptr=up,
             output_grad_ptr=output_grad,
+            output_grad_stride_b=output_grad.stride(0),
             gate_grad_ptr=gate_grad,
             up_grad_ptr=up_grad,
-            N=N,
-            BLOCK_SIZE=BLOCK_SIZE,
-            num_warps=NUM_WARPS,
+            B=B,
+            H=H,
+            BLOCK_SIZE_B=BLOCK_SIZE_B,
+            BLOCK_SIZE_H=BLOCK_SIZE_H,
         )

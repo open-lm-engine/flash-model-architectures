@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from torch.fx import Node
 from torch.fx.graph_module import GraphModule
 
-from ..kernels import swiglu_unchunked_cute
+from ..kernels import swiglu_packed_cute
 from .constants import CALL_FUNCTION, CALL_METHOD
 
 
