@@ -12,7 +12,7 @@ def _get_autotune_configs() -> list[triton.Config]:
     configs = []
     for num_warps in [4, 8]:
         for num_stages in range(1, 5):
-            for BLOCK_SIZE_B in get_powers_of_2(16, 32):
+            for BLOCK_SIZE_B in [1] + get_powers_of_2(16, 32):
                 configs.append(
                     triton.Config({"BLOCK_SIZE_B": BLOCK_SIZE_B}, num_stages=num_stages, num_warps=num_warps)
                 )
@@ -34,9 +34,9 @@ def _activation(x, ACTIVATION_FUNCTION, relu_negative_slope):
 
 @triton.jit
 def _rnn_forward_update(h, W, x, out_dtype, cast_dtype, ACTIVATION_FUNCTION, relu_negative_slope):
+    tl.static_print(x.shape[0])
     if x.shape[0] == 1:
-        h = x + h.T * W
-        h = tl.sum(h, axis=0, keep_dims=True)
+        h = x + tl.sum(h.T * W, axis=0, keep_dims=True)
     else:
         h = tl.dot(h, W, x, out_dtype=out_dtype).to(cast_dtype)
 
