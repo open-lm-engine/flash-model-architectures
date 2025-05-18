@@ -10,7 +10,7 @@ test:
 	pytest tests
 
 test-debug:
-	DEBUG_CUTOTUNE=1 TRITON_PRINT_AUTOTUNING=1 pytest tests
+	DEBUG_CUTOTUNE=1 TRITON_PRINT_AUTOTUNING=1 pytest -s tests
 
 update-precommit:
 	pre-commit autoupdate
