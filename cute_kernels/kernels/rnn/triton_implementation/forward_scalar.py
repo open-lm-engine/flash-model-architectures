@@ -27,7 +27,7 @@ def _rnn_forward_update(h, W, x, ACTIVATION_FUNCTION, relu_negative_slope):
     return h
 
 
-@triton.autotune(configs=_get_autotune_configs(), key=[])
+@triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_N"])
 @triton.jit
 def scalar_rnn_forward_triton_kernel(
     x_ptr,
