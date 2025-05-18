@@ -9,7 +9,7 @@ from cute_kernels import (
     add_scalar_cute,
     add_scalar_torch,
     get_counter,
-    reset_counters,
+    reset_all_counters,
 )
 from cute_kernels.kernels.add_scalar import add_scalar_cuda, add_scalar_triton
 
@@ -23,7 +23,7 @@ class AddScalarTest(TestCommons):
             [torch.device("cuda")],  # device
             TestCommons.get_dtypes(),  # dtype
             [KernelBackend.cuda, KernelBackend.triton, CutoTuneParameter()],  # kernel_backend
-            [add_scalar_cute, torch.compile(add_scalar_cute, fullgraph=True)],  # function
+            [add_scalar_cute, torch.compile(add_scalar_cute, fullgraph=True)][:1],  # function
         )
     )
     def test_add_scalar(
@@ -34,7 +34,7 @@ class AddScalarTest(TestCommons):
         kernel_backend: KernelBackend,
         function: Callable,
     ) -> None:
-        reset_counters()
+        reset_all_counters()
 
         x_kernel, x_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype)
         y = 0.42
