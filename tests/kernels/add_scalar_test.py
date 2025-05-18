@@ -23,7 +23,7 @@ class AddScalarTest(TestCommons):
             [torch.device("cuda")],  # device
             TestCommons.get_dtypes(),  # dtype
             [KernelBackend.cuda, KernelBackend.triton, CutoTuneParameter()],  # kernel_backend
-            [add_scalar_cute, torch.compile(add_scalar_cute, fullgraph=True)][:1],  # function
+            [add_scalar_cute, torch.compile(add_scalar_cute, fullgraph=True)],  # function
         )
     )
     def test_add_scalar(
@@ -34,7 +34,10 @@ class AddScalarTest(TestCommons):
         kernel_backend: KernelBackend,
         function: Callable,
     ) -> None:
-        reset_all_counters()
+        if kernel_backend == KernelBackend.cuda:
+            counter = get_counter(add_scalar_cuda)
+        elif kernel_backend == KernelBackend.triton:
+            counter = get_counter(add_scalar_triton)
 
         x_kernel, x_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype)
         y = 0.42
@@ -49,8 +52,8 @@ class AddScalarTest(TestCommons):
         self.assert_equal_tensors(x_kernel.grad, x_expected.grad, True)
 
         if kernel_backend == KernelBackend.cuda:
-            assert get_counter(add_scalar_cuda) > 0
-            assert get_counter(add_scalar_triton) == 0
+            assert get_counter(add_scalar_cuda) > counter
+            assert get_counter(add_scalar_triton) == get_counter(add_scalar_cuda) - 1
         elif kernel_backend == KernelBackend.triton:
-            assert get_counter(add_scalar_cuda) == 0
-            assert get_counter(add_scalar_triton) > 0
+            assert get_counter(add_scalar_triton) > counter
+            assert get_counter(add_scalar_cuda) == get_counter(add_scalar_triton) - 1
