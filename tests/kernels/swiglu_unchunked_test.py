@@ -3,7 +3,7 @@ from typing import Callable
 import torch
 from parameterized import parameterized
 
-from cute_kernels import ceil_divide, swiglu_packed_torch, swiglu_unchunked_cute
+from cute_kernels import ceil_divide, swiglu_packed_cute, swiglu_packed_torch
 
 from ..test_commons import TestCommons
 
@@ -14,7 +14,7 @@ class SwigluUnchunkedTest(TestCommons):
             TestCommons.get_2d_tensor_sizes(),  # size
             [torch.device("cuda")],  # device
             TestCommons.get_dtypes(),  # dtype
-            [swiglu_unchunked_cute, torch.compile(swiglu_unchunked_cute, fullgraph=True)],  # function
+            [swiglu_packed_cute, torch.compile(swiglu_packed_cute, fullgraph=True)],  # function
         )
     )
     def test_swiglu_unchunked(
