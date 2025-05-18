@@ -5,7 +5,7 @@ from ...math import divide_if_divisible
 from ...utils import ensure_contiguous, is_nvidia_gpu
 from .cuda_implementation import swiglu_backward_cuda, swiglu_forward_cuda
 from .torch_implementation import swiglu_packed_torch, swiglu_torch
-from .triton_implementation import swiglu_backward_triton, swiglu_packed_backward_triton, swiglu_packed_forward_triton
+from .triton_implementation import swiglu_backward_triton, swiglu_forward_triton, swiglu_packed_backward_triton
 
 
 class _Swiglu_Cute(torch.autograd.Function):
@@ -29,7 +29,7 @@ class _Swiglu_Cute(torch.autograd.Function):
         if is_cuda_kernel_backend_allowed(kernel_backend_forward) and is_nvidia_gpu() and gate.is_cuda and up.is_cuda:
             swiglu_forward_cuda(gate=gate, up=up, output=output, BLOCK_SIZE=1024)
         elif is_triton_kernel_backend_allowed(kernel_backend_forward):
-            swiglu_packed_forward_triton(gate=gate, up=up, output=output, BLOCK_SIZE_B=64, BLOCK_SIZE_H=64)
+            swiglu_forward_triton(gate=gate, up=up, output=output, BLOCK_SIZE_B=64, BLOCK_SIZE_H=64)
         else:
             raise ValueError("unexpected kernel_backend")
 
@@ -65,7 +65,7 @@ class _Swiglupacked_Cute(torch.autograd.Function):
         output = torch.empty(*x.size()[:-1], divide_if_divisible(x.size(-1), 2), device=x.device, dtype=x.dtype)
         up, gate = x.chunk(2, dim=-1)
 
-        swiglu_packed_forward_triton(gate=gate, up=up, output=output, BLOCK_SIZE_B=64, BLOCK_SIZE_H=64)
+        swiglu_forward_triton(gate=gate, up=up, output=output, BLOCK_SIZE_B=64, BLOCK_SIZE_H=64)
 
         return output
 
