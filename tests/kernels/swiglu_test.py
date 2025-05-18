@@ -8,7 +8,7 @@ from cute_kernels import KernelBackend, ceil_divide, swiglu_cute, swiglu_packed_
 from ..test_commons import TestCommons
 
 
-class SwigluTest(TestCommons):
+class SwiGLUTest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(
             TestCommons.get_2d_tensor_sizes(),  # size

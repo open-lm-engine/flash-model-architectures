@@ -28,7 +28,7 @@ class FusedResdidualAddRMSNormTest(TestCommons):
             ],  # function
         )
     )
-    def test_rmsnorm(
+    def test_fused_residual_add_rmsnorm(
         self,
         size: tuple[int],
         device: torch.device,

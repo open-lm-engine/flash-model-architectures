@@ -22,7 +22,7 @@ class ScatterMoETest(TestCommons):
             [True, False],  # is_compiling
         )
     )
-    def test_scattermoe_triton(
+    def test_scattermoe(
         self,
         device: torch.device,
         dtype: torch.dtype,
