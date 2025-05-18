@@ -87,3 +87,20 @@ def leaky_relu_backward(y, relu_negative_slope):
     y = y.to(dtype)
 
     return y
+
+
+@triton.jit
+def matmul(A, B, C, output_dtype):
+    if A.shape[0] == 1:
+        C += tl.sum(A.T * B, axis=0, keep_dims=True)
+        C = C.to(output_dtype)
+    elif A.shape[1] == 1:
+        C += A * B
+        C = C.to(output_dtype)
+    elif B.shape[1] == 1:
+        C += tl.sum(A * B.T, axis=1, keep_dims=True)
+        C = C.to(output_dtype)
+    else:
+        C = tl.dot(A, B, C, out_dtype=output_dtype)
+
+    return C

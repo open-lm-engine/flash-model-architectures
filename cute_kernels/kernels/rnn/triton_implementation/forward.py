@@ -4,7 +4,7 @@ import triton.language as tl
 
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2, get_powers_of_2
-from ....triton_math import leaky_relu, sigmoid, tanh
+from ....triton_math import leaky_relu, matmul, sigmoid, tanh
 from ....utils import cute_op
 
 
@@ -33,15 +33,9 @@ def _activation(x, ACTIVATION_FUNCTION, relu_negative_slope):
 
 
 @triton.jit
-def _rnn_forward_update(h, W, x, out_dtype, cast_dtype, ACTIVATION_FUNCTION, relu_negative_slope):
-    if x.shape[0] == 1:
-        h = x + tl.sum(h.T * W, axis=0, keep_dims=True)
-        h = h.to(cast_dtype)
-    else:
-        h = tl.dot(h, W, x, out_dtype=out_dtype).to(cast_dtype)
-
+def _rnn_forward_update(h, W, x, ACTIVATION_FUNCTION, relu_negative_slope):
+    h = matmul(A=h, B=W, C=x, output_dtype=x.dtype)
     h = _activation(x=h, ACTIVATION_FUNCTION=ACTIVATION_FUNCTION, relu_negative_slope=relu_negative_slope)
-
     return h
 
 
@@ -87,21 +81,11 @@ def rnn_forward_triton_kernel(
 
     indices = indices_b[:, None] * x_stride_b + pid_n * H + indices_h[None, :]
 
-    input_dtype = x_ptr.dtype.element_ty
-    cast_dtype = input_dtype
-    if input_dtype == tl.bfloat16:
-        input_dtype = tl.float32
-        cast_dtype = tl.bfloat16
-
-    out_dtype = input_dtype
-
     for _ in range(S):
         h = _rnn_forward_update(
             h=h,
             W=W,
-            x=tl.load(x_ptr + indices, mask=mask_bh).to(input_dtype),
-            out_dtype=out_dtype,
-            cast_dtype=cast_dtype,
+            x=tl.load(x_ptr + indices, mask=mask_bh),
             ACTIVATION_FUNCTION=ACTIVATION_FUNCTION,
             relu_negative_slope=relu_negative_slope,
         )
