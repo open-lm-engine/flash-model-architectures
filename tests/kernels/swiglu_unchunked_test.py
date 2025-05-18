@@ -3,7 +3,7 @@ from typing import Callable
 import torch
 from parameterized import parameterized
 
-from cute_kernels import ceil_divide, swiglu_unchunked_cute, swiglu_unchunked_torch
+from cute_kernels import ceil_divide, swiglu_packed_torch, swiglu_unchunked_cute
 
 from ..test_commons import TestCommons
 
@@ -24,7 +24,7 @@ class SwigluUnchunkedTest(TestCommons):
         x_kernel, x_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype)
 
         z_kernel = function(x_kernel)
-        z_expected = swiglu_unchunked_torch(x_expected)
+        z_expected = swiglu_packed_torch(x_expected)
 
         z_kernel.mean().backward()
         z_expected.mean().backward()

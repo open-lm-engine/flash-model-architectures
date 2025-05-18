@@ -3,7 +3,7 @@ import torch
 from ...kernel_backend import KernelBackend, is_cuda_kernel_backend_allowed, is_triton_kernel_backend_allowed
 from ...utils import ensure_contiguous, is_nvidia_gpu
 from .cuda_implementation import swiglu_backward_cuda, swiglu_forward_cuda
-from .torch_implementation import swiglu_torch
+from .torch_implementation import swiglu_packed_torch, swiglu_torch
 from .triton_implementation import swiglu_backward_triton, swiglu_forward_triton
 
 

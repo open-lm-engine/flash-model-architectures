@@ -2,7 +2,6 @@ import torch
 
 from ...math import divide_if_divisible
 from ...utils import ensure_contiguous
-from .torch_implementation import swiglu_unchunked_torch
 from .triton_implementation import swiglu_unchunked_backward_triton, swiglu_unchunked_forward_triton
 
 
