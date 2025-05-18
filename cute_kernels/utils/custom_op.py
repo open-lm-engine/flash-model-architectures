@@ -1,8 +1,10 @@
 import inspect
 from contextlib import contextmanager
-from typing import Callable, Iterable, Sequence
+from typing import Any, Callable, Iterable, Sequence
 
 import torch
+
+from ..counters import get_counters
 
 
 _IS_CUTE_TRACING = False
@@ -18,9 +20,9 @@ def enable_cute_tracing():
     _IS_CUTE_TRACING = False
 
 
-def _dispatch(func: Callable, compileable_fn: Callable, *args, **kwargs):
+def _dispatch(func: Callable, custom_op: Callable, *args, **kwargs):
     if _IS_CUTE_TRACING or torch.compiler.is_compiling():
-        output = compileable_fn(*args, **kwargs)
+        output = custom_op(*args, **kwargs)
     else:
         output = func(*args, **kwargs)
 
@@ -34,16 +36,20 @@ def cute_op(
     schema: str | None = None,
     fake_func: Callable | None = None,
 ) -> Callable:
-    def _inner(func: Callable):
-        compileable_func = torch.library.custom_op(
+    def _inner(_func: Callable):
+        def func(*args, **kwargs) -> Any:
+            get_counters().increment(name)
+            return _func(*args, **kwargs)
+
+        custom_op = torch.library.custom_op(
             name, func, mutates_args=mutates_args, device_types=device_types, schema=schema
         )
 
         if fake_func is not None:
-            compileable_func.register_fake(fake_func)
+            custom_op.register_fake(fake_func)
 
         def _run(*args, **kwargs):
-            return _dispatch(func, compileable_func, *args, **kwargs)
+            return _dispatch(func, custom_op, *args, **kwargs)
 
         _run.__signature__ = inspect.signature(func)
         _run.__name__ = func.__name__
