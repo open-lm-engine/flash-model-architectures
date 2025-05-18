@@ -10,7 +10,7 @@ from ...utils import cute_op
 def _get_autotune_configs() -> list[triton.Config]:
     configs = []
     for b in get_powers_of_2(1, 1024):
-        for v in get_powers_of_2(1, 1024):
+        for v in get_powers_of_2(128, 1024):
             for num_warps in get_powers_of_2(4, 32):
                 if b * v <= num_warps * WARP_SIZE * 8:
                     configs.append(triton.Config({"BLOCK_SIZE_B": b, "BLOCK_SIZE_V": v}, num_warps=num_warps))
