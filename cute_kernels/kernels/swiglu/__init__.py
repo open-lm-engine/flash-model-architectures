@@ -49,7 +49,15 @@ class _Swiglu_Cute(torch.autograd.Function):
                 gate=gate, up=up, output_grad=output_grad, gate_grad=gate_grad, up_grad=up_grad, BLOCK_SIZE=1024
             )
         elif is_triton_kernel_backend_allowed(kernel_backend_backward):
-            swiglu_backward_triton(gate=gate, up=up, output_grad=output_grad, gate_grad=gate_grad, up_grad=up_grad)
+            swiglu_backward_triton(
+                gate=gate,
+                up=up,
+                output_grad=output_grad,
+                gate_grad=gate_grad,
+                up_grad=up_grad,
+                BLOCK_SIZE=4096,
+                NUM_WARPS=32,
+            )
         else:
             raise ValueError("unexpected kernel_backend")
 
