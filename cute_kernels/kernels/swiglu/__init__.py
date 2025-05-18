@@ -64,7 +64,7 @@ class _Swiglu_Cute(torch.autograd.Function):
         return gate_grad, up_grad, None, None
 
 
-class _Swiglupacked_Cute(torch.autograd.Function):
+class _SwigluPacked_Cute(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
     def forward(ctx, x: torch.Tensor) -> torch.Tensor:
@@ -122,4 +122,4 @@ def swiglu_packed_cute(x: torch.Tensor) -> torch.Tensor:
         torch.Tensor: output tensor
     """
 
-    return _Swiglupacked_Cute.apply(x)
+    return _SwigluPacked_Cute.apply(x)
