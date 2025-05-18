@@ -105,9 +105,10 @@ class _Swiglupacked_Cute(torch.autograd.Function):
         ctx.BLOCK_SIZE_H_backward = BLOCK_SIZE_H_backward
 
         output = torch.empty(*x.size()[:-1], divide_if_divisible(x.size(-1), 2), device=x.device, dtype=x.dtype)
+        up, gate = x.chunk(2, dim=-1)
 
         swiglu_packed_forward_triton(
-            x=x, output=output, BLOCK_SIZE_B=BLOCK_SIZE_B_forward, BLOCK_SIZE_H=BLOCK_SIZE_H_forward
+            gate=gate, up=up, output=output, BLOCK_SIZE_B=BLOCK_SIZE_B_forward, BLOCK_SIZE_H=BLOCK_SIZE_H_forward
         )
 
         return output

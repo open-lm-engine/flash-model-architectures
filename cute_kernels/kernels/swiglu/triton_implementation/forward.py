@@ -98,11 +98,12 @@ def swiglu_packed_forward_triton_kernel(
 
 
 @cute_op(f"{LIBRARY_NAME}::swiglu_packed_forward_triton", mutates_args={"output"})
-def swiglu_packed_forward_triton(x: torch.Tensor, output: torch.Tensor, BLOCK_SIZE_B: int, BLOCK_SIZE_H: int) -> None:
+def swiglu_packed_forward_triton(
+    gate: torch.Tensor, up: torch.Tensor, output: torch.Tensor, BLOCK_SIZE_B: int, BLOCK_SIZE_H: int
+) -> None:
     B, H = get_num_elements_and_hidden_size(x)
-    up, gate = x.chunk(2, dim=-1)
 
-    with torch.device(x.device):
+    with torch.device(gate.device):
         swiglu_packed_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), ceil_divide(H, BLOCK_SIZE_H)](
             gate_ptr=gate,
             gate_stride_b=gate.stride(0),
