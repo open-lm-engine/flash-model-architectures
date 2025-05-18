@@ -3,7 +3,7 @@ from typing import Callable
 import torch
 from parameterized import parameterized
 
-from cute_kernels import CutoTuneParameter, KernelBackend, add_scalar_cute, add_scalar_torch
+from cute_kernels import CutoTuneParameter, KernelBackend, add_scalar_cute, add_scalar_torch, reset_counters
 
 from ..test_commons import TestCommons
 
