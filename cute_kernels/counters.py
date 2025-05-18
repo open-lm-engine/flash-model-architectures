@@ -1,6 +1,9 @@
+from collections import defaultdict
+
+
 class Counter:
     def __init__(self):
-        self._counter = {}
+        self._counter = defaultdict()
 
     def increment(self, key: int, increment: int = 1) -> dict:
         self._counter[key] += increment
