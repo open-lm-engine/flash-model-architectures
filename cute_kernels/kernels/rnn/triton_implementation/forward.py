@@ -34,9 +34,9 @@ def _activation(x, ACTIVATION_FUNCTION, relu_negative_slope):
 
 @triton.jit
 def _rnn_forward_update(h, W, x, out_dtype, cast_dtype, ACTIVATION_FUNCTION, relu_negative_slope):
-    tl.static_print(x.shape[0])
     if x.shape[0] == 1:
         h = x + tl.sum(h.T * W, axis=0, keep_dims=True)
+        h = h.to(cast_dtype)
     else:
         h = tl.dot(h, W, x, out_dtype=out_dtype).to(cast_dtype)
 
