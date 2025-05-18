@@ -55,8 +55,8 @@ class _Swiglu_Cute(torch.autograd.Function):
                 output_grad=output_grad,
                 gate_grad=gate_grad,
                 up_grad=up_grad,
-                BLOCK_SIZE=4096,
-                NUM_WARPS=32,
+                BLOCK_SIZE_B=64,
+                BLOCK_SIZE_H=64,
             )
         else:
             raise ValueError("unexpected kernel_backend")
