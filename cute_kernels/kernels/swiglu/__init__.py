@@ -5,7 +5,7 @@ from ...math import divide_if_divisible
 from ...utils import ensure_contiguous, is_nvidia_gpu
 from .cuda_implementation import swiglu_backward_cuda, swiglu_forward_cuda
 from .torch_implementation import swiglu_packed_torch, swiglu_torch
-from .triton_implementation import swiglu_backward_triton, swiglu_forward_triton, swiglu_packed_backward_triton
+from .triton_implementation import swiglu_backward_triton, swiglu_forward_triton
 
 
 class _Swiglu_Cute(torch.autograd.Function):
@@ -80,10 +80,21 @@ class _SwigluPacked_Cute(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
     def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
-        x = ctx.saved_tensors[0]
+        x: torch.Tensor = ctx.saved_tensors[0]
         x_grad = torch.empty_like(x)
 
-        swiglu_packed_backward_triton(x=x, output_grad=output_grad, x_grad=x_grad, BLOCK_SIZE_B=64, BLOCK_SIZE_H=64)
+        up, gate = x.chunk(2, dim=-1)
+        up_grad, gate_grad = x_grad.chunk(2, dim=-1)
+
+        swiglu_backward_triton(
+            gate=gate,
+            up=up,
+            output_grad=output_grad,
+            gate_grad=gate_grad,
+            up_grad=up_grad,
+            BLOCK_SIZE_B=64,
+            BLOCK_SIZE_H=64,
+        )
 
         return x_grad
 

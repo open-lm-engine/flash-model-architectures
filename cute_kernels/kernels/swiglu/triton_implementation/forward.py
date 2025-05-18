@@ -39,17 +39,14 @@ def swiglu_forward_triton_kernel(
 
     mask_b = indices_b < B
     mask_h = indices_h < half_H
-    mask_bh = mask_b[:, None] & mask_h[None, :]
-
-    indices = indices_b[:, None] * gate_stride_b + indices_h[None, :]
 
     _swiglu(
         gate_ptr=gate_ptr,
         up_ptr=up_ptr,
         output_ptr=output_ptr,
-        indices_gate=indices,
+        indices_gate=indices_b[:, None] * gate_stride_b + indices_h[None, :],
         indices_output=indices_b[:, None] * output_stride_b + indices_h[None, :],
-        mask=mask_bh,
+        mask=mask_b[:, None] & mask_h[None, :],
     )
 
 
