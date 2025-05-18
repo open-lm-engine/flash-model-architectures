@@ -4,7 +4,7 @@ import triton.language as tl
 
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
-from ....triton_math import clamp, leaky_relu_backward, sigmoid_backward, tanh_backward
+from ....triton_math import clamp, leaky_relu_backward, matmul, sigmoid_backward, tanh_backward
 from ....utils import cute_op
 from .forward import _get_autotune_configs
 
@@ -27,8 +27,8 @@ def _rnn_backward_update(y, W, dy, dW, y_prev, ACTIVATION_FUNCTION: tl.constexpr
         y=y, dy=dy, ACTIVATION_FUNCTION=ACTIVATION_FUNCTION, relu_negative_slope=relu_negative_slope
     )
 
-    dh = tl.dot(dx, W.T).to(dx.dtype)
-    dW = tl.dot(y_prev.T, dx, dW)
+    dh = matmul(A=dx, B=W.T, C=None, output_dtype=dx.dtype)
+    dW = matmul(A=y_prev.T, B=dx, C=dW, output_dtype=dW.dtype)
 
     return dx, dW, dh
 
