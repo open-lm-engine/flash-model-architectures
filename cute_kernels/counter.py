@@ -2,4 +2,5 @@ from typing import Callable
 
 
 def increment_counter(func: Callable) -> None:
-    func._counter = getattr(func, "_counter", 0) + 1
+    counter = getattr(func, "_counter") if hasattr(func, "_counter") else 0
+    func._counter = counter + 1
