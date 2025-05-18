@@ -79,7 +79,7 @@ def fused_residual_add_rmsnorm_forward_triton(
 
     BLOCK_SIZE_B = 1
     BLOCK_SIZE_H = get_next_power_of_2(H)
-    assert BLOCK_SIZE_H < MAX_TRITON_BLOCK_SIZE
+    assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
 
     with torch.device(x.device):
         fused_residual_add_rmsnorm_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](

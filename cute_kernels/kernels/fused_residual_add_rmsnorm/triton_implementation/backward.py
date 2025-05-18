@@ -117,7 +117,7 @@ def fused_residual_add_rmsnorm_backward_triton(
 
     BLOCK_SIZE_B = 1
     BLOCK_SIZE_H = get_next_power_of_2(H)
-    assert BLOCK_SIZE_H < MAX_TRITON_BLOCK_SIZE
+    assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
 
     sm_count = get_sm_count(added_x_residual.device)
     num_programs = min(sm_count, ceil_divide(B, BLOCK_SIZE_B))
