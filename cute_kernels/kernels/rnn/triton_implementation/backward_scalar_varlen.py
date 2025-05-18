@@ -3,10 +3,10 @@ import triton
 import triton.language as tl
 
 from ....constants import LIBRARY_NAME
-from ....math import ceil_divide
+from ....math import ceil_divide, get_next_power_of_2
 from ....triton_math import clamp
 from ....utils import cute_op
-from .backward_scalar import _rnn_backward_update
+from .backward_scalar import _get_autotune_configs, _rnn_backward_update
 
 
 @triton.jit
@@ -29,6 +29,7 @@ def _load_input_state(
     return y_prev
 
 
+@triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_N"], reset_to_zero=["dW_ptr"])
 @triton.jit
 def scalar_rnn_varlen_backward_triton_kernel(
     W_ptr,
@@ -145,14 +146,14 @@ def scalar_rnn_varlen_backward_triton(
     N = output.size(1)
     B = cu_seqlens.size(0) - 1
 
-    BLOCK_SIZE_B = 32
-    BLOCK_SIZE_N = 32
+    BLOCK_SIZE_N = min(1024, get_next_power_of_2(N))
+    GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), ceil_divide(N, meta["BLOCK_SIZE_N"]))
 
     has_input_state = input_state is not None
     is_max_seqlen_tensor = max_seqlen_tensor is not None
 
     with torch.device(output.device):
-        scalar_rnn_varlen_backward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), ceil_divide(N, BLOCK_SIZE_N)](
+        scalar_rnn_varlen_backward_triton_kernel[GRID](
             W_ptr=weight,
             y_ptr=output,
             y_stride_t=output.stride(0),
@@ -170,6 +171,5 @@ def scalar_rnn_varlen_backward_triton(
             relu_negative_slope=relu_negative_slope,
             B=B,
             N=N,
-            BLOCK_SIZE_B=BLOCK_SIZE_B,
             BLOCK_SIZE_N=BLOCK_SIZE_N,
         )
