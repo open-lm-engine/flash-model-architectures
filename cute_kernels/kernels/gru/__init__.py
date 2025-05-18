@@ -159,7 +159,7 @@ class _GRU_Cute(torch.autograd.Function):
             forget_weight_grad,
             reset_input_grad,
             reset_weight_grad,
-            *[None] * 5,
+            *[None] * 4,
         )
 
 
