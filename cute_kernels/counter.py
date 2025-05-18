@@ -14,10 +14,10 @@ def reset_counters() -> None:
 
 
 def increment_counter(func: Callable) -> Callable:
-    _FUNCTIONS_WITH_COUNTERS.append(func)
-
     def _run(*args, **kwargs) -> Callable:
         _run._counter = get_counter(_run) + 1
         return func(*args, **kwargs)
+
+    _FUNCTIONS_WITH_COUNTERS.append(_run)
 
     return _run
