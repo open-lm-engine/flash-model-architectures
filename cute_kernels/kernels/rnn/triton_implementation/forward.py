@@ -10,7 +10,7 @@ from ....utils import cute_op
 
 def _get_autotune_configs() -> list[triton.Config]:
     configs = []
-    for num_warps in get_next_power_of_2(4, 8):
+    for num_warps in get_powers_of_2(4, 8):
         for num_stages in range(1, 5):
             for BLOCK_SIZE_B in [1] + get_powers_of_2(16, 32):
                 configs.append(
