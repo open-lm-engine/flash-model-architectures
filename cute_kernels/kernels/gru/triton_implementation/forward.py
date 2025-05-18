@@ -120,10 +120,10 @@ def gru_forward_triton(
     output_update: torch.Tensor,
     input_state: torch.Tensor | None,
     output: torch.Tensor,
-    BLOCK_SIZE_B: int,
 ) -> None:
     B, S, N, H = input.size()
 
+    BLOCK_SIZE_B = 32
     BLOCK_SIZE_H = get_next_power_of_2(H)
     BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
 

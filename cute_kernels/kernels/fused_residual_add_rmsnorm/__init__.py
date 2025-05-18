@@ -75,7 +75,7 @@ class _FusedResidualAddRMSNorm_Cute(torch.autograd.Function):
         if weight_grad is not None:
             weight_grad = weight_grad.type_as(weight)
 
-        return x_grad, residual_grad, weight_grad, *[None] * 5
+        return x_grad, residual_grad, weight_grad, *[None] * 3
 
 
 def fused_residual_add_rmsnorm_cute(
