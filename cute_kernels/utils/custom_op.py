@@ -36,17 +36,9 @@ def cute_op(
     schema: str | None = None,
     fake_func: Callable | None = None,
 ) -> Callable:
-    def _inner(_func: Callable):
-        def func(*args, **kwargs) -> Any:
-            get_counters().increment(name)
-            return _func(*args, **kwargs)
-
+    def _inner(func: Callable):
         custom_op = torch.library.custom_op(
-            name=name,
-            fn=func,
-            mutates_args=mutates_args,
-            device_types=device_types,
-            schema=torch.library.infer_schema(_func, mutates_args=mutates_args),
+            name, func, mutates_args=mutates_args, device_types=device_types, schema=schema
         )
 
         if fake_func is not None:
