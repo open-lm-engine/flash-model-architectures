@@ -5,7 +5,7 @@ from torch._dynamo import lookup_backend
 
 from ..utils import enable_cute_tracing, get_boolean_env_variable
 from .rmsnorm import replace_rmsnorm
-from .swiglu_unchunked import replace_swiglu_unchunked
+from .swiglu_packed import replace_swiglu_unchunked
 
 
 _DEBUG_CUTEINDUCTOR = get_boolean_env_variable("DEBUG_CUTEINDUCTOR", True)
