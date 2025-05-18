@@ -63,7 +63,7 @@ def swiglu_backward_triton_kernel(
     )
 
 
-@cute_op(f"{LIBRARY_NAME}::swiglu_backward_triton", mutates_args={"x_grad"})
+@cute_op(f"{LIBRARY_NAME}::swiglu_backward_triton", mutates_args={"gate_grad", "up_grad"})
 def swiglu_backward_triton(
     gate: torch.Tensor,
     up: torch.Tensor,
