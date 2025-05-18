@@ -7,7 +7,7 @@ install-dev:
 	pip install -e .
 
 test:
-	DEBUG_CUTOTUNE=1 pytest -s tests
+	DEBUG_CUTOTUNE=1 TRITON_PRINT_AUTOTUNING=1 pytest -s tests
 
 update-precommit:
 	pre-commit autoupdate
