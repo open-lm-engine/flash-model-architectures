@@ -107,14 +107,13 @@ def cross_entropy_forward_backward_triton(
     loss: torch.Tensor,
     x_grad: torch.Tensor,
     logits_multiplier: float | None,
-    BLOCK_SIZE_B: int,
-    BLOCK_SIZE_V: int,
     reduction: str,
 ) -> None:
     B, V = x.size()
+    NUM_BLOCKS = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]),)
 
     with torch.device(x.device):
-        cross_entropy_forward_backward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](
+        cross_entropy_forward_backward_triton_kernel[NUM_BLOCKS](
             x_ptr=x,
             labels_ptr=labels,
             loss_ptr=loss,
@@ -123,7 +122,5 @@ def cross_entropy_forward_backward_triton(
             logits_multiplier=logits_multiplier,
             B=B,
             V=V,
-            BLOCK_SIZE_B=BLOCK_SIZE_B,
-            BLOCK_SIZE_V=BLOCK_SIZE_V,
             reduction=reduction,
         )
