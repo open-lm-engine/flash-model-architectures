@@ -28,7 +28,7 @@ def _rnn_backward_update(y, W, dy, dW, y_prev, ACTIVATION_FUNCTION: tl.constexpr
     )
 
     dh = tl.dot(dx, W.T).to(dx.dtype)
-    dW = tl.dot(y_prev.T, dx, dW)
+    dW = matmul(A=y_prev.T, B=dx, C=dW, output_dtype=dW.dtype)
 
     return dx, dW, dh
 

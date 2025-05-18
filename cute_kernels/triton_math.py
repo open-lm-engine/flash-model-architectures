@@ -93,18 +93,15 @@ def leaky_relu_backward(y, relu_negative_slope):
 def matmul(A, B, C, output_dtype):
     if A.shape[0] == 1:
         x = tl.sum(A.T * B, axis=0, keep_dims=True)
-        if C is not None:
-            x += C
+        x += C
         x = x.to(output_dtype)
     elif A.shape[1] == 1:
         x = A * B
-        if C is not None:
-            x += C
+        x += C
         x = x.to(output_dtype)
     elif B.shape[1] == 1:
         x = tl.sum(A * B.T, axis=1, keep_dims=True)
-        if C is not None:
-            x += C
+        x += C
         x = x.to(output_dtype)
     else:
         x = tl.dot(A, B, C, out_dtype=output_dtype)
