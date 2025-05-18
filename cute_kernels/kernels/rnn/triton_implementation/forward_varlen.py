@@ -75,9 +75,7 @@ def rnn_varlen_forward_triton_kernel(
         h = _rnn_forward_update(
             h=h,
             W=W,
-            x=tl.load(x_ptr + indices, mask=mask).to(input_dtype),
-            out_dtype=out_dtype,
-            cast_dtype=cast_dtype,
+            x=tl.load(x_ptr + indices, mask=mask_bh),
             ACTIVATION_FUNCTION=ACTIVATION_FUNCTION,
             relu_negative_slope=relu_negative_slope,
         )
