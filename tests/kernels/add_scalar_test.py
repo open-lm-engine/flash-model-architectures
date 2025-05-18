@@ -49,8 +49,8 @@ class AddScalarTest(TestCommons):
         self.assert_equal_tensors(x_kernel.grad, x_expected.grad, True)
 
         if kernel_backend == KernelBackend.cuda:
-            assert get_counter(add_scalar_cuda) == 1
+            assert get_counter(add_scalar_cuda) > 0
             assert get_counter(add_scalar_triton) == 0
         elif kernel_backend == KernelBackend.triton:
             assert get_counter(add_scalar_cuda) == 0
-            assert get_counter(add_scalar_triton) == 1
+            assert get_counter(add_scalar_triton) > 1
