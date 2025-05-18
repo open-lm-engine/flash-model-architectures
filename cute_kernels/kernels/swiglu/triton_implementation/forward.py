@@ -108,6 +108,7 @@ def swiglu_packed_forward_triton(x: torch.Tensor, output: torch.Tensor, BLOCK_SI
             gate_stride_b=gate.stride(0),
             up_ptr=up,
             output_ptr=output,
+            output_stride_b=output.stride(0),
             B=B,
             H=H,
             BLOCK_SIZE_B=BLOCK_SIZE_B,
