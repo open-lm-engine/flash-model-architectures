@@ -3,12 +3,12 @@ import triton
 import triton.language as tl
 
 from ...constants import LIBRARY_NAME
-from ...math import ceil_divide, get_next_power_of_2
+from ...math import ceil_divide, get_next_power_of_2, get_powers_of_2
 from ...utils import cute_op
 
 
 @triton.autotune(
-    configs=[triton.Config({"BLOCK_SIZE_B": b}) for b in get_next_power_of_2(1, 8)],
+    configs=[triton.Config({"BLOCK_SIZE_B": b}) for b in get_powers_of_2(1, 8)],
     key=["BLOCK_SIZE_V"],
     reset_to_zero=["loss_ptr"],
 )
