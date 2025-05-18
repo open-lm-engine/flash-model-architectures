@@ -72,10 +72,11 @@ def scalar_rnn_forward_triton(
     output: torch.Tensor,
     activation_function: str,
     relu_negative_slope: float | None,
-    BLOCK_SIZE_B: int,
-    BLOCK_SIZE_N: int,
 ) -> None:
     B, S, N, _ = input.size()
+
+    BLOCK_SIZE_B = 32
+    BLOCK_SIZE_N = 32
 
     with torch.device(input.device):
         scalar_rnn_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), ceil_divide(N, BLOCK_SIZE_N)](

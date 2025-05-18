@@ -83,11 +83,12 @@ def scalar_rnn_varlen_forward_triton(
     max_seqlen: int | None,
     activation_function: str,
     relu_negative_slope: float | None,
-    BLOCK_SIZE_B: int,
-    BLOCK_SIZE_N: int,
 ) -> None:
     B = cu_seqlens.size(0) - 1
     N = input.size(1)
+
+    BLOCK_SIZE_B = 32
+    BLOCK_SIZE_N = 32
 
     is_max_seqlen_tensor = max_seqlen_tensor is not None
 

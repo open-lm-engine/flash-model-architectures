@@ -155,10 +155,10 @@ def rnn_backward_triton(
     gradient_clipping: float | None,
     activation_function: str,
     relu_negative_slope: float | None,
-    BLOCK_SIZE_B: int,
 ) -> None:
     B, S, N, H = output.size()
 
+    BLOCK_SIZE_B = 32
     BLOCK_SIZE_H = get_next_power_of_2(H)
     BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
 
