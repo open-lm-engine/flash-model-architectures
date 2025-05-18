@@ -3,11 +3,22 @@ import triton
 import triton.language as tl
 
 from ...constants import LIBRARY_NAME
-from ...math import ceil_divide
+from ...math import ceil_divide, get_powers_of_2
 from ...utils import cute_op
 
 
-@triton.autotune(configs=[triton.Config({"BLOCK_SIZE_B": 4096, "BLOCK_SIZE_V": 4096}, num_warps=32)], key=[])
+def _get_autotune_configs() -> list[triton.Config]:
+    configs = []
+    for b in get_powers_of_2(1, 1024):
+        for v in get_powers_of_2(1, 1024):
+            for num_warps in get_powers_of_2(4, 32):
+                if b * v <= num_warps * 8:
+                    configs.append(triton.Config({"BLOCK_SIZE_B": b, "BLOCK_SIZE_V": v}, num_warps=num_warps))
+
+    return configs
+
+
+@triton.autotune(configs=_get_autotune_configs(), key=[])
 @triton.jit
 def cross_entropy_forward_backward_triton_kernel(
     x_ptr,
