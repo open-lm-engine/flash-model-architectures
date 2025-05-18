@@ -7,6 +7,7 @@ from ...math import ceil_divide
 from ...utils import cute_op
 
 
+@triton.autotune(configs=[triton.Config({"BLOCK_SIZE_B": 4096, "BLOCK_SIZE_V": 4096}, num_warps=32)], key=[])
 @triton.jit
 def cross_entropy_forward_backward_triton_kernel(
     x_ptr,

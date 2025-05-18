@@ -68,8 +68,3 @@ def get_cutotune_cache() -> _CutoTuneCache:
         _CUTOTUNE_CACHE = _CutoTuneCache()
 
     return _CUTOTUNE_CACHE
-
-
-def save_cutotune_cache() -> None:
-    global _CUTOTUNE_CACHE
-    _CUTOTUNE_CACHE.save()
