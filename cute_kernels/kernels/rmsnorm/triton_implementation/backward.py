@@ -95,10 +95,10 @@ def rmsnorm_backward_triton(
     x_grad: torch.Tensor,
     weight_grad: torch.Tensor | None,
     eps: float,
-    BLOCK_SIZE_B: int,
 ) -> None:
     B, H = get_num_elements_and_hidden_size(x)
 
+    BLOCK_SIZE_B = 1
     BLOCK_SIZE_H = get_next_power_of_2(H)
     assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
 
