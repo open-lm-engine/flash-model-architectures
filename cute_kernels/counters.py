@@ -7,7 +7,7 @@ class Counter:
     def __init__(self):
         self._counter = defaultdict(int)
 
-    @torch.compiler.set_stance("force_eager")
+    @torch.compiler.disable
     def increment(self, key: int, increment: int = 1) -> dict:
         self._counter[key] += increment
 
