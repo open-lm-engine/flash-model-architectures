@@ -60,14 +60,6 @@ def rnn_varlen_forward_triton_kernel(
 
     indices = start * x_stride_t + pid_n * H + indices_h[None, :]
 
-    input_dtype = x_ptr.dtype.element_ty
-    cast_dtype = input_dtype
-    if input_dtype == tl.bfloat16:
-        input_dtype = tl.float32
-        cast_dtype = tl.bfloat16
-
-    out_dtype = input_dtype
-
     for _ in range(max_seqlen):
         unfinished = start < end
         mask = unfinished & mask_h[None, :]
