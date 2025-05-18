@@ -28,7 +28,7 @@ def _forward(
     x: torch.Tensor, y: float, output: torch.Tensor, kernel_backend: KernelBackend | CutoTuneParameter
 ) -> None:
     if kernel_backend == KernelBackend.cuda:
-        add_tensor_cuda(x=x, y=y, output=output, BLOCK_SIZE=CutoTuneParameter())
+        add_tensor_cuda(x=x, y=y, output=output, BLOCK_SIZE=1024)
     elif kernel_backend == KernelBackend.triton:
         add_tensor_triton(x=x, y=y, output=output)
     else:
