@@ -101,7 +101,7 @@ def swiglu_cute(
         torch.Tensor: output tensor
     """
 
-    return _Swiglu_Cute.apply(gate, up)
+    return _Swiglu_Cute.apply(gate, up, kernel_backend_forward, kernel_backend_backward)
 
 
 def swiglu_packed_cute(x: torch.Tensor) -> torch.Tensor:
