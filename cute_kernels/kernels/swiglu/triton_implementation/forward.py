@@ -101,7 +101,8 @@ def swiglu_packed_forward_triton_kernel(
 def swiglu_packed_forward_triton(
     gate: torch.Tensor, up: torch.Tensor, output: torch.Tensor, BLOCK_SIZE_B: int, BLOCK_SIZE_H: int
 ) -> None:
-    B, H = get_num_elements_and_hidden_size(x)
+    B, H = get_num_elements_and_hidden_size(gate)
+    H *= 2
 
     with torch.device(gate.device):
         swiglu_packed_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), ceil_divide(H, BLOCK_SIZE_H)](
