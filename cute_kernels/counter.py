@@ -17,7 +17,7 @@ def increment_counter(func: Callable) -> Callable:
     _FUNCTIONS_WITH_COUNTERS.append(func)
 
     def _run(*args, **kwargs) -> Callable:
-        func._counter = get_counter(func) + 1
+        _run._counter = get_counter(_run) + 1
         return func(*args, **kwargs)
 
     return _run
