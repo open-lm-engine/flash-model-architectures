@@ -3,20 +3,11 @@ import triton
 import triton.language as tl
 
 from ...constants import LIBRARY_NAME
-from ...math import ceil_divide, get_powers_of_2
+from ...math import ceil_divide, get_next_power_of_2
 from ...utils import cute_op
 
 
-def _get_autotune_configs() -> list[triton.Config]:
-    configs = []
-    for b in get_powers_of_2(1, 8):
-        for v in get_powers_of_2(128, 1024):
-            configs.append(triton.Config({"BLOCK_SIZE_B": b, "BLOCK_SIZE_V": v}))
-
-    return configs
-
-
-@triton.autotune(configs=_get_autotune_configs(), key=[])
+@triton.autotune(configs=[triton.Config({"BLOCK_SIZE_B": b}) for b in get_next_power_of_2(1, 8)], key=[])
 @triton.jit
 def cross_entropy_forward_backward_triton_kernel(
     x_ptr,
@@ -109,6 +100,7 @@ def cross_entropy_forward_backward_triton(
 ) -> None:
     B, V = x.size()
     NUM_BLOCKS = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]),)
+    BLOCK_SIZE_V = min(get_next_power_of_2(V), 32768)
     NUM_WARPS = 32
 
     with torch.device(x.device):
@@ -122,5 +114,6 @@ def cross_entropy_forward_backward_triton(
             B=B,
             V=V,
             reduction=reduction,
+            BLOCK_SIZE_V=BLOCK_SIZE_V,
             num_warps=NUM_WARPS,
         )
