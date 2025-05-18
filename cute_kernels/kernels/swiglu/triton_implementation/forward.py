@@ -49,7 +49,7 @@ def swiglu_forward_triton(
 
 @triton.jit
 def swiglu_packed_forward_triton_kernel(
-    x_ptr, output_ptr, B, H, BLOCK_SIZE_B: tl.constexpr, BLOCK_SIZE_H: tl.constexpr
+    gate_ptr, up_ptr, output_ptr, B, H, BLOCK_SIZE_B: tl.constexpr, BLOCK_SIZE_H: tl.constexpr
 ):
     BLOCK_ID_B = tl.program_id(axis=0)
     BLOCK_ID_H = tl.program_id(axis=1)
@@ -63,10 +63,10 @@ def swiglu_packed_forward_triton_kernel(
     mask_h = indices_h < half_H
     mask_bh = mask_b[:, None] & mask_h[None, :]
 
-    up_ptrs = x_ptr + indices_b[:, None] * H + indices_h[None, :]
+    up_ptrs = up_ptr + indices_b[:, None] * H + indices_h[None, :]
     up = tl.load(up_ptrs, mask=mask_bh)
 
-    gate_ptrs = up_ptrs + half_H
+    gate_ptrs = gate_ptr + indices_b[:, None] * H + indices_h[None, :]
     gate = tl.load(gate_ptrs, mask=mask_bh).to(tl.float32)
 
     output = up * gate * sigmoid(gate)
@@ -77,10 +77,12 @@ def swiglu_packed_forward_triton_kernel(
 @cute_op(f"{LIBRARY_NAME}::swiglu_packed_forward_triton", mutates_args={"output"})
 def swiglu_packed_forward_triton(x: torch.Tensor, output: torch.Tensor, BLOCK_SIZE_B: int, BLOCK_SIZE_H: int) -> None:
     B, H = get_num_elements_and_hidden_size(x)
+    up, gate = x.chunk(2, dim=-1)
 
     with torch.device(x.device):
         swiglu_packed_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), ceil_divide(H, BLOCK_SIZE_H)](
-            x_ptr=x,
+            gate_ptr=gate,
+            up_ptr=up,
             output_ptr=output,
             B=B,
             H=H,
