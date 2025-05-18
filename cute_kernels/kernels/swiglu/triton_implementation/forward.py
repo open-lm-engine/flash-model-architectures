@@ -66,7 +66,7 @@ def swiglu_packed_forward_triton_kernel(
     up_ptrs = x_ptr + indices_b[:, None] * H + indices_h[None, :]
     up = tl.load(up_ptrs, mask=mask_bh)
 
-    gate_ptrs = up_ptrs + (H >> 1)
+    gate_ptrs = up_ptrs + half_H
     gate = tl.load(gate_ptrs, mask=mask_bh).to(tl.float32)
 
     output = up * gate * sigmoid(gate)
