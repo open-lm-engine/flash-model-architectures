@@ -66,7 +66,7 @@ class _CutoTune:
                     f"function {self.function.__name__}"
                 )
 
-        reset_counter(self)
+        reset_counter(self.function)
 
         output = self.function(
             **self._get_function_arguments(
