@@ -1,11 +1,13 @@
 import torch
 
 from ....constants import LIBRARY_NAME
+from ....counter import increment_counter
 from ....cutotune import CutoTuneConfig, cutotune
 from ....jit import cpp_jit
 from ....utils import cute_op
 
 
+@increment_counter
 @cutotune(configs=[CutoTuneConfig({"BLOCK_SIZE": 1024})])
 @cute_op(f"{LIBRARY_NAME}::add_scalar_cuda", mutates_args={"output"})
 @cpp_jit()

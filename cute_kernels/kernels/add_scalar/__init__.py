@@ -1,6 +1,5 @@
 import torch
 
-from ...counter import increment_counter
 from ...cutotune import CutoTuneConfig, CutoTuneParameter, cutotune
 from ...kernel_backend import KernelBackend, is_cuda_kernel_backend_allowed, is_triton_kernel_backend_allowed
 from ...utils import is_nvidia_gpu
@@ -28,10 +27,8 @@ def _forward(
     x: torch.Tensor, y: float, output: torch.Tensor, kernel_backend: KernelBackend | CutoTuneParameter
 ) -> None:
     if kernel_backend == KernelBackend.cuda:
-        increment_counter(add_scalar_cuda)
         add_scalar_cuda(x=x, y=y, output=output, BLOCK_SIZE=CutoTuneParameter())
     elif kernel_backend == KernelBackend.triton:
-        increment_counter(add_scalar_triton)
         add_scalar_triton(x=x, y=y, output=output)
     else:
         raise ValueError("unexpected kernel_backend")
