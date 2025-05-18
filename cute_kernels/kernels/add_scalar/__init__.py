@@ -28,10 +28,10 @@ def _forward(
     x: torch.Tensor, y: float, output: torch.Tensor, kernel_backend: KernelBackend | CutoTuneParameter
 ) -> None:
     if kernel_backend == KernelBackend.cuda:
-        get_counters().increment(add_scalar_cuda)
+        get_counters().increment("add_scalar_cuda")
         add_scalar_cuda(x=x, y=y, output=output, BLOCK_SIZE=CutoTuneParameter())
     elif kernel_backend == KernelBackend.triton:
-        get_counters().increment(add_scalar_triton)
+        get_counters().increment("add_scalar_triton")
         add_scalar_triton(x=x, y=y, output=output)
     else:
         raise ValueError("unexpected kernel_backend")
