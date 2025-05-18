@@ -1,10 +1,8 @@
 import inspect
 from contextlib import contextmanager
-from typing import Any, Callable, Iterable, Sequence
+from typing import Callable, Iterable, Sequence
 
 import torch
-
-from ..counters import get_counters
 
 
 _IS_CUTE_TRACING = False
