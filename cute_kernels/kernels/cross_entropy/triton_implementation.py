@@ -2,7 +2,7 @@ import torch
 import triton
 import triton.language as tl
 
-from ...constants import LIBRARY_NAME
+from ...constants import LIBRARY_NAME, WARP_SIZE
 from ...math import ceil_divide, get_powers_of_2
 from ...utils import cute_op
 
@@ -12,7 +12,7 @@ def _get_autotune_configs() -> list[triton.Config]:
     for b in get_powers_of_2(1, 1024):
         for v in get_powers_of_2(1, 1024):
             for num_warps in get_powers_of_2(4, 32):
-                if b * v <= num_warps * 8:
+                if b * v <= num_warps * WARP_SIZE * 8:
                     configs.append(triton.Config({"BLOCK_SIZE_B": b, "BLOCK_SIZE_V": v}, num_warps=num_warps))
 
     return configs
