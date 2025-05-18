@@ -27,7 +27,7 @@ def _rnn_backward_update(y, W, dy, dW, y_prev, ACTIVATION_FUNCTION: tl.constexpr
         y=y, dy=dy, ACTIVATION_FUNCTION=ACTIVATION_FUNCTION, relu_negative_slope=relu_negative_slope
     )
 
-    dh = tl.dot(dx, W.T).to(dx.dtype)
+    dh = matmul(A=dx, B=W.T, C=None, output_dtype=dx.dtype)
     dW = matmul(A=y_prev.T, B=dx, C=dW, output_dtype=dW.dtype)
 
     return dx, dW, dh
