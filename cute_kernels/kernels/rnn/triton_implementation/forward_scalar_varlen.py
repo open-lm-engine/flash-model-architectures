@@ -3,11 +3,12 @@ import triton
 import triton.language as tl
 
 from ....constants import LIBRARY_NAME
-from ....math import ceil_divide
+from ....math import ceil_divide, get_next_power_of_2
 from ....utils import cute_op
-from .forward_scalar import _rnn_forward_update
+from .forward_scalar import _get_autotune_configs, _rnn_forward_update
 
 
+@triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_N"])
 @triton.jit
 def rnn_varlen_forward_triton_kernel(
     x_ptr,
@@ -87,13 +88,13 @@ def scalar_rnn_varlen_forward_triton(
     B = cu_seqlens.size(0) - 1
     N = input.size(1)
 
-    BLOCK_SIZE_B = 32
-    BLOCK_SIZE_N = 32
+    BLOCK_SIZE_N = min(1024, get_next_power_of_2(N))
+    GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), ceil_divide(N, meta["BLOCK_SIZE_N"]))
 
     is_max_seqlen_tensor = max_seqlen_tensor is not None
 
     with torch.device(input.device):
-        rnn_varlen_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), N](
+        rnn_varlen_forward_triton_kernel[GRID](
             x_ptr=input,
             x_stride_t=input.stride(0),
             W_ptr=weight,
@@ -107,6 +108,5 @@ def scalar_rnn_varlen_forward_triton(
             relu_negative_slope=relu_negative_slope,
             B=B,
             N=N,
-            BLOCK_SIZE_B=BLOCK_SIZE_B,
             BLOCK_SIZE_N=BLOCK_SIZE_N,
         )
