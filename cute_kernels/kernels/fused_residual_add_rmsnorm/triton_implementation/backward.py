@@ -112,7 +112,6 @@ def fused_residual_add_rmsnorm_backward_triton(
     weight_grad: torch.Tensor | None,
     eps: float,
     multiplier: float | None,
-    BLOCK_SIZE_B: int,
 ) -> None:
     B, H = get_num_elements_and_hidden_size(added_x_residual)
 
@@ -120,10 +119,9 @@ def fused_residual_add_rmsnorm_backward_triton(
     assert BLOCK_SIZE_H < MAX_TRITON_BLOCK_SIZE
 
     sm_count = get_sm_count(added_x_residual.device)
-    num_programs = min(sm_count, ceil_divide(B, BLOCK_SIZE_B))
 
     with torch.device(added_x_residual.device):
-        fused_residual_add_rmsnorm_backward_triton_kernel[num_programs,](
+        fused_residual_add_rmsnorm_backward_triton_kernel[min(sm_count, B),](
             added_x_residual_ptr=added_x_residual,
             HAS_WEIGHT=weight is not None,
             weight_ptr=weight,

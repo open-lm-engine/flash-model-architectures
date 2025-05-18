@@ -74,7 +74,6 @@ def fused_residual_add_rmsnorm_forward_triton(
     multiplier: float | None,
     added_x_residual: torch.Tensor,
     rmsnorm_denominator: torch.Tensor | None,
-    BLOCK_SIZE_B: int,
 ) -> None:
     B, H = get_num_elements_and_hidden_size(x)
 
@@ -82,7 +81,7 @@ def fused_residual_add_rmsnorm_forward_triton(
     assert BLOCK_SIZE_H < MAX_TRITON_BLOCK_SIZE
 
     with torch.device(x.device):
-        fused_residual_add_rmsnorm_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](
+        fused_residual_add_rmsnorm_forward_triton_kernel[B,](
             x_ptr=x,
             residual_ptr=residual,
             HAS_WEIGHT=weight is not None,

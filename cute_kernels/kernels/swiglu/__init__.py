@@ -42,13 +42,13 @@ class _Swiglu_Cute(torch.autograd.Function):
         gate_grad = torch.empty_like(gate)
         up_grad = torch.empty_like(up)
 
-        kernel_backend_backward = ctx.kernel_backend_backward
+        kernel_backend = ctx.kernel_backend_backward
 
-        if is_cuda_kernel_backend_allowed(kernel_backend_backward) and is_nvidia_gpu() and gate.is_cuda and up.is_cuda:
+        if is_cuda_kernel_backend_allowed(kernel_backend) and is_nvidia_gpu() and gate.is_cuda and up.is_cuda:
             swiglu_backward_cuda(
                 gate=gate, up=up, output_grad=output_grad, gate_grad=gate_grad, up_grad=up_grad, BLOCK_SIZE=1024
             )
-        elif is_triton_kernel_backend_allowed(kernel_backend_backward):
+        elif is_triton_kernel_backend_allowed(kernel_backend):
             swiglu_backward_triton(
                 gate=gate,
                 up=up,

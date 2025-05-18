@@ -19,8 +19,6 @@ class _FusedResidualAddRMSNorm_Cute(torch.autograd.Function):
         eps: float | None,
         multiplier: float | None,
         memory_efficient: bool,
-        BLOCK_SIZE_B_forward: int,
-        BLOCK_SIZE_B_backward: int,
     ) -> tuple[torch.Tensor]:
         if weight is not None:
             assert weight.dim() == 1, "weight should be 1D"
@@ -45,13 +43,11 @@ class _FusedResidualAddRMSNorm_Cute(torch.autograd.Function):
             multiplier=multiplier,
             added_x_residual=added_x_residual,
             rmsnorm_denominator=rmsnorm_denominator,
-            BLOCK_SIZE_B=BLOCK_SIZE_B_forward,
         )
 
         ctx.save_for_backward(added_x_residual, weight, rmsnorm_denominator)
         ctx.eps = eps
         ctx.multiplier = multiplier
-        ctx.BLOCK_SIZE_B_backward = BLOCK_SIZE_B_backward
 
         return output, added_x_residual
 
@@ -74,7 +70,6 @@ class _FusedResidualAddRMSNorm_Cute(torch.autograd.Function):
             weight_grad=weight_grad,
             eps=ctx.eps,
             multiplier=ctx.multiplier,
-            BLOCK_SIZE_B=ctx.BLOCK_SIZE_B_backward,
         )
 
         if weight_grad is not None:
@@ -90,9 +85,6 @@ def fused_residual_add_rmsnorm_cute(
     eps: float | None,
     multiplier: float | None = None,
     memory_efficient: bool = False,
-    *,
-    BLOCK_SIZE_B_forward: int = 1,
-    BLOCK_SIZE_B_backward: int = 1,
 ) -> tuple[torch.Tensor]:
     """fused residual add RMSNorm computation
 
@@ -104,13 +96,9 @@ def fused_residual_add_rmsnorm_cute(
         multiplier (float | None, optional): if not None, pre-multiplies `x` with `multiplier`. Defaults to None.
         memory_efficient (bool, optional): memory efficient = False caches RMSNorm's denominator in the forward.
             Defaults to False.
-        BLOCK_SIZE_B_forward (int, optional): block size along the batch dimension for forward. Defaults to 1.
-        BLOCK_SIZE_B_backward (int, optional): block size along the batch dimension for backward. Defaults to 1.
 
     Returns:
         tuple[torch.Tensor]: output activations, updated residual stream
     """
 
-    return _FusedResidualAddRMSNorm_Cute.apply(
-        x, residual, weight, eps, multiplier, memory_efficient, BLOCK_SIZE_B_forward, BLOCK_SIZE_B_backward
-    )
+    return _FusedResidualAddRMSNorm_Cute.apply(x, residual, weight, eps, multiplier, memory_efficient)
