@@ -308,6 +308,6 @@ def cutotune(
             benchmark_iterations=benchmark_iterations,
             functional_triggers=functional_triggers,
             reset_to_zero=reset_to_zero,
-        ).__call__
+        )
 
     return inner
