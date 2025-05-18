@@ -3,7 +3,7 @@ import triton
 import triton.language as tl
 
 from ....constants import LIBRARY_NAME
-from ....math import ceil_divide, get_powers_of_2
+from ....math import ceil_divide, get_next_power_of_2, get_powers_of_2
 from ....utils import cute_op
 from .forward import _activation
 
@@ -12,15 +12,10 @@ def _get_autotune_configs() -> list[triton.Config]:
     configs = []
     for num_warps in [4, 8]:
         for num_stages in range(1, 5):
-            for BLOCK_SIZE_B in get_powers_of_2(1, 64):
-                for BLOCK_SIZE_N in get_powers_of_2(1, 64):
-                    configs.append(
-                        triton.Config(
-                            {"BLOCK_SIZE_B": BLOCK_SIZE_B, "BLOCK_SIZE_N": BLOCK_SIZE_N},
-                            num_stages=num_stages,
-                            num_warps=num_warps,
-                        )
-                    )
+            for BLOCK_SIZE_B in get_powers_of_2(1, 32):
+                configs.append(
+                    triton.Config({"BLOCK_SIZE_B": BLOCK_SIZE_B}, num_stages=num_stages, num_warps=num_warps)
+                )
 
     return configs
 
@@ -92,6 +87,8 @@ def scalar_rnn_forward_triton(
     relu_negative_slope: float | None,
 ) -> None:
     B, S, N, _ = input.size()
+
+    BLOCK_SIZE_N = min(1024, get_next_power_of_2(N))
     GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), ceil_divide(N, meta["BLOCK_SIZE_N"]))
 
     with torch.device(input.device):
@@ -107,4 +104,5 @@ def scalar_rnn_forward_triton(
             B=B,
             S=S,
             N=N,
+            BLOCK_SIZE_N=BLOCK_SIZE_N,
         )
