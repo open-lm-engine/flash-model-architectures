@@ -25,7 +25,11 @@ class _CutoTuneCache:
         self.cache[function_hash][lookup_key] = config
 
     def get_config(self, function_hash: str, lookup_key: str) -> CutoTuneConfig:
-        return self.cache[function_hash].get(lookup_key, None)
+        if function_hash in self.cache:
+            function_cache = self.cache[function_hash]
+            return function_cache.get(lookup_key, None)
+
+        return None
 
     def save(self) -> None:
         yaml.dump(self._serialize(self.cache), open(_CUTOTUNE_CACHE_FILENAME, "w"))
