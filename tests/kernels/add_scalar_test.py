@@ -3,7 +3,15 @@ from typing import Callable
 import torch
 from parameterized import parameterized
 
-from cute_kernels import CutoTuneParameter, KernelBackend, add_scalar_cute, add_scalar_torch, reset_counters
+from cute_kernels import (
+    CutoTuneParameter,
+    KernelBackend,
+    add_scalar_cute,
+    add_scalar_torch,
+    get_counter,
+    reset_counters,
+)
+from cute_kernels.kernels.add_scalar import add_scalar_cuda, add_scalar_triton
 
 from ..test_commons import TestCommons
 
@@ -26,6 +34,8 @@ class AddScalarTest(TestCommons):
         kernel_backend: KernelBackend,
         function: Callable,
     ) -> None:
+        reset_counters()
+
         x_kernel, x_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype)
         y = 0.42
 
@@ -37,3 +47,10 @@ class AddScalarTest(TestCommons):
 
         self.assert_equal_tensors(z_kernel, z_expected, True)
         self.assert_equal_tensors(x_kernel.grad, x_expected.grad, True)
+
+        if kernel_backend == KernelBackend.cuda:
+            assert get_counter(add_scalar_cuda) == 1
+            assert get_counter(add_scalar_triton) == 0
+        elif kernel_backend == KernelBackend.triton:
+            assert get_counter(add_scalar_cuda) == 0
+            assert get_counter(add_scalar_triton) == 1
