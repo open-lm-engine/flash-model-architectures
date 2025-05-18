@@ -3,6 +3,7 @@ import triton
 import triton.language as tl
 
 from ...constants import LIBRARY_NAME
+from ...counter import increment_counter
 from ...math import ceil_divide
 from ...utils import cute_op
 
@@ -27,6 +28,7 @@ def add_scalar_triton_kernel(x_ptr, y, output_ptr, N, BLOCK_SIZE: tl.constexpr):
         _add_scalar(x_ptr=x_ptr, y=y, output_ptr=output_ptr, indices=indices, mask=indices < N)
 
 
+@increment_counter
 @cute_op(f"{LIBRARY_NAME}::add_scalar_triton", mutates_args={"output"})
 def add_scalar_triton(x: torch.Tensor, y: float, output: torch.Tensor) -> None:
     N = x.numel()
