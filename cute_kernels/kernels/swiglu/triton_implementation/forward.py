@@ -9,12 +9,12 @@ from ....utils import cute_op, get_num_elements_and_hidden_size
 
 
 @triton.jit
-def _swiglu(gate_ptr, up_ptr, output_ptr, indices, mask):
-    gate = tl.load(gate_ptr + indices, mask=mask).to(tl.float32)
-    up = tl.load(up_ptr + indices, mask=mask)
+def _swiglu(gate_ptr, up_ptr, output_ptr, indices_gate, indices_output, mask):
+    gate = tl.load(gate_ptr + indices_gate, mask=mask).to(tl.float32)
+    up = tl.load(up_ptr + indices_gate, mask=mask)
 
     output = up * gate * sigmoid(gate)
-    tl.store(output_ptr + indices, output, mask=mask)
+    tl.store(output_ptr + indices_output, output, mask=mask)
 
 
 @triton.jit
@@ -25,9 +25,23 @@ def swiglu_forward_triton_kernel(gate_ptr, up_ptr, output_ptr, N, BLOCK_SIZE: tl
     indices = BLOCK_ID * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
 
     if BLOCK_ID < NUM_BLOCKS - 1:
-        _swiglu(gate_ptr=gate_ptr, up_ptr=up_ptr, output_ptr=output_ptr, indices=indices, mask=None)
+        _swiglu(
+            gate_ptr=gate_ptr,
+            up_ptr=up_ptr,
+            output_ptr=output_ptr,
+            indices_gate=indices,
+            indices_output=indices,
+            mask=None,
+        )
     else:
-        _swiglu(gate_ptr=gate_ptr, up_ptr=up_ptr, output_ptr=output_ptr, indices=indices, mask=indices < N)
+        _swiglu(
+            gate_ptr=gate_ptr,
+            up_ptr=up_ptr,
+            output_ptr=output_ptr,
+            indices_gate=indices,
+            indices_output=indices,
+            mask=indices < N,
+        )
 
 
 @cute_op(f"{LIBRARY_NAME}::swiglu_forward_triton", mutates_args={"output"})
@@ -73,15 +87,14 @@ def swiglu_packed_forward_triton_kernel(
 
     indices = indices_b[:, None] * gate_stride_b + indices_h[None, :]
 
-    up_ptrs = up_ptr + indices
-    up = tl.load(up_ptrs, mask=mask_bh)
-
-    gate_ptrs = gate_ptr + indices
-    gate = tl.load(gate_ptrs, mask=mask_bh).to(tl.float32)
-
-    output = up * gate * sigmoid(gate)
-
-    tl.store(output_ptr + indices_b[:, None] * output_stride_b + indices_h[None, :], output, mask=mask_bh)
+    _swiglu(
+        gate_ptr=gate_ptr,
+        up_ptr=up_ptr,
+        output_ptr=output_ptr,
+        indices_gate=indices,
+        indices_output=indices_b[:, None] * output_stride_b + indices_h[None, :],
+        mask=mask_bh,
+    )
 
 
 @cute_op(f"{LIBRARY_NAME}::swiglu_packed_forward_triton", mutates_args={"output"})
