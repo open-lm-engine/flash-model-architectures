@@ -60,7 +60,7 @@ def _load_previous_output(
     return y_prev
 
 
-@triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_H"])
+@triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_H"], reset_to_zero=["dW_ptr"])
 @triton.jit
 def rnn_backward_triton_kernel(
     W_ptr,
