@@ -5,7 +5,6 @@ from typing import Any, Callable
 import torch
 from tqdm import tqdm
 
-from ..counter import reset_counter
 from ..utils import device_synchronize, get_boolean_env_variable
 from .cache import get_cutotune_cache
 from .config import CutoTuneConfig
