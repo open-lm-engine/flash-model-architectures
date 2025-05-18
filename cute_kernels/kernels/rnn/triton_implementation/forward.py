@@ -3,9 +3,21 @@ import triton
 import triton.language as tl
 
 from ....constants import LIBRARY_NAME
-from ....math import ceil_divide, get_next_power_of_2
+from ....math import ceil_divide, get_next_power_of_2, get_powers_of_2
 from ....triton_math import leaky_relu, sigmoid, tanh
 from ....utils import cute_op
+
+
+def _get_autotune_configs() -> list[triton.Config]:
+    configs = []
+    for num_warps in [4, 8]:
+        for num_stages in range(1, 5):
+            for BLOCK_SIZE_B in get_powers_of_2(1, 8):
+                configs.append(
+                    triton.Config({"BLOCK_SIZE_B": BLOCK_SIZE_B}, num_stages=num_stages, num_warps=num_warps)
+                )
+
+    return configs
 
 
 @triton.jit
@@ -27,6 +39,7 @@ def _rnn_forward_update(h, W, x, out_dtype, cast_dtype, ACTIVATION_FUNCTION, rel
     return h
 
 
+@triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_H"])
 @triton.jit
 def rnn_forward_triton_kernel(
     x_ptr,
