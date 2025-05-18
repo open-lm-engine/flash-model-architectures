@@ -42,7 +42,11 @@ def cute_op(
             return _func(*args, **kwargs)
 
         custom_op = torch.library.custom_op(
-            name, func, mutates_args=mutates_args, device_types=device_types, schema=schema
+            name=name,
+            fn=func,
+            mutates_args=mutates_args,
+            device_types=device_types,
+            schema=torch.library.infer_schema(_func, mutates_args=mutates_args),
         )
 
         if fake_func is not None:
