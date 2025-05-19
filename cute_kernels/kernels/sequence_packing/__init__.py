@@ -14,8 +14,6 @@ def _pack_sequence(
     padding_side: str,
     kernel_backend: KernelBackend,
     BLOCK_SIZE_CUDA: int,
-    BLOCK_SIZE_TRITON: int,
-    NUM_WARPS_TRITON: int,
 ) -> torch.Tensor:
     output = torch.empty(desired_shape, device=x.device, dtype=x.dtype)
 
@@ -29,15 +27,7 @@ def _pack_sequence(
             BLOCK_SIZE=BLOCK_SIZE_CUDA,
         )
     elif kernel_backend == KernelBackend.triton:
-        pack_unpack_sequence_triton(
-            x=x,
-            output=output,
-            cu_seqlens=cu_seqlens,
-            padding_side=padding_side,
-            pack=True,
-            BLOCK_SIZE=BLOCK_SIZE_TRITON,
-            NUM_WARPS=NUM_WARPS_TRITON,
-        )
+        pack_unpack_sequence_triton(x=x, output=output, cu_seqlens=cu_seqlens, padding_side=padding_side, pack=True)
     else:
         raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
@@ -51,8 +41,6 @@ def _unpack_sequence(
     padding_side: str,
     kernel_backend: KernelBackend,
     BLOCK_SIZE_CUDA: int,
-    BLOCK_SIZE_TRITON: int,
-    NUM_WARPS_TRITON: int,
 ) -> torch.Tensor:
     output = torch.zeros(*desired_shape, device=x.device, dtype=x.dtype)
 
@@ -66,15 +54,7 @@ def _unpack_sequence(
             BLOCK_SIZE=BLOCK_SIZE_CUDA,
         )
     elif kernel_backend == KernelBackend.triton:
-        pack_unpack_sequence_triton(
-            x=x,
-            output=output,
-            cu_seqlens=cu_seqlens,
-            padding_side=padding_side,
-            pack=False,
-            BLOCK_SIZE=BLOCK_SIZE_TRITON,
-            NUM_WARPS=NUM_WARPS_TRITON,
-        )
+        pack_unpack_sequence_triton(x=x, output=output, cu_seqlens=cu_seqlens, padding_side=padding_side, pack=False)
     else:
         raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
@@ -92,12 +72,8 @@ class _PackSequence_Cute(torch.autograd.Function):
         padding_side: str,
         kernel_backend_forward: KernelBackend,
         BLOCK_SIZE_CUDA_forward: int,
-        BLOCK_SIZE_TRITON_forward: int,
-        NUM_WARPS_TRITON_forward: int,
         kernel_backend_backward: KernelBackend,
         BLOCK_SIZE_CUDA_backward: int,
-        BLOCK_SIZE_TRITON_backward: int,
-        NUM_WARPS_TRITON_backward: int,
     ) -> torch.Tensor:
         assert padding_side in ["left", "right"]
         assert x.dim() >= 2
@@ -108,8 +84,6 @@ class _PackSequence_Cute(torch.autograd.Function):
         ctx.x_shape = x.size()
         ctx.kernel_backend_backward = kernel_backend_backward
         ctx.BLOCK_SIZE_CUDA_backward = BLOCK_SIZE_CUDA_backward
-        ctx.BLOCK_SIZE_TRITON_backward = BLOCK_SIZE_TRITON_backward
-        ctx.NUM_WARPS_TRITON_backward = NUM_WARPS_TRITON_backward
 
         output = _pack_sequence(
             x=x,
@@ -118,8 +92,6 @@ class _PackSequence_Cute(torch.autograd.Function):
             padding_side=padding_side,
             kernel_backend=kernel_backend_forward,
             BLOCK_SIZE_CUDA=BLOCK_SIZE_CUDA_forward,
-            BLOCK_SIZE_TRITON=BLOCK_SIZE_TRITON_forward,
-            NUM_WARPS_TRITON=NUM_WARPS_TRITON_forward,
         )
 
         return output
@@ -134,11 +106,9 @@ class _PackSequence_Cute(torch.autograd.Function):
             padding_side=ctx.padding_side,
             kernel_backend=ctx.kernel_backend_backward,
             BLOCK_SIZE_CUDA=ctx.BLOCK_SIZE_CUDA_backward,
-            BLOCK_SIZE_TRITON=ctx.BLOCK_SIZE_TRITON_backward,
-            NUM_WARPS_TRITON=ctx.NUM_WARPS_TRITON_backward,
         )
 
-        return x_grad, *[None] * 11
+        return x_grad, *[None] * 7
 
 
 class _UnpackSequence_Cute(torch.autograd.Function):
@@ -152,12 +122,8 @@ class _UnpackSequence_Cute(torch.autograd.Function):
         padding_side: str,
         kernel_backend_forward: KernelBackend,
         BLOCK_SIZE_CUDA_forward: int,
-        BLOCK_SIZE_TRITON_forward: int,
-        NUM_WARPS_TRITON_forward: int,
         kernel_backend_backward: KernelBackend,
         BLOCK_SIZE_CUDA_backward: int,
-        BLOCK_SIZE_TRITON_backward: int,
-        NUM_WARPS_TRITON_backward: int,
     ) -> torch.Tensor:
         assert padding_side in ["left", "right"]
         assert x.dim() >= 2
@@ -168,8 +134,6 @@ class _UnpackSequence_Cute(torch.autograd.Function):
         ctx.padding_side = padding_side
         ctx.kernel_backend_backward = kernel_backend_backward
         ctx.BLOCK_SIZE_CUDA_backward = BLOCK_SIZE_CUDA_backward
-        ctx.BLOCK_SIZE_TRITON_backward = BLOCK_SIZE_TRITON_backward
-        ctx.NUM_WARPS_TRITON_backward = NUM_WARPS_TRITON_backward
         # saving shape in forward can avoid allocating a tensor of shape depending on cu_seqlens[-1]
         # this avoids synchronization with CPU
         ctx.x_shape = x.size()
@@ -181,8 +145,6 @@ class _UnpackSequence_Cute(torch.autograd.Function):
             desired_shape=desired_shape,
             kernel_backend=kernel_backend_forward,
             BLOCK_SIZE_CUDA=BLOCK_SIZE_CUDA_forward,
-            BLOCK_SIZE_TRITON=BLOCK_SIZE_TRITON_forward,
-            NUM_WARPS_TRITON=NUM_WARPS_TRITON_forward,
         )
 
         return output
@@ -197,11 +159,9 @@ class _UnpackSequence_Cute(torch.autograd.Function):
             padding_side=ctx.padding_side,
             kernel_backend=ctx.kernel_backend_backward,
             BLOCK_SIZE_CUDA=ctx.BLOCK_SIZE_CUDA_backward,
-            BLOCK_SIZE_TRITON=ctx.BLOCK_SIZE_TRITON_backward,
-            NUM_WARPS_TRITON=ctx.NUM_WARPS_TRITON_backward,
         )
 
-        return x_grad, *[None] * 11
+        return x_grad, *[None] * 7
 
 
 def pack_sequence_cute(
@@ -261,12 +221,8 @@ def unpack_sequence_cute(
     *,
     kernel_backend_forward: KernelBackend = KernelBackend.cuda,
     BLOCK_SIZE_CUDA_forward: int = 1024,
-    BLOCK_SIZE_TRITON_forward: int = 4096,
-    NUM_WARPS_TRITON_forward: int = 32,
     kernel_backend_backward: KernelBackend = KernelBackend.cuda,
     BLOCK_SIZE_CUDA_backward: int = 1024,
-    BLOCK_SIZE_TRITON_backward: int = 4096,
-    NUM_WARPS_TRITON_backward: int = 32,
 ) -> torch.Tensor | list[torch.Tensor]:
     is_list = isinstance(inputs, (list, tuple))
     if not is_list:
@@ -282,12 +238,8 @@ def unpack_sequence_cute(
             padding_side,
             kernel_backend_forward,
             BLOCK_SIZE_CUDA_forward,
-            BLOCK_SIZE_TRITON_forward,
-            NUM_WARPS_TRITON_forward,
             kernel_backend_backward,
             BLOCK_SIZE_CUDA_backward,
-            BLOCK_SIZE_TRITON_backward,
-            NUM_WARPS_TRITON_backward,
         )
 
         outputs.append(x)
