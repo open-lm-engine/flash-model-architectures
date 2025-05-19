@@ -5,9 +5,10 @@ import triton.language as tl
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
 from ....utils import cute_op
-from ...rnn.triton_implementation.forward import _rnn_forward_update
+from ...rnn.triton_implementation.forward import _get_autotune_configs, _rnn_forward_update
 
 
+@triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_H"])
 @triton.jit
 def gru_forward_triton_kernel(
     x_ptr,
@@ -56,21 +57,11 @@ def gru_forward_triton_kernel(
 
     indices = indices_b[:, None] * x_stride_b + pid_n * H + indices_h[None, :]
 
-    input_dtype = x_ptr.dtype.element_ty
-    cast_dtype = input_dtype
-    if input_dtype == tl.bfloat16:
-        input_dtype = tl.float32
-        cast_dtype = tl.bfloat16
-
-    out_dtype = input_dtype
-
     for _ in range(S):
         r = _rnn_forward_update(
             h=h,
             W=Wr,
-            x=tl.load(xr_ptr + indices, mask=mask_bh).to(input_dtype),
-            out_dtype=out_dtype,
-            cast_dtype=cast_dtype,
+            x=tl.load(xr_ptr + indices, mask=mask_bh),
             ACTIVATION_FUNCTION="sigmoid",
             relu_negative_slope=None,
         )
@@ -80,9 +71,7 @@ def gru_forward_triton_kernel(
         z = _rnn_forward_update(
             h=h * r,
             W=W,
-            x=tl.load(x_ptr + indices, mask=mask_bh).to(input_dtype),
-            out_dtype=out_dtype,
-            cast_dtype=cast_dtype,
+            x=tl.load(x_ptr + indices, mask=mask_bh),
             ACTIVATION_FUNCTION="tanh",
             relu_negative_slope=None,
         )
@@ -92,9 +81,7 @@ def gru_forward_triton_kernel(
         f = _rnn_forward_update(
             h=h,
             W=Wf,
-            x=tl.load(xf_ptr + indices, mask=mask_bh).to(input_dtype),
-            out_dtype=out_dtype,
-            cast_dtype=cast_dtype,
+            x=tl.load(xf_ptr + indices, mask=mask_bh),
             ACTIVATION_FUNCTION="sigmoid",
             relu_negative_slope=None,
         )
@@ -123,14 +110,14 @@ def gru_forward_triton(
 ) -> None:
     B, S, N, H = input.size()
 
-    BLOCK_SIZE_B = 32
     BLOCK_SIZE_H = get_next_power_of_2(H)
     BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
+    GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), N)
 
     has_input_state = input_state is not None
 
     with torch.device(input.device):
-        gru_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), N](
+        gru_forward_triton_kernel[GRID](
             x_ptr=input,
             x_stride_b=input.stride(0),
             x_stride_s=input.stride(1),
@@ -150,6 +137,5 @@ def gru_forward_triton(
             B=B,
             S=S,
             H=H,
-            BLOCK_SIZE_B=BLOCK_SIZE_B,
             BLOCK_SIZE_H=BLOCK_SIZE_H,
         )
