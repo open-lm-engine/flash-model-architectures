@@ -148,13 +148,7 @@ def pack_sequence_cute(
     padding_side: str = "left",
     *,
     kernel_backend_forward: KernelBackend = KernelBackend.cuda,
-    BLOCK_SIZE_CUDA_forward: int = 1024,
-    BLOCK_SIZE_TRITON_forward: int = 4096,
-    NUM_WARPS_TRITON_forward: int = 32,
     kernel_backend_backward: KernelBackend = KernelBackend.cuda,
-    BLOCK_SIZE_CUDA_backward: int = 1024,
-    BLOCK_SIZE_TRITON_backward: int = 4096,
-    NUM_WARPS_TRITON_backward: int = 32,
 ) -> torch.Tensor | list[torch.Tensor]:
     is_list = isinstance(inputs, (list, tuple))
     if not is_list:
@@ -169,18 +163,7 @@ def pack_sequence_cute(
         desired_shape = (N, *x.size()[2:])
 
         x = _PackSequence_Cute.apply(
-            x,
-            cu_seqlens,
-            desired_shape,
-            padding_side,
-            kernel_backend_forward,
-            BLOCK_SIZE_CUDA_forward,
-            BLOCK_SIZE_TRITON_forward,
-            NUM_WARPS_TRITON_forward,
-            kernel_backend_backward,
-            BLOCK_SIZE_CUDA_backward,
-            BLOCK_SIZE_TRITON_backward,
-            NUM_WARPS_TRITON_backward,
+            x, cu_seqlens, desired_shape, padding_side, kernel_backend_forward, kernel_backend_backward
         )
 
         outputs.append(x)
