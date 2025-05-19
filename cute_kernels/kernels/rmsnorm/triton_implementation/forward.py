@@ -3,7 +3,7 @@ import triton
 import triton.language as tl
 
 from ....constants import LIBRARY_NAME, MAX_TRITON_BLOCK_SIZE
-from ....math import ceil_divide, get_powers_of_2
+from ....math import ceil_divide, get_next_power_of_2, get_powers_of_2
 from ....utils import cute_op, get_num_elements_and_hidden_size
 
 
