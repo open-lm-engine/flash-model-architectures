@@ -12,8 +12,10 @@ _CPP_MODULE_PREFIX = "cute_kernels"
 _GLOBAL_RANK = int(os.getenv("RANK", 0))
 _WORLD_SIZE = int(os.getenv("WORLD_SIZE", 1))
 
+_ALL_COMPILED_MODULES = {}
 
-@torch._dynamo.disable
+
+@torch.compiler.disable
 def _get_cpp_function(function_name: str, source_files: list[str], build_directory: str) -> Callable:
     module_name = f"{_CPP_MODULE_PREFIX}_{function_name}"
 
@@ -25,10 +27,43 @@ def _get_cpp_function(function_name: str, source_files: list[str], build_directo
         os.path.dirname(os.path.dirname(__file__)) + "/cutlass/tools/util/include",  # cutlass
     ]
 
-    if torch.distributed.is_initialized():
-        os.makedirs(build_directory, exist_ok=True)
+    module = _ALL_COMPILED_MODULES.get(module_name, None)
 
-        if _GLOBAL_RANK == 0:
+    if module is None:
+        if torch.distributed.is_initialized():
+            os.makedirs(build_directory, exist_ok=True)
+
+            if _GLOBAL_RANK == 0:
+                module = load_cpp_extension(
+                    module_name,
+                    sources=source_files,
+                    with_cuda=True,
+                    extra_cflags=extra_cflags,
+                    extra_cuda_cflags=extra_cuda_cflags,
+                    extra_include_paths=extra_include_paths,
+                    build_directory=build_directory,
+                    verbose=True,
+                )
+
+            torch.distributed.barrier()
+
+            if _GLOBAL_RANK != 0:
+                module = load_cpp_extension(
+                    module_name,
+                    sources=source_files,
+                    with_cuda=True,
+                    extra_cflags=extra_cflags,
+                    extra_cuda_cflags=extra_cuda_cflags,
+                    extra_include_paths=extra_include_paths,
+                    build_directory=build_directory,
+                    verbose=False,
+                )
+        else:
+            if _WORLD_SIZE > 1:
+                build_directory = os.path.join(build_directory, str(uuid4()))
+
+            os.makedirs(build_directory, exist_ok=True)
+
             module = load_cpp_extension(
                 module_name,
                 sources=source_files,
@@ -40,38 +75,10 @@ def _get_cpp_function(function_name: str, source_files: list[str], build_directo
                 verbose=True,
             )
 
-        torch.distributed.barrier()
+            if _WORLD_SIZE > 1:
+                rmtree(build_directory, ignore_errors=True)
 
-        if _GLOBAL_RANK != 0:
-            module = load_cpp_extension(
-                module_name,
-                sources=source_files,
-                with_cuda=True,
-                extra_cflags=extra_cflags,
-                extra_cuda_cflags=extra_cuda_cflags,
-                extra_include_paths=extra_include_paths,
-                build_directory=build_directory,
-                verbose=False,
-            )
-    else:
-        if _WORLD_SIZE > 1:
-            build_directory = os.path.join(build_directory, str(uuid4()))
-
-        os.makedirs(build_directory, exist_ok=True)
-
-        module = load_cpp_extension(
-            module_name,
-            sources=source_files,
-            with_cuda=True,
-            extra_cflags=extra_cflags,
-            extra_cuda_cflags=extra_cuda_cflags,
-            extra_include_paths=extra_include_paths,
-            build_directory=build_directory,
-            verbose=True,
-        )
-
-        if _WORLD_SIZE > 1:
-            rmtree(build_directory, ignore_errors=True)
+        _ALL_COMPILED_MODULES[module_name] = module
 
     return getattr(module, function_name)
 
@@ -106,7 +113,12 @@ def cpp_jit(
         source_files.extend(filenames)
 
     if build_directory is None:
-        build_directory = os.path.join(os.path.dirname(os.path.dirname(__file__)), "build")
+        calling_directory_stripped = os.path.dirname(calling_directory)
+        if calling_directory_stripped.endswith("cuda_implementation"):
+            calling_directory_stripped = os.path.dirname(calling_directory_stripped)
+        calling_directory_stripped = os.path.basename(calling_directory_stripped)
+
+        build_directory = os.path.join(os.path.dirname(os.path.dirname(__file__)), "build", calling_directory_stripped)
 
     def _run(*args, **kwargs):
         nonlocal cpp_function
