@@ -125,12 +125,6 @@ def gemm_cute(
             BLOCK_SIZE_N=BLOCK_SIZE_N,
         )
     elif kernel_backend == "triton":
-        BLOCK_SIZE_M = 128
-        BLOCK_SIZE_K = 64
-        BLOCK_SIZE_N = 128
-        NUM_WARPS = 8
-        NUM_STAGES = 2
-
         gemm_triton(
             A=A,
             B=B,
@@ -143,11 +137,6 @@ def gemm_cute(
             M=M,
             K=K,
             N=N,
-            BLOCK_SIZE_M=BLOCK_SIZE_M,
-            BLOCK_SIZE_K=BLOCK_SIZE_K,
-            BLOCK_SIZE_N=BLOCK_SIZE_N,
-            num_warps=NUM_WARPS,
-            num_stages=NUM_STAGES,
         )
     else:
         raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
