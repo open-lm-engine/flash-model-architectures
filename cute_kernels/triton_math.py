@@ -107,9 +107,15 @@ def matmul(A, B, C, output_dtype):
         is_bf16 = output_dtype == tl.bfloat16
 
         if C is None:
-            x = tl.dot(A, B, out_dtype=tl.float32 if is_bf16 else output_dtype)
+            if is_bf16:
+                x = tl.dot(A, B, out_dtype=tl.float32)
+            else:
+                x = tl.dot(A, B, out_dtype=output_dtype)
         else:
-            x = tl.dot(A, B, C, out_dtype=tl.float32 if is_bf16 else output_dtype)
+            if is_bf16:
+                x = tl.dot(A, B, C, out_dtype=tl.float32)
+            else:
+                x = tl.dot(A, B, C, out_dtype=output_dtype)
 
     x = x.to(output_dtype)
 
