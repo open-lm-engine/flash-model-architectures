@@ -21,7 +21,6 @@ from .triton_implementation import add_scalar_triton
             condition=lambda **kwargs: is_triton_kernel_backend_allowed(kwargs["kernel_backend"]),
         ),
     ],
-    reset_to_zero={"output": None},
 )
 def _forward(
     x: torch.Tensor, y: float, output: torch.Tensor, kernel_backend: KernelBackend | CutoTuneParameter

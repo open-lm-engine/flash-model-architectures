@@ -4,7 +4,6 @@ import torch
 from parameterized import parameterized
 
 from cute_kernels import CutoTuneParameter, KernelBackend, add_scalar_cute, add_scalar_torch
-from cute_kernels.kernels.add_scalar import add_scalar_cuda, add_scalar_triton
 
 from ..test_commons import TestCommons
 
