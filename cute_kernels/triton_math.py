@@ -113,8 +113,7 @@ def matmul(A, B, C, output_dtype):
                 x = tl.dot(A, B, out_dtype=output_dtype)
         else:
             if is_bf16:
-                C = C.to(tl.float32)
-                x = tl.dot(A, B, C, out_dtype=tl.float32)
+                x = tl.dot(A, B, C.to(tl.float32), out_dtype=tl.float32)
             else:
                 x = tl.dot(A, B, C, out_dtype=output_dtype)
 
