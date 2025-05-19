@@ -21,6 +21,16 @@ class ScatterMoETest(TestCommons):
             [True, False],  # is_glu
             [True, False],  # is_compiling
         )
+        + TestCommons.make_args_matrix(
+            [torch.device("cuda")],
+            TestCommons.get_dtypes(),
+            [128],  # num_experts
+            [8],  # num_experts_per_tok
+            [576],  # hidden_size
+            [256],  # intermediate_size
+            [True, False],  # is_glu
+            [True, False],  # is_compiling
+        )
     )
     def test_scattermoe(
         self,
