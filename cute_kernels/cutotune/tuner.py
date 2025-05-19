@@ -306,7 +306,7 @@ def cutotune(
     reset_to_zero: dict = {},
 ) -> _CutoTune:
     def inner(function: Callable) -> Callable:
-        cutotuned_function = _CutoTune(
+        return _CutoTune(
             function=function,
             configs=configs,
             triggers=triggers,
@@ -315,10 +315,5 @@ def cutotune(
             functional_triggers=functional_triggers,
             reset_to_zero=reset_to_zero,
         )
-
-        cutotuned_function.__doc__ = function.__doc__
-        cutotuned_function.__signature__ = inspect.signature(function)
-
-        return cutotuned_function
 
     return inner
