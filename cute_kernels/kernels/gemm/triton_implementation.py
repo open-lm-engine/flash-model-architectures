@@ -9,8 +9,8 @@ from ...utils import cute_op
 
 def _get_autotune_configs() -> list[triton.Config]:
     configs = []
-    for BLOCK_SIZE_M in get_powers_of_2(16, 128):
-        for BLOCK_SIZE_N in get_powers_of_2(16, 128):
+    for BLOCK_SIZE_M in get_powers_of_2(32, 64):
+        for BLOCK_SIZE_N in get_powers_of_2(32, 64):
             for BLOCK_SIZE_K in get_powers_of_2(16, 64):
                 if BLOCK_SIZE_M * BLOCK_SIZE_K * BLOCK_SIZE_N <= 16384:
                     for num_warps in get_powers_of_2(4, 8):
