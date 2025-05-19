@@ -7,21 +7,16 @@ from ....math import ceil_divide, get_next_power_of_2, get_powers_of_2
 from ....utils import cute_op, get_num_elements_and_hidden_size, get_sm_count
 
 
-def _get_autotune_configs() -> list[triton.Config]:
-    configs = []
-    for BLOCK_SIZE_B in get_powers_of_2(1, 16):
-        for num_warps in get_powers_of_2(4, 8):
-            configs.append(triton.Config({"BLOCK_SIZE_B": BLOCK_SIZE_B}, num_warps=num_warps))
-
-    return configs
-
-
 def _reset_hook(kwargs: dict, reset_only: bool = True) -> None:
     if kwargs["weight_grad_ptr"] is not None:
         kwargs["weight_grad_ptr"].zero_()
 
 
-@triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_H"], pre_hook=_reset_hook)
+@triton.autotune(
+    configs=[triton.Config({}, num_warps=num_warps) for num_warps in get_powers_of_2(4, 8)],
+    key=[],
+    pre_hook=_reset_hook,
+)
 @triton.jit
 def rmsnorm_backward_triton_kernel(
     x_ptr,
