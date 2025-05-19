@@ -122,14 +122,11 @@ def gemm_triton(
     M: int,
     K: int,
     N: int,
-    BLOCK_SIZE_M: int,
-    BLOCK_SIZE_K: int,
-    BLOCK_SIZE_N: int,
-    num_warps: int,
-    num_stages: int,
 ) -> None:
+    GRID = lambda meta: (ceil_divide(M, meta["BLOCK_SIZE_M"]) * ceil_divide(N, meta["BLOCK_SIZE_N"]),)
+
     with torch.device(A.device):
-        gemm_triton_kernel[ceil_divide(M, BLOCK_SIZE_M) * ceil_divide(N, BLOCK_SIZE_N),](
+        gemm_triton_kernel[GRID](
             A_ptr=A,
             B_ptr=B,
             C_ptr=C,
@@ -141,9 +138,4 @@ def gemm_triton(
             M=M,
             K=K,
             N=N,
-            BLOCK_SIZE_M=BLOCK_SIZE_M,
-            BLOCK_SIZE_K=BLOCK_SIZE_K,
-            BLOCK_SIZE_N=BLOCK_SIZE_N,
-            num_warps=num_warps,
-            num_stages=num_stages,
         )
