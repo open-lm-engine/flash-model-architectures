@@ -12,9 +12,7 @@ from .triton_implementation import add_scalar_triton
     configs=[
         CutoTuneConfig(
             {"kernel_backend": KernelBackend.cuda},
-            condition=lambda **kwargs: is_cuda_kernel_backend_allowed(kwargs["kernel_backend"])
-            and is_nvidia_gpu()
-            and kwargs["x"].is_cuda,
+            condition=lambda **kwargs: is_cuda_kernel_backend_allowed(kwargs["kernel_backend"]) and is_nvidia_gpu(),
         ),
         CutoTuneConfig(
             {"kernel_backend": KernelBackend.triton},

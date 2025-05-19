@@ -13,10 +13,7 @@ from .triton_implementation import swiglu_backward_triton, swiglu_forward_triton
     configs=[
         CutoTuneConfig(
             {"kernel_backend": KernelBackend.cuda},
-            condition=lambda **kwargs: is_cuda_kernel_backend_allowed(kwargs["kernel_backend"])
-            and is_nvidia_gpu()
-            and kwargs["gate"].is_cuda
-            and kwargs["up"].is_cuda,
+            condition=lambda **kwargs: is_cuda_kernel_backend_allowed(kwargs["kernel_backend"]) and is_nvidia_gpu(),
         ),
         CutoTuneConfig(
             {"kernel_backend": KernelBackend.triton},
@@ -37,10 +34,7 @@ def _forward(gate: torch.Tensor, up: torch.Tensor, output: torch.Tensor, kernel_
     configs=[
         CutoTuneConfig(
             {"kernel_backend": KernelBackend.cuda},
-            condition=lambda **kwargs: is_cuda_kernel_backend_allowed(kwargs["kernel_backend"])
-            and is_nvidia_gpu()
-            and kwargs["gate"].is_cuda
-            and kwargs["up"].is_cuda,
+            condition=lambda **kwargs: is_cuda_kernel_backend_allowed(kwargs["kernel_backend"]) and is_nvidia_gpu(),
         ),
         CutoTuneConfig(
             {"kernel_backend": KernelBackend.triton},
