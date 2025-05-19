@@ -3,10 +3,34 @@ import triton
 import triton.language as tl
 
 from ...constants import LIBRARY_NAME
-from ...math import ceil_divide
+from ...math import ceil_divide, get_powers_of_2
 from ...utils import cute_op
 
 
+def _get_autotune_configs() -> list[triton.Config]:
+    configs = []
+    for BLOCK_SIZE_M in get_powers_of_2(16, 128):
+        for BLOCK_SIZE_N in get_powers_of_2(16, 128):
+            for BLOCK_SIZE_K in get_powers_of_2(16, 64):
+                if BLOCK_SIZE_M * BLOCK_SIZE_K * BLOCK_SIZE_N <= 16384:
+                    for num_warps in get_powers_of_2(4, 8):
+                        for num_stages in range(4):
+                            configs.append(
+                                triton.Config(
+                                    {
+                                        "BLOCK_SIZE_M": BLOCK_SIZE_M,
+                                        "BLOCK_SIZE_N": BLOCK_SIZE_N,
+                                        "BLOCK_SIZE_K": BLOCK_SIZE_K,
+                                    },
+                                    num_warps=num_warps,
+                                    num_stages=num_stages,
+                                )
+                            )
+
+    return configs
+
+
+@triton.autotune(configs=_get_autotune_configs(), key=[])
 @triton.jit
 def gemm_triton_kernel(
     A_ptr,
