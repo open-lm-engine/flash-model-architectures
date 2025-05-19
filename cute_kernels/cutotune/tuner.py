@@ -39,7 +39,11 @@ class _CutoTune:
         self.cutotuneable_parameters = set(self.configs[0].get_key_values().keys())
 
         self._setup_trigger_map(triggers)
-        self._check_configs()
+
+        for config in self.configs:
+            assert (
+                set(config.get_key_values().keys()) == self.cutotuneable_parameters
+            ), "cutotune configs don't match the expected function signature"
 
         self.functional_triggers = functional_triggers
         self.reset_to_zero = reset_to_zero
@@ -47,13 +51,13 @@ class _CutoTune:
         self.filename = inspect.stack()[2].filename.split("cute_kernels")[1][1:]
         self.function_hash = f"{self.filename}->{function.__name__}"
 
-        self.cache = get_cutotune_cache()
+        self.function_cache = {}
 
     def __call__(self, *args, **kwargs) -> Any:
         override_cutotune_parameters = self._check_all_or_no_args_are_cutotune_parameters(*args, **kwargs)
         lookup_key = self._get_lookup_key(*args, **kwargs)
 
-        best_config = self.cache.get_config(self.function_hash, lookup_key)
+        best_config = self.function_cache.get(lookup_key, None)
 
         if best_config is None:
             # bypass cutotune for single config
@@ -63,7 +67,10 @@ class _CutoTune:
             else:
                 best_config, best_time, _ = self._cutotune(*args, **kwargs)
 
-            self.cache.add_config(function_hash=self.function_hash, lookup_key=lookup_key, config=best_config)
+            self.function_cache[lookup_key] = best_config
+            get_cutotune_cache().add_config(
+                function_hash=self.function_hash, lookup_key=lookup_key, config=best_config
+            )
 
             if _DEBUG_CUTOTUNE and (not torch.distributed.is_initialized() or torch.distributed.get_rank() == 0):
                 print(
@@ -237,12 +244,6 @@ class _CutoTune:
 
         return elapsed_time / self.benchmark_iterations
 
-    def _check_configs(self) -> None:
-        for config in self.configs:
-            assert (
-                set(config.get_key_values().keys()) == self.cutotuneable_parameters
-            ), "cutotune configs don't match the expected function signature"
-
     def _setup_trigger_map(self, triggers: set[str]) -> None:
         assert isinstance(triggers, set), "triggers should be a set"
 
@@ -295,6 +296,9 @@ class _CutoTune:
                 raise ValueError(f"unexpected triggeer found ({trigger})")
 
         return variable_name, func_name, func
+
+    def __repr__(self):
+        return self.function_cache
 
 
 def cutotune(
