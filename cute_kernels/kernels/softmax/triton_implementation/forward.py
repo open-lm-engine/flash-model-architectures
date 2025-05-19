@@ -75,9 +75,7 @@ def softmax_forward_triton_kernel(
 
 
 @cute_op(f"{LIBRARY_NAME}::softmax_forward_triton", mutates_args={"output"})
-def softmax_forward_triton(
-    x: torch.Tensor, output: torch.Tensor, logits_multiplier: float | None, BLOCK_SIZE_B: int, BLOCK_SIZE_H: int
-) -> None:
+def softmax_forward_triton(x: torch.Tensor, output: torch.Tensor, logits_multiplier: float | None) -> None:
     if x.dim() == 1:
         B = 1
         H = x.size(-1)
