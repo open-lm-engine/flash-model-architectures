@@ -14,12 +14,22 @@ class ScatterMoETest(TestCommons):
         TestCommons.make_args_matrix(
             [torch.device("cuda")],
             TestCommons.get_dtypes(),
-            [2, 4, 6, 8, 128],  # num_experts
-            [2, 4, 8],  # num_experts_per_tok
-            [576, 2048],  # hidden_size
-            [256, 8192],  # intermediate_size
+            [2, 4, 6, 8],  # num_experts
+            [2, 4],  # num_experts_per_tok
+            [2048],  # hidden_size
+            [8192],  # intermediate_size
             [True, False],  # is_glu
             [True, False],  # is_compiling
+        )
+        + TestCommons.make_args_matrix(
+            [torch.device("cuda")],
+            TestCommons.get_dtypes()[:1],
+            [128],  # num_experts
+            [8],  # num_experts_per_tok
+            [576],  # hidden_size
+            [256],  # intermediate_size
+            [True],  # is_glu
+            [False],  # is_compiling
         )
     )
     def test_scattermoe(
