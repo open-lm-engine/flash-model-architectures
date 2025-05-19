@@ -8,7 +8,12 @@ from ....utils import cute_op, get_num_elements_and_hidden_size, get_sm_count
 from .forward import _get_autotune_configs
 
 
-@triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_H"], reset_to_zero=["weight_grad_ptr"])
+def _reset_hook(kwargs: dict) -> None:
+    if kwargs["weight_grad_ptr"] is not None:
+        kwargs["weight_grad_ptr"].zero_()
+
+
+@triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_H"], pre_hook=_reset_hook)
 @triton.jit
 def rmsnorm_backward_triton_kernel(
     x_ptr,
