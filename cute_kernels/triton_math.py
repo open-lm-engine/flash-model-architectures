@@ -95,28 +95,22 @@ def matmul(A, B, C, output_dtype):
         x = tl.sum(A.T * B, axis=0, keep_dims=True)
         if C is not None:
             x += C
-        x = x.to(output_dtype)
     elif A.shape[1] == 1:
         x = A * B
         if C is not None:
             x += C
-        x = x.to(output_dtype)
     elif B.shape[1] == 1:
         x = tl.sum(A * B.T, axis=1, keep_dims=True)
         if C is not None:
             x += C
-        x = x.to(output_dtype)
     else:
         is_bf16 = output_dtype == tl.bfloat16
-        if is_bf16:
-            output_dtype = tl.float32
 
         if C is None:
-            x = tl.dot(A, B, out_dtype=output_dtype)
+            x = tl.dot(A, B, out_dtype=tl.float32 if is_bf16 else output_dtype)
         else:
-            x = tl.dot(A, B, C, out_dtype=output_dtype)
+            x = tl.dot(A, B, C, out_dtype=tl.float32 if is_bf16 else output_dtype)
 
-        if is_bf16:
-            x = x.to(tl.bfloat16)
+    x = x.to(output_dtype)
 
     return x
