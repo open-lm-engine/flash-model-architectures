@@ -90,7 +90,7 @@ def leaky_relu_backward(y, relu_negative_slope):
 
 
 @triton.jit
-def matmul(A, B, C, output_dtype):
+def matmul(A, B, C, output_dtype: tl.constexpr):
     if A.shape[0] == 1:
         x = tl.sum(A.T * B, axis=0, keep_dims=True)
         if C is not None:
