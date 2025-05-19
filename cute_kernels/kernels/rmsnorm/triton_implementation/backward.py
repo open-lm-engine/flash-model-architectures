@@ -108,6 +108,7 @@ def rmsnorm_backward_triton(
 ) -> None:
     B, H = get_num_elements_and_hidden_size(x)
 
+    BLOCK_SIZE_B = 1
     BLOCK_SIZE_H = get_next_power_of_2(H)
     assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
 
@@ -127,5 +128,6 @@ def rmsnorm_backward_triton(
             rmsnorm_denominator_ptr=rmsnorm_denominator,
             B=B,
             H=H,
+            BLOCK_SIZE_B=BLOCK_SIZE_B,
             BLOCK_SIZE_H=BLOCK_SIZE_H,
         )
