@@ -33,6 +33,44 @@ def _forward(gate: torch.Tensor, up: torch.Tensor, output: torch.Tensor, kernel_
         raise ValueError("unexpected kernel_backend")
 
 
+@cutotune(
+    configs=[
+        CutoTuneConfig(
+            {"kernel_backend": KernelBackend.cuda},
+            condition=lambda **kwargs: is_cuda_kernel_backend_allowed(kwargs["kernel_backend"])
+            and is_nvidia_gpu()
+            and kwargs["gate"].is_cuda
+            and kwargs["up"].is_cuda,
+        ),
+        CutoTuneConfig(
+            {"kernel_backend": KernelBackend.triton},
+            condition=lambda **kwargs: is_triton_kernel_backend_allowed(kwargs["kernel_backend"]),
+        ),
+    ],
+)
+def _backward(
+    gate: torch.Tensor,
+    up: torch.Tensor,
+    output_grad: torch.Tensor,
+    gate_grad: torch.Tensor,
+    up_grad: torch.Tensor,
+    kernel_backend: torch.Tensor,
+) -> None:
+    if kernel_backend == KernelBackend.cuda:
+        swiglu_backward_cuda(
+            gate=gate,
+            up=up,
+            output_grad=output_grad,
+            gate_grad=gate_grad,
+            up_grad=up_grad,
+            BLOCK_SIZE=CutoTuneParameter(),
+        )
+    elif kernel_backend == KernelBackend.triton:
+        swiglu_backward_triton(gate=gate, up=up, output_grad=output_grad, gate_grad=gate_grad, up_grad=up_grad)
+    else:
+        raise ValueError("unexpected kernel_backend")
+
+
 class _Swiglu_Cute(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
@@ -61,24 +99,14 @@ class _Swiglu_Cute(torch.autograd.Function):
         gate_grad = torch.empty_like(gate)
         up_grad = torch.empty_like(up)
 
-        kernel_backend = ctx.kernel_backend_backward
-
-        if is_cuda_kernel_backend_allowed(kernel_backend) and is_nvidia_gpu() and gate.is_cuda and up.is_cuda:
-            swiglu_backward_cuda(
-                gate=gate, up=up, output_grad=output_grad, gate_grad=gate_grad, up_grad=up_grad, BLOCK_SIZE=1024
-            )
-        elif is_triton_kernel_backend_allowed(kernel_backend):
-            swiglu_backward_triton(
-                gate=gate,
-                up=up,
-                output_grad=output_grad,
-                gate_grad=gate_grad,
-                up_grad=up_grad,
-                BLOCK_SIZE_B=64,
-                BLOCK_SIZE_H=64,
-            )
-        else:
-            raise ValueError("unexpected kernel_backend")
+        _backward(
+            gate=gate,
+            up=up,
+            output_grad=output_grad,
+            gate_grad=gate_grad,
+            up_grad=up_grad,
+            kernel_backend=ctx.kernel_backend_backward,
+        )
 
         return gate_grad, up_grad, None, None
 

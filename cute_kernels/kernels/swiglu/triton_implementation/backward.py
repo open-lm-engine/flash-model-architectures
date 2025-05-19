@@ -70,11 +70,11 @@ def swiglu_backward_triton(
     output_grad: torch.Tensor,
     gate_grad: torch.Tensor,
     up_grad: torch.Tensor,
-    BLOCK_SIZE_B: int,
-    BLOCK_SIZE_H: int,
 ) -> None:
     B, H = get_num_elements_and_hidden_size(gate)
     H *= 2
+    BLOCK_SIZE_B = 64
+    BLOCK_SIZE_H = 64
 
     with torch.device(gate.device):
         swiglu_backward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), ceil_divide(H, BLOCK_SIZE_H)](
