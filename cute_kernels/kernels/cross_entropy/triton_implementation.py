@@ -7,11 +7,16 @@ from ...math import ceil_divide, get_next_power_of_2, get_powers_of_2
 from ...utils import cute_op
 
 
-@triton.autotune(
-    configs=[triton.Config({"BLOCK_SIZE_B": BLOCK_SIZE_B}, num_warps=32) for BLOCK_SIZE_B in get_powers_of_2(1, 8)],
-    key=["BLOCK_SIZE_V"],
-    reset_to_zero=["loss_ptr"],
-)
+def _get_autotune_configs() -> list[triton.Config]:
+    configs = []
+    for BLOCK_SIZE_B in get_powers_of_2(1, 8):
+        for num_warps in get_powers_of_2(4, 8):
+            configs.append(triton.Config({"BLOCK_SIZE_B": BLOCK_SIZE_B}, num_warps=num_warps))
+
+    return configs
+
+
+@triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_V"], reset_to_zero=["loss_ptr"])
 @triton.jit
 def cross_entropy_forward_backward_triton_kernel(
     x_ptr,
