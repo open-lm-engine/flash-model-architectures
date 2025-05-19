@@ -138,15 +138,7 @@ class _SwigluPacked_Cute(torch.autograd.Function):
         up, gate = x.chunk(2, dim=-1)
         up_grad, gate_grad = x_grad.chunk(2, dim=-1)
 
-        swiglu_backward_triton(
-            gate=gate,
-            up=up,
-            output_grad=output_grad,
-            gate_grad=gate_grad,
-            up_grad=up_grad,
-            BLOCK_SIZE_B=64,
-            BLOCK_SIZE_H=64,
-        )
+        swiglu_backward_triton(gate=gate, up=up, output_grad=output_grad, gate_grad=gate_grad, up_grad=up_grad)
 
         return x_grad, None, None
 
