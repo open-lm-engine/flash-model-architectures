@@ -120,7 +120,7 @@ class _SwigluPacked_Cute(torch.autograd.Function):
             BLOCK_SIZE_H=64,
         )
 
-        return x_grad
+        return x_grad, None, None
 
 
 def swiglu_cute(
