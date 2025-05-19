@@ -12,10 +12,12 @@ _CPP_MODULE_PREFIX = "cute_kernels"
 _GLOBAL_RANK = int(os.getenv("RANK", 0))
 _WORLD_SIZE = int(os.getenv("WORLD_SIZE", 1))
 
+_ALL_COMPILED_MODULES = {}
+
 
 @torch.compiler.disable
-def _get_cpp_function(function_name: str, source_files: list[str], build_directory: str) -> Callable:
-    module_name = f"{_CPP_MODULE_PREFIX}_{function_name}"
+def _get_cpp_function(function_name: str, module_name: str, source_files: list[str], build_directory: str) -> Callable:
+    module_name = f"{_CPP_MODULE_PREFIX}_{module_name}"
 
     extra_cflags = ["-O3", "-Wall", "-shared", "-fPIC", "-fdiagnostics-color"]
     extra_cuda_cflags = ["-lineinfo"]
@@ -25,10 +27,43 @@ def _get_cpp_function(function_name: str, source_files: list[str], build_directo
         os.path.dirname(os.path.dirname(__file__)) + "/cutlass/tools/util/include",  # cutlass
     ]
 
-    if torch.distributed.is_initialized():
-        os.makedirs(build_directory, exist_ok=True)
+    module = _ALL_COMPILED_MODULES.get(module_name, None)
 
-        if _GLOBAL_RANK == 0:
+    if module is None:
+        if torch.distributed.is_initialized():
+            os.makedirs(build_directory, exist_ok=True)
+
+            if _GLOBAL_RANK == 0:
+                module = load_cpp_extension(
+                    module_name,
+                    sources=source_files,
+                    with_cuda=True,
+                    extra_cflags=extra_cflags,
+                    extra_cuda_cflags=extra_cuda_cflags,
+                    extra_include_paths=extra_include_paths,
+                    build_directory=build_directory,
+                    verbose=True,
+                )
+
+            torch.distributed.barrier()
+
+            if _GLOBAL_RANK != 0:
+                module = load_cpp_extension(
+                    module_name,
+                    sources=source_files,
+                    with_cuda=True,
+                    extra_cflags=extra_cflags,
+                    extra_cuda_cflags=extra_cuda_cflags,
+                    extra_include_paths=extra_include_paths,
+                    build_directory=build_directory,
+                    verbose=False,
+                )
+        else:
+            if _WORLD_SIZE > 1:
+                build_directory = os.path.join(build_directory, str(uuid4()))
+
+            os.makedirs(build_directory, exist_ok=True)
+
             module = load_cpp_extension(
                 module_name,
                 sources=source_files,
@@ -40,44 +75,19 @@ def _get_cpp_function(function_name: str, source_files: list[str], build_directo
                 verbose=True,
             )
 
-        torch.distributed.barrier()
+            if _WORLD_SIZE > 1:
+                rmtree(build_directory, ignore_errors=True)
 
-        if _GLOBAL_RANK != 0:
-            module = load_cpp_extension(
-                module_name,
-                sources=source_files,
-                with_cuda=True,
-                extra_cflags=extra_cflags,
-                extra_cuda_cflags=extra_cuda_cflags,
-                extra_include_paths=extra_include_paths,
-                build_directory=build_directory,
-                verbose=False,
-            )
-    else:
-        if _WORLD_SIZE > 1:
-            build_directory = os.path.join(build_directory, str(uuid4()))
-
-        os.makedirs(build_directory, exist_ok=True)
-
-        module = load_cpp_extension(
-            module_name,
-            sources=source_files,
-            with_cuda=True,
-            extra_cflags=extra_cflags,
-            extra_cuda_cflags=extra_cuda_cflags,
-            extra_include_paths=extra_include_paths,
-            build_directory=build_directory,
-            verbose=True,
-        )
-
-        if _WORLD_SIZE > 1:
-            rmtree(build_directory, ignore_errors=True)
+        _ALL_COMPILED_MODULES[module_name] = module
 
     return getattr(module, function_name)
 
 
 def cpp_jit(
-    function_name: str | None = None, extra_source_files: list[str] = [], build_directory: str | None = None
+    function_name: str | None = None,
+    extra_source_files: list[str] = [],
+    build_directory: str | None = None,
+    depth: int = 1,
 ) -> Callable:
     """wrapper to compile C++/CUDA source code at runtime.
 
@@ -87,6 +97,7 @@ def cpp_jit(
         extra_source_files (list[str], optional): any extra files to use for compilation, by default it scans the
             directory of the python stub file. Defaults to [].
         build_directory (str | None, optional): directory in which to place the build artifacts. Defaults to None.
+        depth (int, optional): number of times dirname is called to get the build path. Defaults to 2.
 
     Returns:
         Callable: returns the wrapped function that can be used to call the C++ functions from python
@@ -106,13 +117,23 @@ def cpp_jit(
         source_files.extend(filenames)
 
     if build_directory is None:
-        build_directory = os.path.join(os.path.dirname(os.path.dirname(__file__)), "build")
+        module_name = calling_directory
+        for _ in range(depth):
+            module_name = os.path.dirname(module_name)
+        module_name = os.path.basename(module_name)
+
+        build_directory = os.path.join(os.path.dirname(os.path.dirname(__file__)), "build", module_name)
 
     def _run(*args, **kwargs):
         nonlocal cpp_function
 
         if cpp_function is None:
-            cpp_function = _get_cpp_function(_run.__name__, source_files, build_directory)
+            cpp_function = _get_cpp_function(
+                function_name=_run.__name__,
+                module_name=module_name,
+                source_files=source_files,
+                build_directory=build_directory,
+            )
 
         full_args = []
         full_args.extend(args)
