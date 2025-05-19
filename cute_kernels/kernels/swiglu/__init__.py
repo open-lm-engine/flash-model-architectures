@@ -86,7 +86,12 @@ class _Swiglu_Cute(torch.autograd.Function):
 class _SwigluPacked_Cute(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
-    def forward(ctx, x: torch.Tensor) -> torch.Tensor:
+    def forward(
+        ctx,
+        x: torch.Tensor,
+        kernel_backend_forward: KernelBackend | CutoTuneParameter,
+        kernel_backend_backward: KernelBackend | CutoTuneParameter,
+    ) -> torch.Tensor:
         ctx.save_for_backward(x)
 
         output = torch.empty(*x.size()[:-1], divide_if_divisible(x.size(-1), 2), device=x.device, dtype=x.dtype)
