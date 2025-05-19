@@ -7,7 +7,6 @@ from ....math import ceil_divide, get_next_power_of_2, get_powers_of_2
 from ....utils import cute_op, get_num_elements_and_hidden_size
 
 
-@triton.autotune(configs=[triton.Config({}, num_warps=num_warps) for num_warps in get_powers_of_2(4, 8)], key=[])
 @triton.jit
 def rmsnorm_forward_triton_kernel(
     x_ptr,
@@ -63,6 +62,7 @@ def rmsnorm_forward_triton(
     BLOCK_SIZE_B = 1
     BLOCK_SIZE_H = get_next_power_of_2(H)
     assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
+    NUM_WARPS = 8
 
     with torch.device(x.device):
         rmsnorm_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](
@@ -77,4 +77,5 @@ def rmsnorm_forward_triton(
             H=H,
             BLOCK_SIZE_B=BLOCK_SIZE_B,
             BLOCK_SIZE_H=BLOCK_SIZE_H,
+            num_warps=NUM_WARPS,
         )

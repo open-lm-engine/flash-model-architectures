@@ -3,20 +3,10 @@ import triton
 import triton.language as tl
 
 from ....constants import LIBRARY_NAME, MAX_TRITON_BLOCK_SIZE
-from ....math import ceil_divide, get_next_power_of_2, get_powers_of_2
+from ....math import ceil_divide, get_next_power_of_2
 from ....utils import cute_op, get_num_elements_and_hidden_size, get_sm_count
 
 
-def _reset_hook(kwargs: dict, reset_only: bool = True) -> None:
-    if kwargs["weight_grad_ptr"] is not None:
-        kwargs["weight_grad_ptr"].zero_()
-
-
-@triton.autotune(
-    configs=[triton.Config({}, num_warps=num_warps) for num_warps in get_powers_of_2(4, 8)],
-    key=[],
-    pre_hook=_reset_hook,
-)
 @triton.jit
 def rmsnorm_backward_triton_kernel(
     x_ptr,
@@ -111,6 +101,7 @@ def rmsnorm_backward_triton(
     BLOCK_SIZE_B = 1
     BLOCK_SIZE_H = get_next_power_of_2(H)
     assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
+    NUM_WARPS = 8
 
     sm_count = get_sm_count(x.device)
     GRID = lambda meta: (min(sm_count, ceil_divide(B, meta["BLOCK_SIZE_B"])),)
@@ -130,4 +121,5 @@ def rmsnorm_backward_triton(
             H=H,
             BLOCK_SIZE_B=BLOCK_SIZE_B,
             BLOCK_SIZE_H=BLOCK_SIZE_H,
+            num_warps=NUM_WARPS,
         )
