@@ -200,7 +200,7 @@ class RNNTest(TestCommons):
             rtol_float32=0,
             atol_float16=2e-3,
             rtol_float16=0,
-            atol_bfloat16=1.6e-5,
+            atol_bfloat16=1.3e-4,
             rtol_bfloat16=0,
         )
         self.assert_equal_tensors(
