@@ -5,8 +5,10 @@ import triton.language as tl
 from ....constants import LIBRARY_NAME, MAX_TRITON_BLOCK_SIZE
 from ....math import ceil_divide, get_next_power_of_2
 from ....utils import cute_op, get_num_elements_and_hidden_size, get_sm_count
+from .forward import _get_autotune_configs
 
 
+@triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_H"])
 @triton.jit
 def rmsnorm_backward_triton_kernel(
     x_ptr,
@@ -98,15 +100,14 @@ def rmsnorm_backward_triton(
 ) -> None:
     B, H = get_num_elements_and_hidden_size(x)
 
-    BLOCK_SIZE_B = 1
     BLOCK_SIZE_H = get_next_power_of_2(H)
     assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
 
     sm_count = get_sm_count(x.device)
-    num_programs = min(sm_count, ceil_divide(B, BLOCK_SIZE_B))
+    GRID = lambda meta: (min(sm_count, ceil_divide(B, meta["BLOCK_SIZE_B"])),)
 
     with torch.device(x.device):
-        rmsnorm_backward_triton_kernel[num_programs,](
+        rmsnorm_backward_triton_kernel[GRID](
             x_ptr=x,
             HAS_WEIGHT=weight is not None,
             weight_ptr=weight,
@@ -118,6 +119,5 @@ def rmsnorm_backward_triton(
             rmsnorm_denominator_ptr=rmsnorm_denominator,
             B=B,
             H=H,
-            BLOCK_SIZE_B=BLOCK_SIZE_B,
             BLOCK_SIZE_H=BLOCK_SIZE_H,
         )
