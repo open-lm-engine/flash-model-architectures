@@ -84,7 +84,10 @@ def _get_cpp_function(function_name: str, source_files: list[str], build_directo
 
 
 def cpp_jit(
-    function_name: str | None = None, extra_source_files: list[str] = [], build_directory: str | None = None
+    function_name: str | None = None,
+    extra_source_files: list[str] = [],
+    build_directory: str | None = None,
+    depth: int = 2,
 ) -> Callable:
     """wrapper to compile C++/CUDA source code at runtime.
 
@@ -94,6 +97,7 @@ def cpp_jit(
         extra_source_files (list[str], optional): any extra files to use for compilation, by default it scans the
             directory of the python stub file. Defaults to [].
         build_directory (str | None, optional): directory in which to place the build artifacts. Defaults to None.
+        depth (int, optional): number of times dirname is called to get the build path. Defaults to 2.
 
     Returns:
         Callable: returns the wrapped function that can be used to call the C++ functions from python
@@ -113,8 +117,8 @@ def cpp_jit(
         source_files.extend(filenames)
 
     if build_directory is None:
-        calling_directory_stripped = os.path.dirname(calling_directory)
-        if calling_directory_stripped.endswith("cuda_implementation"):
+        calling_directory_stripped = calling_directory
+        for _ in range(depth):
             calling_directory_stripped = os.path.dirname(calling_directory_stripped)
         calling_directory_stripped = os.path.basename(calling_directory_stripped)
 
