@@ -87,7 +87,7 @@ def cpp_jit(
     function_name: str | None = None,
     extra_source_files: list[str] = [],
     build_directory: str | None = None,
-    depth: int = 2,
+    depth: int = 1,
 ) -> Callable:
     """wrapper to compile C++/CUDA source code at runtime.
 
