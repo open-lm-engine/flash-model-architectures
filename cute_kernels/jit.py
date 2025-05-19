@@ -16,8 +16,8 @@ _ALL_COMPILED_MODULES = {}
 
 
 @torch.compiler.disable
-def _get_cpp_function(function_name: str, source_files: list[str], build_directory: str) -> Callable:
-    module_name = f"{_CPP_MODULE_PREFIX}_{function_name}"
+def _get_cpp_function(function_name: str, module_name: str, source_files: list[str], build_directory: str) -> Callable:
+    module_name = f"{_CPP_MODULE_PREFIX}_{module_name}"
 
     extra_cflags = ["-O3", "-Wall", "-shared", "-fPIC", "-fdiagnostics-color"]
     extra_cuda_cflags = ["-lineinfo"]
@@ -117,18 +117,23 @@ def cpp_jit(
         source_files.extend(filenames)
 
     if build_directory is None:
-        calling_directory_stripped = calling_directory
+        module_name = calling_directory
         for _ in range(depth):
-            calling_directory_stripped = os.path.dirname(calling_directory_stripped)
-        calling_directory_stripped = os.path.basename(calling_directory_stripped)
+            module_name = os.path.dirname(module_name)
+        module_name = os.path.basename(module_name)
 
-        build_directory = os.path.join(os.path.dirname(os.path.dirname(__file__)), "build", calling_directory_stripped)
+        build_directory = os.path.join(os.path.dirname(os.path.dirname(__file__)), "build", module_name)
 
     def _run(*args, **kwargs):
         nonlocal cpp_function
 
         if cpp_function is None:
-            cpp_function = _get_cpp_function(_run.__name__, source_files, build_directory)
+            cpp_function = _get_cpp_function(
+                function_name=_run.__name__,
+                module_name=module_name,
+                source_files=source_files,
+                build_directory=build_directory,
+            )
 
         full_args = []
         full_args.extend(args)
