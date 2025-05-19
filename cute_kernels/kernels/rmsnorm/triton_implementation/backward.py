@@ -8,7 +8,7 @@ from ....utils import cute_op, get_num_elements_and_hidden_size, get_sm_count
 from .forward import _get_autotune_configs
 
 
-def _reset_hook(kwargs: dict, reset_only: bool) -> None:
+def _reset_hook(kwargs: dict, reset_only: bool = True) -> None:
     if kwargs["weight_grad_ptr"] is not None:
         kwargs["weight_grad_ptr"].zero_()
 
