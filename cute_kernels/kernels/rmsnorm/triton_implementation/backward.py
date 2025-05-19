@@ -3,9 +3,17 @@ import triton
 import triton.language as tl
 
 from ....constants import LIBRARY_NAME, MAX_TRITON_BLOCK_SIZE
-from ....math import ceil_divide, get_next_power_of_2
+from ....math import ceil_divide, get_next_power_of_2, get_powers_of_2
 from ....utils import cute_op, get_num_elements_and_hidden_size, get_sm_count
-from .forward import _get_autotune_configs
+
+
+def _get_autotune_configs() -> list[triton.Config]:
+    configs = []
+    for BLOCK_SIZE_B in get_powers_of_2(1, 16):
+        for num_warps in get_powers_of_2(4, 8):
+            configs.append(triton.Config({"BLOCK_SIZE_B": BLOCK_SIZE_B}, num_warps=num_warps))
+
+    return configs
 
 
 def _reset_hook(kwargs: dict, reset_only: bool = True) -> None:
