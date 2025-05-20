@@ -20,7 +20,7 @@ update-precommit:
 	pre-commit autoupdate
 
 style:
-	python tools/copyright.py
+	python copyright/copyright.py --repo ./ --header "Copyright (c) 2025, Mayank Mishra"
 	pre-commit run --all-files
 
 cutotune-cache:
