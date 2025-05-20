@@ -13,6 +13,7 @@ update-precommit:
 	pre-commit autoupdate
 
 style:
+	python tools/copyright.py
 	pre-commit run --all-files
 
 cutotune-cache:
