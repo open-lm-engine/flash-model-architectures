@@ -11,6 +11,7 @@ from .fused_residual_add_rmsnorm import fused_residual_add_rmsnorm_cute, fused_r
 from .gemm import gemm_cute, gemm_torch
 from .gru import gru_cute, gru_torch
 from .linear import linear_cute, linear_torch
+from .matrix_transpose import matrix_transpose_cute, matrix_transpose_torch
 from .rmsnorm import rmsnorm_cute, rmsnorm_torch
 from .rnn import rnn_cute, rnn_torch
 from .scattermoe import MoE_Torch, MoE_Triton
