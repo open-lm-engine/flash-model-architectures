@@ -3,7 +3,15 @@ from typing import Callable
 import torch
 from parameterized import parameterized
 
-from cute_kernels import KernelBackend, ceil_divide, swiglu_cute, swiglu_packed_cute, swiglu_packed_torch, swiglu_torch
+from cute_kernels import (
+    CutoTuneParameter,
+    KernelBackend,
+    ceil_divide,
+    swiglu_cute,
+    swiglu_packed_cute,
+    swiglu_packed_torch,
+    swiglu_torch,
+)
 
 from ..test_commons import TestCommons
 
@@ -14,7 +22,7 @@ class SwiGLUTest(TestCommons):
             TestCommons.get_2d_tensor_sizes(),  # size
             [torch.device("cuda")],  # device
             TestCommons.get_dtypes(),  # dtype
-            [KernelBackend.cuda, KernelBackend.triton],  # kernel_backend
+            [KernelBackend.cuda, KernelBackend.triton, CutoTuneParameter()],  # kernel_backend
             [swiglu_cute, torch.compile(swiglu_cute, fullgraph=True)],  # function
         )
     )
