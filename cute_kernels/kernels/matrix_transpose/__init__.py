@@ -16,7 +16,7 @@ class _MatrixTranspose_Cute(torch.autograd.Function):
         assert x.dim() == 2
         M, N = x.size()
 
-        output = torch.empty(M, N, device=x.device, dtype=x.dtype)
+        output = torch.empty(N, M, device=x.device, dtype=x.dtype)
         matrix_transpose_triton(x=x, output=output)
 
         return output
