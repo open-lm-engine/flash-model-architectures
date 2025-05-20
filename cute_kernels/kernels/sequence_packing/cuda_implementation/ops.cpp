@@ -1,3 +1,7 @@
+// **************************************************
+// Copyright (c) 2025, Mayank Mishra
+// **************************************************
+
 #include <torch/extension.h>
 
 void pack_unpack_sequence_cuda(const torch::Tensor &x,

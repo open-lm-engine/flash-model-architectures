@@ -1,3 +1,7 @@
+# **************************************************
+# Copyright (c) 2025, Mayank Mishra
+# **************************************************
+
 import torch
 from torch.fx import Node
 from torch.fx.graph_module import GraphModule

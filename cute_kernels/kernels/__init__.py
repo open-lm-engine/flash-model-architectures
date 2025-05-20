@@ -1,3 +1,7 @@
+# **************************************************
+# Copyright (c) 2025, Mayank Mishra
+# **************************************************
+
 from .add_scalar import add_scalar_cute, add_scalar_torch
 from .add_tensor import add_tensor_cute, add_tensor_torch
 from .continuous_count import continuous_count_cute, continuous_count_torch

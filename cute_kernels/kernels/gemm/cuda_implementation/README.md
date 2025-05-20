@@ -1,3 +1,7 @@
+<!-- **************************************************
+Copyright (c) 2025, Mayank Mishra
+************************************************** -->
+
 # GEMM CUDA
 
 | Algorithm    | GMEM accesses | SMEM accesses |
