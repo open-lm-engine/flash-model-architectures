@@ -1,3 +1,7 @@
+# **************************************************
+# Copyright (c) 2025, Mayank Mishra
+# **************************************************
+
 import torch
 
 from ...utils import ensure_contiguous, get_num_elements_and_hidden_size

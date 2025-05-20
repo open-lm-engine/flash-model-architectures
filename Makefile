@@ -1,3 +1,7 @@
+# **************************************************
+# Copyright (c) 2025, Mayank Mishra
+# **************************************************
+
 install:
 	git submodule update --init --recursive
 	pip install .
@@ -16,6 +20,7 @@ update-precommit:
 	pre-commit autoupdate
 
 style:
+	python tools/copyright.py
 	pre-commit run --all-files
 
 cutotune-cache:

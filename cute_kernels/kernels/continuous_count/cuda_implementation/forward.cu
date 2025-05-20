@@ -1,3 +1,7 @@
+// **************************************************
+// Copyright (c) 2025, Mayank Mishra
+// **************************************************
+
 #include <cooperative_groups.h>
 #include <cuda.h>
 #include <cuda_runtime.h>

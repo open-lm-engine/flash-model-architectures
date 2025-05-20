@@ -1,3 +1,7 @@
+# **************************************************
+# Copyright (c) 2025, Mayank Mishra
+# **************************************************
+
 import inspect
 from contextlib import contextmanager
 from typing import Callable, Iterable, Sequence

@@ -1,3 +1,7 @@
+// **************************************************
+// Copyright (c) 2025, Mayank Mishra
+// **************************************************
+
 #include <torch/extension.h>
 
 void naive_gemm_cuda(const torch::Tensor &A,

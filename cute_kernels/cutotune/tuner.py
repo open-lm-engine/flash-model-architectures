@@ -1,3 +1,7 @@
+# **************************************************
+# Copyright (c) 2025, Mayank Mishra
+# **************************************************
+
 import inspect
 from collections import defaultdict
 from typing import Any, Callable
