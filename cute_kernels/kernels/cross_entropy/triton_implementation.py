@@ -112,11 +112,12 @@ def cross_entropy_forward_backward_triton(
     reduction: str,
 ) -> None:
     B, V = x.size()
-    NUM_BLOCKS = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]),)
+
     BLOCK_SIZE_V = min(get_next_power_of_2(V), 4096 if x.dtype == torch.float32 else 8192)
+    GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]),)
 
     with torch.device(x.device):
-        cross_entropy_forward_backward_triton_kernel[NUM_BLOCKS](
+        cross_entropy_forward_backward_triton_kernel[GRID](
             x_ptr=x,
             labels_ptr=labels,
             loss_ptr=loss,
