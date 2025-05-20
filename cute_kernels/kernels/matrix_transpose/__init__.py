@@ -26,7 +26,7 @@ class _MatrixTranspose_Cute(torch.autograd.Function):
     def backward(ctx, output_grad: torch.Tensor) -> torch.Tensor:
         M, N = output_grad.size()
 
-        x_grad = torch.empty(M, N, device=output_grad.device, dtype=output_grad.dtype)
+        x_grad = torch.empty(N, M, device=output_grad.device, dtype=output_grad.dtype)
         matrix_transpose_triton(x=output_grad, output=x_grad)
 
         return x_grad
