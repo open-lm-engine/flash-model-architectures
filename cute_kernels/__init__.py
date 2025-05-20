@@ -1,3 +1,7 @@
+# **************************************************
+# Copyright (c) 2025, Mayank Mishra
+# **************************************************
+
 from .cute_inductor import CuteInductor
 from .inductor import init_inductor
 from .kernel_backend import KernelBackend

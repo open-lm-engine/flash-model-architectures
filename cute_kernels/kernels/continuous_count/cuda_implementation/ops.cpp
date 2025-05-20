@@ -1,3 +1,7 @@
+// **************************************************
+// Copyright (c) 2025, Mayank Mishra
+// **************************************************
+
 #include <torch/extension.h>
 
 void continuous_count_cuda(const torch::Tensor &x,

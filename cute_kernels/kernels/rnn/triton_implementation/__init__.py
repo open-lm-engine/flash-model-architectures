@@ -1,3 +1,7 @@
+# **************************************************
+# Copyright (c) 2025, Mayank Mishra
+# **************************************************
+
 from .backward import rnn_backward_triton
 from .backward_scalar import scalar_rnn_backward_triton
 from .backward_scalar_varlen import scalar_rnn_varlen_backward_triton

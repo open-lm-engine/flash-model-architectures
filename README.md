@@ -1,3 +1,7 @@
+<!-- **************************************************
+Copyright (c) 2025, Mayank Mishra
+************************************************** -->
+
 # Discord Server
 Join the [discord server](https://discord.gg/AFDxmjH5RV) if you are interested in LLM architecture or distributed training/inference research.
 

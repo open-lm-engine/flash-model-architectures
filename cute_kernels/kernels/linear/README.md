@@ -1,3 +1,7 @@
+<!-- **************************************************
+Copyright (c) 2025, Mayank Mishra
+************************************************** -->
+
 # Linear layer
 Note that the weight matrix $W \in R^{N \times M}$ where $N$ is the output dimension and $M$ is the input dimension. The input $X \in R^{B \times M}$. This layout matches the layout of the PyTorch linear layer.
 

@@ -46,6 +46,9 @@ directory = os.path.dirname(os.path.dirname(__file__))
 def _check_and_add_copyright_header(file: str, header: str) -> None:
     code = open(file, "r").read()
 
+    if len(code) == 0:
+        return
+
     if not code.startswith(header):
         code = f"{header}{code}"
 
