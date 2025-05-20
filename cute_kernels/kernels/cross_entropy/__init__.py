@@ -13,13 +13,7 @@ class _CrossEntropy_Cute(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
     def forward(
-        ctx,
-        x: torch.Tensor,
-        labels: torch.Tensor,
-        reduction: str,
-        logits_multiplier: float | None,
-        BLOCK_SIZE_B: int,
-        BLOCK_SIZE_V: int,
+        ctx, x: torch.Tensor, labels: torch.Tensor, reduction: str, logits_multiplier: float | None
     ) -> torch.Tensor:
         assert reduction in ["sum", "mean"]
         assert x.dim() == 2, "x should be 2 dimensional"
@@ -32,14 +26,7 @@ class _CrossEntropy_Cute(torch.autograd.Function):
         x_grad = torch.empty_like(x)
 
         cross_entropy_forward_backward_triton(
-            x=x,
-            labels=labels,
-            loss=loss,
-            x_grad=x_grad,
-            logits_multiplier=logits_multiplier,
-            BLOCK_SIZE_B=BLOCK_SIZE_B,
-            BLOCK_SIZE_V=BLOCK_SIZE_V,
-            reduction=reduction,
+            x=x, labels=labels, loss=loss, x_grad=x_grad, logits_multiplier=logits_multiplier, reduction=reduction
         )
 
         ctx.save_for_backward(x_grad)
@@ -55,13 +42,7 @@ class _CrossEntropy_Cute(torch.autograd.Function):
 
 
 def cross_entropy_cute(
-    x: torch.Tensor,
-    labels: torch.Tensor,
-    reduction: str = "mean",
-    logits_multiplier: float | None = None,
-    *,
-    BLOCK_SIZE_B: int = 4,
-    BLOCK_SIZE_V: int = 256,
+    x: torch.Tensor, labels: torch.Tensor, reduction: str = "mean", logits_multiplier: float | None = None
 ) -> torch.Tensor:
     """compute cross entropy loss
 
@@ -71,11 +52,9 @@ def cross_entropy_cute(
         reduction (str, optional): reduction should be either sum or mean. Defaults to "mean".
         logits_multiplier (float | None, optional): logits multiplier pre-multiplies logits, None implies 1.
             Defaults to None.
-        BLOCK_SIZE_B (int, optional): block size along the token dimension. Defaults to 4.
-        BLOCK_SIZE_V (int, optional): block size along the vocabulary dimension. Defaults to 256.
 
     Returns:
         torch.Tensor: loss
     """
 
-    return _CrossEntropy_Cute.apply(x, labels, reduction, logits_multiplier, BLOCK_SIZE_B, BLOCK_SIZE_V)
+    return _CrossEntropy_Cute.apply(x, labels, reduction, logits_multiplier)

@@ -5,6 +5,8 @@
 from contextlib import contextmanager
 from enum import Enum
 
+from .cutotune import CutoTuneParameter
+
 
 class KernelBackend(Enum):
     cuda = "cuda"
@@ -12,8 +14,8 @@ class KernelBackend(Enum):
 
 
 def is_cuda_kernel_backend_allowed(kernel_backend: KernelBackend) -> bool:
-    return kernel_backend in [None, KernelBackend.cuda]
+    return isinstance(kernel_backend, CutoTuneParameter) or kernel_backend in [None, KernelBackend.cuda]
 
 
 def is_triton_kernel_backend_allowed(kernel_backend: KernelBackend) -> bool:
-    return kernel_backend in [None, KernelBackend.triton]
+    return isinstance(kernel_backend, CutoTuneParameter) or kernel_backend in [None, KernelBackend.triton]

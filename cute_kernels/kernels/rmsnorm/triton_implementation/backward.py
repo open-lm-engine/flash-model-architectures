@@ -99,18 +99,19 @@ def rmsnorm_backward_triton(
     x_grad: torch.Tensor,
     weight_grad: torch.Tensor | None,
     eps: float,
-    BLOCK_SIZE_B: int,
 ) -> None:
     B, H = get_num_elements_and_hidden_size(x)
 
+    BLOCK_SIZE_B = 1
     BLOCK_SIZE_H = get_next_power_of_2(H)
     assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
+    NUM_WARPS = 8
 
     sm_count = get_sm_count(x.device)
-    num_programs = min(sm_count, ceil_divide(B, BLOCK_SIZE_B))
+    GRID = lambda meta: (min(sm_count, ceil_divide(B, meta["BLOCK_SIZE_B"])),)
 
     with torch.device(x.device):
-        rmsnorm_backward_triton_kernel[num_programs,](
+        rmsnorm_backward_triton_kernel[GRID](
             x_ptr=x,
             HAS_WEIGHT=weight is not None,
             weight_ptr=weight,
@@ -124,4 +125,5 @@ def rmsnorm_backward_triton(
             H=H,
             BLOCK_SIZE_B=BLOCK_SIZE_B,
             BLOCK_SIZE_H=BLOCK_SIZE_H,
+            num_warps=NUM_WARPS,
         )

@@ -10,9 +10,10 @@ from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
 from ....triton_math import clamp
 from ....utils import cute_op
-from ...rnn.triton_implementation.backward import _load_previous_output, _rnn_backward_update
+from ...rnn.triton_implementation.backward import _get_autotune_configs, _load_previous_output, _rnn_backward_update
 
 
+@triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_H"], reset_to_zero=["dW_ptr", "dWf_ptr", "dWr_ptr"])
 @triton.jit
 def gru_backward_triton_kernel(
     W_ptr,
@@ -176,15 +177,15 @@ def gru_backward_triton(
     input_grad: torch.Tensor,
     weight_grad: torch.Tensor,
     gradient_clipping: float | None,
-    BLOCK_SIZE_B: int,
 ) -> None:
     B, S, N, H = output.size()
 
     BLOCK_SIZE_H = get_next_power_of_2(H)
     BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
+    GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), N)
 
     with torch.device(output.device):
-        gru_backward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), N](
+        gru_backward_triton_kernel[GRID](
             W_ptr=weight,
             W_stride_n=weight.stride(0),
             y_ptr=output,
@@ -210,6 +211,5 @@ def gru_backward_triton(
             B=B,
             S=S,
             H=H,
-            BLOCK_SIZE_B=BLOCK_SIZE_B,
             BLOCK_SIZE_H=BLOCK_SIZE_H,
         )

@@ -13,11 +13,14 @@ install-dev:
 test:
 	pytest tests
 
+test-debug:
+	DEBUG_CUTOTUNE=1 TRITON_PRINT_AUTOTUNING=1 pytest -s tests
+
 update-precommit:
 	pre-commit autoupdate
 
 style:
-	python tools/copyright.py
+	python copyright/copyright.py --repo ./ --header "Copyright (c) 2025, Mayank Mishra"
 	pre-commit run --all-files
 
 cutotune-cache:

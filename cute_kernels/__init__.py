@@ -3,6 +3,13 @@
 # **************************************************
 
 from .cute_inductor import CuteInductor
+from .cutotune import (
+    CutoTuneConfig,
+    CutoTuneParameter,
+    cutotune,
+    get_cartesian_product_cutotune_configs,
+    get_cutotune_cache,
+)
 from .inductor import init_inductor
 from .kernel_backend import KernelBackend
 from .kernels import (

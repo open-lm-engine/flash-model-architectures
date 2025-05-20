@@ -7,10 +7,11 @@ import triton
 import triton.language as tl
 
 from ....constants import LIBRARY_NAME
-from ....math import ceil_divide
+from ....math import ceil_divide, get_next_power_of_2
 from ....triton_math import clamp
 from ....utils import cute_op
 from .backward import _activation_backward
+from .forward_scalar import _get_autotune_configs
 
 
 @triton.jit
@@ -50,6 +51,7 @@ def _load_previous_output(
     return y_prev
 
 
+@triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_N"], reset_to_zero=["dW_ptr"])
 @triton.jit
 def scalar_rnn_backward_triton_kernel(
     W_ptr,
@@ -139,13 +141,14 @@ def scalar_rnn_backward_triton(
     gradient_clipping: float | None,
     activation_function: str,
     relu_negative_slope: float | None,
-    BLOCK_SIZE_B: int,
-    BLOCK_SIZE_N: int,
 ) -> None:
     B, S, N, _ = output.size()
 
+    BLOCK_SIZE_N = min(1024, get_next_power_of_2(N))
+    GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), ceil_divide(N, meta["BLOCK_SIZE_N"]))
+
     with torch.device(output.device):
-        scalar_rnn_backward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), ceil_divide(N, BLOCK_SIZE_N)](
+        scalar_rnn_backward_triton_kernel[GRID](
             W_ptr=weight,
             y_ptr=output,
             y_stride_b=output.stride(0),
@@ -161,6 +164,5 @@ def scalar_rnn_backward_triton(
             B=B,
             S=S,
             N=N,
-            BLOCK_SIZE_B=BLOCK_SIZE_B,
             BLOCK_SIZE_N=BLOCK_SIZE_N,
         )

@@ -24,10 +24,6 @@ class _GRU_Cute(torch.autograd.Function):
         gradient_clipping: float | None,
         cu_seqlens: torch.Tensor | None,
         max_seqlen: torch.Tensor | int | None,
-        BLOCK_SIZE_B_forward: int,
-        BLOCK_SIZE_N_forward: int,
-        BLOCK_SIZE_B_backward: int,
-        BLOCK_SIZE_N_backward: int,
     ) -> torch.Tensor:
         assert input.dim() in [3, 4]
         assert weight.dim() == 3
@@ -55,7 +51,6 @@ class _GRU_Cute(torch.autograd.Function):
             "output_update": output_update,
             "input_state": input_state,
             "output": output,
-            "BLOCK_SIZE_B": BLOCK_SIZE_B_forward,
         }
 
         if cu_seqlens is None:
@@ -92,8 +87,6 @@ class _GRU_Cute(torch.autograd.Function):
         )
 
         ctx.gradient_clipping = gradient_clipping
-        ctx.BLOCK_SIZE_B_backward = BLOCK_SIZE_B_backward
-        ctx.BLOCK_SIZE_N_backward = BLOCK_SIZE_N_backward
 
         return output
 
@@ -121,7 +114,6 @@ class _GRU_Cute(torch.autograd.Function):
         reset_weight_grad = torch.zeros_like(weight, dtype=torch.float32)
 
         H = weight.size(-1)
-        BLOCK_SIZE_N = ctx.BLOCK_SIZE_N_backward
 
         kwargs = {
             "weight": weight,
@@ -141,7 +133,6 @@ class _GRU_Cute(torch.autograd.Function):
             "weight_grad": weight_grad,
             "gradient_clipping": ctx.gradient_clipping,
             "output": output,
-            "BLOCK_SIZE_B": ctx.BLOCK_SIZE_B_backward,
         }
 
         if cu_seqlens is None:
@@ -172,7 +163,7 @@ class _GRU_Cute(torch.autograd.Function):
             forget_weight_grad,
             reset_input_grad,
             reset_weight_grad,
-            *[None] * 8,
+            *[None] * 4,
         )
 
 
@@ -187,11 +178,6 @@ def gru_cute(
     gradient_clipping: float | None = None,
     cu_seqlens: torch.Tensor | None = None,
     max_seqlen: torch.Tensor | int | None = None,
-    *,
-    BLOCK_SIZE_B_forward: int = 32,
-    BLOCK_SIZE_N_forward: int = 32,
-    BLOCK_SIZE_B_backward: int = 32,
-    BLOCK_SIZE_N_backward: int = 32,
 ) -> torch.Tensor:
     """computes multihead RNN: tanh(`input_state` @ `weight` + `input`)
 
@@ -205,14 +191,6 @@ def gru_cute(
             implies no clipping. Defaults to None.
         cu_seqlens (torch.Tensor | None, optional): cumulative sequence length (must contain 0 as first element). Defaults to None.
         max_seqlen (torch.Tensor | int | None, optional): max sequence length in the batch. Defaults to None.
-        BLOCK_SIZE_B_forward (int, optional): block size for forward along batch dimension for forward. Defaults to
-            32.
-        BLOCK_SIZE_N_forward (int, optional): block size for forward along num_heads dimension for forward, only used if
-            head_dim is 1. Defaults to 32.
-        BLOCK_SIZE_B_backward (int, optional): block size for backward along batch dimension for backward. Defaults to
-            32.
-        BLOCK_SIZE_N_backward (int, optional): block size for backward along num_heads dimension for forward, only used if
-            head_dim is 1. Defaults to 32.
 
     Returns:
         torch.Tensor: output tensor of shape (B, S, N, H)
@@ -229,8 +207,4 @@ def gru_cute(
         gradient_clipping,
         cu_seqlens,
         max_seqlen,
-        BLOCK_SIZE_B_forward,
-        BLOCK_SIZE_N_forward,
-        BLOCK_SIZE_B_backward,
-        BLOCK_SIZE_N_backward,
     )

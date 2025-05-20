@@ -9,9 +9,10 @@ import triton.language as tl
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
 from ....utils import cute_op
-from .forward import _rnn_forward_update
+from .forward import _get_autotune_configs, _rnn_forward_update
 
 
+@triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_H"])
 @triton.jit
 def rnn_varlen_forward_triton_kernel(
     x_ptr,
@@ -63,14 +64,6 @@ def rnn_varlen_forward_triton_kernel(
 
     indices = start * x_stride_t + pid_n * H + indices_h[None, :]
 
-    input_dtype = x_ptr.dtype.element_ty
-    cast_dtype = input_dtype
-    if input_dtype == tl.bfloat16:
-        input_dtype = tl.float32
-        cast_dtype = tl.bfloat16
-
-    out_dtype = input_dtype
-
     for _ in range(max_seqlen):
         unfinished = start < end
         mask = unfinished & mask_h[None, :]
@@ -78,9 +71,7 @@ def rnn_varlen_forward_triton_kernel(
         h = _rnn_forward_update(
             h=h,
             W=W,
-            x=tl.load(x_ptr + indices, mask=mask).to(input_dtype),
-            out_dtype=out_dtype,
-            cast_dtype=cast_dtype,
+            x=tl.load(x_ptr + indices, mask=mask_bh),
             ACTIVATION_FUNCTION=ACTIVATION_FUNCTION,
             relu_negative_slope=relu_negative_slope,
         )
@@ -105,19 +96,19 @@ def rnn_varlen_forward_triton(
     max_seqlen: int | None,
     activation_function: str,
     relu_negative_slope: float | None,
-    BLOCK_SIZE_B: int,
 ) -> None:
     B = cu_seqlens.size(0) - 1
     _, N, H = input.size()
 
     BLOCK_SIZE_H = get_next_power_of_2(H)
     BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
+    GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), N)
 
     has_input_state = input_state is not None
     is_max_seqlen_tensor = max_seqlen_tensor is not None
 
     with torch.device(input.device):
-        rnn_varlen_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), N](
+        rnn_varlen_forward_triton_kernel[GRID](
             x_ptr=input,
             x_stride_t=input.stride(0),
             W_ptr=weight,
@@ -133,6 +124,5 @@ def rnn_varlen_forward_triton(
             relu_negative_slope=relu_negative_slope,
             B=B,
             H=H,
-            BLOCK_SIZE_B=BLOCK_SIZE_B,
             BLOCK_SIZE_H=BLOCK_SIZE_H,
         )

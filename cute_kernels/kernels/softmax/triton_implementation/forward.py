@@ -7,7 +7,7 @@ import triton
 import triton.language as tl
 
 from ....constants import LIBRARY_NAME
-from ....math import ceil_divide
+from ....math import ceil_divide, get_next_power_of_2
 from ....utils import cute_op, get_num_elements_and_hidden_size
 
 
@@ -79,14 +79,15 @@ def softmax_forward_triton_kernel(
 
 
 @cute_op(f"{LIBRARY_NAME}::softmax_forward_triton", mutates_args={"output"})
-def softmax_forward_triton(
-    x: torch.Tensor, output: torch.Tensor, logits_multiplier: float | None, BLOCK_SIZE_B: int, BLOCK_SIZE_H: int
-) -> None:
+def softmax_forward_triton(x: torch.Tensor, output: torch.Tensor, logits_multiplier: float | None) -> None:
     if x.dim() == 1:
         B = 1
         H = x.size(-1)
     else:
         B, H = get_num_elements_and_hidden_size(x)
+
+    BLOCK_SIZE_B = 1
+    BLOCK_SIZE_H = min(get_next_power_of_2(H), 4096 if x.dtype == torch.float32 else 8192)
 
     with torch.device(x.device):
         softmax_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](

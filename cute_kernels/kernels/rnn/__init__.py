@@ -31,10 +31,6 @@ class _RNN_Cute(torch.autograd.Function):
         max_seqlen: torch.Tensor | int | None,
         activation_function: str,
         relu_negative_slope: float | None,
-        BLOCK_SIZE_B_forward: int,
-        BLOCK_SIZE_N_forward: int,
-        BLOCK_SIZE_B_backward: int,
-        BLOCK_SIZE_N_backward: int,
     ) -> torch.Tensor:
         assert activation_function in ["leaky_relu", "sigmoid", "tanh"]
         assert input.dim() in [3, 4]
@@ -60,14 +56,13 @@ class _RNN_Cute(torch.autograd.Function):
             "output": output,
             "activation_function": activation_function,
             "relu_negative_slope": relu_negative_slope,
-            "BLOCK_SIZE_B": BLOCK_SIZE_B_forward,
         }
 
         if cu_seqlens is None:
             assert max_seqlen is None
 
             if H == 1:
-                scalar_rnn_forward_triton(**kwargs, BLOCK_SIZE_N=BLOCK_SIZE_N_forward)
+                scalar_rnn_forward_triton(**kwargs)
             else:
                 rnn_forward_triton(**kwargs)
         else:
@@ -79,7 +74,7 @@ class _RNN_Cute(torch.autograd.Function):
             kwargs["max_seqlen"] = None if is_max_seqlen_tensor else max_seqlen
 
             if H == 1:
-                scalar_rnn_varlen_forward_triton(**kwargs, BLOCK_SIZE_N=BLOCK_SIZE_N_forward)
+                scalar_rnn_varlen_forward_triton(**kwargs)
             else:
                 rnn_varlen_forward_triton(**kwargs)
 
@@ -87,8 +82,6 @@ class _RNN_Cute(torch.autograd.Function):
         ctx.gradient_clipping = gradient_clipping
         ctx.activation_function = activation_function
         ctx.relu_negative_slope = relu_negative_slope
-        ctx.BLOCK_SIZE_B_backward = BLOCK_SIZE_B_backward
-        ctx.BLOCK_SIZE_N_backward = BLOCK_SIZE_N_backward
 
         return output
 
@@ -100,7 +93,6 @@ class _RNN_Cute(torch.autograd.Function):
         weight_grad = torch.zeros_like(weight, dtype=torch.float32)
 
         H = weight.size(-1)
-        BLOCK_SIZE_N = ctx.BLOCK_SIZE_N_backward
 
         kwargs = {
             "weight": weight,
@@ -112,12 +104,11 @@ class _RNN_Cute(torch.autograd.Function):
             "gradient_clipping": ctx.gradient_clipping,
             "activation_function": ctx.activation_function,
             "relu_negative_slope": ctx.relu_negative_slope,
-            "BLOCK_SIZE_B": ctx.BLOCK_SIZE_B_backward,
         }
 
         if cu_seqlens is None:
             if H == 1:
-                scalar_rnn_backward_triton(**kwargs, BLOCK_SIZE_N=BLOCK_SIZE_N)
+                scalar_rnn_backward_triton(**kwargs)
             else:
                 rnn_backward_triton(**kwargs)
         else:
@@ -128,11 +119,11 @@ class _RNN_Cute(torch.autograd.Function):
             kwargs["max_seqlen"] = None if is_max_seqlen_tensor else max_seqlen
 
             if H == 1:
-                scalar_rnn_varlen_backward_triton(**kwargs, BLOCK_SIZE_N=BLOCK_SIZE_N)
+                scalar_rnn_varlen_backward_triton(**kwargs)
             else:
                 rnn_varlen_backward_triton(**kwargs)
 
-        return input_grad, weight_grad, *[None] * 10
+        return input_grad, weight_grad, *[None] * 8
 
 
 def rnn_cute(
@@ -144,11 +135,6 @@ def rnn_cute(
     max_seqlen: torch.Tensor | int | None = None,
     activation_function: str = "tanh",
     relu_negative_slope: float | None = None,
-    *,
-    BLOCK_SIZE_B_forward: int = 32,
-    BLOCK_SIZE_N_forward: int = 32,
-    BLOCK_SIZE_B_backward: int = 32,
-    BLOCK_SIZE_N_backward: int = 32,
 ) -> torch.Tensor:
     """computes multihead RNN recurrent update over the sequence length: tanh(`input_state` @ `weight` + `input`)
 
@@ -164,30 +150,11 @@ def rnn_cute(
         max_seqlen (torch.Tensor | int | None, optional): max sequence length in the batch. Defaults to None.
         activation_function (str): activation function, can be "tanh", "sigmoid" or "leaky_relu". Defaults to "tanh".
         relu_negative_slope (float): negative slope for leaky_relu. Defaults to "tanh".
-        BLOCK_SIZE_B_forward (int, optional): block size for forward along batch dimension for forward. Defaults to
-            32.
-        BLOCK_SIZE_N_forward (int, optional): block size for forward along num_heads dimension for forward, only used if
-            head_dim is 1. Defaults to 32.
-        BLOCK_SIZE_B_backward (int, optional): block size for backward along batch dimension for backward. Defaults to
-            32.
-        BLOCK_SIZE_N_backward (int, optional): block size for backward along num_heads dimension for forward, only used if
-            head_dim is 1. Defaults to 32.
 
     Returns:
         torch.Tensor: output tensor of shape (B, S, N, H)
     """
 
     return _RNN_Cute.apply(
-        input,
-        weight,
-        input_state,
-        gradient_clipping,
-        cu_seqlens,
-        max_seqlen,
-        activation_function,
-        relu_negative_slope,
-        BLOCK_SIZE_B_forward,
-        BLOCK_SIZE_N_forward,
-        BLOCK_SIZE_B_backward,
-        BLOCK_SIZE_N_backward,
+        input, weight, input_state, gradient_clipping, cu_seqlens, max_seqlen, activation_function, relu_negative_slope
     )

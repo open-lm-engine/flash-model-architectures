@@ -7,7 +7,7 @@ import triton
 import triton.language as tl
 
 from ....constants import LIBRARY_NAME, MAX_TRITON_BLOCK_SIZE
-from ....math import ceil_divide, get_next_power_of_2
+from ....math import ceil_divide, get_next_power_of_2, get_powers_of_2
 from ....utils import cute_op, get_num_elements_and_hidden_size
 
 
@@ -60,12 +60,13 @@ def rmsnorm_forward_triton(
     output: torch.Tensor,
     eps: float,
     rmsnorm_denominator: torch.Tensor | None,
-    BLOCK_SIZE_B: int,
 ) -> None:
     B, H = get_num_elements_and_hidden_size(x)
 
+    BLOCK_SIZE_B = 1
     BLOCK_SIZE_H = get_next_power_of_2(H)
     assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
+    NUM_WARPS = 8
 
     with torch.device(x.device):
         rmsnorm_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](
@@ -80,4 +81,5 @@ def rmsnorm_forward_triton(
             H=H,
             BLOCK_SIZE_B=BLOCK_SIZE_B,
             BLOCK_SIZE_H=BLOCK_SIZE_H,
+            num_warps=NUM_WARPS,
         )

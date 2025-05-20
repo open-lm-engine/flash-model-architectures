@@ -55,11 +55,11 @@ def swiglu_forward_triton_kernel(
 
 
 @cute_op(f"{LIBRARY_NAME}::swiglu_forward_triton", mutates_args={"output"})
-def swiglu_forward_triton(
-    gate: torch.Tensor, up: torch.Tensor, output: torch.Tensor, BLOCK_SIZE_B: int, BLOCK_SIZE_H: int
-) -> None:
+def swiglu_forward_triton(gate: torch.Tensor, up: torch.Tensor, output: torch.Tensor) -> None:
     B, H = get_num_elements_and_hidden_size(gate)
     H *= 2
+    BLOCK_SIZE_B = 64
+    BLOCK_SIZE_H = 64
 
     with torch.device(gate.device):
         swiglu_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), ceil_divide(H, BLOCK_SIZE_H)](

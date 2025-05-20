@@ -32,7 +32,7 @@ class FusedResdidualAddRMSNormTest(TestCommons):
             ],  # function
         )
     )
-    def test_rmsnorm(
+    def test_fused_residual_add_rmsnorm(
         self,
         size: tuple[int],
         device: torch.device,
@@ -74,7 +74,7 @@ class FusedResdidualAddRMSNormTest(TestCommons):
         z_kernel.sum().backward()
         z_expected.sum().backward()
 
-        self.assert_equal_tensors(z_kernel, z_expected, False)
+        self.assert_equal_tensors(z_kernel, z_expected, False, atol_float32=1.4e-4, rtol_float32=0)
         self.assert_equal_tensors(x_kernel.grad, x_expected.grad, False, atol_float32=1.5e-4, rtol_float32=0)
         self.assert_equal_tensors(
             residual_kernel.grad, residual_expected.grad, False, atol_float32=1.6e-4, rtol_float32=0

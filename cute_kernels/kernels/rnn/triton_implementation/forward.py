@@ -7,9 +7,21 @@ import triton
 import triton.language as tl
 
 from ....constants import LIBRARY_NAME
-from ....math import ceil_divide, get_next_power_of_2
-from ....triton_math import leaky_relu, sigmoid, tanh
+from ....math import ceil_divide, get_next_power_of_2, get_powers_of_2
+from ....triton_math import leaky_relu, matmul, sigmoid, tanh
 from ....utils import cute_op
+
+
+def _get_autotune_configs() -> list[triton.Config]:
+    configs = []
+    for num_warps in get_powers_of_2(4, 8):
+        for num_stages in range(1, 5):
+            for BLOCK_SIZE_B in [1] + get_powers_of_2(16, 32):
+                configs.append(
+                    triton.Config({"BLOCK_SIZE_B": BLOCK_SIZE_B}, num_stages=num_stages, num_warps=num_warps)
+                )
+
+    return configs
 
 
 @triton.jit
@@ -25,12 +37,13 @@ def _activation(x, ACTIVATION_FUNCTION, relu_negative_slope):
 
 
 @triton.jit
-def _rnn_forward_update(h, W, x, out_dtype, cast_dtype, ACTIVATION_FUNCTION, relu_negative_slope):
-    h = tl.dot(h, W, x, allow_tf32=True, out_dtype=out_dtype).to(cast_dtype)
+def _rnn_forward_update(h, W, x, ACTIVATION_FUNCTION, relu_negative_slope):
+    h = matmul(A=h, B=W, C=x, output_dtype=x.dtype)
     h = _activation(x=h, ACTIVATION_FUNCTION=ACTIVATION_FUNCTION, relu_negative_slope=relu_negative_slope)
     return h
 
 
+@triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_H"])
 @triton.jit
 def rnn_forward_triton_kernel(
     x_ptr,
@@ -72,21 +85,11 @@ def rnn_forward_triton_kernel(
 
     indices = indices_b[:, None] * x_stride_b + pid_n * H + indices_h[None, :]
 
-    input_dtype = x_ptr.dtype.element_ty
-    cast_dtype = input_dtype
-    if input_dtype == tl.bfloat16:
-        input_dtype = tl.float32
-        cast_dtype = tl.bfloat16
-
-    out_dtype = input_dtype
-
     for _ in range(S):
         h = _rnn_forward_update(
             h=h,
             W=W,
-            x=tl.load(x_ptr + indices, mask=mask_bh).to(input_dtype),
-            out_dtype=out_dtype,
-            cast_dtype=cast_dtype,
+            x=tl.load(x_ptr + indices, mask=mask_bh),
             ACTIVATION_FUNCTION=ACTIVATION_FUNCTION,
             relu_negative_slope=relu_negative_slope,
         )
@@ -104,17 +107,17 @@ def rnn_forward_triton(
     output: torch.Tensor,
     activation_function: str,
     relu_negative_slope: float | None,
-    BLOCK_SIZE_B: int,
 ) -> None:
     B, S, N, H = input.size()
 
     BLOCK_SIZE_H = get_next_power_of_2(H)
     BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
+    GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), N)
 
     has_input_state = input_state is not None
 
     with torch.device(input.device):
-        rnn_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), N](
+        rnn_forward_triton_kernel[GRID](
             x_ptr=input,
             x_stride_b=input.stride(0),
             x_stride_s=input.stride(1),
@@ -129,6 +132,5 @@ def rnn_forward_triton(
             B=B,
             S=S,
             H=H,
-            BLOCK_SIZE_B=BLOCK_SIZE_B,
             BLOCK_SIZE_H=BLOCK_SIZE_H,
         )

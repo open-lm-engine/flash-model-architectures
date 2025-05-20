@@ -15,11 +15,11 @@ kernels = [add_tensor_torch, add_tensor_cute]
 
 table = []
 
-for dtype in [torch.float32]:
+for dtype in [torch.float32, torch.float16, torch.bfloat16]:
     row = [str(dtype)]
     for kernel in kernels:
-        x = torch.randn(10485760, device=torch.cuda.current_device(), dtype=dtype)
-        y = torch.randn(10485760, device=torch.cuda.current_device(), dtype=dtype)
+        x = torch.randn(104857600, device=torch.cuda.current_device(), dtype=dtype)
+        y = torch.randn(104857600, device=torch.cuda.current_device(), dtype=dtype)
 
         for i in range(n):
             z = kernel(x, y)

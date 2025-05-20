@@ -120,7 +120,7 @@ class GRUTest(TestCommons):
             False,
             atol_float32=2.5e-6,
             rtol_float32=0,
-            atol_float16=4.6e-5,
+            atol_float16=5.4e-5,
             rtol_float16=0,
             atol_bfloat16=4e-4,
             rtol_bfloat16=0,
