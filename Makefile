@@ -20,7 +20,7 @@ update-precommit:
 	pre-commit autoupdate
 
 style:
-	python copyright/copyright.py --repo ./ --exclude copyright cutlass --header "Copyright (c) 2025, Mayank Mishra"
+	python copyright/copyright.py --repo ./ --exclude copyright-exclude.txt --header "Copyright (c) 2025, Mayank Mishra"
 	pre-commit run --all-files
 
 cutotune-cache:
