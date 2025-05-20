@@ -15,6 +15,7 @@ from ....utils import cute_op
         CutoTuneConfig({"BLOCK_SIZE": 1024, "THREAD_BLOCK_CLUSTER_SIZE": thread_block_cluster_size})
         for thread_block_cluster_size in [1, 2, 4, 8]
     ],
+    triggers={"x.dtype"},
 )
 @cute_op(f"{LIBRARY_NAME}::continuous_count_cuda", mutates_args={"output"})
 @cpp_jit()

@@ -24,6 +24,7 @@ from .triton_implementation import swiglu_backward_triton, swiglu_forward_triton
             condition=lambda **kwargs: is_triton_kernel_backend_allowed(kwargs["kernel_backend"]),
         ),
     ],
+    triggers={"gate.dtype"},
 )
 def _forward(gate: torch.Tensor, up: torch.Tensor, output: torch.Tensor, kernel_backend: torch.Tensor) -> None:
     if kernel_backend == KernelBackend.cuda:
@@ -45,6 +46,7 @@ def _forward(gate: torch.Tensor, up: torch.Tensor, output: torch.Tensor, kernel_
             condition=lambda **kwargs: is_triton_kernel_backend_allowed(kwargs["kernel_backend"]),
         ),
     ],
+    triggers={"gate.dtype"},
 )
 def _backward(
     gate: torch.Tensor,
