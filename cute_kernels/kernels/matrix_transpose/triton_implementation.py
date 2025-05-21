@@ -35,7 +35,7 @@ def matrix_transpose_triton_kernel(x_ptr, y_ptr, M, N, BLOCK_SIZE: tl.constexpr)
 def matrix_transpose_triton(x: torch.Tensor, output: torch.Tensor) -> None:
     M, N = x.size()
     NUM_WARPS = 32
-    BLOCK_SIZE = 4096
+    BLOCK_SIZE = 64
 
     with torch.device(x.device):
         matrix_transpose_triton_kernel[(ceil_divide(M, BLOCK_SIZE), ceil_divide(N, BLOCK_SIZE))](
