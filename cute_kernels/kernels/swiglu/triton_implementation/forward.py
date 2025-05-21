@@ -13,15 +13,6 @@ from ....utils import cute_op, get_num_elements_and_hidden_size
 
 
 @triton.jit
-def _swiglu(gate_ptr, up_ptr, output_ptr, indices_gate, indices_output, mask):
-    gate = tl.load(gate_ptr + indices_gate, mask=mask).to(tl.float32)
-    up = tl.load(up_ptr + indices_gate, mask=mask)
-
-    output = up * gate * sigmoid(gate)
-    tl.store(output_ptr + indices_output, output, mask=mask)
-
-
-@triton.jit
 def swiglu_forward_triton_kernel(
     gate_ptr,
     gate_stride_b,
@@ -41,15 +32,17 @@ def swiglu_forward_triton_kernel(
 
     mask_b = indices_b < B
     mask_h = indices_h < H
+    mask = mask_b[:, None] & mask_h[None, :]
 
-    _swiglu(
-        gate_ptr=gate_ptr,
-        up_ptr=up_ptr,
-        output_ptr=output_ptr,
-        indices_gate=indices_b[:, None] * gate_stride_b + indices_h[None, :],
-        indices_output=indices_b[:, None] * output_stride_b + indices_h[None, :],
-        mask=mask_b[:, None] & mask_h[None, :],
-    )
+    indices = indices_b[:, None] * gate_stride_b + indices_h[None, :]
+
+    gate = tl.load(gate_ptr + indices, mask=mask).to(tl.float32)
+    up = tl.load(up_ptr + indices, mask=mask)
+
+    output = up * gate * sigmoid(gate)
+
+    indices = indices_b[:, None] * output_stride_b + indices_h[None, :]
+    tl.store(output_ptr + indices, output, mask=mask)
 
 
 @cute_op(f"{LIBRARY_NAME}::swiglu_forward_triton", mutates_args={"output"})
