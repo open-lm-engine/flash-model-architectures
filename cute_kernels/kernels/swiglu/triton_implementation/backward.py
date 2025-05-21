@@ -13,24 +13,6 @@ from ....utils import cute_op, get_num_elements_and_hidden_size
 
 
 @triton.jit
-def _swiglu_backward(
-    gate_ptr, up_ptr, output_grad_ptr, gate_grad_ptr, up_grad_ptr, indices_gate, indices_output, mask
-):
-    gate = tl.load(gate_ptr + indices_gate, mask=mask).to(tl.float32)
-    up = tl.load(up_ptr + indices_gate, mask=mask)
-    output_grad = tl.load(output_grad_ptr + indices_output, mask=mask)
-
-    gate_sigmoid = sigmoid(gate)
-    gate_silu = gate * gate_sigmoid
-
-    gate_grad = output_grad * up * (gate_sigmoid + gate_silu * (1 - gate_sigmoid))
-    up_grad = output_grad * gate_silu
-
-    tl.store(gate_grad_ptr + indices_gate, gate_grad, mask=mask)
-    tl.store(up_grad_ptr + indices_gate, up_grad, mask=mask)
-
-
-@triton.jit
 def swiglu_backward_triton_kernel(
     gate_ptr,
     gate_stride_b,
@@ -50,21 +32,26 @@ def swiglu_backward_triton_kernel(
     indices_b = BLOCK_ID_B * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
     indices_h = BLOCK_ID_H * BLOCK_SIZE_H + tl.arange(0, BLOCK_SIZE_H)
 
-    half_H = H >> 1
-
     mask_b = indices_b < B
-    mask_h = indices_h < half_H
+    mask_h = indices_h < H
+    mask = mask_b[:, None] & mask_h[None, :]
 
-    _swiglu_backward(
-        gate_ptr=gate_ptr,
-        up_ptr=up_ptr,
-        output_grad_ptr=output_grad_ptr,
-        gate_grad_ptr=gate_grad_ptr,
-        up_grad_ptr=up_grad_ptr,
-        indices_gate=indices_b[:, None] * gate_stride_b + indices_h[None, :],
-        indices_output=indices_b[:, None] * output_grad_stride_b + indices_h[None, :],
-        mask=mask_b[:, None] & mask_h[None, :],
-    )
+    indices_gate = indices_b[:, None] * gate_stride_b + indices_h[None, :]
+    indices_output = indices_b[:, None] * output_grad_stride_b + indices_h[None, :]
+
+    gate = tl.load(gate_ptr + indices_gate, mask=mask).to(tl.float32)
+    up = tl.load(up_ptr + indices_gate, mask=mask)
+
+    output_grad = tl.load(output_grad_ptr + indices_output, mask=mask)
+
+    gate_sigmoid = sigmoid(gate)
+    gate_silu = gate * gate_sigmoid
+
+    gate_grad = output_grad * up * (gate_sigmoid + gate_silu * (1 - gate_sigmoid))
+    up_grad = output_grad * gate_silu
+
+    tl.store(gate_grad_ptr + indices_gate, gate_grad, mask=mask)
+    tl.store(up_grad_ptr + indices_gate, up_grad, mask=mask)
 
 
 @cute_op(f"{LIBRARY_NAME}::swiglu_backward_triton", mutates_args={"gate_grad", "up_grad"})
@@ -76,17 +63,16 @@ def swiglu_backward_triton(
     up_grad: torch.Tensor,
 ) -> None:
     B, H = get_num_elements_and_hidden_size(gate)
-    H *= 2
     BLOCK_SIZE_B = 64
     BLOCK_SIZE_H = 64
 
     with torch.device(gate.device):
         swiglu_backward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), ceil_divide(H, BLOCK_SIZE_H)](
             gate_ptr=gate,
-            gate_stride_b=gate.stride(0),
+            gate_stride_b=gate.stride(-2),
             up_ptr=up,
             output_grad_ptr=output_grad,
-            output_grad_stride_b=output_grad.stride(0),
+            output_grad_stride_b=output_grad.stride(-2),
             gate_grad_ptr=gate_grad,
             up_grad_ptr=up_grad,
             B=B,
