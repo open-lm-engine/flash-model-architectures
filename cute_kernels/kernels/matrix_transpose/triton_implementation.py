@@ -11,10 +11,6 @@ from ...math import ceil_divide, get_powers_of_2
 from ...utils import cute_op
 
 
-@triton.autotune(
-    configs=[triton.Config({"BLOCK_SIZE": BLOCK_SIZE}, num_warps=32) for BLOCK_SIZE in get_powers_of_2(16, 128)],
-    key=[],
-)
 @triton.jit
 def matrix_transpose_triton_kernel(x_ptr, y_ptr, M, N, BLOCK_SIZE: tl.constexpr):
     BLOCK_ID_M = tl.program_id(axis=0)
@@ -38,10 +34,10 @@ def matrix_transpose_triton_kernel(x_ptr, y_ptr, M, N, BLOCK_SIZE: tl.constexpr)
 @cute_op(f"{LIBRARY_NAME}::matrix_transpose_triton", mutates_args={"output"})
 def matrix_transpose_triton(x: torch.Tensor, output: torch.Tensor) -> None:
     M, N = x.size()
-    BLOCK_SIZE_M = 128
-    BLOCK_SIZE_N = 128
+    NUM_WARPS = 32
+    BLOCK_SIZE = 4096
 
     with torch.device(x.device):
         matrix_transpose_triton_kernel[(ceil_divide(M, BLOCK_SIZE), ceil_divide(N, BLOCK_SIZE))](
-            x_ptr=x, y_ptr=output, M=M, N=N, BLOCK_SIZE=BLOCK_SIZE
+            x_ptr=x, y_ptr=output, M=M, N=N, BLOCK_SIZE=BLOCK_SIZE, num_warps=NUM_WARPS
         )
