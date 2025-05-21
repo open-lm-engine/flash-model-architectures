@@ -55,20 +55,17 @@ def swiglu_forward_triton_kernel(
 @cute_op(f"{LIBRARY_NAME}::swiglu_forward_triton", mutates_args={"output"})
 def swiglu_forward_triton(gate: torch.Tensor, up: torch.Tensor, output: torch.Tensor) -> None:
     B, H = get_num_elements_and_hidden_size(gate)
-    BLOCK_SIZE_B = 32
-    BLOCK_SIZE_H = 32
+    BLOCK_SIZE_B = 64
+    BLOCK_SIZE_H = 64
 
-    gate = gate.view(-1, H).contiguous()
-    up = up.view(-1, H).contiguous()
-    output = output.view(-1, H).contiguous()
-
+    # second last stride can be used to iterate the token dimension
     with torch.device(gate.device):
         swiglu_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), ceil_divide(H, BLOCK_SIZE_H)](
             gate_ptr=gate,
-            gate_stride_b=gate.stride(0),
+            gate_stride_b=gate.stride(-2),
             up_ptr=up,
             output_ptr=output,
-            output_stride_b=output.stride(0),
+            output_stride_b=output.stride(-2),
             B=B,
             H=H,
             BLOCK_SIZE_B=BLOCK_SIZE_B,
