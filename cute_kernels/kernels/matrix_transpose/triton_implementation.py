@@ -28,9 +28,7 @@ def matrix_transpose_triton_kernel(x_ptr, y_ptr, M, N, BLOCK_SIZE_M: tl.constexp
     x = tl.load(x_ptr + indices, mask=mask)
 
     indices = indices_n[:, None] * M + indices_m
-    mask = mask.T
-
-    tl.store(y_ptr + indices, x.T, mask=mask)
+    tl.store(y_ptr + indices, x, mask=mask.T)
 
 
 @cute_op(f"{LIBRARY_NAME}::matrix_transpose_triton", mutates_args={"output"})
