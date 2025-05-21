@@ -22,7 +22,7 @@ def matrix_transpose_triton_kernel(x_ptr, y_ptr, M, N, BLOCK_SIZE_M: tl.constexp
     mask_m = indices_m < M
     mask_n = indices_n < N
 
-    indices = indices_m[:, None] * N & indices_n[None, :]
+    indices = indices_m[:, None] * N + indices_n[None, :]
     mask = mask_m[:, None] & mask_n[None, :]
 
     x = tl.load(x_ptr + indices, mask=mask)
@@ -34,8 +34,8 @@ def matrix_transpose_triton_kernel(x_ptr, y_ptr, M, N, BLOCK_SIZE_M: tl.constexp
 @cute_op(f"{LIBRARY_NAME}::matrix_transpose_triton", mutates_args={"output"})
 def matrix_transpose_triton(x: torch.Tensor, output: torch.Tensor) -> None:
     M, N = x.size()
-    BLOCK_SIZE_M = 128
-    BLOCK_SIZE_N = 128
+    BLOCK_SIZE_M = 2
+    BLOCK_SIZE_N = 2
 
     with torch.device(x.device):
         matrix_transpose_triton_kernel[(ceil_divide(M, BLOCK_SIZE_M), ceil_divide(N, BLOCK_SIZE_N))](
