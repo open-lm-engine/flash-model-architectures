@@ -5,7 +5,7 @@
 import torch
 
 from ....constants import LIBRARY_NAME
-from ....cutotune import CutoTuneConfig, CutoTuneParameter, cutotune
+from ....cutotune import CutoTuneConfig, cutotune
 from ....jit import cpp_jit
 from ....math import get_powers_of_2
 from ....utils import cute_op

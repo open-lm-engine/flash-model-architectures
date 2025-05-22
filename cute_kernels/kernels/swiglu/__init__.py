@@ -114,12 +114,7 @@ class _Swiglu_Cute(torch.autograd.Function):
 class _SwigluPacked_Cute(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
-    def forward(
-        ctx,
-        x: torch.Tensor,
-        kernel_backend_forward: KernelBackend | CutoTuneParameter,
-        kernel_backend_backward: KernelBackend | CutoTuneParameter,
-    ) -> torch.Tensor:
+    def forward(ctx, x: torch.Tensor) -> torch.Tensor:
         ctx.save_for_backward(x)
 
         output = torch.empty(*x.size()[:-1], divide_if_divisible(x.size(-1), 2), device=x.device, dtype=x.dtype)
@@ -140,7 +135,7 @@ class _SwigluPacked_Cute(torch.autograd.Function):
 
         swiglu_backward_triton(gate=gate, up=up, output_grad=output_grad, gate_grad=gate_grad, up_grad=up_grad)
 
-        return x_grad, None, None
+        return x_grad
 
 
 def swiglu_cute(
@@ -167,23 +162,14 @@ def swiglu_cute(
     return _Swiglu_Cute.apply(gate, up, kernel_backend_forward, kernel_backend_backward)
 
 
-def swiglu_packed_cute(
-    x: torch.Tensor,
-    *,
-    kernel_backend_forward: KernelBackend | CutoTuneParameter = CutoTuneParameter(),
-    kernel_backend_backward: KernelBackend | CutoTuneParameter = CutoTuneParameter(),
-) -> torch.Tensor:
+def swiglu_packed_cute(x: torch.Tensor) -> torch.Tensor:
     """computes swiglu activation by splitting the tensor `x` into 2 parts: gate and up activations
 
     Args:
         x (torch.Tensor): input activation
-        kernel_backend_forward (KernelBackend | CutoTuneParameter, optional): kernel backend to prioritize. Defaults
-            to CutoTuneParameter().
-        kernel_backend_backward (KernelBackend | CutoTuneParameter, optional): kernel backend to prioritize. Defaults
-            to CutoTuneParameter().
 
     Returns:
         torch.Tensor: output tensor
     """
 
-    return _SwigluPacked_Cute.apply(x, kernel_backend_forward, kernel_backend_backward)
+    return _SwigluPacked_Cute.apply(x)
