@@ -113,7 +113,7 @@ void shared_memory_gemm_cuda(const torch::Tensor &A,
 
     CHECK_VALID_THREAD_BLOCK(BLOCK_SIZE);
 
-    const auto [M, N, K] = get_MNK(A, B);
+    const auto [M, N, K] = get_MNK(A, B, is_A_transposed, is_B_transposed);
 
     TORCH_CHECK(!is_A_transposed);
     TORCH_CHECK(!is_B_transposed);
