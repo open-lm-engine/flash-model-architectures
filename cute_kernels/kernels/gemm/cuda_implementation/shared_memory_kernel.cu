@@ -8,6 +8,7 @@
 
 #include "cute/tensor.hpp"
 #include "include/cute_kernels.h"
+#include "utils.h"
 
 namespace ck = cute_kernels;
 namespace ck_mem = cute_kernels::memory;
@@ -111,6 +112,8 @@ void shared_memory_gemm_cuda(const torch::Tensor &A,
     CHECK_CUDA_TENSOR(output);
 
     CHECK_VALID_THREAD_BLOCK(BLOCK_SIZE);
+
+    const auto [M, N, K] = get_MNK(A, B);
 
     TORCH_CHECK(!is_A_transposed);
     TORCH_CHECK(!is_B_transposed);
