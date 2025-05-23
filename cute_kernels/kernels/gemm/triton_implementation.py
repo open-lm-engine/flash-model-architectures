@@ -13,23 +13,22 @@ from ...utils import cute_op
 
 def _get_autotune_configs() -> list[triton.Config]:
     configs = []
-    for BLOCK_SIZE_M in get_powers_of_2(32, 64):
-        for BLOCK_SIZE_N in get_powers_of_2(32, 64):
+    for BLOCK_SIZE_M in get_powers_of_2(32, 64, 128):
+        for BLOCK_SIZE_N in get_powers_of_2(32, 64, 128):
             for BLOCK_SIZE_K in get_powers_of_2(16, 64):
-                if BLOCK_SIZE_M * BLOCK_SIZE_K * BLOCK_SIZE_N <= 16384:
-                    for num_warps in get_powers_of_2(4, 8):
-                        for num_stages in range(4):
-                            configs.append(
-                                triton.Config(
-                                    {
-                                        "BLOCK_SIZE_M": BLOCK_SIZE_M,
-                                        "BLOCK_SIZE_N": BLOCK_SIZE_N,
-                                        "BLOCK_SIZE_K": BLOCK_SIZE_K,
-                                    },
-                                    num_warps=num_warps,
-                                    num_stages=num_stages,
-                                )
+                for NUM_WARPS in get_powers_of_2(4, 8):
+                    for NUM_STAGES in range(4):
+                        configs.append(
+                            triton.Config(
+                                {
+                                    "BLOCK_SIZE_M": BLOCK_SIZE_M,
+                                    "BLOCK_SIZE_N": BLOCK_SIZE_N,
+                                    "BLOCK_SIZE_K": BLOCK_SIZE_K,
+                                },
+                                num_warps=NUM_WARPS,
+                                num_stages=NUM_STAGES,
                             )
+                        )
 
     return configs
 
