@@ -6,7 +6,7 @@ import torch
 import triton
 import triton.language as tl
 
-from ...constants import LIBRARY_NAME, TORCH_DTYPE_TO_TRITON_DTYPE
+from ...constants import LIBRARY_NAME
 from ...math import ceil_divide, get_powers_of_2
 from ...utils import cute_op
 
@@ -142,7 +142,7 @@ def gemm_triton(
             beta=beta,
             IS_A_TRANSPOSED=is_A_transposed,
             IS_B_TRANSPOSED=is_B_transposed,
-            dtype=TORCH_DTYPE_TO_TRITON_DTYPE[A.dtype],
+            dtype=A.dtype,
             M=M,
             K=K,
             N=N,
