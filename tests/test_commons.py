@@ -1,3 +1,7 @@
+# **************************************************
+# Copyright (c) 2025, Mayank Mishra
+# **************************************************
+
 import random
 from itertools import product
 from typing import Any
@@ -12,7 +16,7 @@ from cute_kernels import init_inductor
 
 class TestCommons(TestCase):
     def setUp(self) -> None:
-        return init_inductor(cache_size_limit=512)
+        return init_inductor(cache_size_limit=1024)
 
     @staticmethod
     def get_all_devices() -> list[torch.device]:

@@ -1,85 +1,50 @@
+# **************************************************
+# Copyright (c) 2025, Mayank Mishra
+# **************************************************
+
 import torch
 
-from ...cutotune import CutoTuneParameter
 from ...utils import ensure_contiguous
-from .backward import _backward
-from .forward import _forward
 from .torch_implementation import softmax_torch
+from .triton_implementation import softmax_backward_triton, softmax_forward_triton
 
 
 class _Softmax_Cute(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
-    def forward(
-        ctx,
-        x: torch.Tensor,
-        kernel_backend_forward: str,
-        BLOCK_SIZE_B_forward: int,
-        BLOCK_SIZE_H_forward: int,
-        kernel_backend_backward: str,
-        BLOCK_SIZE_B_backward: int,
-        BLOCK_SIZE_H_backward: int,
-    ) -> torch.Tensor:
-        if x.size(-1) == 1:
-            return torch.ones_like(x)
+    def forward(ctx, x: torch.Tensor, logits_multiplier: float | None) -> torch.Tensor:
+        output = torch.empty_like(x)
 
-        ctx.save_for_backward(x)
-
-        is_x_1d = x.dim() == 1
-        if is_x_1d:
-            x = x.unsqueeze(0)
-
-        output = _forward(
-            x=x,
-            kernel_backend=kernel_backend_forward,
-            BLOCK_SIZE_B=BLOCK_SIZE_B_forward,
-            BLOCK_SIZE_H=BLOCK_SIZE_H_forward,
-        )
-
-        if is_x_1d:
-            output = output.squeeze(0)
+        softmax_forward_triton(x=x, output=output, logits_multiplier=logits_multiplier)
 
         ctx.save_for_backward(output)
-        ctx.kernel_backend_backward = kernel_backend_backward
-        ctx.BLOCK_SIZE_B_backward = BLOCK_SIZE_B_backward
-        ctx.BLOCK_SIZE_H_backward = BLOCK_SIZE_H_backward
+        ctx.logits_multiplier = logits_multiplier
 
         return output
 
     @staticmethod
     @ensure_contiguous
     def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
-        if output_grad.size(-1) == 1:
-            x_grad = torch.zeros_like(output_grad)
-        else:
-            output = ctx.saved_tensors[0]
+        output = ctx.saved_tensors[0]
+        x_grad = torch.empty_like(output)
 
-            x_grad = _backward(
-                output=output,
-                output_grad=output_grad,
-                kernel_backend=ctx.kernel_backend_backward,
-                BLOCK_SIZE_B=ctx.BLOCK_SIZE_B_backward,
-                BLOCK_SIZE_H=ctx.BLOCK_SIZE_H_backward,
-            )
+        softmax_backward_triton(
+            output=output, output_grad=output_grad, x_grad=x_grad, logits_multiplier=ctx.logits_multiplier
+        )
 
-        return x_grad, *[None] * 8
+        return x_grad, None
 
 
-def softmax_cute(
-    x: torch.Tensor,
-    kernel_backend_forward: str = CutoTuneParameter(),
-    BLOCK_SIZE_B_forward: int = CutoTuneParameter(),
-    BLOCK_SIZE_H_forward: int = CutoTuneParameter(),
-    kernel_backend_backward: str = CutoTuneParameter(),
-    BLOCK_SIZE_B_backward: int = CutoTuneParameter(),
-    BLOCK_SIZE_H_backward: int = CutoTuneParameter(),
-) -> torch.Tensor:
-    return _Softmax_Cute.apply(
-        x,
-        kernel_backend_forward,
-        BLOCK_SIZE_B_forward,
-        BLOCK_SIZE_H_forward,
-        kernel_backend_backward,
-        BLOCK_SIZE_B_backward,
-        BLOCK_SIZE_H_backward,
-    )
+def softmax_cute(x: torch.Tensor, logits_multiplier: float | None = None) -> torch.Tensor:
+    """computes softmax activation
+
+    Args:
+        x (torch.Tensor): input activation tensor
+        logits_multiplier (float, optional): pre-multiplies `x` with `logits_multiplier` before computing softmax.
+            Defaults to None.
+
+    Returns:
+        torch.Tensor: output tensor
+    """
+
+    return _Softmax_Cute.apply(x, logits_multiplier)

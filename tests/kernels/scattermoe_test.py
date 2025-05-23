@@ -1,9 +1,11 @@
-import torch
-import torch.nn as nn
-from parameterized import parameterized
-from transformers import set_seed
+# **************************************************
+# Copyright (c) 2025, Mayank Mishra
+# **************************************************
 
-from cute_kernels import MoE_Torch, MoE_Triton
+import torch
+from parameterized import parameterized
+
+from cute_kernels import MoE_Torch, MoE_Triton, set_seed
 
 from ..test_commons import TestCommons
 
@@ -23,31 +25,18 @@ class ScatterMoETest(TestCommons):
             [True, False],  # is_glu
             [True, False],  # is_compiling
         )
-    )
-    def test_scattermoe_triton(
-        self,
-        device: torch.device,
-        dtype: torch.dtype,
-        num_experts: int,
-        num_experts_per_tok: int,
-        hidden_size: int,
-        intermediate_size: int,
-        is_glu: bool,
-        is_compiling: bool,
-    ) -> None:
-        self._test_scattermoe(
-            device=device,
-            dtype=dtype,
-            num_experts=num_experts,
-            num_experts_per_tok=num_experts_per_tok,
-            hidden_size=hidden_size,
-            intermediate_size=intermediate_size,
-            is_glu=is_glu,
-            module_class=MoE_Triton,
-            is_compiling=is_compiling,
+        + TestCommons.make_args_matrix(
+            [torch.device("cuda")],
+            TestCommons.get_dtypes(),
+            [128],  # num_experts
+            [8],  # num_experts_per_tok
+            [576],  # hidden_size
+            [256],  # intermediate_size
+            [True, False],  # is_glu
+            [True, False],  # is_compiling
         )
-
-    def _test_scattermoe(
+    )
+    def test_scattermoe(
         self,
         device: torch.device,
         dtype: torch.dtype,
@@ -56,7 +45,6 @@ class ScatterMoETest(TestCommons):
         hidden_size: int,
         intermediate_size: int,
         is_glu: bool,
-        module_class: type[nn.Module],
         is_compiling: bool,
     ) -> None:
         set_seed(_SEED)
@@ -67,7 +55,7 @@ class ScatterMoETest(TestCommons):
             )
 
         with torch.device(device):
-            moe_custom = module_class(
+            moe_custom = MoE_Triton(
                 num_experts=num_experts,
                 num_experts_per_tok=num_experts_per_tok,
                 hidden_size=hidden_size,

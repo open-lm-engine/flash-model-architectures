@@ -1,22 +1,14 @@
+# **************************************************
+# Copyright (c) 2025, Mayank Mishra
+# **************************************************
+
 import torch
 import triton
 import triton.language as tl
 
-from ....constants import LIBRARY_NAME, MAX_TRITON_BLOCK_SIZE
-from ....cutotune import CutoTuneConfig, cutotune, get_cartesian_product_cutotune_configs
-from ....math import ceil_divide, get_powers_of_2
+from ....constants import LIBRARY_NAME
+from ....math import ceil_divide, get_next_power_of_2
 from ....utils import cute_op, get_num_elements_and_hidden_size
-
-
-_KERNEL_NAME = "online_softmax_forward_triton"
-
-
-@triton.jit
-def _exp_with_offset(x, offset):
-    x += offset
-    x = x.to(tl.float32)
-    x = tl.exp(x)
-    return x
 
 
 @triton.jit
@@ -27,16 +19,17 @@ def _load_x(x_ptr, h, H, BLOCK_SIZE_H, indices_b, mask_b, other=None):
     indices = indices_b[:, None] * H + indices_h[None, :]
     mask_bh = mask_b[:, None] & mask_h[None, :]
 
-    x_ptrs = x_ptr + indices
-    x = tl.load(x_ptrs, mask=mask_bh, other=other)
+    x = tl.load(x_ptr + indices, mask=mask_bh, other=other)
 
     return x, indices, mask_bh
 
 
 @triton.jit
-def _softmax_forward_triton_kernel(
+def softmax_forward_triton_kernel(
     x_ptr,
     output_ptr,
+    HAS_LOGITS_MULTIPLIER: tl.constexpr,
+    logits_multiplier,
     B,
     H,
     BLOCK_SIZE_B: tl.constexpr,
@@ -57,11 +50,16 @@ def _softmax_forward_triton_kernel(
             x_ptr=x_ptr, h=h, H=H, BLOCK_SIZE_H=BLOCK_SIZE_H, indices_b=indices_b, mask_b=mask_b, other=-float("inf")
         )
 
+        x = x.to(tl.float32)
+        if HAS_LOGITS_MULTIPLIER:
+            x *= logits_multiplier
+
         prev_m = M
         m = tl.max(x, axis=1, keep_dims=True)
         M = max(M, m)
 
-        x = _exp_with_offset(x, -M)
+        x -= M
+        x = tl.exp(x)
         Z = Z * tl.exp(prev_m - M) + tl.sum(x, axis=1, keep_dims=True)
 
     for h in range(num_blocks_h):
@@ -69,32 +67,36 @@ def _softmax_forward_triton_kernel(
             x_ptr=x_ptr, h=h, H=H, BLOCK_SIZE_H=BLOCK_SIZE_H, indices_b=indices_b, mask_b=mask_b
         )
 
-        x = _exp_with_offset(x, -M)
+        x = x.to(tl.float32)
+        if HAS_LOGITS_MULTIPLIER:
+            x *= logits_multiplier
+
+        x -= M
+        x = tl.exp(x)
         x /= Z
 
-        output_ptrs = output_ptr + indices
-        tl.store(output_ptrs, x, mask=mask_bh)
+        tl.store(output_ptr + indices, x, mask=mask_bh)
 
 
-@cutotune(
-    configs=get_cartesian_product_cutotune_configs(
-        BLOCK_SIZE_B=get_powers_of_2(1, MAX_TRITON_BLOCK_SIZE),
-        BLOCK_SIZE_H=get_powers_of_2(1, MAX_TRITON_BLOCK_SIZE),
-        condition=lambda **kwargs: 1024 <= kwargs["BLOCK_SIZE_B"] * kwargs["BLOCK_SIZE_H"] <= 8192,
-    ),
-    default_config=CutoTuneConfig({"BLOCK_SIZE_B": 64, "BLOCK_SIZE_H": 64}),
-    triggers={"x.dtype"},
-)
-@cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"output"})
-def softmax_forward_triton(x: torch.Tensor, output: torch.Tensor, BLOCK_SIZE_B: int, BLOCK_SIZE_H: int) -> None:
-    num_elements, hidden_size = get_num_elements_and_hidden_size(x)
+@cute_op(f"{LIBRARY_NAME}::softmax_forward_triton", mutates_args={"output"})
+def softmax_forward_triton(x: torch.Tensor, output: torch.Tensor, logits_multiplier: float | None) -> None:
+    if x.dim() == 1:
+        B = 1
+        H = x.size(-1)
+    else:
+        B, H = get_num_elements_and_hidden_size(x)
+
+    BLOCK_SIZE_B = 1
+    BLOCK_SIZE_H = min(get_next_power_of_2(H), 4096 if x.dtype == torch.float32 else 8192)
 
     with torch.device(x.device):
-        _softmax_forward_triton_kernel[(ceil_divide(num_elements, BLOCK_SIZE_B),)](
+        softmax_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](
             x_ptr=x,
             output_ptr=output,
-            B=num_elements,
-            H=hidden_size,
+            HAS_LOGITS_MULTIPLIER=logits_multiplier not in [None, 1],
+            logits_multiplier=logits_multiplier,
+            B=B,
+            H=H,
             BLOCK_SIZE_B=BLOCK_SIZE_B,
             BLOCK_SIZE_H=BLOCK_SIZE_H,
         )

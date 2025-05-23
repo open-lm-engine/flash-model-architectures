@@ -1,23 +1,24 @@
+# **************************************************
+# Copyright (c) 2025, Mayank Mishra
+# **************************************************
+
 import torch
 import triton
 import triton.language as tl
 
-from ....constants import LIBRARY_NAME
-from ....cutotune import cutotune
-from ....math import ceil_divide
+from ....constants import LIBRARY_NAME, MAX_TRITON_BLOCK_SIZE
+from ....math import ceil_divide, get_next_power_of_2, get_powers_of_2
 from ....utils import cute_op, get_num_elements_and_hidden_size
-from .parameters import get_cutotune_parameters
-
-
-_KERNEL_NAME = "rmsnorm_forward_triton"
 
 
 @triton.jit
-def _rmsnorm_forward_triton_kernel(
+def rmsnorm_forward_triton_kernel(
     x_ptr,
+    HAS_WEIGHT: tl.constexpr,
     weight_ptr,
     output_ptr,
     eps,
+    HAS_RMSNORM_DENOMINATOR: tl.constexpr,
     rmsnorm_denominator_ptr,
     B,
     H,
@@ -28,56 +29,57 @@ def _rmsnorm_forward_triton_kernel(
 
     indices_b = pid_b * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
     indices_h = tl.arange(0, BLOCK_SIZE_H)
+    indices_bh = indices_b[:, None] * H + indices_h[None, :]
 
     mask_b = indices_b < B
     mask_h = indices_h < H
 
     mask_bh = mask_b[:, None] & mask_h[None, :]
 
-    x_ptrs = x_ptr + indices_b[:, None] * H + indices_h[None, :]
-    x = tl.load(x_ptrs, mask=mask_bh).to(tl.float32)
+    x = tl.load(x_ptr + indices_bh, mask=mask_bh).to(tl.float32)
 
     squared_sum = tl.sum(x * x, axis=1)
     inverse_rms = tl.rsqrt((squared_sum / H) + eps)
 
-    if rmsnorm_denominator_ptr is not None:
+    if HAS_RMSNORM_DENOMINATOR:
         tl.store(rmsnorm_denominator_ptr + indices_b, inverse_rms, mask=mask_b)
 
     x *= inverse_rms[:, None]
 
-    if weight_ptr is not None:
+    if HAS_WEIGHT:
         weight = tl.load(weight_ptr + indices_h, mask=mask_h)
         x = x.to(x_ptr.dtype.element_ty) * weight[None, :]
 
-    output_ptrs = output_ptr + indices_b[:, None] * H + indices_h[None, :]
-    tl.store(output_ptrs, x, mask=mask_bh)
+    tl.store(output_ptr + indices_bh, x, mask=mask_bh)
 
 
-@cutotune(**get_cutotune_parameters())
-@cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"output", "rmsnorm_denominator"})
+@cute_op(f"{LIBRARY_NAME}::rmsnorm_forward_triton", mutates_args={"output", "rmsnorm_denominator"})
 def rmsnorm_forward_triton(
     x: torch.Tensor,
     weight: torch.Tensor | None,
     output: torch.Tensor,
     eps: float,
     rmsnorm_denominator: torch.Tensor | None,
-    BLOCK_SIZE_B: int,
-    BLOCK_SIZE_H: int,
 ) -> None:
-    num_elements, hidden_size = get_num_elements_and_hidden_size(x)
+    B, H = get_num_elements_and_hidden_size(x)
 
-    if BLOCK_SIZE_H < hidden_size:
-        raise ValueError(f"hidden_size should be more than the BLOCK_SIZE_H")
+    BLOCK_SIZE_B = 1
+    BLOCK_SIZE_H = get_next_power_of_2(H)
+    assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
+    NUM_WARPS = 8
 
     with torch.device(x.device):
-        _rmsnorm_forward_triton_kernel[(ceil_divide(num_elements, BLOCK_SIZE_B),)](
+        rmsnorm_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](
             x_ptr=x,
+            HAS_WEIGHT=weight is not None,
             weight_ptr=weight,
             output_ptr=output,
             eps=eps,
+            HAS_RMSNORM_DENOMINATOR=rmsnorm_denominator is not None,
             rmsnorm_denominator_ptr=rmsnorm_denominator,
-            B=num_elements,
-            H=hidden_size,
+            B=B,
+            H=H,
             BLOCK_SIZE_B=BLOCK_SIZE_B,
             BLOCK_SIZE_H=BLOCK_SIZE_H,
+            num_warps=NUM_WARPS,
         )

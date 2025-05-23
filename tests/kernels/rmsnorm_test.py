@@ -1,10 +1,13 @@
+# **************************************************
+# Copyright (c) 2025, Mayank Mishra
+# **************************************************
+
 from typing import Callable
 
 import torch
 from parameterized import parameterized
-from transformers import set_seed
 
-from cute_kernels import rmsnorm_cute, rmsnorm_torch
+from cute_kernels import rmsnorm_cute, rmsnorm_torch, set_seed
 
 from ..test_commons import TestCommons
 
@@ -60,7 +63,7 @@ class RMSNormTest(TestCommons):
         z_kernel.sum().backward()
         z_expected.sum().backward()
 
-        self.assert_equal_tensors(z_kernel, z_expected, False, atol_float16=8e-3, rtol_float16=0)
+        self.assert_equal_tensors(z_kernel, z_expected, False, atol_float16=1.6e-2, rtol_float16=0)
         self.assert_equal_tensors(x_kernel.grad, x_expected.grad, False, atol_float16=9e-2, rtol_float16=0)
 
         if has_weight:

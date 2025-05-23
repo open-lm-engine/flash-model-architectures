@@ -1,3 +1,7 @@
+// **************************************************
+// Copyright (c) 2025, Mayank Mishra
+// **************************************************
+
 #include <torch/extension.h>
 
 void swiglu_forward_cuda(const torch::Tensor &gate,

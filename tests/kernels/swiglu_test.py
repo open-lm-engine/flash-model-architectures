@@ -1,47 +1,43 @@
+# **************************************************
+# Copyright (c) 2025, Mayank Mishra
+# **************************************************
+
 from typing import Callable
 
 import torch
 from parameterized import parameterized
 
-from cute_kernels import swiglu_cute, swiglu_torch
+from cute_kernels import (
+    CutoTuneParameter,
+    KernelBackend,
+    ceil_divide,
+    swiglu_cute,
+    swiglu_packed_cute,
+    swiglu_packed_torch,
+    swiglu_torch,
+)
 
 from ..test_commons import TestCommons
 
 
-class SwigluTest(TestCommons):
+class SwiGLUTest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(
             TestCommons.get_2d_tensor_sizes(),  # size
             [torch.device("cuda")],  # device
             TestCommons.get_dtypes(),  # dtype
-            ["cuda", "triton"],  # kernel_backend_forward
-            ["cuda", "triton"],  # kernel_backend_backward
-            [1024],  # BLOCK_SIZE_forward
-            [1024],  # BLOCK_SIZE_backward
+            [KernelBackend.cuda, KernelBackend.triton, CutoTuneParameter()],  # kernel_backend
             [swiglu_cute, torch.compile(swiglu_cute, fullgraph=True)],  # function
         )
     )
     def test_swiglu(
-        self,
-        size: tuple[int],
-        device: torch.device,
-        dtype: torch.dtype,
-        kernel_backend_forward: str,
-        kernel_backend_backward: str,
-        BLOCK_SIZE_forward: int,
-        BLOCK_SIZE_backward: int,
-        function: Callable,
+        self, size: tuple[int], device: torch.device, dtype: torch.dtype, kernel_backend: str, function: Callable
     ) -> None:
         x_kernel, x_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype)
         y_kernel, y_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype)
 
         z_kernel = function(
-            x_kernel,
-            y_kernel,
-            kernel_backend_forward=kernel_backend_forward,
-            kernel_backend_backward=kernel_backend_backward,
-            BLOCK_SIZE_forward=BLOCK_SIZE_forward,
-            BLOCK_SIZE_backward=BLOCK_SIZE_backward,
+            x_kernel, y_kernel, kernel_backend_forward=kernel_backend, kernel_backend_backward=kernel_backend
         )
         z_expected = swiglu_torch(x_expected, y_expected)
 
@@ -51,3 +47,26 @@ class SwigluTest(TestCommons):
         self.assert_equal_tensors(z_kernel, z_expected, False, atol_float32=5.5e-6, rtol_float32=0)
         self.assert_equal_tensors(x_kernel.grad, x_expected.grad, False, atol_float32=5e-6, rtol_float32=0)
         self.assert_equal_tensors(y_kernel.grad, y_expected.grad, False, atol_float32=5e-6, rtol_float32=0)
+
+    @parameterized.expand(
+        TestCommons.make_args_matrix(
+            TestCommons.get_2d_tensor_sizes(),  # size
+            [torch.device("cuda")],  # device
+            TestCommons.get_dtypes(),  # dtype
+            [swiglu_packed_cute, torch.compile(swiglu_packed_cute, fullgraph=True)],  # function
+        )
+    )
+    def test_swiglu_packed(
+        self, size: tuple[int], device: torch.device, dtype: torch.dtype, function: Callable
+    ) -> None:
+        size = (size[0], ceil_divide(size[-1], 2) * 2)
+        x_kernel, x_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype)
+
+        z_kernel = function(x_kernel)
+        z_expected = swiglu_packed_torch(x_expected)
+
+        z_kernel.mean().backward()
+        z_expected.mean().backward()
+
+        self.assert_equal_tensors(z_kernel, z_expected, False, atol_float32=5.5e-6, rtol_float32=0)
+        self.assert_equal_tensors(x_kernel.grad, x_expected.grad, False, atol_float32=5e-6, rtol_float32=0)

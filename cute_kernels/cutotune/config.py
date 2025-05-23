@@ -1,3 +1,7 @@
+# **************************************************
+# Copyright (c) 2025, Mayank Mishra
+# **************************************************
+
 from itertools import product
 from typing import Callable
 

@@ -1,3 +1,7 @@
+# **************************************************
+# Copyright (c) 2025, Mayank Mishra
+# **************************************************
+
 from functools import partial
 
 import torch
@@ -17,7 +21,8 @@ headers = [
     "torch compile TFLOPs",
     "naive CUDA TFLOPs",
     "shared memory CUDA TFLOPs",
-    "CUTLASS GEMM CUDA TFLOPs",
+    "CUTLASS TFLOPs",
+    "CUTLASS MMA tensorcore TFLOPs",
     "triton TFLOPs",
 ]
 kernels = [
@@ -26,6 +31,7 @@ kernels = [
     partial(gemm_cute, kernel_backend="naive_cuda"),
     partial(gemm_cute, kernel_backend="shared_memory_cuda"),
     partial(gemm_cute, kernel_backend="cutlass"),
+    partial(gemm_cute, kernel_backend="cutlass_tensorcore_mma_gemm_cuda"),
     partial(gemm_cute, kernel_backend="triton"),
 ]
 
@@ -38,14 +44,14 @@ for dtype in [torch.float16, torch.bfloat16, torch.float32]:
         w = torch.randn(4096, 4096, device=torch.cuda.current_device(), dtype=dtype)
 
         for i in range(n):
-            z = kernel(x, w, c=None, beta=0)
+            z = kernel(x, w, C=None, beta=0)
 
         s = torch.cuda.Event(enable_timing=True)
         e = torch.cuda.Event(enable_timing=True)
 
         s.record()
         for i in range(n):
-            z = kernel(x, w, c=None, beta=0)
+            z = kernel(x, w, C=None, beta=0)
         e.record()
 
         device_synchronize()

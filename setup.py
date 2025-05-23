@@ -1,3 +1,7 @@
+# **************************************************
+# Copyright (c) 2025, Mayank Mishra
+# **************************************************
+
 from setuptools import find_packages, setup
 
 
@@ -7,7 +11,7 @@ setup(
     name="cute-kernels",
     version=VERSION,
     author="Mayank Mishra",
-    author_email="mayank31398@ibm.com",
+    author_email="mayank31398@gmail.com",
     url="https://github.com/mayank31398/cute-kernels",
     packages=find_packages("./"),
     include_package_data=True,

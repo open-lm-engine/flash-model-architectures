@@ -1,4 +1,6 @@
-from functools import partial
+# **************************************************
+# Copyright (c) 2025, Mayank Mishra
+# **************************************************
 
 import torch
 from tabulate import tabulate
@@ -8,20 +10,16 @@ from cute_kernels import add_tensor_cute, add_tensor_torch, device_synchronize
 
 n = 100
 
-headers = ["dtype", "torch", "cuda", "triton"]
-kernels = [
-    add_tensor_torch,
-    partial(add_tensor_cute, kernel_backend="cuda", BLOCK_SIZE=1024),
-    partial(add_tensor_cute, kernel_backend="triton", BLOCK_SIZE=1024),
-]
+headers = ["dtype", "torch", "kernel"]
+kernels = [add_tensor_torch, add_tensor_cute]
 
 table = []
 
-for dtype in [torch.float16, torch.bfloat16, torch.float32]:
+for dtype in [torch.float32, torch.float16, torch.bfloat16]:
     row = [str(dtype)]
     for kernel in kernels:
-        x = torch.randn(10485760, device=torch.cuda.current_device(), dtype=dtype)
-        y = torch.randn(10485760, device=torch.cuda.current_device(), dtype=dtype)
+        x = torch.randn(104857600, device=torch.cuda.current_device(), dtype=dtype)
+        y = torch.randn(104857600, device=torch.cuda.current_device(), dtype=dtype)
 
         for i in range(n):
             z = kernel(x, y)

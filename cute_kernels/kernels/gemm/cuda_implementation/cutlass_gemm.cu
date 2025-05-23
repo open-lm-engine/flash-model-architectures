@@ -1,9 +1,19 @@
+// **************************************************
+// Copyright (c) 2025, Mayank Mishra
+// **************************************************
+
 #include <iostream>
 #include <sstream>
 #include <vector>
 
 #include "cutlass/gemm/device/gemm.h"
-#include "include/dtypes/all.h"
+#include "include/cute_kernels.h"
+
+namespace ck = cute_kernels;
+
+using fp32 = ck::fp32;
+using uint32 = ck::uint32;
+using int32 = ck::int32;
 
 template <typename input_dtype, bool is_A_transposed, bool is_B_transposed>
 inline void _cutlass_gemm_templated_layout(const input_dtype *A,
@@ -47,7 +57,7 @@ inline void _cutlass_gemm_templated_layout(const input_dtype *A,
 
 void cutlass_gemm_cuda(const torch::Tensor &A,
                        const torch::Tensor &B,
-                       std::optional<torch::Tensor> &C,
+                       std::optional<torch::Tensor> &_C,
                        torch::Tensor &output,
                        const bool &is_A_transposed,
                        const bool &is_B_transposed,
@@ -56,36 +66,43 @@ void cutlass_gemm_cuda(const torch::Tensor &A,
                        const uint32 &M,
                        const uint32 &K,
                        const uint32 &N) {
-    AT_DISPATCH_CUSTOM_FLOAT_TYPES(
-        A.scalar_type(), "cutlass_gemm_cuda", ([&] {
-            using input_dtype = typename DType<scalar_t>::cutlass_dtype;
+    CHECK_CUDA_TENSOR(A);
+    CHECK_CUDA_TENSOR(B);
+    if (_C.has_value()) {
+        CHECK_CUDA_TENSOR(_C.value());
+    }
+    CHECK_CUDA_TENSOR(output);
 
-            const input_dtype *A_data = reinterpret_cast<input_dtype *>(A.data_ptr<scalar_t>());
-            const input_dtype *B_data = reinterpret_cast<input_dtype *>(B.data_ptr<scalar_t>());
-            const input_dtype *C_data = C.has_value() ? reinterpret_cast<input_dtype *>(C.value().data_ptr<scalar_t>())
-                                                      : nullptr;
-            input_dtype *output_data = reinterpret_cast<input_dtype *>(output.data_ptr<scalar_t>());
+    DISPATCH_FLOAT_KERNEL(A.scalar_type(), "cutlass_gemm_cuda", scalar_t, ([&] {
+                              using input_dtype = typename ck::DType<scalar_t>::cutlass_dtype;
 
-            const int32 _M = safe_cast_uint32_to_int32(M);
-            const int32 _K = safe_cast_uint32_to_int32(K);
-            const int32 _N = safe_cast_uint32_to_int32(N);
+                              const input_dtype *A_data = reinterpret_cast<input_dtype *>(A.data_ptr<scalar_t>());
+                              const input_dtype *B_data = reinterpret_cast<input_dtype *>(B.data_ptr<scalar_t>());
+                              const input_dtype *C_data =
+                                  _C.has_value() ? reinterpret_cast<input_dtype *>(_C.value().data_ptr<scalar_t>())
+                                                 : nullptr;
+                              input_dtype *output_data = reinterpret_cast<input_dtype *>(output.data_ptr<scalar_t>());
 
-            if (is_A_transposed) {
-                if (is_B_transposed) {
-                    _cutlass_gemm_templated_layout<input_dtype, true, true>(
-                        A_data, B_data, C_data, output_data, alpha, beta, _M, _K, _N);
-                } else {
-                    _cutlass_gemm_templated_layout<input_dtype, true, false>(
-                        A_data, B_data, C_data, output_data, alpha, beta, _M, _K, _N);
-                }
-            } else {
-                if (is_B_transposed) {
-                    _cutlass_gemm_templated_layout<input_dtype, false, true>(
-                        A_data, B_data, C_data, output_data, alpha, beta, _M, _K, _N);
-                } else {
-                    _cutlass_gemm_templated_layout<input_dtype, false, false>(
-                        A_data, B_data, C_data, output_data, alpha, beta, _M, _K, _N);
-                }
-            }
-        }));
+                              const int32 _M = ck::safe_cast_uint32_to_int32(M);
+                              const int32 _K = ck::safe_cast_uint32_to_int32(K);
+                              const int32 _N = ck::safe_cast_uint32_to_int32(N);
+
+                              if (is_A_transposed) {
+                                  if (is_B_transposed) {
+                                      _cutlass_gemm_templated_layout<input_dtype, true, true>(
+                                          A_data, B_data, C_data, output_data, alpha, beta, _M, _K, _N);
+                                  } else {
+                                      _cutlass_gemm_templated_layout<input_dtype, true, false>(
+                                          A_data, B_data, C_data, output_data, alpha, beta, _M, _K, _N);
+                                  }
+                              } else {
+                                  if (is_B_transposed) {
+                                      _cutlass_gemm_templated_layout<input_dtype, false, true>(
+                                          A_data, B_data, C_data, output_data, alpha, beta, _M, _K, _N);
+                                  } else {
+                                      _cutlass_gemm_templated_layout<input_dtype, false, false>(
+                                          A_data, B_data, C_data, output_data, alpha, beta, _M, _K, _N);
+                                  }
+                              }
+                          }));
 }

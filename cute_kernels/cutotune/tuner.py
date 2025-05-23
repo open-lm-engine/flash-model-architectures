@@ -1,3 +1,7 @@
+# **************************************************
+# Copyright (c) 2025, Mayank Mishra
+# **************************************************
+
 import inspect
 from collections import defaultdict
 from typing import Any, Callable
@@ -12,7 +16,6 @@ from .parameter import CutoTuneParameter
 
 
 _DEBUG_CUTOTUNE = get_boolean_env_variable("DEBUG_CUTOTUNE", False)
-_DISABLE_CUTOTUNE = get_boolean_env_variable("DISABLE_CUTOTUNE", False)
 _SEPARATOR = "."
 _DEFAULT_WARMUP_ITERATIONS = 5
 _BENCHMARK_ITERATIONS = 10
@@ -23,59 +26,60 @@ class _CutoTune:
         self,
         function: Callable,
         configs: list[CutoTuneConfig],
-        default_config: CutoTuneConfig,
         triggers: set[str],
         warmup_iterations: int,
         benchmark_iterations: int,
         functional_triggers: dict[str, Callable] = {},
-        in_place_op: bool = False,
         reset_to_zero: dict = {},
     ) -> None:
         assert len(configs) > 0, "no cutotune config is passed"
-
-        assert default_config is not None
-        self.default_config = default_config
 
         self.function = function
         self.configs = configs
         self.warmup_iterations = warmup_iterations
         self.benchmark_iterations = benchmark_iterations
-        self.in_place_op = in_place_op
 
         self.signature = inspect.getfullargspec(function)
         self.cutotuneable_parameters = set(self.configs[0].get_key_values().keys())
 
         self._setup_trigger_map(triggers)
-        self._check_configs()
+
+        for config in self.configs:
+            assert (
+                set(config.get_key_values().keys()) == self.cutotuneable_parameters
+            ), "cutotune configs don't match the expected function signature"
 
         self.functional_triggers = functional_triggers
         self.reset_to_zero = reset_to_zero
 
-        if self.in_place_op:
-            raise NotImplementedError()
-
         self.filename = inspect.stack()[2].filename.split("cute_kernels")[1][1:]
         self.function_hash = f"{self.filename}->{function.__name__}"
 
-        self.cache = get_cutotune_cache()
+        self.function_cache = {}
 
     def __call__(self, *args, **kwargs) -> Any:
         override_cutotune_parameters = self._check_all_or_no_args_are_cutotune_parameters(*args, **kwargs)
         lookup_key = self._get_lookup_key(*args, **kwargs)
 
-        if _DISABLE_CUTOTUNE or torch.compiler.is_compiling():
-            best_config = self.default_config
-        else:
-            best_config = self.cache.get_config(function_hash=self.function_hash, lookup_key=lookup_key)
+        best_config = self.function_cache.get(lookup_key, None)
 
         if best_config is None:
-            best_config, best_time, _ = self._cutotune(*args, **kwargs)
-            self.cache.add_config(function_hash=self.function_hash, lookup_key=lookup_key, config=best_config)
+            # bypass cutotune for single config
+            if len(self.configs) == 1:
+                best_config = self.configs[0]
+                best_time = 0
+            else:
+                best_config, best_time, _ = self._cutotune(*args, **kwargs)
+
+            self.function_cache[lookup_key] = best_config
+            get_cutotune_cache().add_config(
+                function_hash=self.function_hash, lookup_key=lookup_key, config=best_config
+            )
 
             if _DEBUG_CUTOTUNE and (not torch.distributed.is_initialized() or torch.distributed.get_rank() == 0):
                 print(
                     f"config {best_config} achieved the best time ({best_time} sec) for {lookup_key} for "
-                    "function {self.function.__name__}"
+                    f"function {self.function.__name__}"
                 )
 
         output = self.function(
@@ -132,7 +136,7 @@ class _CutoTune:
 
         return result
 
-    @torch._dynamo.disable
+    @torch.compiler.set_stance("force_eager")
     @torch.inference_mode()
     def _cutotune(self, *args, **kwargs) -> tuple[CutoTuneConfig, float, list[tuple[CutoTuneConfig, float]]]:
         best_config = None
@@ -228,7 +232,7 @@ class _CutoTune:
                 elapsed_time += start.elapsed_time(end)
 
                 for variable_name, function in self.reset_to_zero.items():
-                    if function(**kwargs):
+                    if function is None or function(**kwargs):
                         variable = kwargs[variable_name]
                         assert isinstance(variable, torch.Tensor)
 
@@ -243,12 +247,6 @@ class _CutoTune:
             elapsed_time = start.elapsed_time(end)
 
         return elapsed_time / self.benchmark_iterations
-
-    def _check_configs(self) -> None:
-        for config in self.configs:
-            assert (
-                set(config.get_key_values().keys()) == self.cutotuneable_parameters
-            ), "cutotune configs don't match the expected function signature"
 
     def _setup_trigger_map(self, triggers: set[str]) -> None:
         assert isinstance(triggers, set), "triggers should be a set"
@@ -303,28 +301,27 @@ class _CutoTune:
 
         return variable_name, func_name, func
 
+    def __repr__(self):
+        return self.function_cache
+
 
 def cutotune(
     configs: list[CutoTuneConfig],
-    default_config: CutoTuneConfig,
     triggers: set[str] = set(),
     functional_triggers: dict[str, Callable] = {},
     warmup_iterations: int = _DEFAULT_WARMUP_ITERATIONS,
     benchmark_iterations: int = _BENCHMARK_ITERATIONS,
-    in_place_op: bool = False,
     reset_to_zero: dict = {},
 ) -> _CutoTune:
     def inner(function: Callable) -> Callable:
         return _CutoTune(
             function=function,
             configs=configs,
-            default_config=default_config,
             triggers=triggers,
             warmup_iterations=warmup_iterations,
             benchmark_iterations=benchmark_iterations,
             functional_triggers=functional_triggers,
-            in_place_op=in_place_op,
             reset_to_zero=reset_to_zero,
-        ).__call__
+        )
 
     return inner

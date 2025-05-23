@@ -1,3 +1,7 @@
+# **************************************************
+# Copyright (c) 2025, Mayank Mishra
+# **************************************************
+
 import torch
 import triton
 import triton.language as tl
@@ -8,12 +12,8 @@ from ....utils import cute_op
 from .kernels import group_triton_kernel, groupXtY_triton_kernel, scatter2scatter_triton_kernel
 
 
-BLOCK_M = 128
-torch._dynamo.config.capture_scalar_outputs = True
-
-
 def _fake_bincount(x: torch.Tensor, minlength: int) -> torch.Tensor:
-    return torch.empty(minlength, dtype=torch.int)
+    return torch.empty(minlength, device=x.device, dtype=torch.int)
 
 
 @cute_op(f"{LIBRARY_NAME}::bincount", mutates_args={}, fake_func=_fake_bincount)
@@ -48,6 +48,8 @@ def scatter2scatter(
         ceil_divide(sorted_expert_idxs.size(0), meta["BLOCK_M"]) * ceil_divide(meta["N"], meta["BLOCK_N"]),
     )
 
+    BLOCK_M = 128
+
     with torch.device(X.device):
         scatter2scatter_triton_kernel[grid](
             # X_ptr, stride_xm, stride_xk,
@@ -71,8 +73,6 @@ def scatter2scatter(
             N=out.size(1),
             E=W.size(0),
             BLOCK_M=BLOCK_M,
-            ACC_TYPE=tl.float32,
-            allow_tf32=torch.backends.cudnn.allow_tf32,
             x_grouped=x_grouped,
             y_grouped=y_grouped,
         )
@@ -102,9 +102,6 @@ def group_bwd_W(DY: torch.Tensor, X: torch.Tensor, expert_offsets: torch.Tensor,
             # K: tl.constexpr, N: tl.constexpr,
             N=DY.size(-1),
             K=X.size(-1),
-            # ACC_TYPE: tl.constexpr,
-            ACC_TYPE=tl.float32,
-            allow_tf32=torch.backends.cudnn.allow_tf32,
         )
 
 
@@ -223,6 +220,11 @@ class _ScatteredExperts(torch.autograd.Function):
         if grouped_out:
             grouped_grad_out = grad_out
         else:
+            if grouped_grad_out is None: 
+                if gate_fan == 1:
+                    grouped_grad_out = torch.empty_like(grad_out)
+                else:
+                    raise RuntimeError("Need to infer size")
             group(
                 A=grad_out,
                 sorted_expert_idxs=sorted_scattered_idxs,

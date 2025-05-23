@@ -1,3 +1,7 @@
+# **************************************************
+# Copyright (c) 2025, Mayank Mishra
+# **************************************************
+
 import os
 
 import yaml
@@ -24,12 +28,12 @@ class _CutoTuneCache:
 
         self.cache[function_hash][lookup_key] = config
 
-    def get_config(self, function_hash: str, lookup_key: str, default: CutoTuneConfig = None) -> CutoTuneConfig:
+    def get_config(self, function_hash: str, lookup_key: str) -> CutoTuneConfig:
         if function_hash in self.cache:
             function_cache = self.cache[function_hash]
-            return function_cache.get(lookup_key, default)
+            return function_cache.get(lookup_key, None)
 
-        return default
+        return None
 
     def save(self) -> None:
         yaml.dump(self._serialize(self.cache), open(_CUTOTUNE_CACHE_FILENAME, "w"))
@@ -68,8 +72,3 @@ def get_cutotune_cache() -> _CutoTuneCache:
         _CUTOTUNE_CACHE = _CutoTuneCache()
 
     return _CUTOTUNE_CACHE
-
-
-def save_cutotune_cache() -> None:
-    global _CUTOTUNE_CACHE
-    _CUTOTUNE_CACHE.save()

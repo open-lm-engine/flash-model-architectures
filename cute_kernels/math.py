@@ -1,3 +1,8 @@
+# **************************************************
+# Copyright (c) 2025, Mayank Mishra
+# **************************************************
+
+
 def ceil_divide(x: int, y: int) -> int:
     return (x + y - 1) // y
 
@@ -24,7 +29,7 @@ def divide_if_divisible(dividend: int, divisor: int, msg: str = "") -> int:
     return dividend // divisor
 
 
-_POWERS_OF_2 = get_powers_of_2(1, 65536)
+_POWERS_OF_2 = get_powers_of_2(1, 4294967296)
 
 
 def get_next_power_of_2(x: int) -> int:

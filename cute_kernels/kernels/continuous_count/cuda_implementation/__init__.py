@@ -1,15 +1,24 @@
+# **************************************************
+# Copyright (c) 2025, Mayank Mishra
+# **************************************************
+
 import torch
 
 from ....constants import LIBRARY_NAME
+from ....cutotune import CutoTuneConfig, cutotune
 from ....jit import cpp_jit
 from ....utils import cute_op
 
 
-_KERNEL_NAME = "continuous_count_cuda"
-
-
-@cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"output"})
-@cpp_jit(_KERNEL_NAME)
+@cutotune(
+    configs=[
+        CutoTuneConfig({"BLOCK_SIZE": 1024, "THREAD_BLOCK_CLUSTER_SIZE": thread_block_cluster_size})
+        for thread_block_cluster_size in [1, 2, 4, 8]
+    ],
+    triggers={"x.dtype"},
+)
+@cute_op(f"{LIBRARY_NAME}::continuous_count_cuda", mutates_args={"output"})
+@cpp_jit()
 def continuous_count_cuda(
-    x: torch.Tensor, output: torch.Tensor, sm_count: int, thread_block_cluster_size: int, size: int, BLOCK_SIZE: int
+    x: torch.Tensor, output: torch.Tensor, C: int, THREAD_BLOCK_CLUSTER_SIZE: int, BLOCK_SIZE: int
 ) -> None: ...
