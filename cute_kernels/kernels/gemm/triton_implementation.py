@@ -56,14 +56,14 @@ def gemm_triton_kernel(
     # B -> N x K if is_B_transposed else K x N
     # C -> M x N
 
-    pid = tl.program_id(axis=0)
-    num_programs_n = tl.cdiv(N, BLOCK_SIZE_N)
+    BLOCK_ID = tl.program_id(axis=0)
+    NUM_BLOCKS_N = tl.cdiv(N, BLOCK_SIZE_N)
 
-    pid_m = pid // num_programs_n
-    pid_n = pid % num_programs_n
+    BLOCK_ID_M = BLOCK_ID // NUM_BLOCKS_N
+    BLOCK_ID_N = BLOCK_ID % NUM_BLOCKS_N
 
-    indices_m = pid_m * BLOCK_SIZE_M + tl.arange(0, BLOCK_SIZE_M)
-    indices_n = pid_n * BLOCK_SIZE_N + tl.arange(0, BLOCK_SIZE_N)
+    indices_m = BLOCK_ID_M * BLOCK_SIZE_M + tl.arange(0, BLOCK_SIZE_M)
+    indices_n = BLOCK_ID_N * BLOCK_SIZE_N + tl.arange(0, BLOCK_SIZE_N)
 
     mask_m = indices_m < M
     mask_n = indices_n < N
@@ -123,10 +123,13 @@ def gemm_triton(
     is_B_transposed: bool,
     alpha: float,
     beta: float,
-    M: int,
-    K: int,
-    N: int,
 ) -> None:
+    M, K = A.size()
+    if is_A_transposed:
+        M, K = K, M
+
+    N = B.size(0 if is_B_transposed else 1)
+
     GRID = lambda meta: (ceil_divide(M, meta["BLOCK_SIZE_M"]) * ceil_divide(N, meta["BLOCK_SIZE_N"]),)
 
     with torch.device(A.device):
