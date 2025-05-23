@@ -8,6 +8,7 @@
 
 #include "cutlass/gemm/device/gemm.h"
 #include "include/cute_kernels.h"
+#include "utils.h"
 
 namespace ck = cute_kernels;
 
@@ -62,16 +63,15 @@ void cutlass_gemm_cuda(const torch::Tensor &A,
                        const bool &is_A_transposed,
                        const bool &is_B_transposed,
                        const fp32 &alpha,
-                       const fp32 &beta,
-                       const uint32 &M,
-                       const uint32 &K,
-                       const uint32 &N) {
+                       const fp32 &beta) {
     CHECK_CUDA_TENSOR(A);
     CHECK_CUDA_TENSOR(B);
     if (_C.has_value()) {
         CHECK_CUDA_TENSOR(_C.value());
     }
     CHECK_CUDA_TENSOR(output);
+
+    const auto [M, N, K] = get_MNK(A, B, is_A_transposed, is_B_transposed);
 
     DISPATCH_FLOAT_KERNEL(A.scalar_type(), "cutlass_gemm_cuda", scalar_t, ([&] {
                               using input_dtype = typename ck::DType<scalar_t>::cutlass_dtype;

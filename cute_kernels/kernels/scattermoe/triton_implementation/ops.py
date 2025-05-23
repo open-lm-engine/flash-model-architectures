@@ -220,7 +220,7 @@ class _ScatteredExperts(torch.autograd.Function):
         if grouped_out:
             grouped_grad_out = grad_out
         else:
-            if grouped_grad_out is None: 
+            if grouped_grad_out is None:
                 if gate_fan == 1:
                     grouped_grad_out = torch.empty_like(grad_out)
                 else:
