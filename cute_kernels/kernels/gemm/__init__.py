@@ -49,13 +49,11 @@ def gemm_cute(
     assert A.dim() == 2
     assert B.dim() == 2
 
+    M, K = A.size()
     if is_A_transposed:
-        K, M = A.size()
-    else:
-        M, K = get_num_elements_and_hidden_size(A)
+        M, K = K, M
 
     assert B.size(1 if is_B_transposed else 0) == K
-
     N = B.size(0 if is_B_transposed else 1)
 
     output = torch.empty(M, N, dtype=A.dtype, device=A.device)
