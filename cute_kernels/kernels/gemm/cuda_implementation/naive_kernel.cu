@@ -70,9 +70,6 @@ void naive_gemm_cuda(const torch::Tensor &A,
                      const bool &is_B_transposed,
                      const fp32 &alpha,
                      const fp32 &beta,
-                     const uint32 &M,
-                     const uint32 &K,
-                     const uint32 &N,
                      const uint32 &BLOCK_SIZE_M,
                      const uint32 &BLOCK_SIZE_N) {
     CHECK_CUDA_TENSOR(A);
@@ -81,6 +78,23 @@ void naive_gemm_cuda(const torch::Tensor &A,
         CHECK_CUDA_TENSOR(_C.value());
     }
     CHECK_CUDA_TENSOR(output);
+
+    uint32 M, K, N;
+    if (is_A_transposed) {
+        M = A.size(1);
+        K = A.size(0);
+    } else {
+        M = A.size(0);
+        K = A.size(1);
+    }
+
+    if (is_B_transposed) {
+        N = B.size(0);
+    } else {
+        N = B.size(1);
+    }
+
+    const uint32 N = B.size(-1);
 
     CHECK_VALID_THREAD_BLOCK(BLOCK_SIZE_M * BLOCK_SIZE_N);
 

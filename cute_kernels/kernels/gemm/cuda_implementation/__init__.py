@@ -26,9 +26,6 @@ def naive_gemm_cuda(
     is_B_transposed: bool,
     alpha: float,
     beta: float,
-    M: int,
-    K: int,
-    N: int,
     BLOCK_SIZE_M: int,
     BLOCK_SIZE_N: int,
 ) -> None: ...
