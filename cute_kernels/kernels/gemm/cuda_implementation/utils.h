@@ -6,6 +6,9 @@
 
 #include "include/cute_kernels.h"
 
+namespace ck = cute_kernels;
+using uint32 = ck::uint32;
+
 inline __host__ std::tuple<uint32, uint32, uint32> get_MNK(const torch::Tensor &A, const torch::Tensor &B) {
     uint32 M, K, N;
     if (is_A_transposed) {
