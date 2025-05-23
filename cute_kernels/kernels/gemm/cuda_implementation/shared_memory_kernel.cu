@@ -100,9 +100,6 @@ void shared_memory_gemm_cuda(const torch::Tensor &A,
                              const bool &is_B_transposed,
                              const fp32 &alpha,
                              const fp32 &beta,
-                             const uint32 &M,
-                             const uint32 &K,
-                             const uint32 &N,
                              const uint32 &BLOCK_SIZE) {
     CHECK_CUDA_TENSOR(A);
     CHECK_CUDA_TENSOR(B);

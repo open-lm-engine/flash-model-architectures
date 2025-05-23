@@ -23,9 +23,6 @@ void shared_memory_gemm_cuda(const torch::Tensor &A,
                              const bool &is_B_transposed,
                              const float &alpha,
                              const float &beta,
-                             const uint &M,
-                             const uint &K,
-                             const uint &N,
                              const uint &BLOCK_SIZE);
 
 void cutlass_gemm_cuda(const torch::Tensor &A,
