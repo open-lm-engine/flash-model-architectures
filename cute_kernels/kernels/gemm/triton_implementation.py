@@ -33,7 +33,7 @@ def _get_autotune_configs() -> list[triton.Config]:
     return configs
 
 
-@triton.autotune(configs=_get_autotune_configs(), key=[])
+@triton.autotune(configs=_get_autotune_configs(), key=["dtype"])
 @triton.jit
 def gemm_triton_kernel(
     A_ptr,
@@ -44,6 +44,7 @@ def gemm_triton_kernel(
     beta,
     IS_A_TRANSPOSED: tl.constexpr,
     IS_B_TRANSPOSED: tl.constexpr,
+    dtype,
     M,
     K,
     N,
@@ -141,6 +142,7 @@ def gemm_triton(
             beta=beta,
             IS_A_TRANSPOSED=is_A_transposed,
             IS_B_TRANSPOSED=is_B_transposed,
+            dtype=A.dtype,
             M=M,
             K=K,
             N=N,
