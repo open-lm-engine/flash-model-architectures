@@ -3,6 +3,7 @@
 # **************************************************
 
 import torch
+import triton.language as tl
 
 from .math import get_powers_of_2
 
@@ -27,3 +28,5 @@ DTYPE_TO_SIZE = {
     torch.int64: 8,
     torch.uint64: 8,
 }
+
+TORCH_DTYPE_TO_TRITON_DTYPE = {torch.float32: tl.float32, torch.float16: tl.float16, torch.bfloat16: tl.bfloat16}
