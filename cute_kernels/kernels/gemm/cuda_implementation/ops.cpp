@@ -32,10 +32,7 @@ void cutlass_gemm_cuda(const torch::Tensor &A,
                        const bool &is_A_transposed,
                        const bool &is_B_transposed,
                        const float &alpha,
-                       const float &beta,
-                       const uint &M,
-                       const uint &K,
-                       const uint &N);
+                       const float &beta);
 
 void cutlass_tensorcore_mma_gemm_cuda(const torch::Tensor &A,
                                       const torch::Tensor &B,

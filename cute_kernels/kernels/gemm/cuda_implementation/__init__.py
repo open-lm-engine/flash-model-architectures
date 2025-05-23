@@ -57,9 +57,6 @@ def cutlass_gemm_cuda(
     is_B_transposed: bool,
     alpha: float,
     beta: float,
-    M: int,
-    K: int,
-    N: int,
 ) -> None: ...
 
 
