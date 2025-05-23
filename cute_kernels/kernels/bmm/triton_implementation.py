@@ -1,0 +1,149 @@
+# **************************************************
+# Copyright (c) 2025, Mayank Mishra
+# **************************************************
+
+import torch
+import triton
+import triton.language as tl
+
+from ...constants import LIBRARY_NAME
+from ...math import ceil_divide, get_powers_of_2
+from ...utils import cute_op
+
+
+def _get_autotune_configs() -> list[triton.Config]:
+    configs = []
+    for BLOCK_SIZE_M in get_powers_of_2(32, 64):
+        for BLOCK_SIZE_N in get_powers_of_2(32, 64):
+            for BLOCK_SIZE_K in get_powers_of_2(16, 64):
+                if BLOCK_SIZE_M * BLOCK_SIZE_K * BLOCK_SIZE_N <= 16384:
+                    for num_warps in get_powers_of_2(4, 8):
+                        for num_stages in range(4):
+                            configs.append(
+                                triton.Config(
+                                    {
+                                        "BLOCK_SIZE_M": BLOCK_SIZE_M,
+                                        "BLOCK_SIZE_N": BLOCK_SIZE_N,
+                                        "BLOCK_SIZE_K": BLOCK_SIZE_K,
+                                    },
+                                    num_warps=num_warps,
+                                    num_stages=num_stages,
+                                )
+                            )
+
+    return configs
+
+
+@triton.autotune(configs=_get_autotune_configs(), key=[])
+@triton.jit
+def bmm_triton_kernel(
+    A_ptr,
+    B_ptr,
+    C_ptr,
+    output_ptr,
+    alpha,
+    beta,
+    IS_A_TRANSPOSED: tl.constexpr,
+    IS_B_TRANSPOSED: tl.constexpr,
+    M,
+    K,
+    N,
+    BLOCK_SIZE_M: tl.constexpr,
+    BLOCK_SIZE_K: tl.constexpr,
+    BLOCK_SIZE_N: tl.constexpr,
+):
+    # A -> K x M if is_A_transposed else M x K
+    # B -> N x K if is_B_transposed else K x N
+    # C -> M x N
+
+    pid = tl.program_id(axis=0)
+    num_programs_n = tl.cdiv(N, BLOCK_SIZE_N)
+
+    pid_m = pid // num_programs_n
+    pid_n = pid % num_programs_n
+
+    indices_m = pid_m * BLOCK_SIZE_M + tl.arange(0, BLOCK_SIZE_M)
+    indices_n = pid_n * BLOCK_SIZE_N + tl.arange(0, BLOCK_SIZE_N)
+
+    mask_m = indices_m < M
+    mask_n = indices_n < N
+
+    accumulator = tl.zeros((BLOCK_SIZE_M, BLOCK_SIZE_N), dtype=tl.float32)
+
+    for k in range(tl.cdiv(K, BLOCK_SIZE_K)):
+        indices_k = k * BLOCK_SIZE_K + tl.arange(0, BLOCK_SIZE_K)
+        mask_k = indices_k < K
+
+        if IS_A_TRANSPOSED:
+            mask_A = mask_k[:, None] & mask_m[None, :]
+            A_ptrs = A_ptr + indices_k[:, None] * M + indices_m[None, :]
+        else:
+            mask_A = mask_m[:, None] & mask_k[None, :]
+            A_ptrs = A_ptr + indices_m[:, None] * K + indices_k[None, :]
+
+        A = tl.load(A_ptrs, mask=mask_A)
+
+        if IS_A_TRANSPOSED:
+            A = A.T
+
+        if IS_B_TRANSPOSED:
+            mask_B = mask_n[:, None] & mask_k[None, :]
+            B_ptrs = B_ptr + indices_n[:, None] * K + indices_k[None, :]
+        else:
+            mask_B = mask_k[:, None] & mask_n[None, :]
+            B_ptrs = B_ptr + indices_k[:, None] * N + indices_n[None, :]
+
+        B = tl.load(B_ptrs, mask=mask_B)
+
+        if IS_B_TRANSPOSED:
+            B = B.T
+
+        accumulator = tl.dot(A, B, accumulator, allow_tf32=True)
+
+    accumulator = accumulator.to(A_ptr.dtype.element_ty)
+    accumulator *= alpha
+
+    indices_mn = indices_m[:, None] * N + indices_n[None, :]
+    mask_mn = mask_m[:, None] & mask_n[None, :]
+
+    if C_ptr is not None:
+        C = tl.load(C_ptr + indices_mn, mask=mask_mn)
+        accumulator += beta * C
+
+    tl.store(output_ptr + indices_mn, accumulator, mask=mask_mn)
+
+
+@cute_op(f"{LIBRARY_NAME}::bmm_triton", mutates_args={"output"})
+def bmm_triton(
+    A: torch.Tensor,
+    B: torch.Tensor,
+    C: torch.Tensor | None,
+    output: torch.Tensor,
+    is_A_transposed: bool,
+    is_B_transposed: bool,
+    alpha: float,
+    beta: float,
+) -> None:
+    T, M, K = A.size()
+    N = B.size(-1)
+
+    GRID = lambda meta: (
+        ceil_divide(M, meta["BLOCK_SIZE_M"]),
+        *ceil_divide(N, meta["BLOCK_SIZE_N"]),
+    )
+
+    with torch.device(A.device):
+        bmm_triton_kernel[GRID](
+            A_ptr=A,
+            B_ptr=B,
+            C_ptr=C,
+            output_ptr=output,
+            alpha=alpha,
+            beta=beta,
+            IS_A_TRANSPOSED=is_A_transposed,
+            IS_B_TRANSPOSED=is_B_transposed,
+            T=T,
+            M=M,
+            K=K,
+            N=N,
+        )

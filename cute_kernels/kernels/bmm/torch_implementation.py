@@ -5,7 +5,7 @@
 import torch
 
 
-def gemm_torch(
+def bmm_torch(
     A: torch.Tensor,
     B: torch.Tensor,
     C: torch.Tensor,
@@ -23,11 +23,11 @@ def gemm_torch(
     if beta == 0:
         assert C is None
 
-        output = A @ B
+        output = torch.bmm(A, B)
         if alpha != 1:
             output *= alpha
     else:
         assert C is not None
-        output = torch.addmm(C, A, B, alpha=alpha, beta=beta)
+        output = torch.baddbmm(C, A, B, alpha=alpha, beta=beta)
 
     return output
