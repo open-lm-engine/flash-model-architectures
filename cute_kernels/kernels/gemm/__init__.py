@@ -46,13 +46,14 @@ def gemm_cute(
         torch.Tensor: output tensor
     """
 
+    assert A.dim() == 2
+    assert B.dim() == 2
+
     if is_A_transposed:
-        assert A.dim() == 2, "only 2 dimensional a tensor is supported when a is transposed"
         K, M = A.size()
     else:
         M, K = get_num_elements_and_hidden_size(A)
 
-    assert B.dim() == 2, "only 2 dimensional B tensor is supported"
     assert B.size(1 if is_B_transposed else 0) == K
 
     N = B.size(0 if is_B_transposed else 1)
@@ -85,9 +86,6 @@ def gemm_cute(
             is_B_transposed=is_B_transposed,
             alpha=alpha,
             beta=beta,
-            M=M,
-            K=K,
-            N=N,
         )
     elif kernel_backend == "shared_memory_cuda":
         BLOCK_SIZE = 32
