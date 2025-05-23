@@ -8,6 +8,7 @@
 
 #include "cute/tensor.hpp"
 #include "include/cute_kernels.h"
+#include "utils.h"
 
 namespace ck = cute_kernels;
 using namespace cute;
