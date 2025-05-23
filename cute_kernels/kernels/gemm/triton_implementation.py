@@ -44,7 +44,7 @@ def gemm_triton_kernel(
     beta,
     IS_A_TRANSPOSED: tl.constexpr,
     IS_B_TRANSPOSED: tl.constexpr,
-    dtype,
+    dtype: tl.constexpr,
     M,
     K,
     N,
