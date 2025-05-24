@@ -10,7 +10,7 @@ from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
 from ....triton_math import clamp
 from ....utils import cute_op
-from .backward_scalar import _get_autotune_configs, _rnn_backward_update
+from .backward_diagonal import _get_autotune_configs, _rnn_backward_update
 
 
 @triton.jit

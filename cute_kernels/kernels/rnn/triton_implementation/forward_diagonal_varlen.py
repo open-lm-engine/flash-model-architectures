@@ -7,43 +7,26 @@ import triton
 import triton.language as tl
 
 from ....constants import LIBRARY_NAME
-from ....math import ceil_divide, get_next_power_of_2, get_powers_of_2
+from ....math import ceil_divide, get_next_power_of_2
 from ....utils import cute_op
-from .forward import _activation
-
-
-def _get_autotune_configs() -> list[triton.Config]:
-    configs = []
-    for num_warps in get_powers_of_2(4, 8):
-        for num_stages in range(1, 5):
-            for BLOCK_SIZE_B in get_powers_of_2(1, 32):
-                configs.append(
-                    triton.Config({"BLOCK_SIZE_B": BLOCK_SIZE_B}, num_stages=num_stages, num_warps=num_warps)
-                )
-
-    return configs
-
-
-@triton.jit
-def _rnn_forward_update(h, W, x, ACTIVATION_FUNCTION, relu_negative_slope):
-    h = W[None, :] * h + x
-    h = _activation(x=h, ACTIVATION_FUNCTION=ACTIVATION_FUNCTION, relu_negative_slope=relu_negative_slope)
-    return h
+from .forward_diagonal import _get_autotune_configs, _rnn_forward_update
 
 
 @triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_N"])
 @triton.jit
-def scalar_rnn_forward_triton_kernel(
+def diagonal_rnn_varlen_forward_triton_kernel(
     x_ptr,
-    x_stride_b,
+    x_stride_t,
     W_ptr,
     HAS_INPUT_STATE: tl.constexpr,
     h_ptr,
     y_ptr,
+    cu_seqlens_ptr,
+    IS_MAX_SEQLEN_TENSOR: tl.constexpr,
+    max_seqlen_ptr,
     ACTIVATION_FUNCTION: tl.constexpr,
     relu_negative_slope,
     B,
-    S,
     N,
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_N: tl.constexpr,
@@ -65,48 +48,69 @@ def scalar_rnn_forward_triton_kernel(
     else:
         h = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_N), dtype=x_ptr.dtype.element_ty)
 
-    indices = indices_b[:, None] * x_stride_b + indices_n[None, :]
+    cu_seqlens_ptrs = cu_seqlens_ptr + indices_b[:, None]
+    start = tl.load(cu_seqlens_ptrs, mask=mask_b[:, None])
+    end = tl.load(cu_seqlens_ptrs + 1, mask=mask_b[:, None])
 
-    for _ in range(S):
+    if IS_MAX_SEQLEN_TENSOR:
+        max_seqlen = tl.load(max_seqlen_ptr)
+    else:
+        max_seqlen = max_seqlen_ptr
+
+    indices = start * x_stride_t + indices_n[None, :]
+
+    for _ in range(max_seqlen):
+        unfinished = start < end
+        mask = unfinished & mask_n[None, :]
+
         h = _rnn_forward_update(
             h=h,
             W=W,
-            x=tl.load(x_ptr + indices, mask=mask_bn),
+            x=tl.load(x_ptr + indices, mask=mask),
             ACTIVATION_FUNCTION=ACTIVATION_FUNCTION,
             relu_negative_slope=relu_negative_slope,
         )
 
-        tl.store(y_ptr + indices, h, mask=mask_bn)
+        tl.store(y_ptr + indices, h, mask=mask)
 
-        indices += N
+        indices += x_stride_t
+        start += 1
 
 
-@cute_op(f"{LIBRARY_NAME}::scalar_rnn_forward_triton", mutates_args={"output"})
-def scalar_rnn_forward_triton(
+@cute_op(f"{LIBRARY_NAME}::diagonal_rnn_varlen_forward_triton", mutates_args={"output"})
+def diagonal_rnn_varlen_forward_triton(
     input: torch.Tensor,
     weight: torch.Tensor,
     input_state: torch.Tensor | None,
     output: torch.Tensor,
+    cu_seqlens: torch.Tensor,
+    max_seqlen_tensor: torch.Tensor | None,
+    max_seqlen: int | None,
     activation_function: str,
     relu_negative_slope: float | None,
 ) -> None:
-    B, S, N, _ = input.size()
+    B = cu_seqlens.size(0) - 1
+    N = input.size(1)
 
     BLOCK_SIZE_N = min(1024, get_next_power_of_2(N))
     GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), ceil_divide(N, meta["BLOCK_SIZE_N"]))
 
+    is_max_seqlen_tensor = max_seqlen_tensor is not None
+
     with torch.device(input.device):
-        scalar_rnn_forward_triton_kernel[GRID](
+        diagonal_rnn_varlen_forward_triton_kernel[GRID](
             x_ptr=input,
-            x_stride_b=input.stride(0),
+            x_stride_t=input.stride(0),
             W_ptr=weight,
             HAS_INPUT_STATE=input_state is not None,
             h_ptr=input_state,
             y_ptr=output,
+            cu_seqlens_ptr=cu_seqlens,
+            IS_MAX_SEQLEN_TENSOR=is_max_seqlen_tensor,
+            max_seqlen_ptr=max_seqlen_tensor if is_max_seqlen_tensor else max_seqlen,
             ACTIVATION_FUNCTION=activation_function,
             relu_negative_slope=relu_negative_slope,
             B=B,
-            S=S,
             N=N,
             BLOCK_SIZE_N=BLOCK_SIZE_N,
         )

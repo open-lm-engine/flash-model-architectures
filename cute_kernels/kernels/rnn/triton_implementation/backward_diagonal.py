@@ -11,7 +11,7 @@ from ....math import ceil_divide, get_next_power_of_2
 from ....triton_math import clamp
 from ....utils import cute_op
 from .backward import _activation_backward
-from .forward_scalar import _get_autotune_configs
+from .forward_diagonal import _get_autotune_configs
 
 
 @triton.jit
