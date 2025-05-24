@@ -4,7 +4,7 @@
 
 import torch
 
-from ...utils import ensure_contiguous, get_num_elements_and_hidden_size
+from ...utils import ensure_contiguous
 from .cuda_implementation import (
     cutlass_gemm_cuda,
     cutlass_tensorcore_mma_gemm_cuda,
@@ -62,6 +62,7 @@ def gemm_cute(
         assert C is None
     else:
         assert C is not None
+        assert C.size() == (M, N)
 
     if kernel_backend == "cutlass_tensorcore_mma_gemm_cuda":
         cutlass_tensorcore_mma_gemm_cuda(
