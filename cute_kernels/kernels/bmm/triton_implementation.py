@@ -7,34 +7,12 @@ import triton
 import triton.language as tl
 
 from ...constants import LIBRARY_NAME
-from ...math import ceil_divide, get_powers_of_2
+from ...math import ceil_divide
 from ...utils import cute_op
+from ..gemm.triton_implementation import _get_autotune_configs
 
 
-def _get_autotune_configs() -> list[triton.Config]:
-    configs = []
-    for BLOCK_SIZE_M in get_powers_of_2(32, 64):
-        for BLOCK_SIZE_N in get_powers_of_2(32, 64):
-            for BLOCK_SIZE_K in get_powers_of_2(16, 64):
-                if BLOCK_SIZE_M * BLOCK_SIZE_K * BLOCK_SIZE_N <= 16384:
-                    for num_warps in get_powers_of_2(4, 8):
-                        for num_stages in range(4):
-                            configs.append(
-                                triton.Config(
-                                    {
-                                        "BLOCK_SIZE_M": BLOCK_SIZE_M,
-                                        "BLOCK_SIZE_N": BLOCK_SIZE_N,
-                                        "BLOCK_SIZE_K": BLOCK_SIZE_K,
-                                    },
-                                    num_warps=num_warps,
-                                    num_stages=num_stages,
-                                )
-                            )
-
-    return configs
-
-
-@triton.autotune(configs=_get_autotune_configs(), key=[])
+@triton.autotune(configs=_get_autotune_configs(), key=["dtype"])
 @triton.jit
 def bmm_triton_kernel(
     A_ptr,
@@ -45,6 +23,8 @@ def bmm_triton_kernel(
     beta,
     IS_A_TRANSPOSED: tl.constexpr,
     IS_B_TRANSPOSED: tl.constexpr,
+    dtype: tl.constexpr,
+    L,
     M,
     K,
     N,
@@ -56,14 +36,16 @@ def bmm_triton_kernel(
     # B -> N x K if is_B_transposed else K x N
     # C -> M x N
 
-    pid = tl.program_id(axis=0)
-    num_programs_n = tl.cdiv(N, BLOCK_SIZE_N)
+    BLOCK_ID_L = tl.program_id(axis=0)
 
-    pid_m = pid // num_programs_n
-    pid_n = pid % num_programs_n
+    BLOCK_ID = tl.program_id(axis=1)
+    NUM_BLOCKS_N = tl.cdiv(N, BLOCK_SIZE_N)
 
-    indices_m = pid_m * BLOCK_SIZE_M + tl.arange(0, BLOCK_SIZE_M)
-    indices_n = pid_n * BLOCK_SIZE_N + tl.arange(0, BLOCK_SIZE_N)
+    BLOCK_ID_M = BLOCK_ID // NUM_BLOCKS_N
+    BLOCK_ID_N = BLOCK_ID % NUM_BLOCKS_N
+
+    indices_m = BLOCK_ID_M * BLOCK_SIZE_M + tl.arange(0, BLOCK_SIZE_M)
+    indices_n = BLOCK_ID_N * BLOCK_SIZE_N + tl.arange(0, BLOCK_SIZE_N)
 
     mask_m = indices_m < M
     mask_n = indices_n < N
@@ -76,10 +58,10 @@ def bmm_triton_kernel(
 
         if IS_A_TRANSPOSED:
             mask_A = mask_k[:, None] & mask_m[None, :]
-            A_ptrs = A_ptr + indices_k[:, None] * M + indices_m[None, :]
+            A_ptrs = A_ptr + BLOCK_ID_L * M * K + indices_k[:, None] * M + indices_m[None, :]
         else:
             mask_A = mask_m[:, None] & mask_k[None, :]
-            A_ptrs = A_ptr + indices_m[:, None] * K + indices_k[None, :]
+            A_ptrs = A_ptr + BLOCK_ID_L * M * K + indices_m[:, None] * K + indices_k[None, :]
 
         A = tl.load(A_ptrs, mask=mask_A)
 
@@ -88,10 +70,10 @@ def bmm_triton_kernel(
 
         if IS_B_TRANSPOSED:
             mask_B = mask_n[:, None] & mask_k[None, :]
-            B_ptrs = B_ptr + indices_n[:, None] * K + indices_k[None, :]
+            B_ptrs = B_ptr + BLOCK_ID_L * K * N + indices_n[:, None] * K + indices_k[None, :]
         else:
             mask_B = mask_k[:, None] & mask_n[None, :]
-            B_ptrs = B_ptr + indices_k[:, None] * N + indices_n[None, :]
+            B_ptrs = B_ptr + BLOCK_ID_L * K * N + indices_k[:, None] * N + indices_n[None, :]
 
         B = tl.load(B_ptrs, mask=mask_B)
 
@@ -103,14 +85,14 @@ def bmm_triton_kernel(
     accumulator = accumulator.to(A_ptr.dtype.element_ty)
     accumulator *= alpha
 
-    indices_mn = indices_m[:, None] * N + indices_n[None, :]
+    indices_lmn = BLOCK_ID_L * M * N + indices_m[:, None] * N + indices_n[None, :]
     mask_mn = mask_m[:, None] & mask_n[None, :]
 
     if C_ptr is not None:
-        C = tl.load(C_ptr + indices_mn, mask=mask_mn)
+        C = tl.load(C_ptr + indices_lmn, mask=mask_mn)
         accumulator += beta * C
 
-    tl.store(output_ptr + indices_mn, accumulator, mask=mask_mn)
+    tl.store(output_ptr + indices_lmn, accumulator, mask=mask_mn)
 
 
 @cute_op(f"{LIBRARY_NAME}::bmm_triton", mutates_args={"output"})
@@ -124,13 +106,13 @@ def bmm_triton(
     alpha: float,
     beta: float,
 ) -> None:
-    T, M, K = A.size()
-    N = B.size(-1)
+    L, M, K = A.size()
+    if is_A_transposed:
+        M, K = K, M
 
-    GRID = lambda meta: (
-        ceil_divide(M, meta["BLOCK_SIZE_M"]),
-        *ceil_divide(N, meta["BLOCK_SIZE_N"]),
-    )
+    N = B.size(1 if is_B_transposed else 2)
+
+    GRID = lambda meta: (ceil_divide(M, meta["BLOCK_SIZE_M"]) * ceil_divide(N, meta["BLOCK_SIZE_N"]),)
 
     with torch.device(A.device):
         bmm_triton_kernel[GRID](
@@ -142,7 +124,8 @@ def bmm_triton(
             beta=beta,
             IS_A_TRANSPOSED=is_A_transposed,
             IS_B_TRANSPOSED=is_B_transposed,
-            T=T,
+            dtype=A.dtype,
+            L=L,
             M=M,
             K=K,
             N=N,
