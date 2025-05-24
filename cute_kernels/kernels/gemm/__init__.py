@@ -46,15 +46,14 @@ def gemm_cute(
         torch.Tensor: output tensor
     """
 
+    assert A.dim() == 2
+    assert B.dim() == 2
+
+    M, K = A.size()
     if is_A_transposed:
-        assert A.dim() == 2, "only 2 dimensional a tensor is supported when a is transposed"
-        K, M = A.size()
-    else:
-        M, K = get_num_elements_and_hidden_size(A)
+        M, K = K, M
 
-    assert B.dim() == 2, "only 2 dimensional B tensor is supported"
     assert B.size(1 if is_B_transposed else 0) == K
-
     N = B.size(0 if is_B_transposed else 1)
 
     output = torch.empty(M, N, dtype=A.dtype, device=A.device)
@@ -74,9 +73,6 @@ def gemm_cute(
             is_B_transposed=is_B_transposed,
             alpha=alpha,
             beta=beta,
-            M=M,
-            K=K,
-            N=N,
         )
     elif kernel_backend == "cutlass":
         cutlass_gemm_cuda(
@@ -88,9 +84,6 @@ def gemm_cute(
             is_B_transposed=is_B_transposed,
             alpha=alpha,
             beta=beta,
-            M=M,
-            K=K,
-            N=N,
         )
     elif kernel_backend == "shared_memory_cuda":
         BLOCK_SIZE = 32
@@ -104,9 +97,6 @@ def gemm_cute(
             is_B_transposed=is_B_transposed,
             alpha=alpha,
             beta=beta,
-            M=M,
-            K=K,
-            N=N,
             BLOCK_SIZE=BLOCK_SIZE,
         )
     elif kernel_backend == "naive_cuda":
@@ -122,9 +112,6 @@ def gemm_cute(
             is_B_transposed=is_B_transposed,
             alpha=alpha,
             beta=beta,
-            M=M,
-            K=K,
-            N=N,
             BLOCK_SIZE_M=BLOCK_SIZE_M,
             BLOCK_SIZE_N=BLOCK_SIZE_N,
         )
@@ -138,9 +125,6 @@ def gemm_cute(
             is_B_transposed=is_B_transposed,
             alpha=alpha,
             beta=beta,
-            M=M,
-            K=K,
-            N=N,
         )
     else:
         raise ValueError(f"unexpected kernel_backend ({kernel_backend})")

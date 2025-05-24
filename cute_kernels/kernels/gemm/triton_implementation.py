@@ -13,28 +13,27 @@ from ...utils import cute_op
 
 def _get_autotune_configs() -> list[triton.Config]:
     configs = []
-    for BLOCK_SIZE_M in get_powers_of_2(32, 64):
-        for BLOCK_SIZE_N in get_powers_of_2(32, 64):
+    for BLOCK_SIZE_M in get_powers_of_2(32, 128):
+        for BLOCK_SIZE_N in get_powers_of_2(32, 128):
             for BLOCK_SIZE_K in get_powers_of_2(16, 64):
-                if BLOCK_SIZE_M * BLOCK_SIZE_K * BLOCK_SIZE_N <= 16384:
-                    for num_warps in get_powers_of_2(4, 8):
-                        for num_stages in range(4):
-                            configs.append(
-                                triton.Config(
-                                    {
-                                        "BLOCK_SIZE_M": BLOCK_SIZE_M,
-                                        "BLOCK_SIZE_N": BLOCK_SIZE_N,
-                                        "BLOCK_SIZE_K": BLOCK_SIZE_K,
-                                    },
-                                    num_warps=num_warps,
-                                    num_stages=num_stages,
-                                )
+                for NUM_WARPS in get_powers_of_2(4, 8):
+                    for NUM_STAGES in range(4):
+                        configs.append(
+                            triton.Config(
+                                {
+                                    "BLOCK_SIZE_M": BLOCK_SIZE_M,
+                                    "BLOCK_SIZE_N": BLOCK_SIZE_N,
+                                    "BLOCK_SIZE_K": BLOCK_SIZE_K,
+                                },
+                                num_warps=NUM_WARPS,
+                                num_stages=NUM_STAGES,
                             )
+                        )
 
     return configs
 
 
-@triton.autotune(configs=_get_autotune_configs(), key=[])
+@triton.autotune(configs=_get_autotune_configs(), key=["dtype"])
 @triton.jit
 def gemm_triton_kernel(
     A_ptr,
@@ -45,6 +44,7 @@ def gemm_triton_kernel(
     beta,
     IS_A_TRANSPOSED: tl.constexpr,
     IS_B_TRANSPOSED: tl.constexpr,
+    dtype: tl.constexpr,
     M,
     K,
     N,
@@ -56,14 +56,14 @@ def gemm_triton_kernel(
     # B -> N x K if is_B_transposed else K x N
     # C -> M x N
 
-    pid = tl.program_id(axis=0)
-    num_programs_n = tl.cdiv(N, BLOCK_SIZE_N)
+    BLOCK_ID = tl.program_id(axis=0)
+    NUM_BLOCKS_N = tl.cdiv(N, BLOCK_SIZE_N)
 
-    pid_m = pid // num_programs_n
-    pid_n = pid % num_programs_n
+    BLOCK_ID_M = BLOCK_ID // NUM_BLOCKS_N
+    BLOCK_ID_N = BLOCK_ID % NUM_BLOCKS_N
 
-    indices_m = pid_m * BLOCK_SIZE_M + tl.arange(0, BLOCK_SIZE_M)
-    indices_n = pid_n * BLOCK_SIZE_N + tl.arange(0, BLOCK_SIZE_N)
+    indices_m = BLOCK_ID_M * BLOCK_SIZE_M + tl.arange(0, BLOCK_SIZE_M)
+    indices_n = BLOCK_ID_N * BLOCK_SIZE_N + tl.arange(0, BLOCK_SIZE_N)
 
     mask_m = indices_m < M
     mask_n = indices_n < N
@@ -123,10 +123,13 @@ def gemm_triton(
     is_B_transposed: bool,
     alpha: float,
     beta: float,
-    M: int,
-    K: int,
-    N: int,
 ) -> None:
+    M, K = A.size()
+    if is_A_transposed:
+        M, K = K, M
+
+    N = B.size(0 if is_B_transposed else 1)
+
     GRID = lambda meta: (ceil_divide(M, meta["BLOCK_SIZE_M"]) * ceil_divide(N, meta["BLOCK_SIZE_N"]),)
 
     with torch.device(A.device):
@@ -139,6 +142,7 @@ def gemm_triton(
             beta=beta,
             IS_A_TRANSPOSED=is_A_transposed,
             IS_B_TRANSPOSED=is_B_transposed,
+            dtype=A.dtype,
             M=M,
             K=K,
             N=N,

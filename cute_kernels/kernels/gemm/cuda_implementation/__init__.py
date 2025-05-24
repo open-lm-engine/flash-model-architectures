@@ -26,9 +26,6 @@ def naive_gemm_cuda(
     is_B_transposed: bool,
     alpha: float,
     beta: float,
-    M: int,
-    K: int,
-    N: int,
     BLOCK_SIZE_M: int,
     BLOCK_SIZE_N: int,
 ) -> None: ...
@@ -45,9 +42,6 @@ def shared_memory_gemm_cuda(
     is_B_transposed: bool,
     alpha: float,
     beta: float,
-    M: int,
-    K: int,
-    N: int,
     BLOCK_SIZE: int,
 ) -> None: ...
 
@@ -63,9 +57,6 @@ def cutlass_gemm_cuda(
     is_B_transposed: bool,
     alpha: float,
     beta: float,
-    M: int,
-    K: int,
-    N: int,
 ) -> None: ...
 
 
@@ -80,7 +71,4 @@ def cutlass_tensorcore_mma_gemm_cuda(
     is_B_transposed: bool,
     alpha: float,
     beta: float,
-    M: int,
-    K: int,
-    N: int,
 ) -> None: ...
