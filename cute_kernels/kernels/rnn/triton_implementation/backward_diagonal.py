@@ -53,7 +53,7 @@ def _load_previous_output(
 
 @triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_N"], reset_to_zero=["dW_ptr"])
 @triton.jit
-def scalar_rnn_backward_triton_kernel(
+def diagonal_rnn_backward_triton_kernel(
     W_ptr,
     y_ptr,
     y_stride_b,
@@ -130,8 +130,8 @@ def scalar_rnn_backward_triton_kernel(
     tl.atomic_add(dW_ptr + indices_n, dW, mask=mask_n)
 
 
-@cute_op(f"{LIBRARY_NAME}::scalar_rnn_backward_triton", mutates_args={"input_grad", "weight_grad"})
-def scalar_rnn_backward_triton(
+@cute_op(f"{LIBRARY_NAME}::diagonal_rnn_backward_triton", mutates_args={"input_grad", "weight_grad"})
+def diagonal_rnn_backward_triton(
     weight: torch.Tensor,
     output: torch.Tensor,
     input_state: torch.Tensor | None,
@@ -148,7 +148,7 @@ def scalar_rnn_backward_triton(
     GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), ceil_divide(N, meta["BLOCK_SIZE_N"]))
 
     with torch.device(output.device):
-        scalar_rnn_backward_triton_kernel[GRID](
+        diagonal_rnn_backward_triton_kernel[GRID](
             W_ptr=weight,
             y_ptr=output,
             y_stride_b=output.stride(0),
