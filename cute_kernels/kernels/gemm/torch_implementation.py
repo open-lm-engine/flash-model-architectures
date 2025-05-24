@@ -14,6 +14,8 @@ def gemm_torch(
     is_A_transposed: bool = False,
     is_B_transposed: bool = False,
 ) -> torch.Tensor:
+    assert B.size(1 if is_B_transposed else 0) == A.size(0 if is_A_transposed else 1)
+
     if is_A_transposed:
         A = A.T
 
