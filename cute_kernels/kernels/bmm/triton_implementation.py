@@ -9,7 +9,6 @@ import triton.language as tl
 from ...constants import LIBRARY_NAME
 from ...math import ceil_divide, get_powers_of_2
 from ...utils import cute_op
-from ..gemm.triton_implementation import _get_autotune_configs
 
 
 def _get_autotune_configs() -> list[triton.Config]:
