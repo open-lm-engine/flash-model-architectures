@@ -24,7 +24,6 @@ def bmm_triton_kernel(
     IS_A_TRANSPOSED: tl.constexpr,
     IS_B_TRANSPOSED: tl.constexpr,
     dtype: tl.constexpr,
-    L,
     M,
     K,
     N,
@@ -112,7 +111,10 @@ def bmm_triton(
 
     N = B.size(1 if is_B_transposed else 2)
 
-    GRID = lambda meta: (ceil_divide(M, meta["BLOCK_SIZE_M"]) * ceil_divide(N, meta["BLOCK_SIZE_N"]),)
+    GRID = lambda meta: (
+        L,
+        ceil_divide(M, meta["BLOCK_SIZE_M"]) * ceil_divide(N, meta["BLOCK_SIZE_N"]),
+    )
 
     with torch.device(A.device):
         bmm_triton_kernel[GRID](
@@ -125,7 +127,6 @@ def bmm_triton(
             IS_A_TRANSPOSED=is_A_transposed,
             IS_B_TRANSPOSED=is_B_transposed,
             dtype=A.dtype,
-            L=L,
             M=M,
             K=K,
             N=N,
