@@ -10,7 +10,7 @@ from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
 from ....triton_math import clamp
 from ....utils import cute_op
-from .backward_scalar import _get_autotune_configs, _rnn_backward_update
+from .backward_diagonal import _get_autotune_configs, _rnn_backward_update
 
 
 @triton.jit
@@ -35,7 +35,7 @@ def _load_input_state(
 
 @triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_N"], reset_to_zero=["dW_ptr"])
 @triton.jit
-def scalar_rnn_varlen_backward_triton_kernel(
+def diagonal_rnn_varlen_backward_triton_kernel(
     W_ptr,
     y_ptr,
     y_stride_t,
@@ -132,8 +132,8 @@ def scalar_rnn_varlen_backward_triton_kernel(
     tl.atomic_add(dW_ptr + indices_n, dW, mask=mask_n)
 
 
-@cute_op(f"{LIBRARY_NAME}::scalar_rnn_varlen_backward_triton", mutates_args={"input_grad", "weight_grad"})
-def scalar_rnn_varlen_backward_triton(
+@cute_op(f"{LIBRARY_NAME}::diagonal_rnn_varlen_backward_triton", mutates_args={"input_grad", "weight_grad"})
+def diagonal_rnn_varlen_backward_triton(
     weight: torch.Tensor,
     output: torch.Tensor,
     input_state: torch.Tensor | None,
@@ -157,7 +157,7 @@ def scalar_rnn_varlen_backward_triton(
     is_max_seqlen_tensor = max_seqlen_tensor is not None
 
     with torch.device(output.device):
-        scalar_rnn_varlen_backward_triton_kernel[GRID](
+        diagonal_rnn_varlen_backward_triton_kernel[GRID](
             W_ptr=weight,
             y_ptr=output,
             y_stride_t=output.stride(0),

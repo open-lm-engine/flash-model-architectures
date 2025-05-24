@@ -7,14 +7,14 @@ import torch
 from ...utils import ensure_contiguous
 from .torch_implementation import rnn_torch
 from .triton_implementation import (
+    diagonal_rnn_backward_triton,
+    diagonal_rnn_forward_triton,
+    diagonal_rnn_varlen_backward_triton,
+    diagonal_rnn_varlen_forward_triton,
     rnn_backward_triton,
     rnn_forward_triton,
     rnn_varlen_backward_triton,
     rnn_varlen_forward_triton,
-    scalar_rnn_backward_triton,
-    scalar_rnn_forward_triton,
-    scalar_rnn_varlen_backward_triton,
-    scalar_rnn_varlen_forward_triton,
 )
 
 
@@ -62,7 +62,7 @@ class _RNN_Cute(torch.autograd.Function):
             assert max_seqlen is None
 
             if H == 1:
-                scalar_rnn_forward_triton(**kwargs)
+                diagonal_rnn_forward_triton(**kwargs)
             else:
                 rnn_forward_triton(**kwargs)
         else:
@@ -74,7 +74,7 @@ class _RNN_Cute(torch.autograd.Function):
             kwargs["max_seqlen"] = None if is_max_seqlen_tensor else max_seqlen
 
             if H == 1:
-                scalar_rnn_varlen_forward_triton(**kwargs)
+                diagonal_rnn_varlen_forward_triton(**kwargs)
             else:
                 rnn_varlen_forward_triton(**kwargs)
 
@@ -108,7 +108,7 @@ class _RNN_Cute(torch.autograd.Function):
 
         if cu_seqlens is None:
             if H == 1:
-                scalar_rnn_backward_triton(**kwargs)
+                diagonal_rnn_backward_triton(**kwargs)
             else:
                 rnn_backward_triton(**kwargs)
         else:
@@ -119,7 +119,7 @@ class _RNN_Cute(torch.autograd.Function):
             kwargs["max_seqlen"] = None if is_max_seqlen_tensor else max_seqlen
 
             if H == 1:
-                scalar_rnn_varlen_backward_triton(**kwargs)
+                diagonal_rnn_varlen_backward_triton(**kwargs)
             else:
                 rnn_varlen_backward_triton(**kwargs)
 
