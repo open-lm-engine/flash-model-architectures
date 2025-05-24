@@ -7,9 +7,31 @@ import triton
 import triton.language as tl
 
 from ...constants import LIBRARY_NAME
-from ...math import ceil_divide
+from ...math import ceil_divide, get_powers_of_2
 from ...utils import cute_op
 from ..gemm.triton_implementation import _get_autotune_configs
+
+
+def _get_autotune_configs() -> list[triton.Config]:
+    configs = []
+    for BLOCK_SIZE_M in get_powers_of_2(32, 128):
+        for BLOCK_SIZE_N in get_powers_of_2(32, 128):
+            for BLOCK_SIZE_K in get_powers_of_2(16, 64):
+                for NUM_WARPS in get_powers_of_2(4, 8):
+                    for NUM_STAGES in range(4):
+                        configs.append(
+                            triton.Config(
+                                {
+                                    "BLOCK_SIZE_M": BLOCK_SIZE_M,
+                                    "BLOCK_SIZE_N": BLOCK_SIZE_N,
+                                    "BLOCK_SIZE_K": BLOCK_SIZE_K,
+                                },
+                                num_warps=NUM_WARPS,
+                                num_stages=NUM_STAGES,
+                            )
+                        )
+
+    return configs
 
 
 @triton.autotune(configs=_get_autotune_configs(), key=["dtype"])

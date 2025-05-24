@@ -5,6 +5,7 @@
 import torch
 
 from ...utils import ensure_contiguous
+from ..bmm.triton_implementation import bmm_triton
 from .cuda_implementation import (
     cutlass_gemm_cuda,
     cutlass_tensorcore_mma_gemm_cuda,
@@ -12,7 +13,6 @@ from .cuda_implementation import (
     shared_memory_gemm_cuda,
 )
 from .torch_implementation import gemm_torch
-from .triton_implementation import gemm_triton
 
 
 @ensure_contiguous
@@ -117,11 +117,11 @@ def gemm_cute(
             BLOCK_SIZE_N=BLOCK_SIZE_N,
         )
     elif kernel_backend == "triton":
-        gemm_triton(
-            A=A,
-            B=B,
-            C=C,
-            output=output,
+        bmm_triton(
+            A=A.unsqueeze(0),
+            B=B.unsqueeze(0),
+            C=None if C is None else C.unsqueeze(0),
+            output=output.unsqueeze(0),
             is_A_transposed=is_A_transposed,
             is_B_transposed=is_B_transposed,
             alpha=alpha,
