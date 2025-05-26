@@ -56,10 +56,10 @@ class _GRU_Cute(torch.autograd.Function):
         if cu_seqlens is None:
             assert max_seqlen is None
 
-            # if H == 1:
-            #     scalar_gru_forward_triton(**kwargs, BLOCK_SIZE_N=BLOCK_SIZE_N_forward)
-            # else:
-            gru_forward_triton(**kwargs)
+            if H == 1:
+                scalar_gru_forward_triton(**kwargs, BLOCK_SIZE_N=BLOCK_SIZE_N_forward)
+            else:
+                gru_forward_triton(**kwargs)
         else:
             assert max_seqlen is not None
             is_max_seqlen_tensor = isinstance(max_seqlen, torch.Tensor)
@@ -136,10 +136,10 @@ class _GRU_Cute(torch.autograd.Function):
         }
 
         if cu_seqlens is None:
-            # if H == 1:
-            #     scalar_gru_backward_triton(**kwargs, BLOCK_SIZE_N=BLOCK_SIZE_N)
-            # else:
-            gru_backward_triton(**kwargs)
+            if H == 1:
+                assert False
+            else:
+                gru_backward_triton(**kwargs)
         else:
             is_max_seqlen_tensor = isinstance(max_seqlen, torch.Tensor)
 
