@@ -71,7 +71,7 @@ class _GRU_Cute(torch.autograd.Function):
             if H == 1:
                 assert False
             else:
-                gru_varlen_forward_triton_kernel(**kwargs)
+                gru_varlen_forward_triton(**kwargs)
 
         ctx.save_for_backward(
             weight,
