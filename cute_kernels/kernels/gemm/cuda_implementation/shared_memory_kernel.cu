@@ -1,9 +1,14 @@
+// **************************************************
+// Copyright (c) 2025, Mayank Mishra
+// **************************************************
+
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <torch/extension.h>
 
 #include "cute/tensor.hpp"
 #include "include/cute_kernels.h"
+#include "utils.h"
 
 namespace ck = cute_kernels;
 namespace ck_mem = cute_kernels::memory;
@@ -95,9 +100,6 @@ void shared_memory_gemm_cuda(const torch::Tensor &A,
                              const bool &is_B_transposed,
                              const fp32 &alpha,
                              const fp32 &beta,
-                             const uint32 &M,
-                             const uint32 &K,
-                             const uint32 &N,
                              const uint32 &BLOCK_SIZE) {
     CHECK_CUDA_TENSOR(A);
     CHECK_CUDA_TENSOR(B);
@@ -107,6 +109,8 @@ void shared_memory_gemm_cuda(const torch::Tensor &A,
     CHECK_CUDA_TENSOR(output);
 
     CHECK_VALID_THREAD_BLOCK(BLOCK_SIZE);
+
+    const auto [M, N, K] = get_MNK(A, B, is_A_transposed, is_B_transposed);
 
     TORCH_CHECK(!is_A_transposed);
     TORCH_CHECK(!is_B_transposed);

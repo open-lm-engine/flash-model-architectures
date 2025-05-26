@@ -1,9 +1,13 @@
+# **************************************************
+# Copyright (c) 2025, Mayank Mishra
+# **************************************************
+
 from typing import Callable
 
 import torch
 from parameterized import parameterized
 
-from cute_kernels import KernelBackend, add_tensor_cute, add_tensor_torch
+from cute_kernels import CutoTuneParameter, KernelBackend, add_tensor_cute, add_tensor_torch
 
 from ..test_commons import TestCommons
 
@@ -14,7 +18,7 @@ class AddTensorTest(TestCommons):
             TestCommons.get_2d_tensor_sizes(),  # size
             [torch.device("cuda")],  # device
             TestCommons.get_dtypes(),  # dtype
-            [KernelBackend.cuda, KernelBackend.triton],  # kernel_backend
+            [KernelBackend.cuda, KernelBackend.triton, CutoTuneParameter()],  # kernel_backend
             [add_tensor_cute, torch.compile(add_tensor_cute, fullgraph=True)],  # function
         )
     )

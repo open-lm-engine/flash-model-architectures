@@ -1,4 +1,15 @@
+# **************************************************
+# Copyright (c) 2025, Mayank Mishra
+# **************************************************
+
 from .cute_inductor import CuteInductor
+from .cutotune import (
+    CutoTuneConfig,
+    CutoTuneParameter,
+    cutotune,
+    get_cartesian_product_cutotune_configs,
+    get_cutotune_cache,
+)
 from .inductor import init_inductor
 from .kernel_backend import KernelBackend
 from .kernels import (
@@ -8,12 +19,12 @@ from .kernels import (
     add_scalar_torch,
     add_tensor_cute,
     add_tensor_torch,
+    bmm_cute,
+    bmm_torch,
     continuous_count_cute,
     continuous_count_torch,
     cross_entropy_cute,
     cross_entropy_torch,
-    embedding_cute,
-    embedding_torch,
     fused_linear_cross_entropy_cute,
     fused_linear_cross_entropy_torch,
     fused_residual_add_rmsnorm_cute,
@@ -24,6 +35,8 @@ from .kernels import (
     gru_torch,
     linear_cute,
     linear_torch,
+    matrix_transpose_cute,
+    matrix_transpose_torch,
     pack_sequence_cute,
     pack_sequence_torch,
     rmsnorm_cute,
@@ -33,9 +46,9 @@ from .kernels import (
     softmax_cute,
     softmax_torch,
     swiglu_cute,
+    swiglu_packed_cute,
+    swiglu_packed_torch,
     swiglu_torch,
-    swiglu_unchunked_cute,
-    swiglu_unchunked_torch,
     unpack_sequence_cute,
     unpack_sequence_torch,
 )

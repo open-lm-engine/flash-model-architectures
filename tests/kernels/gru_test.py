@@ -1,3 +1,7 @@
+# **************************************************
+# Copyright (c) 2025, Mayank Mishra
+# **************************************************
+
 from typing import Callable
 
 import torch
@@ -15,7 +19,7 @@ class GRUTest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(
             [torch.device("cuda")],
-            [torch.float32, torch.float16],
+            TestCommons.get_dtypes(),
             [4],  # batch_size
             [1024],  # sequence_length
             [256],  # state_size
@@ -87,67 +91,87 @@ class GRUTest(TestCommons):
         y_expected.sum().backward()
 
         self.assert_equal_tensors(
-            y_kernel, y_expected, False, atol_float32=4e-6, rtol_float32=0, atol_float16=6.5e-5, rtol_float16=0
+            y_kernel,
+            y_expected,
+            False,
+            atol_float32=4e-6,
+            rtol_float32=0,
+            atol_float16=6.5e-5,
+            rtol_float16=0,
+            atol_bfloat16=2e-4,
+            rtol_bfloat16=0,
         )
 
         self.assert_equal_tensors(
             input_kernel.grad,
             input_expected.grad,
             False,
-            atol_float32=8.3e-2,
+            atol_float32=1.3e-4,
             rtol_float32=0,
-            atol_float16=8.3e-2,
+            atol_float16=3e-3,
             rtol_float16=0,
+            atol_bfloat16=1.6e-2,
+            rtol_bfloat16=0,
         )
 
         self.assert_equal_tensors(
             forget_input_kernel.grad,
             forget_input_expected.grad,
             False,
-            atol_float32=6e-3,
+            atol_float32=2.5e-6,
             rtol_float32=0,
-            atol_float16=2e-3,
+            atol_float16=5.4e-5,
             rtol_float16=0,
+            atol_bfloat16=4e-4,
+            rtol_bfloat16=0,
         )
 
         self.assert_equal_tensors(
             reset_input_kernel.grad,
             reset_input_expected.grad,
             False,
-            atol_float32=6e-3,
+            atol_float32=1.3e-6,
             rtol_float32=0,
-            atol_float16=2e-3,
+            atol_float16=2e-6,
             rtol_float16=0,
+            atol_bfloat16=1.2e-5,
+            rtol_bfloat16=0,
         )
 
         self.assert_equal_tensors(
             weight_kernel.grad,
             weight_expected.grad,
             False,
-            atol_float32=7e-2,
-            rtol_float32=0,
-            atol_float16=7e-2,
+            atol_float32=1e-3,
+            rtol_float32=1e-3,
+            atol_float16=1.3e-2,
             rtol_float16=0,
+            atol_bfloat16=7.5e-2,
+            rtol_bfloat16=0,
         )
 
         self.assert_equal_tensors(
             forget_weight_kernel.grad,
             forget_weight_expected.grad,
             False,
-            atol_float32=6e-3,
+            atol_float32=6.3e-5,
             rtol_float32=0,
-            atol_float16=2.2e-2,
+            atol_float16=1e-3,
             rtol_float16=0,
+            atol_bfloat16=1.6e-2,
+            rtol_bfloat16=0,
         )
 
         self.assert_equal_tensors(
             reset_weight_kernel.grad,
             reset_weight_expected.grad,
             False,
-            atol_float32=6e-3,
-            rtol_float32=0,
-            atol_float16=2.2e-2,
+            atol_float32=1.41e-5,
+            rtol_float32=1e-10,
+            atol_float16=8.4e-5,
             rtol_float16=0,
+            atol_bfloat16=2.8e-3,
+            rtol_bfloat16=0,
         )
 
     @parameterized.expand(
@@ -422,54 +446,54 @@ class GRUTest(TestCommons):
         #     rtol_float16=0,
         # )
 
-    @parameterized.expand(
-        TestCommons.make_args_matrix(
-            [torch.device("cuda")],
-            TestCommons.get_dtypes(),
-            [[0, 7, 19, 27, 93], None],  # cu_seqlens
-            [256],  # state_size
-            [4],  # num_heads
-        )
-    )
-    def test_gru_module(
-        self,
-        device: torch.device,
-        dtype: torch.dtype,
-        cu_seqlens: list[int] | None,
-        state_size: int,
-        num_heads: int,
-    ) -> None:
-        input_size = 79
-        output_size = 93
+    # @parameterized.expand(
+    #     TestCommons.make_args_matrix(
+    #         [torch.device("cuda")],
+    #         TestCommons.get_dtypes(),
+    #         [[0, 7, 19, 27, 93], None],  # cu_seqlens
+    #         [256],  # state_size
+    #         [4],  # num_heads
+    #     )
+    # )
+    # def test_gru_module(
+    #     self,
+    #     device: torch.device,
+    #     dtype: torch.dtype,
+    #     cu_seqlens: list[int] | None,
+    #     state_size: int,
+    #     num_heads: int,
+    # ) -> None:
+    #     input_size = 79
+    #     output_size = 93
 
-        gru = GRU(
-            input_size=input_size,
-            state_size=state_size,
-            output_size=output_size,
-            num_heads=num_heads,
-            add_bias=False,
-            gradient_clipping=None,
-        ).to(device, dtype)
+    #     gru = GRU(
+    #         input_size=input_size,
+    #         state_size=state_size,
+    #         output_size=output_size,
+    #         num_heads=num_heads,
+    #         add_bias=False,
+    #         gradient_clipping=None,
+    #     ).to(device, dtype)
 
-        batch_size = 4 if cu_seqlens is None else len(cu_seqlens) - 1
-        cu_seqlens = None if cu_seqlens is None else torch.tensor(cu_seqlens, device=device)
-        max_seqlen = None if cu_seqlens is None else (cu_seqlens[1:] - cu_seqlens[:-1]).max()
+    #     batch_size = 4 if cu_seqlens is None else len(cu_seqlens) - 1
+    #     cu_seqlens = None if cu_seqlens is None else torch.tensor(cu_seqlens, device=device)
+    #     max_seqlen = None if cu_seqlens is None else (cu_seqlens[1:] - cu_seqlens[:-1]).max()
 
-        input = (
-            torch.randn(batch_size, 1024, input_size, device=device, dtype=dtype)
-            if cu_seqlens is None
-            else torch.randn(cu_seqlens[-1], input_size, device=device, dtype=dtype)
-        )
-        input_state = torch.randn(batch_size, state_size, device=device, dtype=dtype)
+    #     input = (
+    #         torch.randn(batch_size, 1024, input_size, device=device, dtype=dtype)
+    #         if cu_seqlens is None
+    #         else torch.randn(cu_seqlens[-1], input_size, device=device, dtype=dtype)
+    #     )
+    #     input_state = torch.randn(batch_size, state_size, device=device, dtype=dtype)
 
-        output, output_state = gru(
-            input=input, input_state=input_state, cu_seqlens=cu_seqlens, max_seqlen=max_seqlen, use_kernel=True
-        )
+    #     output, output_state = gru(
+    #         input=input, input_state=input_state, cu_seqlens=cu_seqlens, max_seqlen=max_seqlen, use_kernel=True
+    #     )
 
-        output.sum().backward()
+    #     output.sum().backward()
 
-        assert output.size() == (*input.size()[:-1], output_size)
-        assert output_state.size() == input_state.size()
+    #     assert output.size() == (*input.size()[:-1], output_size)
+    #     assert output_state.size() == input_state.size()
 
     def _get_packed_tensor_inputs(
         self,

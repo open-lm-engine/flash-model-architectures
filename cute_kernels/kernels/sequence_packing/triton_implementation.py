@@ -1,3 +1,7 @@
+# **************************************************
+# Copyright (c) 2025, Mayank Mishra
+# **************************************************
+
 import torch
 import triton
 import triton.language as tl
@@ -53,13 +57,7 @@ def pack_unpack_sequence_triton_kernel(
 
 @cute_op(f"{LIBRARY_NAME}::pack_unpack_sequence_triton", mutates_args={"output"})
 def pack_unpack_sequence_triton(
-    x: torch.Tensor,
-    output: torch.Tensor,
-    cu_seqlens: torch.Tensor,
-    padding_side: str,
-    pack: bool,
-    BLOCK_SIZE: int,
-    NUM_WARPS: int,
+    x: torch.Tensor, output: torch.Tensor, cu_seqlens: torch.Tensor, padding_side: str, pack: bool
 ) -> None:
     if pack:
         B, S = x.size()[:2]
@@ -67,6 +65,9 @@ def pack_unpack_sequence_triton(
     else:
         B, S = output.size()[:2]
         N = output.numel() // (B * S)
+
+    BLOCK_SIZE = 4096
+    NUM_WARPS = 32
 
     with torch.device(x.device):
         pack_unpack_sequence_triton_kernel[S, B](

@@ -1,3 +1,7 @@
+# **************************************************
+# Copyright (c) 2025, Mayank Mishra
+# **************************************************
+
 import torch
 import triton
 import triton.language as tl
@@ -216,6 +220,11 @@ class _ScatteredExperts(torch.autograd.Function):
         if grouped_out:
             grouped_grad_out = grad_out
         else:
+            if grouped_grad_out is None:
+                if gate_fan == 1:
+                    grouped_grad_out = torch.empty_like(grad_out)
+                else:
+                    raise RuntimeError("Need to infer size")
             group(
                 A=grad_out,
                 sorted_expert_idxs=sorted_scattered_idxs,

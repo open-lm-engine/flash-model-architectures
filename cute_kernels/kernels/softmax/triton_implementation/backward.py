@@ -1,9 +1,13 @@
+# **************************************************
+# Copyright (c) 2025, Mayank Mishra
+# **************************************************
+
 import torch
 import triton
 import triton.language as tl
 
 from ....constants import LIBRARY_NAME
-from ....math import ceil_divide
+from ....math import ceil_divide, get_next_power_of_2
 from ....utils import cute_op, get_num_elements_and_hidden_size
 
 
@@ -77,24 +81,22 @@ def softmax_backward_triton_kernel(
 
 @cute_op(f"{LIBRARY_NAME}::softmax_backward_triton", mutates_args={"x_grad"})
 def softmax_backward_triton(
-    output: torch.Tensor,
-    output_grad: torch.Tensor,
-    x_grad: torch.Tensor,
-    logits_multiplier: float | None,
-    BLOCK_SIZE_B: int,
-    BLOCK_SIZE_H: int,
+    output: torch.Tensor, output_grad: torch.Tensor, x_grad: torch.Tensor, logits_multiplier: float | None
 ) -> None:
-    num_elements, hidden_size = get_num_elements_and_hidden_size(x_grad)
+    B, H = get_num_elements_and_hidden_size(x_grad)
+
+    BLOCK_SIZE_B = 1
+    BLOCK_SIZE_H = min(get_next_power_of_2(H), 4096 if output.dtype == torch.float32 else 8192)
 
     with torch.device(x_grad.device):
-        softmax_backward_triton_kernel[ceil_divide(num_elements, BLOCK_SIZE_B),](
+        softmax_backward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](
             output_ptr=output,
             output_grad_ptr=output_grad,
             x_grad_ptr=x_grad,
             HAS_LOGITS_MULTIPLIER=logits_multiplier not in [None, 1],
             logits_multiplier=logits_multiplier,
-            B=num_elements,
-            H=hidden_size,
+            B=B,
+            H=H,
             BLOCK_SIZE_B=BLOCK_SIZE_B,
             BLOCK_SIZE_H=BLOCK_SIZE_H,
         )

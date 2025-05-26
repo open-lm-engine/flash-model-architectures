@@ -1,3 +1,7 @@
+// **************************************************
+// Copyright (c) 2025, Mayank Mishra
+// **************************************************
+
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <torch/extension.h>
@@ -60,9 +64,6 @@ void add_tensor_cuda(const torch::Tensor &x, const torch::Tensor &y, torch::Tens
     const uint64 total_elements = x.numel();
 
     DISPATCH_FLOAT_KERNEL(x.scalar_type(), "add_tensor_cuda_kernel", scalar_t, ([&] {
-                              const uint32 num_elements_per_thread = 16 / sizeof(scalar_t);
-                              const uint32 num_elements_per_block = num_elements_per_thread * BLOCK_SIZE;
-
                               std::vector<ck::ChunkedArray<scalar_t>> x_chunks =
                                   ck::chunk_array<scalar_t>(x.data_ptr<scalar_t>(), total_elements);
                               std::vector<ck::ChunkedArray<scalar_t>> y_chunks =

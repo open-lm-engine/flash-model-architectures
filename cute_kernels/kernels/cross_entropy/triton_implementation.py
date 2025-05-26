@@ -1,12 +1,26 @@
+# **************************************************
+# Copyright (c) 2025, Mayank Mishra
+# **************************************************
+
 import torch
 import triton
 import triton.language as tl
 
 from ...constants import LIBRARY_NAME
-from ...math import ceil_divide
+from ...math import ceil_divide, get_next_power_of_2, get_powers_of_2
 from ...utils import cute_op
 
 
+def _get_autotune_configs() -> list[triton.Config]:
+    configs = []
+    for BLOCK_SIZE_B in get_powers_of_2(1, 8):
+        for num_warps in get_powers_of_2(4, 8):
+            configs.append(triton.Config({"BLOCK_SIZE_B": BLOCK_SIZE_B}, num_warps=num_warps))
+
+    return configs
+
+
+@triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_V"], reset_to_zero=["loss_ptr"])
 @triton.jit
 def cross_entropy_forward_backward_triton_kernel(
     x_ptr,
@@ -95,14 +109,15 @@ def cross_entropy_forward_backward_triton(
     loss: torch.Tensor,
     x_grad: torch.Tensor,
     logits_multiplier: float | None,
-    BLOCK_SIZE_B: int,
-    BLOCK_SIZE_V: int,
     reduction: str,
 ) -> None:
     B, V = x.size()
 
+    BLOCK_SIZE_V = min(get_next_power_of_2(V), 4096 if x.dtype == torch.float32 else 8192)
+    GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]),)
+
     with torch.device(x.device):
-        cross_entropy_forward_backward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](
+        cross_entropy_forward_backward_triton_kernel[GRID](
             x_ptr=x,
             labels_ptr=labels,
             loss_ptr=loss,
@@ -111,7 +126,6 @@ def cross_entropy_forward_backward_triton(
             logits_multiplier=logits_multiplier,
             B=B,
             V=V,
-            BLOCK_SIZE_B=BLOCK_SIZE_B,
-            BLOCK_SIZE_V=BLOCK_SIZE_V,
             reduction=reduction,
+            BLOCK_SIZE_V=BLOCK_SIZE_V,
         )

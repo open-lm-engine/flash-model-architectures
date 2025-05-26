@@ -1,3 +1,7 @@
+// **************************************************
+// Copyright (c) 2025, Mayank Mishra
+// **************************************************
+
 #include <torch/extension.h>
 
 void add_scalar_cuda(const torch::Tensor &x, const float &y, torch::Tensor &output, const uint &BLOCK_SIZE);

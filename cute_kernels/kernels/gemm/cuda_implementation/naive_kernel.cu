@@ -1,9 +1,14 @@
+// **************************************************
+// Copyright (c) 2025, Mayank Mishra
+// **************************************************
+
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <torch/extension.h>
 
 #include "cute/tensor.hpp"
 #include "include/cute_kernels.h"
+#include "utils.h"
 
 namespace ck = cute_kernels;
 using namespace cute;
@@ -66,9 +71,6 @@ void naive_gemm_cuda(const torch::Tensor &A,
                      const bool &is_B_transposed,
                      const fp32 &alpha,
                      const fp32 &beta,
-                     const uint32 &M,
-                     const uint32 &K,
-                     const uint32 &N,
                      const uint32 &BLOCK_SIZE_M,
                      const uint32 &BLOCK_SIZE_N) {
     CHECK_CUDA_TENSOR(A);
@@ -77,6 +79,8 @@ void naive_gemm_cuda(const torch::Tensor &A,
         CHECK_CUDA_TENSOR(_C.value());
     }
     CHECK_CUDA_TENSOR(output);
+
+    const auto [M, N, K] = get_MNK(A, B, is_A_transposed, is_B_transposed);
 
     CHECK_VALID_THREAD_BLOCK(BLOCK_SIZE_M * BLOCK_SIZE_N);
 

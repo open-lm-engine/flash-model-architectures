@@ -1,9 +1,13 @@
+# **************************************************
+# Copyright (c) 2025, Mayank Mishra
+# **************************************************
+
 import torch
 import torch.nn as nn
 
 from cute_kernels import CuteInductor
 from cute_kernels.cute_inductor.rmsnorm import replace_rmsnorm
-from cute_kernels.cute_inductor.swiglu_unchunked import replace_swiglu_unchunked
+from cute_kernels.cute_inductor.swiglu_packed import replace_swiglu_unchunked
 
 
 # NOTE swiglu unchunked computes:

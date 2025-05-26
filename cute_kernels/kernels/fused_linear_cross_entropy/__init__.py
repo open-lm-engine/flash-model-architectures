@@ -1,3 +1,7 @@
+# **************************************************
+# Copyright (c) 2025, Mayank Mishra
+# **************************************************
+
 import torch
 
 from ...math import ceil_divide, get_next_power_of_2
@@ -16,8 +20,6 @@ class _FusedLinearCrossEntropy_Cute(torch.autograd.Function):
         labels: torch.Tensor,
         reduction: str,
         logits_multiplier: float | None,
-        BLOCK_SIZE_B: int,
-        BLOCK_SIZE_V: int,
     ) -> torch.Tensor:
         assert reduction in ["sum", "mean"]
         assert x.dim() == 2, "x should be 2 dimensional"
@@ -55,8 +57,6 @@ class _FusedLinearCrossEntropy_Cute(torch.autograd.Function):
                 loss=loss,
                 x_grad=_logits_grad,
                 logits_multiplier=logits_multiplier,
-                BLOCK_SIZE_B=BLOCK_SIZE_B,
-                BLOCK_SIZE_V=BLOCK_SIZE_V,
                 reduction="sum",
             )
 
@@ -88,9 +88,6 @@ def fused_linear_cross_entropy_cute(
     labels: torch.Tensor,
     reduction: str = "mean",
     logits_multiplier: float | None = None,
-    *,
-    BLOCK_SIZE_B: int = 4,
-    BLOCK_SIZE_V: int = 256,
 ) -> torch.Tensor:
     """compute cross entropy loss without materializing the full output logits matrix
 
@@ -101,13 +98,9 @@ def fused_linear_cross_entropy_cute(
         reduction (str, optional): reduction should be either sum or mean. Defaults to "mean".
         logits_multiplier (float | None, optional): logits multiplier pre-multiplies logits, None implies 1.
             Defaults to None.
-        BLOCK_SIZE_B (int, optional): block size along the token dimension. Defaults to 4.
-        BLOCK_SIZE_V (int, optional): block size along the vocabulary dimension. Defaults to 256.
 
     Returns:
         torch.Tensor: loss
     """
 
-    return _FusedLinearCrossEntropy_Cute.apply(
-        x, weight, labels, reduction, logits_multiplier, BLOCK_SIZE_B, BLOCK_SIZE_V
-    )
+    return _FusedLinearCrossEntropy_Cute.apply(x, weight, labels, reduction, logits_multiplier)

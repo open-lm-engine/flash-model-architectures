@@ -1,3 +1,7 @@
+// **************************************************
+// Copyright (c) 2025, Mayank Mishra
+// **************************************************
+
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <torch/extension.h>

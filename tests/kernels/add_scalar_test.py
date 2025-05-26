@@ -1,24 +1,28 @@
+# **************************************************
+# Copyright (c) 2025, Mayank Mishra
+# **************************************************
+
 from typing import Callable
 
 import torch
 from parameterized import parameterized
 
-from cute_kernels import KernelBackend, add_scalar_cute, add_scalar_torch
+from cute_kernels import CutoTuneParameter, KernelBackend, add_scalar_cute, add_scalar_torch
 
 from ..test_commons import TestCommons
 
 
-class AddTensorTest(TestCommons):
+class AddScalarTest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(
             TestCommons.get_2d_tensor_sizes(),  # size
             [torch.device("cuda")],  # device
             TestCommons.get_dtypes(),  # dtype
-            [KernelBackend.cuda, KernelBackend.triton],  # kernel_backend
+            [KernelBackend.cuda, KernelBackend.triton, CutoTuneParameter()],  # kernel_backend
             [add_scalar_cute, torch.compile(add_scalar_cute, fullgraph=True)],  # function
         )
     )
-    def test_add_tensor(
+    def test_add_scalar(
         self,
         size: tuple[int],
         device: torch.device,

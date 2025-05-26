@@ -1,6 +1,11 @@
+# **************************************************
+# Copyright (c) 2025, Mayank Mishra
+# **************************************************
+
 import torch
 
-from ...utils import ensure_contiguous, get_num_elements_and_hidden_size
+from ...utils import ensure_contiguous
+from ..bmm.triton_implementation import bmm_triton
 from .cuda_implementation import (
     cutlass_gemm_cuda,
     cutlass_tensorcore_mma_gemm_cuda,
@@ -8,7 +13,6 @@ from .cuda_implementation import (
     shared_memory_gemm_cuda,
 )
 from .torch_implementation import gemm_torch
-from .triton_implementation import gemm_triton
 
 
 @ensure_contiguous
@@ -42,15 +46,14 @@ def gemm_cute(
         torch.Tensor: output tensor
     """
 
+    assert A.dim() == 2
+    assert B.dim() == 2
+
+    M, K = A.size()
     if is_A_transposed:
-        assert A.dim() == 2, "only 2 dimensional a tensor is supported when a is transposed"
-        K, M = A.size()
-    else:
-        M, K = get_num_elements_and_hidden_size(A)
+        M, K = K, M
 
-    assert B.dim() == 2, "only 2 dimensional B tensor is supported"
     assert B.size(1 if is_B_transposed else 0) == K
-
     N = B.size(0 if is_B_transposed else 1)
 
     output = torch.empty(M, N, dtype=A.dtype, device=A.device)
@@ -59,6 +62,7 @@ def gemm_cute(
         assert C is None
     else:
         assert C is not None
+        assert C.size() == (M, N)
 
     if kernel_backend == "cutlass_tensorcore_mma_gemm_cuda":
         cutlass_tensorcore_mma_gemm_cuda(
@@ -70,9 +74,6 @@ def gemm_cute(
             is_B_transposed=is_B_transposed,
             alpha=alpha,
             beta=beta,
-            M=M,
-            K=K,
-            N=N,
         )
     elif kernel_backend == "cutlass":
         cutlass_gemm_cuda(
@@ -84,9 +85,6 @@ def gemm_cute(
             is_B_transposed=is_B_transposed,
             alpha=alpha,
             beta=beta,
-            M=M,
-            K=K,
-            N=N,
         )
     elif kernel_backend == "shared_memory_cuda":
         BLOCK_SIZE = 32
@@ -100,9 +98,6 @@ def gemm_cute(
             is_B_transposed=is_B_transposed,
             alpha=alpha,
             beta=beta,
-            M=M,
-            K=K,
-            N=N,
             BLOCK_SIZE=BLOCK_SIZE,
         )
     elif kernel_backend == "naive_cuda":
@@ -118,36 +113,19 @@ def gemm_cute(
             is_B_transposed=is_B_transposed,
             alpha=alpha,
             beta=beta,
-            M=M,
-            K=K,
-            N=N,
             BLOCK_SIZE_M=BLOCK_SIZE_M,
             BLOCK_SIZE_N=BLOCK_SIZE_N,
         )
     elif kernel_backend == "triton":
-        BLOCK_SIZE_M = 128
-        BLOCK_SIZE_K = 64
-        BLOCK_SIZE_N = 128
-        NUM_WARPS = 8
-        NUM_STAGES = 2
-
-        gemm_triton(
-            A=A,
-            B=B,
-            C=C,
-            output=output,
+        bmm_triton(
+            A=A.unsqueeze(0),
+            B=B.unsqueeze(0),
+            C=None if C is None else C.unsqueeze(0),
+            output=output.unsqueeze(0),
             is_A_transposed=is_A_transposed,
             is_B_transposed=is_B_transposed,
             alpha=alpha,
             beta=beta,
-            M=M,
-            K=K,
-            N=N,
-            BLOCK_SIZE_M=BLOCK_SIZE_M,
-            BLOCK_SIZE_K=BLOCK_SIZE_K,
-            BLOCK_SIZE_N=BLOCK_SIZE_N,
-            num_warps=NUM_WARPS,
-            num_stages=NUM_STAGES,
         )
     else:
         raise ValueError(f"unexpected kernel_backend ({kernel_backend})")

@@ -1,3 +1,7 @@
+// **************************************************
+// Copyright (c) 2025, Mayank Mishra
+// **************************************************
+
 #include <iostream>
 #include <sstream>
 #include <vector>
@@ -5,6 +9,7 @@
 #include "cutlass/gemm/device/gemm.h"
 #include "cutlass/util/device_memory.h"
 #include "include/cute_kernels.h"
+#include "utils.h"
 
 namespace ck = cute_kernels;
 
@@ -91,16 +96,15 @@ void cutlass_tensorcore_mma_gemm_cuda(const torch::Tensor &A,
                                       const bool &is_A_transposed,
                                       const bool &is_B_transposed,
                                       const fp32 &alpha,
-                                      const fp32 &beta,
-                                      const uint32 &M,
-                                      const uint32 &K,
-                                      const uint32 &N) {
+                                      const fp32 &beta) {
     CHECK_CUDA_TENSOR(A);
     CHECK_CUDA_TENSOR(B);
     if (_C.has_value()) {
         CHECK_CUDA_TENSOR(_C.value());
     }
     CHECK_CUDA_TENSOR(output);
+
+    const auto [M, N, K] = get_MNK(A, B, is_A_transposed, is_B_transposed);
 
     const fp32 *A_data = A.data_ptr<fp32>();
     const fp32 *B_data = B.data_ptr<fp32>();
