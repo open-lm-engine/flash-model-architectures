@@ -78,35 +78,35 @@ def gru_varlen_forward_triton_kernel(
         r = _rnn_forward_update(
             h=h,
             W=Wr,
-            x=tl.load(xr_ptr + indices, mask=mask_bh),
+            x=tl.load(xr_ptr + indices, mask=mask),
             ACTIVATION_FUNCTION="sigmoid",
             relu_negative_slope=None,
         )
 
-        tl.store(r_ptr + indices, r, mask=mask_bh)
+        tl.store(r_ptr + indices, r, mask=mask)
 
         z = _rnn_forward_update(
             h=h * r,
             W=W,
-            x=tl.load(x_ptr + indices, mask=mask_bh),
+            x=tl.load(x_ptr + indices, mask=mask),
             ACTIVATION_FUNCTION="tanh",
             relu_negative_slope=None,
         )
 
-        tl.store(z_ptr + indices, z, mask=mask_bh)
+        tl.store(z_ptr + indices, z, mask=mask)
 
         f = _rnn_forward_update(
             h=h,
             W=Wf,
-            x=tl.load(xf_ptr + indices, mask=mask_bh),
+            x=tl.load(xf_ptr + indices, mask=mask),
             ACTIVATION_FUNCTION="sigmoid",
             relu_negative_slope=None,
         )
 
-        tl.store(f_ptr + indices, f, mask=mask_bh)
+        tl.store(f_ptr + indices, f, mask=mask)
 
         h = f * h + (1 - f) * z
-        tl.store(y_ptr + indices, h, mask=mask_bh)
+        tl.store(y_ptr + indices, h, mask=mask)
 
         indices += x_stride_t
         start += 1
