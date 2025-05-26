@@ -115,7 +115,7 @@ def gru_varlen_forward_triton_kernel(
 @cute_op(
     f"{LIBRARY_NAME}::gru_varlen_forward_triton", mutates_args={"forget_gate", "reset_gate", "output_update", "output"}
 )
-def gru_forward_triton(
+def gru_varlen_forward_triton(
     input: torch.Tensor,
     weight: torch.Tensor,
     forget_input: torch.Tensor,

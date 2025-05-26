@@ -6,7 +6,7 @@ import torch
 
 from ...utils import ensure_contiguous
 from .torch_implementation import gru_torch
-from .triton_implementation import gru_backward_triton, gru_forward_triton, gru_varlen_forward_triton_kernel
+from .triton_implementation import gru_backward_triton, gru_forward_triton, gru_varlen_forward_triton
 
 
 class _GRU_Cute(torch.autograd.Function):
