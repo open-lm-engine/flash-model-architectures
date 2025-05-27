@@ -10,7 +10,8 @@ from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
 from ....triton_math import clamp
 from ....utils import cute_op
-from ...rnn.triton_implementation.backward import _get_autotune_configs, _load_previous_output, _rnn_backward_update
+from ...rnn.triton_implementation.backward import _get_autotune_configs, _rnn_backward_update
+from ...rnn.triton_implementation.backward_varlen import _load_input_state
 
 
 @triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_H"], reset_to_zero=["dW_ptr", "dWf_ptr", "dWr_ptr"])
@@ -19,8 +20,7 @@ def gru_varlen_backward_triton_kernel(
     W_ptr,
     W_stride_n,
     y_ptr,
-    y_stride_b,
-    y_stride_s,
+    y_stride_t,
     Wf_ptr,
     f_ptr,
     dxf_ptr,
@@ -34,12 +34,14 @@ def gru_varlen_backward_triton_kernel(
     h_ptr,
     h_stride_b,
     dy_ptr,
+    cu_seqlens_ptr,
+    IS_MAX_SEQLEN_TENSOR: tl.constexpr,
+    max_seqlen_ptr,
     dx_ptr,
     dW_ptr,
     HAS_GRADIENT_CLIPPING: tl.constexpr,
     gradient_clipping,
     B,
-    S,
     H,
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
@@ -65,38 +67,54 @@ def gru_varlen_backward_triton_kernel(
     Wf = tl.load(Wf_ptr + indices_W, mask=mask_hh)
     Wr = tl.load(Wr_ptr + indices_W, mask=mask_hh)
 
-    indices = indices_b[:, None] * y_stride_b + (S - 1) * y_stride_s + pid_n * H + indices_h[None, :]
+    cu_seqlens_ptrs = cu_seqlens_ptr + indices_b[:, None]
+    start = tl.load(cu_seqlens_ptrs, mask=mask_b[:, None])
+    end = tl.load(cu_seqlens_ptrs + 1, mask=mask_b[:, None])
+
+    if IS_MAX_SEQLEN_TENSOR:
+        max_seqlen = tl.load(max_seqlen_ptr)
+    else:
+        max_seqlen = max_seqlen_ptr
+
+    end -= 1
+
+    indices = end * y_stride_t + pid_n * H + indices_h[None, :]
 
     # backward counting reduces 1 instruction since we need to compare s == 0, otherwise we have to compare s == S - 1
-    for s in range(S - 1, -1, -1):
+    for _ in range(max_seqlen - 1, -1, -1):
         if HAS_GRADIENT_CLIPPING:
             dh = clamp(dh, min_value=-gradient_clipping, max_value=gradient_clipping)
 
-        dy = tl.load(dy_ptr + indices, mask=mask_bh) + dh
-        f = tl.load(f_ptr + indices, mask=mask_bh)
-        r = tl.load(r_ptr + indices, mask=mask_bh)
-        z = tl.load(z_ptr + indices, mask=mask_bh)
+        unfinished = end >= start
+        mask = unfinished & mask_h[None, :]
+
+        dy = tl.load(dy_ptr + indices, mask=mask) + dh
+        f = tl.load(f_ptr + indices, mask=mask)
+        r = tl.load(r_ptr + indices, mask=mask)
+        z = tl.load(z_ptr + indices, mask=mask)
 
         dx_ptrs = dx_ptr + indices
         dxf_ptrs = dxf_ptr + indices
         dxr_ptrs = dxr_ptr + indices
 
-        indices -= y_stride_s
+        indices -= y_stride_t
 
-        y_prev = _load_previous_output(
-            HAS_INPUT_STATE=HAS_INPUT_STATE,
-            h_ptr=h_ptr,
-            h_stride_b=h_stride_b,
-            y_ptrs=y_ptr + indices,
-            pid_n=pid_n,
-            H=H,
-            indices_b=indices_b,
-            indices_h=indices_h,
-            mask_bh=mask_bh,
-            BLOCK_SIZE_B=BLOCK_SIZE_B,
-            BLOCK_SIZE_H=BLOCK_SIZE_H,
-            s=s,
-            dtype=W.dtype,
+        y_prev = tl.where(
+            start == end,
+            _load_input_state(
+                HAS_INPUT_STATE=HAS_INPUT_STATE,
+                h_ptr=h_ptr,
+                h_stride_b=h_stride_b,
+                pid_n=pid_n,
+                indices_b=indices_b,
+                indices_h=indices_h,
+                mask_bh=mask_bh,
+                H=H,
+                BLOCK_SIZE_B=BLOCK_SIZE_B,
+                BLOCK_SIZE_H=BLOCK_SIZE_H,
+                dtype=W.dtype,
+            ),
+            tl.load(y_ptr + indices, mask=mask & (indices >= 0)),
         )
 
         dh = f * dy
@@ -114,7 +132,7 @@ def gru_varlen_backward_triton_kernel(
         )
 
         dh += drh * r
-        tl.store(dx_ptrs, dx, mask=mask_bh)
+        tl.store(dx_ptrs, dx, mask=mask)
 
         dxf, dWf, _dh = _rnn_backward_update(
             y=f,
@@ -127,7 +145,7 @@ def gru_varlen_backward_triton_kernel(
         )
 
         dh += _dh
-        tl.store(dxf_ptrs, dxf, mask=mask_bh)
+        tl.store(dxf_ptrs, dxf, mask=mask)
 
         dr = drh * y_prev
 
@@ -142,7 +160,9 @@ def gru_varlen_backward_triton_kernel(
         )
 
         dh += _dh
-        tl.store(dxr_ptrs, dxr, mask=mask_bh)
+        tl.store(dxr_ptrs, dxr, mask=mask)
+
+        end -= 1
 
     tl.atomic_add(dW_ptr + indices_W, dW, mask=mask_hh)
     tl.atomic_add(dWf_ptr + indices_W, dWf, mask=mask_hh)
