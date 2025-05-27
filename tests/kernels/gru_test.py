@@ -394,59 +394,71 @@ class GRUTest(TestCommons):
             rtol_float32=0,
             atol_float16=3e-3,
             rtol_float16=0,
-            atol_bfloat16=1.6e-2,
+            atol_bfloat16=8e-3,
             rtol_bfloat16=0,
         )
 
-        # self.assert_equal_tensors(
-        #     forget_input_kernel.grad,
-        #     forget_input_expected.grad,
-        #     False,
-        #     atol_float32=6e-3,
-        #     rtol_float32=0,
-        #     atol_float16=2e-3,
-        #     rtol_float16=0,
-        # )
+        self.assert_equal_tensors(
+            forget_input_kernel.grad,
+            forget_input_expected.grad,
+            False,
+            atol_float32=2e-6,
+            rtol_float32=0,
+            atol_float16=3.1e-5,
+            rtol_float16=0,
+            atol_bfloat16=2e-4,
+            rtol_bfloat16=0,
+        )
 
-        # self.assert_equal_tensors(
-        #     reset_input_kernel.grad,
-        #     reset_input_expected.grad,
-        #     False,
-        #     atol_float32=6e-3,
-        #     rtol_float32=0,
-        #     atol_float16=2e-3,
-        #     rtol_float16=0,
-        # )
+        self.assert_equal_tensors(
+            reset_input_kernel.grad,
+            reset_input_expected.grad,
+            False,
+            atol_float32=1.1e-6,
+            rtol_float32=0,
+            atol_float16=1.5e-5,
+            rtol_float16=0,
+            atol_bfloat16=1.6e-5,
+            rtol_bfloat16=0,
+        )
 
-        # self.assert_equal_tensors(
-        #     weight_kernel.grad,
-        #     weight_expected.grad,
-        #     False,
-        #     atol_float32=7e-2,
-        #     rtol_float32=0,
-        #     atol_float16=7e-2,
-        #     rtol_float16=0,
-        # )
+        self.assert_equal_tensors(
+            weight_kernel.grad,
+            weight_expected.grad,
+            False,
+            atol_float32=1.6e-4,
+            rtol_float32=0,
+            atol_float16=3.7e-4,
+            rtol_float16=0,
+            atol_bfloat16=2.5e-3,
+            rtol_bfloat16=0,
+        )
 
-        # self.assert_equal_tensors(
-        #     forget_weight_kernel.grad,
-        #     forget_weight_expected.grad,
-        #     False,
-        #     atol_float32=6e-3,
-        #     rtol_float32=0,
-        #     atol_float16=2.2e-2,
-        #     rtol_float16=0,
-        # )
+        print((forget_weight_kernel.grad - forget_weight_expected.grad).abs().max().item(), input_kernel.grad.dtype)
 
-        # self.assert_equal_tensors(
-        #     reset_weight_kernel.grad,
-        #     reset_weight_expected.grad,
-        #     False,
-        #     atol_float32=6e-3,
-        #     rtol_float32=0,
-        #     atol_float16=2.2e-2,
-        #     rtol_float16=0,
-        # )
+        self.assert_equal_tensors(
+            forget_weight_kernel.grad,
+            forget_weight_expected.grad,
+            False,
+            atol_float32=2.7e-6,
+            rtol_float32=0,
+            atol_float16=3.9e-6,
+            rtol_float16=0,
+            atol_bfloat16=3.1e-5,
+            rtol_bfloat16=0,
+        )
+
+        print((reset_weight_kernel.grad - reset_weight_expected.grad).abs().max().item(), input_kernel.grad.dtype)
+
+        self.assert_equal_tensors(
+            reset_weight_kernel.grad,
+            reset_weight_expected.grad,
+            False,
+            atol_float32=2.3e-6,
+            rtol_float32=0,
+            atol_float16=3.9e-6,
+            rtol_float16=0,
+        )
 
     # @parameterized.expand(
     #     TestCommons.make_args_matrix(
