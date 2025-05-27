@@ -139,6 +139,7 @@ def gru_varlen_forward_triton(
     GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), N)
 
     has_input_state = input_state is not None
+    is_max_seqlen_tensor = max_seqlen_tensor is not None
 
     with torch.device(input.device):
         gru_varlen_forward_triton_kernel[GRID](
