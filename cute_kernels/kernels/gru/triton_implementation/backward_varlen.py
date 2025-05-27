@@ -15,7 +15,7 @@ from ...rnn.triton_implementation.backward import _get_autotune_configs, _load_p
 
 @triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_H"], reset_to_zero=["dW_ptr", "dWf_ptr", "dWr_ptr"])
 @triton.jit
-def gru_backward_triton_kernel(
+def gru_varlen_backward_triton_kernel(
     W_ptr,
     W_stride_n,
     y_ptr,
@@ -150,7 +150,7 @@ def gru_backward_triton_kernel(
 
 
 @cute_op(
-    f"{LIBRARY_NAME}::gru_backward_triton",
+    f"{LIBRARY_NAME}::gru_varlen_backward_triton",
     mutates_args={
         "forget_input_grad",
         "forget_weight_grad",
@@ -160,7 +160,7 @@ def gru_backward_triton_kernel(
         "weight_grad",
     },
 )
-def gru_backward_triton(
+def gru_varlen_backward_triton(
     weight: torch.Tensor,
     output: torch.Tensor,
     forget_weight: torch.Tensor,
