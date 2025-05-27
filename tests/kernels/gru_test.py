@@ -371,8 +371,8 @@ class GRUTest(TestCommons):
             max_seqlen=max_seqlen,
         )
 
-        # y_kernel.sum().backward()
-        # y_expected.sum().backward()
+        y_kernel.sum().backward()
+        y_expected.sum().backward()
 
         self.assert_equal_tensors(
             y_kernel,
@@ -386,15 +386,17 @@ class GRUTest(TestCommons):
             rtol_bfloat16=0,
         )
 
-        # self.assert_equal_tensors(
-        #     input_kernel.grad,
-        #     input_expected.grad,
-        #     False,
-        #     atol_float32=8e-2,
-        #     rtol_float32=0,
-        #     atol_float16=8e-2,
-        #     rtol_float16=0,
-        # )
+        self.assert_equal_tensors(
+            input_kernel.grad,
+            input_expected.grad,
+            False,
+            atol_float32=1.3e-4,
+            rtol_float32=0,
+            atol_float16=3e-3,
+            rtol_float16=0,
+            atol_bfloat16=1.6e-2,
+            rtol_bfloat16=0,
+        )
 
         # self.assert_equal_tensors(
         #     forget_input_kernel.grad,
