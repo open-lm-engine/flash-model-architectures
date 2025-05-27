@@ -9,16 +9,23 @@ import triton.language as tl
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
 from ....utils import cute_op
-from .forward import _get_autotune_configs, _rnn_forward_update
+from ...rnn.triton_implementation.forward import _get_autotune_configs, _rnn_forward_update
 
 
 @triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_H"])
 @triton.jit
-def rnn_varlen_forward_triton_kernel(
+def gru_varlen_forward_triton_kernel(
     x_ptr,
     x_stride_t,
     W_ptr,
     W_stride_n,
+    xf_ptr,
+    Wf_ptr,
+    f_ptr,
+    xr_ptr,
+    Wr_ptr,
+    r_ptr,
+    z_ptr,
     HAS_INPUT_STATE: tl.constexpr,
     h_ptr,
     h_stride_b,
@@ -26,8 +33,6 @@ def rnn_varlen_forward_triton_kernel(
     cu_seqlens_ptr,
     IS_MAX_SEQLEN_TENSOR: tl.constexpr,
     max_seqlen_ptr,
-    ACTIVATION_FUNCTION: tl.constexpr,
-    relu_negative_slope,
     B,
     H,
     BLOCK_SIZE_B: tl.constexpr,
@@ -43,10 +48,12 @@ def rnn_varlen_forward_triton_kernel(
     mask_h = indices_h < H
     mask_bh = mask_b[:, None] & mask_h[None, :]
 
-    W = tl.load(
-        W_ptr + pid_n * W_stride_n + indices_h[:, None] * H + indices_h[None, :],
-        mask=mask_h[:, None] & mask_h[None, :],
-    )
+    indices = pid_n * W_stride_n + indices_h[:, None] * H + indices_h[None, :]
+    mask_hh = mask_h[:, None] & mask_h[None, :]
+
+    W = tl.load(W_ptr + indices, mask=mask_hh)
+    Wf = tl.load(Wf_ptr + indices, mask=mask_hh)
+    Wr = tl.load(Wr_ptr + indices, mask=mask_hh)
 
     if HAS_INPUT_STATE:
         h = tl.load(h_ptr + indices_b[:, None] * h_stride_b + pid_n * H + indices_h[None, :], mask=mask_bh)
@@ -68,31 +75,61 @@ def rnn_varlen_forward_triton_kernel(
         unfinished = start < end
         mask = unfinished & mask_h[None, :]
 
-        h = _rnn_forward_update(
+        r = _rnn_forward_update(
             h=h,
-            W=W,
-            x=tl.load(x_ptr + indices, mask=mask_bh),
-            ACTIVATION_FUNCTION=ACTIVATION_FUNCTION,
-            relu_negative_slope=relu_negative_slope,
+            W=Wr,
+            x=tl.load(xr_ptr + indices, mask=mask),
+            ACTIVATION_FUNCTION="sigmoid",
+            relu_negative_slope=None,
         )
 
+        tl.store(r_ptr + indices, r, mask=mask)
+
+        z = _rnn_forward_update(
+            h=h * r,
+            W=W,
+            x=tl.load(x_ptr + indices, mask=mask),
+            ACTIVATION_FUNCTION="tanh",
+            relu_negative_slope=None,
+        )
+
+        tl.store(z_ptr + indices, z, mask=mask)
+
+        f = _rnn_forward_update(
+            h=h,
+            W=Wf,
+            x=tl.load(xf_ptr + indices, mask=mask),
+            ACTIVATION_FUNCTION="sigmoid",
+            relu_negative_slope=None,
+        )
+
+        tl.store(f_ptr + indices, f, mask=mask)
+
+        h = f * h + (1 - f) * z
         tl.store(y_ptr + indices, h, mask=mask)
 
         indices += x_stride_t
         start += 1
 
 
-@cute_op(f"{LIBRARY_NAME}::rnn_varlen_forward_triton", mutates_args={"output"})
-def rnn_varlen_forward_triton(
+@cute_op(
+    f"{LIBRARY_NAME}::gru_varlen_forward_triton", mutates_args={"forget_gate", "reset_gate", "output_update", "output"}
+)
+def gru_varlen_forward_triton(
     input: torch.Tensor,
     weight: torch.Tensor,
+    forget_input: torch.Tensor,
+    forget_weight: torch.Tensor,
+    forget_gate: torch.Tensor,
+    reset_input: torch.Tensor,
+    reset_weight: torch.Tensor,
+    reset_gate: torch.Tensor,
+    output_update: torch.Tensor,
     input_state: torch.Tensor | None,
     output: torch.Tensor,
     cu_seqlens: torch.Tensor,
     max_seqlen_tensor: torch.Tensor | None,
     max_seqlen: int | None,
-    activation_function: str,
-    relu_negative_slope: float | None,
 ) -> None:
     B = cu_seqlens.size(0) - 1
     _, N, H = input.size()
@@ -105,11 +142,18 @@ def rnn_varlen_forward_triton(
     is_max_seqlen_tensor = max_seqlen_tensor is not None
 
     with torch.device(input.device):
-        rnn_varlen_forward_triton_kernel[GRID](
+        gru_varlen_forward_triton_kernel[GRID](
             x_ptr=input,
             x_stride_t=input.stride(0),
             W_ptr=weight,
             W_stride_n=weight.stride(0),
+            xf_ptr=forget_input,
+            Wf_ptr=forget_weight,
+            f_ptr=forget_gate,
+            xr_ptr=reset_input,
+            Wr_ptr=reset_weight,
+            r_ptr=reset_gate,
+            z_ptr=output_update,
             HAS_INPUT_STATE=has_input_state,
             h_ptr=input_state,
             h_stride_b=input_state.stride(0) if has_input_state else None,
@@ -117,8 +161,6 @@ def rnn_varlen_forward_triton(
             cu_seqlens_ptr=cu_seqlens,
             IS_MAX_SEQLEN_TENSOR=is_max_seqlen_tensor,
             max_seqlen_ptr=max_seqlen_tensor if is_max_seqlen_tensor else max_seqlen,
-            ACTIVATION_FUNCTION=activation_function,
-            relu_negative_slope=relu_negative_slope,
             B=B,
             H=H,
             BLOCK_SIZE_H=BLOCK_SIZE_H,
