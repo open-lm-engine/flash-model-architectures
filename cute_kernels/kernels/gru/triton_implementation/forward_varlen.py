@@ -131,7 +131,8 @@ def gru_varlen_forward_triton(
     max_seqlen_tensor: torch.Tensor | None,
     max_seqlen: int | None,
 ) -> None:
-    B, S, N, H = input.size()
+    B = cu_seqlens.size(0) - 1
+    _, N, H = input.size()
 
     BLOCK_SIZE_H = get_next_power_of_2(H)
     BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
