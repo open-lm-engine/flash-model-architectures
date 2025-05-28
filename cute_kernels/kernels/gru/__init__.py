@@ -7,7 +7,9 @@ import torch
 from ...utils import ensure_contiguous
 from .torch_implementation import gru_torch
 from .triton_implementation import (
+    gru_backward_input_dependent_weights_triton,
     gru_backward_triton,
+    gru_forward_input_dependent_weights_triton,
     gru_forward_triton,
     gru_varlen_backward_triton,
     gru_varlen_forward_triton,
@@ -31,10 +33,15 @@ class _GRU_Cute(torch.autograd.Function):
         max_seqlen: torch.Tensor | int | None,
     ) -> torch.Tensor:
         assert input.dim() in [3, 4]
-        assert weight.dim() == 3
+        assert weight.dim() in [3, 4]
 
         N, H = input.size()[-2:]
-        assert weight.size() == (N, H, H)
+
+        has_input_dependent_weight = weight.dim() == 4
+        if has_input_dependent_weight:
+            assert weight.size() == input.size()[: input.dim() - 2] + (N, H, H)
+        else:
+            assert weight.size() == (N, H, H)
 
         if gradient_clipping is not None and gradient_clipping < 0:
             gradient_clipping = -gradient_clipping
@@ -60,9 +67,15 @@ class _GRU_Cute(torch.autograd.Function):
 
         if cu_seqlens is None:
             assert max_seqlen is None
-            gru_forward_triton(**kwargs)
+
+            if has_input_dependent_weight:
+                gru_forward_input_dependent_weights_triton(**kwargs)
+            else:
+                gru_forward_triton(**kwargs)
         else:
             assert max_seqlen is not None
+            assert not has_input_dependent_weight
+
             is_max_seqlen_tensor = isinstance(max_seqlen, torch.Tensor)
 
             gru_varlen_forward_triton(
@@ -86,6 +99,7 @@ class _GRU_Cute(torch.autograd.Function):
         )
 
         ctx.gradient_clipping = gradient_clipping
+        ctx.has_input_dependent_weight = has_input_dependent_weight
 
         return output
 
@@ -105,12 +119,16 @@ class _GRU_Cute(torch.autograd.Function):
             max_seqlen,
         ) = ctx.saved_tensors
 
+        has_input_dependent_weight = ctx.has_input_dependent_weight
+
         input_grad = torch.empty_like(output)
         forget_input_grad = torch.empty_like(output)
         reset_input_grad = torch.empty_like(output)
-        weight_grad = torch.zeros_like(weight, dtype=torch.float32)
-        forget_weight_grad = torch.zeros_like(weight, dtype=torch.float32)
-        reset_weight_grad = torch.zeros_like(weight, dtype=torch.float32)
+
+        weight_dtype = None if has_input_dependent_weight else torch.float32
+        weight_grad = torch.zeros_like(weight, dtype=weight_dtype)
+        forget_weight_grad = torch.zeros_like(weight, dtype=weight_dtype)
+        reset_weight_grad = torch.zeros_like(weight, dtype=weight_dtype)
 
         kwargs = {
             "weight": weight,
@@ -133,7 +151,10 @@ class _GRU_Cute(torch.autograd.Function):
         }
 
         if cu_seqlens is None:
-            gru_backward_triton(**kwargs)
+            if has_input_dependent_weight:
+                gru_backward_input_dependent_weights_triton(**kwargs)
+            else:
+                gru_backward_triton(**kwargs)
         else:
             is_max_seqlen_tensor = isinstance(max_seqlen, torch.Tensor)
 
