@@ -51,7 +51,6 @@ def rnn_forward_triton_kernel(
     x_stride_s,
     W_ptr,
     W_stride_n,
-    HAS_INPUT_STATE: tl.constexpr,
     h_ptr,
     h_stride_b,
     y_ptr,
@@ -78,10 +77,10 @@ def rnn_forward_triton_kernel(
         mask=mask_h[:, None] & mask_h[None, :],
     )
 
-    if HAS_INPUT_STATE:
-        h = tl.load(h_ptr + indices_b[:, None] * h_stride_b + pid_n * H + indices_h[None, :], mask=mask_bh)
-    else:
+    if h_ptr is None:
         h = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=x_ptr.dtype.element_ty)
+    else:
+        h = tl.load(h_ptr + indices_b[:, None] * h_stride_b + pid_n * H + indices_h[None, :], mask=mask_bh)
 
     indices = indices_b[:, None] * x_stride_b + pid_n * H + indices_h[None, :]
 
@@ -114,8 +113,6 @@ def rnn_forward_triton(
     BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
     GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), N)
 
-    has_input_state = input_state is not None
-
     with torch.device(input.device):
         rnn_forward_triton_kernel[GRID](
             x_ptr=input,
@@ -123,9 +120,8 @@ def rnn_forward_triton(
             x_stride_s=input.stride(1),
             W_ptr=weight,
             W_stride_n=weight.stride(0),
-            HAS_INPUT_STATE=has_input_state,
             h_ptr=input_state,
-            h_stride_b=input_state.stride(0) if has_input_state else None,
+            h_stride_b=None if input_state is None else input_state.stride(0),
             y_ptr=output,
             ACTIVATION_FUNCTION=activation_function,
             relu_negative_slope=relu_negative_slope,
