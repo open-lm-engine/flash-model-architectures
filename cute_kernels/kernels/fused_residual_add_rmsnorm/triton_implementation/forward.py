@@ -20,7 +20,6 @@ def fused_residual_add_rmsnorm_forward_triton_kernel(
     eps,
     multiplier,
     added_x_residual_ptr,
-    HAS_RMSNORM_DENOMINATOR: tl.constexpr,
     rmsnorm_denominator_ptr,
     B,
     H,
@@ -51,7 +50,7 @@ def fused_residual_add_rmsnorm_forward_triton_kernel(
     squared_sum = tl.sum(x * x, axis=1)
     inverse_rms = tl.rsqrt((squared_sum / H) + eps)
 
-    if HAS_RMSNORM_DENOMINATOR:
+    if rmsnorm_denominator_ptr is not None:
         tl.store(rmsnorm_denominator_ptr + indices_b, inverse_rms, mask=mask_b)
 
     x *= inverse_rms[:, None]
