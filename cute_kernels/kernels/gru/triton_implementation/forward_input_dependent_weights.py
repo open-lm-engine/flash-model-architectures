@@ -9,19 +9,10 @@ import triton.language as tl
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2, get_powers_of_2
 from ....utils import cute_op
-from ...rnn.triton_implementation.forward import _rnn_forward_update
+from ...rnn.triton_implementation.forward import _get_autotune_configs, _rnn_forward_update
 
 
-def _get_input_dependent_weights_autotune_configs() -> list[triton.Config]:
-    configs = []
-    for num_warps in get_powers_of_2(4, 8):
-        for num_stages in range(1, 5):
-            configs.append(triton.Config({}, num_stages=num_stages, num_warps=num_warps))
-
-    return configs
-
-
-@triton.autotune(configs=_get_input_dependent_weights_autotune_configs(), key=["BLOCK_SIZE_H"])
+@triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_H"])
 @triton.jit
 def gru_forward_input_dependent_weights_triton_kernel(
     x_ptr,
