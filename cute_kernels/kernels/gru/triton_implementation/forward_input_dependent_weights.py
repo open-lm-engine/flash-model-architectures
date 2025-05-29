@@ -7,7 +7,7 @@ import triton
 import triton.language as tl
 
 from ....constants import LIBRARY_NAME
-from ....math import get_next_power_of_2, get_powers_of_2
+from ....math import ceil_divide, get_next_power_of_2, get_powers_of_2
 from ....utils import cute_op
 from ...rnn.triton_implementation.forward import _rnn_forward_update
 
@@ -42,59 +42,66 @@ def gru_forward_input_dependent_weights_triton_kernel(
     h_ptr,
     h_stride_b,
     y_ptr,
+    B,
     S,
     H,
+    BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
     pid_b = tl.program_id(axis=0)
     pid_n = tl.program_id(axis=1)
 
+    indices_b = pid_b * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
     indices_h = tl.arange(0, BLOCK_SIZE_H)
 
+    mask_b = indices_b < B
     mask_h = indices_h < H
+    mask_bh = mask_b[:, None] & mask_h[None, :]
+
+    indices = pid_n * W_stride_n + indices_h[:, None] * H + indices_h[None, :]
     mask_hh = mask_h[:, None] & mask_h[None, :]
 
     if HAS_INPUT_STATE:
-        h = tl.load(h_ptr + pid_b * h_stride_b + pid_n * H + indices_h[None, :], mask=mask_h[None, :])
+        h = tl.load(h_ptr + indices_b[:, None] * h_stride_b + pid_n * H + indices_h[None, :], mask=mask_bh)
     else:
-        h = tl.zeros((1, BLOCK_SIZE_H), dtype=x_ptr.dtype.element_ty)
+        h = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=x_ptr.dtype.element_ty)
 
-    indices = pid_b * x_stride_b + pid_n * H + indices_h[None, :]
-    indices_W = pid_b * W_stride_b + pid_n * W_stride_n + indices_h[None, :] * H + indices_h[None, :]
+    indices = indices_b[:, None] * x_stride_b + pid_n * H + indices_h[None, :]
+    indices_W = indices_b[:, None] * W_stride_b + pid_n * W_stride_n + indices_h[None, :] * H + indices_h[None, :]
 
     for _ in range(S):
         r = _rnn_forward_update(
             h=h,
             W=tl.load(Wr_ptr + indices_W, mask=mask_hh),
-            x=tl.load(xr_ptr + indices, mask=mask_h[None, :]),
+            x=tl.load(xr_ptr + indices, mask=mask_bh),
             ACTIVATION_FUNCTION="sigmoid",
             relu_negative_slope=None,
         )
 
-        tl.store(r_ptr + indices, r, mask=mask_h[None, :])
+        tl.store(r_ptr + indices, r, mask=mask_bh)
 
         z = _rnn_forward_update(
             h=h * r,
             W=tl.load(W_ptr + indices_W, mask=mask_hh),
-            x=tl.load(x_ptr + indices, mask=mask_h[None, :]),
+            x=tl.load(x_ptr + indices, mask=mask_bh),
             ACTIVATION_FUNCTION="tanh",
             relu_negative_slope=None,
         )
 
-        tl.store(z_ptr + indices, z, mask=mask_h[None, :])
+        tl.store(z_ptr + indices, z, mask=mask_bh)
 
         f = _rnn_forward_update(
             h=h,
             W=tl.load(Wf_ptr + indices_W, mask=mask_hh),
-            x=tl.load(xf_ptr + indices, mask=mask_h[None, :]),
+            x=tl.load(xf_ptr + indices, mask=mask_bh),
             ACTIVATION_FUNCTION="sigmoid",
             relu_negative_slope=None,
         )
 
-        tl.store(f_ptr + indices, f, mask=mask_h[None, :])
+        tl.store(f_ptr + indices, f, mask=mask_bh)
 
         h = f * h + (1 - f) * z
-        tl.store(y_ptr + indices, h, mask=mask_h[None, :])
+        tl.store(y_ptr + indices, h, mask=mask_bh)
 
         indices += x_stride_s
         indices_W += W_stride_s
@@ -121,11 +128,12 @@ def gru_forward_input_dependent_weights_triton(
 
     BLOCK_SIZE_H = get_next_power_of_2(H)
     BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
+    GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), N)
 
     has_input_state = input_state is not None
 
     with torch.device(input.device):
-        gru_forward_input_dependent_weights_triton_kernel[B, N](
+        gru_forward_input_dependent_weights_triton_kernel[GRID](
             x_ptr=input,
             x_stride_b=input.stride(0),
             x_stride_s=input.stride(1),
@@ -144,6 +152,7 @@ def gru_forward_input_dependent_weights_triton(
             h_ptr=input_state,
             h_stride_b=input_state.stride(0) if has_input_state else None,
             y_ptr=output,
+            B=B,
             S=S,
             H=H,
             BLOCK_SIZE_H=BLOCK_SIZE_H,
