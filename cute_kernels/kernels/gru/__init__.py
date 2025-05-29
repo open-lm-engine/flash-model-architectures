@@ -33,11 +33,11 @@ class _GRU_Cute(torch.autograd.Function):
         max_seqlen: torch.Tensor | int | None,
     ) -> torch.Tensor:
         assert input.dim() in [3, 4]
-        assert weight.dim() in [3, 4]
+        assert weight.dim() in [3, 4, 5]
 
         N, H = input.size()[-2:]
 
-        has_input_dependent_weight = weight.dim() == 4
+        has_input_dependent_weight = weight.dim() > 4
         if has_input_dependent_weight:
             assert weight.size() == input.size()[: input.dim() - 2] + (N, H, H)
         else:
