@@ -27,7 +27,6 @@ def cross_entropy_forward_backward_triton_kernel(
     labels_ptr,
     loss_ptr,
     x_grad_ptr,
-    HAS_LOGITS_MULTIPLIER: tl.constexpr,
     logits_multiplier,
     B,
     V,
@@ -53,7 +52,7 @@ def cross_entropy_forward_backward_triton_kernel(
         mask_bv = mask_b[:, None] & mask_v[None, :]
 
         x = tl.load(x_ptr + indices, mask=mask_bv, other=-float("inf")).to(tl.float32)
-        if HAS_LOGITS_MULTIPLIER:
+        if logits_multiplier is not None:
             x *= logits_multiplier
 
         prev_m = M
@@ -74,14 +73,14 @@ def cross_entropy_forward_backward_triton_kernel(
         mask_bv = mask_b[:, None] & mask_v[None, :]
 
         x = tl.load(x_ptr + indices, mask=mask_bv).to(tl.float32)
-        if HAS_LOGITS_MULTIPLIER:
+        if logits_multiplier is not None:
             x *= logits_multiplier
         x -= M
         x = tl.exp(x)
         x /= Z
 
         x -= tl.where(indices_v[None, :] == labels[:, None], 1, 0)
-        if HAS_LOGITS_MULTIPLIER:
+        if logits_multiplier is not None:
             x *= logits_multiplier
         if reduction == "mean":
             x /= B
@@ -89,7 +88,7 @@ def cross_entropy_forward_backward_triton_kernel(
         tl.store(x_grad_ptr + indices, x, mask=mask_bv)
 
     x = tl.load(x_ptr + indices_b * V + labels, mask=mask_b).to(tl.float32)
-    if HAS_LOGITS_MULTIPLIER:
+    if logits_multiplier is not None:
         x *= logits_multiplier
 
     loss = M + tl.log(Z) - x[:, None]
@@ -122,7 +121,6 @@ def cross_entropy_forward_backward_triton(
             labels_ptr=labels,
             loss_ptr=loss,
             x_grad_ptr=x_grad,
-            HAS_LOGITS_MULTIPLIER=logits_multiplier not in [None, 1],
             logits_multiplier=logits_multiplier,
             B=B,
             V=V,

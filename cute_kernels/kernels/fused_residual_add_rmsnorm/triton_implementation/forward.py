@@ -15,11 +15,9 @@ from ....utils import cute_op, get_num_elements_and_hidden_size
 def fused_residual_add_rmsnorm_forward_triton_kernel(
     x_ptr,
     residual_ptr,
-    HAS_WEIGHT: tl.constexpr,
     weight_ptr,
     output_ptr,
     eps,
-    HAS_MULTIPLIER: tl.constexpr,
     multiplier,
     added_x_residual_ptr,
     HAS_RMSNORM_DENOMINATOR: tl.constexpr,
@@ -42,7 +40,7 @@ def fused_residual_add_rmsnorm_forward_triton_kernel(
 
     x = tl.load(x_ptr + indices_bh, mask=mask_bh).to(tl.float32)
 
-    if HAS_MULTIPLIER:
+    if multiplier is not None:
         x *= multiplier
 
     residual = tl.load(residual_ptr + indices_bh, mask=mask_bh)
@@ -58,7 +56,7 @@ def fused_residual_add_rmsnorm_forward_triton_kernel(
 
     x *= inverse_rms[:, None]
 
-    if HAS_WEIGHT:
+    if weight_ptr is not None:
         weight = tl.load(weight_ptr + indices_h, mask=mask_h)
         x = x.to(x_ptr.dtype.element_ty) * weight[None, :]
 
@@ -90,11 +88,9 @@ def fused_residual_add_rmsnorm_forward_triton(
         fused_residual_add_rmsnorm_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](
             x_ptr=x,
             residual_ptr=residual,
-            HAS_WEIGHT=weight is not None,
             weight_ptr=weight,
             output_ptr=output,
             eps=eps,
-            HAS_MULTIPLIER=multiplier not in [None, 1],
             multiplier=multiplier,
             added_x_residual_ptr=added_x_residual,
             HAS_RMSNORM_DENOMINATOR=rmsnorm_denominator is not None,

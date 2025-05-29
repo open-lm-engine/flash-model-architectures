@@ -30,7 +30,6 @@ def gru_varlen_backward_triton_kernel(
     dxr_ptr,
     dWr_ptr,
     z_ptr,
-    HAS_INPUT_STATE: tl.constexpr,
     h_ptr,
     h_stride_b,
     dy_ptr,
@@ -39,7 +38,6 @@ def gru_varlen_backward_triton_kernel(
     max_seqlen_ptr,
     dx_ptr,
     dW_ptr,
-    HAS_GRADIENT_CLIPPING: tl.constexpr,
     gradient_clipping,
     B,
     H,
@@ -82,7 +80,7 @@ def gru_varlen_backward_triton_kernel(
 
     # backward counting reduces 1 instruction since we need to compare s == 0, otherwise we have to compare s == S - 1
     for _ in range(max_seqlen - 1, -1, -1):
-        if HAS_GRADIENT_CLIPPING:
+        if gradient_clipping is not None:
             dh = clamp(dh, min_value=-gradient_clipping, max_value=gradient_clipping)
 
         unfinished = end >= start
@@ -102,7 +100,7 @@ def gru_varlen_backward_triton_kernel(
         y_prev = tl.where(
             start == end,
             _load_input_state(
-                HAS_INPUT_STATE=HAS_INPUT_STATE,
+                HAS_INPUT_STATE=h_ptr is not None,
                 h_ptr=h_ptr,
                 h_stride_b=h_stride_b,
                 pid_n=pid_n,
@@ -226,7 +224,6 @@ def gru_varlen_backward_triton(
             dxr_ptr=reset_input_grad,
             dWr_ptr=reset_weight_grad,
             z_ptr=output_update,
-            HAS_INPUT_STATE=input_state is not None,
             h_ptr=input_state,
             h_stride_b=None if input_state is None else input_state.stride(0),
             dy_ptr=output_grad,
@@ -235,7 +232,6 @@ def gru_varlen_backward_triton(
             max_seqlen_ptr=max_seqlen_tensor if is_max_seqlen_tensor else max_seqlen,
             dx_ptr=input_grad,
             dW_ptr=weight_grad,
-            HAS_GRADIENT_CLIPPING=gradient_clipping is not None,
             gradient_clipping=gradient_clipping,
             B=B,
             H=H,

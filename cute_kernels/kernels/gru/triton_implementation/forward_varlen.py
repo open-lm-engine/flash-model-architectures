@@ -26,7 +26,6 @@ def gru_varlen_forward_triton_kernel(
     Wr_ptr,
     r_ptr,
     z_ptr,
-    HAS_INPUT_STATE: tl.constexpr,
     h_ptr,
     h_stride_b,
     y_ptr,
@@ -55,10 +54,10 @@ def gru_varlen_forward_triton_kernel(
     Wf = tl.load(Wf_ptr + indices, mask=mask_hh)
     Wr = tl.load(Wr_ptr + indices, mask=mask_hh)
 
-    if HAS_INPUT_STATE:
-        h = tl.load(h_ptr + indices_b[:, None] * h_stride_b + pid_n * H + indices_h[None, :], mask=mask_bh)
-    else:
+    if h_ptr is None:
         h = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=x_ptr.dtype.element_ty)
+    else:
+        h = tl.load(h_ptr + indices_b[:, None] * h_stride_b + pid_n * H + indices_h[None, :], mask=mask_bh)
 
     cu_seqlens_ptrs = cu_seqlens_ptr + indices_b[:, None]
     start = tl.load(cu_seqlens_ptrs, mask=mask_b[:, None])
@@ -138,7 +137,6 @@ def gru_varlen_forward_triton(
     BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
     GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), N)
 
-    has_input_state = input_state is not None
     is_max_seqlen_tensor = max_seqlen_tensor is not None
 
     with torch.device(input.device):
@@ -154,9 +152,8 @@ def gru_varlen_forward_triton(
             Wr_ptr=reset_weight,
             r_ptr=reset_gate,
             z_ptr=output_update,
-            HAS_INPUT_STATE=has_input_state,
             h_ptr=input_state,
-            h_stride_b=input_state.stride(0) if has_input_state else None,
+            h_stride_b=None if input_state is None else input_state.stride(0),
             y_ptr=output,
             cu_seqlens_ptr=cu_seqlens,
             IS_MAX_SEQLEN_TENSOR=is_max_seqlen_tensor,
