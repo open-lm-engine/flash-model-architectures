@@ -176,7 +176,6 @@ def rnn_varlen_backward_triton(
             max_seqlen_ptr=max_seqlen_tensor if is_max_seqlen_tensor else max_seqlen,
             dx_ptr=input_grad,
             dW_ptr=weight_grad,
-            HAS_GRADIENT_CLIPPING=gradient_clipping is not None,
             gradient_clipping=gradient_clipping,
             ACTIVATION_FUNCTION=activation_function,
             relu_negative_slope=relu_negative_slope,
