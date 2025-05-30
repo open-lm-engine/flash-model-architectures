@@ -352,44 +352,6 @@ struct Options {
         return true;
     }
 
-    /// Prints the usage statement.
-    std::ostream &print_usage(std::ostream &out) const {
-        out << "75_blackwell_grouped_gemm\n\n"
-            << "  Blackwell FP8 Grouped GEMM using a Warp Specialized kernel.\n\n"
-            << "Options:\n\n"
-            << "  --help                                                       If specified, displays this usage "
-               "statement\n\n"
-            << "  --m=<int>                                                    Sets the M extent of the GEMM for all "
-               "groups\n"
-            << "  --n=<int>                                                    Sets the N extent of the GEMM for all "
-               "groups\n"
-            << "  --k=<int>                                                    Sets the K extent of the GEMM for all "
-               "groups\n"
-            << "  --groups=<int>                                               Sets the number of individual GEMM "
-               "problems for Grouped GEMM\n"
-            << "  --alpha=<f32>                                                Epilogue scalar alpha\n"
-            << "  --beta=<f32>                                                 Epilogue scalar beta\n\n"
-            << "  --cluster_m=<int>          and --cluster_n=<int>             Sets the X,Y dims of the preferred "
-               "cluster shape\n"
-            << "  --cluster_fallback_m=<int> and --cluster_fallback_n=<int>    Sets the X,Y dims of the fallback "
-               "cluster shape\n\n"
-            << "  --raster=<char>                                              CTA Rasterization direction (N for "
-               "along N, M for along M)\n\n"
-            << "  --iterations=<int>                                           Number of profiling iterations to "
-               "perform\n\n"
-            << "  --benchmark=<str>                                            Executes a benchmark problem size\n"
-            << "  --max_sm_count=<int>                                         Run kernels using only these number of "
-               "SMs\n"
-            << "  --use_pdl                                                    Launch kernel with PDL (Programmatic "
-               "Dependent Launch) enabled\n";
-
-        out << "\n\nExamples:\n\n"
-            << "$ " << "75_blackwell_grouped_gemm"
-            << " --m=1024 --n=512 --k=1024 --groups=10 --alpha=2 --beta=0.707 \n\n";
-
-        return out;
-    }
-
     /// Compute performance in GFLOP/s
     double gflops(double runtime_s,
                   std::vector<typename ProblemShape::UnderlyingProblemShape> problem_sizes_host) const {
@@ -722,42 +684,14 @@ int run(Options &options, bool host_problem_shapes_available = true) {
 }
 
 int main(int argc, char const **args) {
-    // CUTLASS must be compiled with CUDA 12.8 Toolkit to run this example
-    if (__CUDACC_VER_MAJOR__ < 12 || ((__CUDACC_VER_MAJOR__ == 12 && __CUDACC_VER_MINOR__ < 8))) {
-        std::cerr << "This example requires CUDA 12.8 or newer.\n";
-        // Returning zero so this test passes on older Toolkits. Its actions are no-op.
-        return 0;
-    }
-
-    cudaDeviceProp props;
     int current_device_id;
     CUDA_CHECK(cudaGetDevice(&current_device_id));
-    CUDA_CHECK(cudaGetDeviceProperties(&props, current_device_id));
-    cudaError_t error = cudaGetDeviceProperties(&props, 0);
-    if (!(props.major == 10 && props.minor == 0)) {
-        std::cerr << "This example requires a GPU of NVIDIA's Blackwell Architecture (compute capability 100a).\n";
-        return 0;
-    }
-
-    //
-    // Parse options
-    //
 
     Options options;
-
     options.parse(argc, args);
-
-    if (options.help) {
-        options.print_usage(std::cout) << std::endl;
-        return 0;
-    }
 
     allocate(options);
     initialize(options);
-
-    //
-    // Evaluate CUTLASS kernels
-    //
 
     std::cout << "Running kernel with 1SM MMA config:" << std::endl;
     run<Gemm1SM>(options, false /*host_problem_shapes_available*/);
