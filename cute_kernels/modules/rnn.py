@@ -18,15 +18,11 @@ class RNN(nn.Module):
         num_heads: int,
         add_bias: bool,
         gradient_clipping: float | None,
-        activation_function: str,
-        relu_negative_slope: float | None,
     ) -> None:
         super().__init__()
 
         self.num_heads = num_heads
         self.gradient_clipping = gradient_clipping
-        self.activation_function = activation_function
-        self.relu_negative_slope = relu_negative_slope
         self.state_head_dim = divide_if_divisible(state_size, self.num_heads)
 
         self.input_projection = nn.Linear(input_size, state_size, bias=add_bias)
@@ -56,8 +52,6 @@ class RNN(nn.Module):
             gradient_clipping=self.gradient_clipping,
             cu_seqlens=cu_seqlens,
             max_seqlen=max_seqlen,
-            activation_function=self.activation_function,
-            relu_negative_slope=self.relu_negative_slope,
         )
 
         if cu_seqlens is None:

@@ -249,8 +249,6 @@ class RNNTest(TestCommons):
             num_heads=num_heads,
             add_bias=False,
             gradient_clipping=None,
-            activation_function="tanh",
-            relu_negative_slope=None,
         ).to(device, dtype)
 
         batch_size = 4 if cu_seqlens is None else len(cu_seqlens) - 1

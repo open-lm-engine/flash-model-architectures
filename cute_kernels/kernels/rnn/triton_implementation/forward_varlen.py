@@ -25,8 +25,6 @@ def rnn_varlen_forward_triton_kernel(
     cu_seqlens_ptr,
     IS_MAX_SEQLEN_TENSOR: tl.constexpr,
     max_seqlen_ptr,
-    ACTIVATION_FUNCTION: tl.constexpr,
-    relu_negative_slope,
     B,
     H,
     BLOCK_SIZE_B: tl.constexpr,
@@ -71,8 +69,8 @@ def rnn_varlen_forward_triton_kernel(
             h=h,
             W=W,
             x=tl.load(x_ptr + indices, mask=mask_bh),
-            ACTIVATION_FUNCTION=ACTIVATION_FUNCTION,
-            relu_negative_slope=relu_negative_slope,
+            ACTIVATION_FUNCTION="tanh",
+            relu_negative_slope=None,
         )
 
         tl.store(y_ptr + indices, h, mask=mask)
@@ -90,8 +88,6 @@ def rnn_varlen_forward_triton(
     cu_seqlens: torch.Tensor,
     max_seqlen_tensor: torch.Tensor | None,
     max_seqlen: int | None,
-    activation_function: str,
-    relu_negative_slope: float | None,
 ) -> None:
     B = cu_seqlens.size(0) - 1
     _, N, H = input.size()
@@ -114,8 +110,6 @@ def rnn_varlen_forward_triton(
             cu_seqlens_ptr=cu_seqlens,
             IS_MAX_SEQLEN_TENSOR=is_max_seqlen_tensor,
             max_seqlen_ptr=max_seqlen_tensor if is_max_seqlen_tensor else max_seqlen,
-            ACTIVATION_FUNCTION=activation_function,
-            relu_negative_slope=relu_negative_slope,
             B=B,
             H=H,
             BLOCK_SIZE_H=BLOCK_SIZE_H,

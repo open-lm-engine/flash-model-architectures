@@ -39,8 +39,6 @@ def diagonal_rnn_forward_triton_kernel(
     W_ptr,
     h_ptr,
     y_ptr,
-    ACTIVATION_FUNCTION: tl.constexpr,
-    relu_negative_slope,
     B,
     S,
     N,
@@ -71,8 +69,8 @@ def diagonal_rnn_forward_triton_kernel(
             h=h,
             W=W,
             x=tl.load(x_ptr + indices, mask=mask_bn),
-            ACTIVATION_FUNCTION=ACTIVATION_FUNCTION,
-            relu_negative_slope=relu_negative_slope,
+            ACTIVATION_FUNCTION="tanh",
+            relu_negative_slope=None,
         )
 
         tl.store(y_ptr + indices, h, mask=mask_bn)
@@ -82,12 +80,7 @@ def diagonal_rnn_forward_triton_kernel(
 
 @cute_op(f"{LIBRARY_NAME}::diagonal_rnn_forward_triton", mutates_args={"output"})
 def diagonal_rnn_forward_triton(
-    input: torch.Tensor,
-    weight: torch.Tensor,
-    input_state: torch.Tensor | None,
-    output: torch.Tensor,
-    activation_function: str,
-    relu_negative_slope: float | None,
+    input: torch.Tensor, weight: torch.Tensor, input_state: torch.Tensor | None, output: torch.Tensor
 ) -> None:
     B, S, N, _ = input.size()
 
@@ -101,8 +94,6 @@ def diagonal_rnn_forward_triton(
             W_ptr=weight,
             h_ptr=input_state,
             y_ptr=output,
-            ACTIVATION_FUNCTION=activation_function,
-            relu_negative_slope=relu_negative_slope,
             B=B,
             S=S,
             N=N,

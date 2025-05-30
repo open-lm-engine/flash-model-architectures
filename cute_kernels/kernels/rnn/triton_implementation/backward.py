@@ -77,8 +77,6 @@ def rnn_backward_triton_kernel(
     dx_ptr,
     dW_ptr,
     gradient_clipping,
-    ACTIVATION_FUNCTION: tl.constexpr,
-    relu_negative_slope,
     B,
     S,
     H,
@@ -136,8 +134,8 @@ def rnn_backward_triton_kernel(
             dy=dy,
             dW=dW,
             y_prev=y_prev,
-            ACTIVATION_FUNCTION=ACTIVATION_FUNCTION,
-            relu_negative_slope=relu_negative_slope,
+            ACTIVATION_FUNCTION="tanh",
+            relu_negative_slope=None,
         )
 
         tl.store(dx_ptrs, dx, mask=mask_bh)
@@ -155,8 +153,6 @@ def rnn_backward_triton(
     input_grad: torch.Tensor,
     weight_grad: torch.Tensor,
     gradient_clipping: float | None,
-    activation_function: str,
-    relu_negative_slope: float | None,
 ) -> None:
     B, S, N, H = output.size()
 
@@ -177,8 +173,6 @@ def rnn_backward_triton(
             dx_ptr=input_grad,
             dW_ptr=weight_grad,
             gradient_clipping=gradient_clipping,
-            ACTIVATION_FUNCTION=activation_function,
-            relu_negative_slope=relu_negative_slope,
             B=B,
             S=S,
             H=H,

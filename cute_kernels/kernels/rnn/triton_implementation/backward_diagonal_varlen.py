@@ -46,8 +46,6 @@ def diagonal_rnn_varlen_backward_triton_kernel(
     dx_ptr,
     dW_ptr,
     gradient_clipping,
-    ACTIVATION_FUNCTION: tl.constexpr,
-    relu_negative_slope,
     B,
     N,
     BLOCK_SIZE_B: tl.constexpr,
@@ -116,8 +114,8 @@ def diagonal_rnn_varlen_backward_triton_kernel(
             dy=dy,
             dW=dW,
             y_prev=y_prev,
-            ACTIVATION_FUNCTION=ACTIVATION_FUNCTION,
-            relu_negative_slope=relu_negative_slope,
+            ACTIVATION_FUNCTION="tanh",
+            relu_negative_slope=None,
         )
 
         tl.store(dx_ptrs, dx, mask=mask)
@@ -140,8 +138,6 @@ def diagonal_rnn_varlen_backward_triton(
     max_seqlen_tensor: torch.Tensor | None,
     max_seqlen: int | None,
     gradient_clipping: float | None,
-    activation_function: str,
-    relu_negative_slope: float | None,
 ) -> None:
     N = output.size(1)
     B = cu_seqlens.size(0) - 1
@@ -164,8 +160,6 @@ def diagonal_rnn_varlen_backward_triton(
             dx_ptr=input_grad,
             dW_ptr=weight_grad,
             gradient_clipping=gradient_clipping,
-            ACTIVATION_FUNCTION=activation_function,
-            relu_negative_slope=relu_negative_slope,
             B=B,
             N=N,
             BLOCK_SIZE_N=BLOCK_SIZE_N,
