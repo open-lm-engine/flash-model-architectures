@@ -28,7 +28,6 @@ def _load_x(x_ptr, h, H, BLOCK_SIZE_H, indices_b, mask_b, other=None):
 def softmax_forward_triton_kernel(
     x_ptr,
     output_ptr,
-    HAS_LOGITS_MULTIPLIER: tl.constexpr,
     logits_multiplier,
     B,
     H,
@@ -51,7 +50,7 @@ def softmax_forward_triton_kernel(
         )
 
         x = x.to(tl.float32)
-        if HAS_LOGITS_MULTIPLIER:
+        if logits_multiplier is not None:
             x *= logits_multiplier
 
         prev_m = M
@@ -68,7 +67,7 @@ def softmax_forward_triton_kernel(
         )
 
         x = x.to(tl.float32)
-        if HAS_LOGITS_MULTIPLIER:
+        if logits_multiplier is not None:
             x *= logits_multiplier
 
         x -= M
@@ -93,7 +92,6 @@ def softmax_forward_triton(x: torch.Tensor, output: torch.Tensor, logits_multipl
         softmax_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](
             x_ptr=x,
             output_ptr=output,
-            HAS_LOGITS_MULTIPLIER=logits_multiplier not in [None, 1],
             logits_multiplier=logits_multiplier,
             B=B,
             H=H,

@@ -28,7 +28,6 @@ def _rnn_backward_update(y, W, dy, dW, y_prev, ACTIVATION_FUNCTION: tl.constexpr
 
 @triton.jit
 def _load_previous_output(
-    HAS_INPUT_STATE: tl.constexpr,
     h_ptr,
     y_ptrs,
     N,
@@ -41,10 +40,10 @@ def _load_previous_output(
     dtype,
 ):
     if s == 0:
-        if HAS_INPUT_STATE:
-            y_prev = tl.load(h_ptr + indices_b[:, None] * N + indices_n[None, :], mask=mask_bn)
-        else:
+        if h_ptr is None:
             y_prev = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_N), dtype=dtype)
+        else:
+            y_prev = tl.load(h_ptr + indices_b[:, None] * N + indices_n[None, :], mask=mask_bn)
     else:
         y_prev = tl.load(y_ptrs, mask=mask_bn)
 
@@ -57,12 +56,10 @@ def diagonal_rnn_backward_triton_kernel(
     W_ptr,
     y_ptr,
     y_stride_b,
-    HAS_INPUT_STATE: tl.constexpr,
     h_ptr,
     dy_ptr,
     dx_ptr,
     dW_ptr,
-    HAS_GRADIENT_CLIPPING: tl.constexpr,
     gradient_clipping,
     ACTIVATION_FUNCTION: tl.constexpr,
     relu_negative_slope,
@@ -92,7 +89,7 @@ def diagonal_rnn_backward_triton_kernel(
 
     # backward counting reduces 1 instruction since we need to compare s == 0, otherwise we have to compare s == S - 1
     for s in range(S - 1, -1, -1):
-        if HAS_GRADIENT_CLIPPING:
+        if gradient_clipping is not None:
             dh = clamp(dh, min_value=-gradient_clipping, max_value=gradient_clipping)
 
         dy = tl.load(dy_ptr + indices, mask=mask_bn) + dh
@@ -101,7 +98,6 @@ def diagonal_rnn_backward_triton_kernel(
         indices -= N
 
         y_prev = _load_previous_output(
-            HAS_INPUT_STATE=HAS_INPUT_STATE,
             h_ptr=h_ptr,
             y_ptrs=y_ptr + indices,
             N=N,
@@ -152,12 +148,10 @@ def diagonal_rnn_backward_triton(
             W_ptr=weight,
             y_ptr=output,
             y_stride_b=output.stride(0),
-            HAS_INPUT_STATE=input_state is not None,
             h_ptr=input_state,
             dy_ptr=output_grad,
             dx_ptr=input_grad,
             dW_ptr=weight_grad,
-            HAS_GRADIENT_CLIPPING=gradient_clipping is not None,
             gradient_clipping=gradient_clipping,
             ACTIVATION_FUNCTION=activation_function,
             relu_negative_slope=relu_negative_slope,

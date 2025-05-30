@@ -37,7 +37,6 @@ def diagonal_rnn_forward_triton_kernel(
     x_ptr,
     x_stride_b,
     W_ptr,
-    HAS_INPUT_STATE: tl.constexpr,
     h_ptr,
     y_ptr,
     ACTIVATION_FUNCTION: tl.constexpr,
@@ -60,10 +59,10 @@ def diagonal_rnn_forward_triton_kernel(
 
     W = tl.load(W_ptr + indices_n, mask=mask_n)
 
-    if HAS_INPUT_STATE:
-        h = tl.load(h_ptr + indices_b[:, None] * N + indices_n[None, :], mask=mask_bn)
-    else:
+    if h_ptr is None:
         h = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_N), dtype=x_ptr.dtype.element_ty)
+    else:
+        h = tl.load(h_ptr + indices_b[:, None] * N + indices_n[None, :], mask=mask_bn)
 
     indices = indices_b[:, None] * x_stride_b + indices_n[None, :]
 
@@ -100,7 +99,6 @@ def diagonal_rnn_forward_triton(
             x_ptr=input,
             x_stride_b=input.stride(0),
             W_ptr=weight,
-            HAS_INPUT_STATE=input_state is not None,
             h_ptr=input_state,
             y_ptr=output,
             ACTIVATION_FUNCTION=activation_function,

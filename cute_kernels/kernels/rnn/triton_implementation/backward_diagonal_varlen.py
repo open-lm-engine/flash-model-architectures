@@ -15,7 +15,6 @@ from .backward_diagonal import _get_autotune_configs, _rnn_backward_update
 
 @triton.jit
 def _load_input_state(
-    HAS_INPUT_STATE,
     h_ptr,
     indices_b,
     indices_n,
@@ -25,10 +24,10 @@ def _load_input_state(
     BLOCK_SIZE_N,
     dtype,
 ):
-    if HAS_INPUT_STATE:
-        y_prev = tl.load(h_ptr + indices_b[:, None] * N + indices_n[None, :], mask=mask_bn)
-    else:
+    if h_ptr is None:
         y_prev = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_N), dtype=dtype)
+    else:
+        y_prev = tl.load(h_ptr + indices_b[:, None] * N + indices_n[None, :], mask=mask_bn)
 
     return y_prev
 
@@ -39,7 +38,6 @@ def diagonal_rnn_varlen_backward_triton_kernel(
     W_ptr,
     y_ptr,
     y_stride_t,
-    HAS_INPUT_STATE: tl.constexpr,
     h_ptr,
     dy_ptr,
     cu_seqlens_ptr,
@@ -47,7 +45,6 @@ def diagonal_rnn_varlen_backward_triton_kernel(
     max_seqlen_ptr,
     dx_ptr,
     dW_ptr,
-    HAS_GRADIENT_CLIPPING: tl.constexpr,
     gradient_clipping,
     ACTIVATION_FUNCTION: tl.constexpr,
     relu_negative_slope,
@@ -87,7 +84,7 @@ def diagonal_rnn_varlen_backward_triton_kernel(
 
     # backward counting reduces 1 instruction since we need to compare s == 0, otherwise we have to compare s == S - 1
     for _ in range(max_seqlen - 1, -1, -1):
-        if HAS_GRADIENT_CLIPPING:
+        if gradient_clipping is not None:
             dh = clamp(dh, min_value=-gradient_clipping, max_value=gradient_clipping)
 
         unfinished = end >= start
@@ -101,7 +98,6 @@ def diagonal_rnn_varlen_backward_triton_kernel(
         y_prev = tl.where(
             start == end,
             _load_input_state(
-                HAS_INPUT_STATE=HAS_INPUT_STATE,
                 h_ptr=h_ptr,
                 indices_b=indices_b,
                 indices_n=indices_n,
@@ -153,7 +149,6 @@ def diagonal_rnn_varlen_backward_triton(
     BLOCK_SIZE_N = min(1024, get_next_power_of_2(N))
     GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), ceil_divide(N, meta["BLOCK_SIZE_N"]))
 
-    has_input_state = input_state is not None
     is_max_seqlen_tensor = max_seqlen_tensor is not None
 
     with torch.device(output.device):
@@ -161,15 +156,13 @@ def diagonal_rnn_varlen_backward_triton(
             W_ptr=weight,
             y_ptr=output,
             y_stride_t=output.stride(0),
-            HAS_INPUT_STATE=has_input_state,
-            h_ptr=input_state if has_input_state else None,
+            h_ptr=input_state,
             dy_ptr=output_grad,
             cu_seqlens_ptr=cu_seqlens,
             IS_MAX_SEQLEN_TENSOR=is_max_seqlen_tensor,
             max_seqlen_ptr=max_seqlen_tensor if is_max_seqlen_tensor else max_seqlen,
             dx_ptr=input_grad,
             dW_ptr=weight_grad,
-            HAS_GRADIENT_CLIPPING=gradient_clipping is not None,
             gradient_clipping=gradient_clipping,
             ACTIVATION_FUNCTION=activation_function,
             relu_negative_slope=relu_negative_slope,
