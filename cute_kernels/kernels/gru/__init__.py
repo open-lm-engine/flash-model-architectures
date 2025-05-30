@@ -31,7 +31,7 @@ class _GRU_Cute(torch.autograd.Function):
         max_seqlen: torch.Tensor | int | None,
     ) -> torch.Tensor:
         assert input.dim() in [3, 4]
-        assert weight.dim() in [3, 4, 5]
+        assert weight.dim() == 3
 
         N, H = input.size()[-2:]
         assert weight.size() == (N, H, H)
@@ -108,7 +108,6 @@ class _GRU_Cute(torch.autograd.Function):
         input_grad = torch.empty_like(output)
         forget_input_grad = torch.empty_like(output)
         reset_input_grad = torch.empty_like(output)
-
         weight_grad = torch.zeros_like(weight, dtype=torch.float32)
         forget_weight_grad = torch.zeros_like(weight, dtype=torch.float32)
         reset_weight_grad = torch.zeros_like(weight, dtype=torch.float32)
