@@ -54,8 +54,6 @@ def rnn_forward_triton_kernel(
     h_ptr,
     h_stride_b,
     y_ptr,
-    ACTIVATION_FUNCTION: tl.constexpr,
-    relu_negative_slope,
     B,
     S,
     H,
@@ -89,8 +87,8 @@ def rnn_forward_triton_kernel(
             h=h,
             W=W,
             x=tl.load(x_ptr + indices, mask=mask_bh),
-            ACTIVATION_FUNCTION=ACTIVATION_FUNCTION,
-            relu_negative_slope=relu_negative_slope,
+            ACTIVATION_FUNCTION="tanh",
+            relu_negative_slope=None,
         )
 
         tl.store(y_ptr + indices, h, mask=mask_bh)
@@ -100,12 +98,7 @@ def rnn_forward_triton_kernel(
 
 @cute_op(f"{LIBRARY_NAME}::rnn_forward_triton", mutates_args={"output"})
 def rnn_forward_triton(
-    input: torch.Tensor,
-    weight: torch.Tensor,
-    input_state: torch.Tensor | None,
-    output: torch.Tensor,
-    activation_function: str,
-    relu_negative_slope: float | None,
+    input: torch.Tensor, weight: torch.Tensor, input_state: torch.Tensor | None, output: torch.Tensor
 ) -> None:
     B, S, N, H = input.size()
 
@@ -123,8 +116,6 @@ def rnn_forward_triton(
             h_ptr=input_state,
             h_stride_b=None if input_state is None else input_state.stride(0),
             y_ptr=output,
-            ACTIVATION_FUNCTION=activation_function,
-            relu_negative_slope=relu_negative_slope,
             B=B,
             S=S,
             H=H,

@@ -29,34 +29,19 @@ class _RNN_Cute(torch.autograd.Function):
         gradient_clipping: float | None,
         cu_seqlens: torch.Tensor | None,
         max_seqlen: torch.Tensor | int | None,
-        activation_function: str,
-        relu_negative_slope: float | None,
     ) -> torch.Tensor:
-        assert activation_function in ["leaky_relu", "sigmoid", "tanh"]
         assert input.dim() in [3, 4]
         assert weight.dim() == 3
 
         N, H = input.size()[-2:]
         assert weight.size() == (N, H, H)
 
-        if activation_function == "leaky_relu":
-            assert relu_negative_slope is not None
-        else:
-            assert relu_negative_slope is None
-
         if gradient_clipping is not None and gradient_clipping < 0:
             gradient_clipping = -gradient_clipping
 
         output = torch.empty_like(input)
 
-        kwargs = {
-            "input": input,
-            "weight": weight,
-            "input_state": input_state,
-            "output": output,
-            "activation_function": activation_function,
-            "relu_negative_slope": relu_negative_slope,
-        }
+        kwargs = {"input": input, "weight": weight, "input_state": input_state, "output": output}
 
         if cu_seqlens is None:
             assert max_seqlen is None
@@ -80,8 +65,6 @@ class _RNN_Cute(torch.autograd.Function):
 
         ctx.save_for_backward(weight, output, input_state, cu_seqlens, max_seqlen)
         ctx.gradient_clipping = gradient_clipping
-        ctx.activation_function = activation_function
-        ctx.relu_negative_slope = relu_negative_slope
 
         return output
 
@@ -102,8 +85,6 @@ class _RNN_Cute(torch.autograd.Function):
             "input_grad": input_grad,
             "weight_grad": weight_grad,
             "gradient_clipping": ctx.gradient_clipping,
-            "activation_function": ctx.activation_function,
-            "relu_negative_slope": ctx.relu_negative_slope,
         }
 
         if cu_seqlens is None:
@@ -133,8 +114,6 @@ def rnn_cute(
     gradient_clipping: float | None = None,
     cu_seqlens: torch.Tensor | None = None,
     max_seqlen: torch.Tensor | int | None = None,
-    activation_function: str = "tanh",
-    relu_negative_slope: float | None = None,
 ) -> torch.Tensor:
     """computes multihead RNN recurrent update over the sequence length: tanh(`input_state` @ `weight` + `input`)
 
@@ -148,13 +127,9 @@ def rnn_cute(
             implies no clipping. Defaults to None.
         cu_seqlens (torch.Tensor | None, optional): cumulative sequence length (must contain 0 as first element). Defaults to None.
         max_seqlen (torch.Tensor | int | None, optional): max sequence length in the batch. Defaults to None.
-        activation_function (str): activation function, can be "tanh", "sigmoid" or "leaky_relu". Defaults to "tanh".
-        relu_negative_slope (float): negative slope for leaky_relu. Defaults to "tanh".
 
     Returns:
         torch.Tensor: output tensor of shape (B, S, N, H)
     """
 
-    return _RNN_Cute.apply(
-        input, weight, input_state, gradient_clipping, cu_seqlens, max_seqlen, activation_function, relu_negative_slope
-    )
+    return _RNN_Cute.apply(input, weight, input_state, gradient_clipping, cu_seqlens, max_seqlen)
