@@ -100,7 +100,6 @@ def gru_varlen_backward_triton_kernel(
         y_prev = tl.where(
             start == end,
             _load_input_state(
-                HAS_INPUT_STATE=h_ptr is not None,
                 h_ptr=h_ptr,
                 h_stride_b=h_stride_b,
                 pid_n=pid_n,
@@ -206,7 +205,6 @@ def gru_varlen_backward_triton(
     BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
     GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), N)
 
-    has_input_state = input_state is not None
     is_max_seqlen_tensor = max_seqlen_tensor is not None
 
     with torch.device(output.device):

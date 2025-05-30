@@ -159,7 +159,6 @@ def rnn_varlen_backward_triton(
     BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
     GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), N)
 
-    has_input_state = input_state is not None
     is_max_seqlen_tensor = max_seqlen_tensor is not None
 
     with torch.device(output.device):

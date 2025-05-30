@@ -149,7 +149,6 @@ def diagonal_rnn_varlen_backward_triton(
     BLOCK_SIZE_N = min(1024, get_next_power_of_2(N))
     GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), ceil_divide(N, meta["BLOCK_SIZE_N"]))
 
-    has_input_state = input_state is not None
     is_max_seqlen_tensor = max_seqlen_tensor is not None
 
     with torch.device(output.device):
@@ -157,7 +156,7 @@ def diagonal_rnn_varlen_backward_triton(
             W_ptr=weight,
             y_ptr=output,
             y_stride_t=output.stride(0),
-            h_ptr=input_state if has_input_state else None,
+            h_ptr=input_state,
             dy_ptr=output_grad,
             cu_seqlens_ptr=cu_seqlens,
             IS_MAX_SEQLEN_TENSOR=is_max_seqlen_tensor,
