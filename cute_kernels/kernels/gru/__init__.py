@@ -34,12 +34,7 @@ class _GRU_Cute(torch.autograd.Function):
         assert weight.dim() in [3, 4, 5]
 
         N, H = input.size()[-2:]
-
-        has_input_dependent_weight = weight.dim() >= 4
-        if has_input_dependent_weight:
-            assert weight.size() == input.size()[: input.dim() - 2] + (N, H, H)
-        else:
-            assert weight.size() == (N, H, H)
+        assert weight.size() == (N, H, H)
 
         if gradient_clipping is not None and gradient_clipping < 0:
             gradient_clipping = -gradient_clipping
@@ -68,8 +63,6 @@ class _GRU_Cute(torch.autograd.Function):
             gru_forward_triton(**kwargs)
         else:
             assert max_seqlen is not None
-            assert not has_input_dependent_weight
-
             is_max_seqlen_tensor = isinstance(max_seqlen, torch.Tensor)
 
             gru_varlen_forward_triton(
