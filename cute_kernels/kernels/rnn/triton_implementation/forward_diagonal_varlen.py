@@ -38,7 +38,7 @@ def diagonal_rnn_varlen_forward_triton_kernel(
     mask_n = indices_n < N
     mask_bn = mask_b[:, None] & mask_n[None, :]
 
-    W = tl.load(W_ptr + indices_n, mask=mask_n)
+    W = tl.load(W_ptr + indices_n, mask=mask_n)[None, :]
 
     if h_ptr is None:
         h = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_N), dtype=x_ptr.dtype.element_ty)

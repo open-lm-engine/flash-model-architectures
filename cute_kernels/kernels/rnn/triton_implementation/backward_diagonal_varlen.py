@@ -64,7 +64,7 @@ def diagonal_rnn_varlen_backward_triton_kernel(
     dh = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_N), dtype=W_ptr.dtype.element_ty)
     dW = tl.zeros((BLOCK_SIZE_N,), dtype=tl.float32)
 
-    W = tl.load(W_ptr + indices_n, mask=mask_n)
+    W = tl.load(W_ptr + indices_n, mask=mask_n)[None, :]
 
     cu_seqlens_ptrs = cu_seqlens_ptr + indices_b[:, None]
     start = tl.load(cu_seqlens_ptrs, mask=mask_b[:, None])
