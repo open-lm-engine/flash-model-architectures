@@ -30,13 +30,11 @@ def gru_backward_triton_kernel(
     dxr_ptr,
     dWr_ptr,
     z_ptr,
-    HAS_INPUT_STATE: tl.constexpr,
     h_ptr,
     h_stride_b,
     dy_ptr,
     dx_ptr,
     dW_ptr,
-    HAS_GRADIENT_CLIPPING: tl.constexpr,
     gradient_clipping,
     B,
     S,
@@ -69,7 +67,7 @@ def gru_backward_triton_kernel(
 
     # backward counting reduces 1 instruction since we need to compare s == 0, otherwise we have to compare s == S - 1
     for s in range(S - 1, -1, -1):
-        if HAS_GRADIENT_CLIPPING:
+        if gradient_clipping is not None:
             dh = clamp(dh, min_value=-gradient_clipping, max_value=gradient_clipping)
 
         dy = tl.load(dy_ptr + indices, mask=mask_bh) + dh
@@ -84,7 +82,6 @@ def gru_backward_triton_kernel(
         indices -= y_stride_s
 
         y_prev = _load_previous_output(
-            HAS_INPUT_STATE=HAS_INPUT_STATE,
             h_ptr=h_ptr,
             h_stride_b=h_stride_b,
             y_ptrs=y_ptr + indices,
@@ -200,13 +197,11 @@ def gru_backward_triton(
             dxr_ptr=reset_input_grad,
             dWr_ptr=reset_weight_grad,
             z_ptr=output_update,
-            HAS_INPUT_STATE=input_state is not None,
             h_ptr=input_state,
             h_stride_b=None if input_state is None else input_state.stride(0),
             dy_ptr=output_grad,
             dx_ptr=input_grad,
             dW_ptr=weight_grad,
-            HAS_GRADIENT_CLIPPING=gradient_clipping is not None,
             gradient_clipping=gradient_clipping,
             B=B,
             S=S,
