@@ -164,8 +164,6 @@ def rnn_backward_triton(
     BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
     GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), N)
 
-    has_input_state = input_state is not None
-
     with torch.device(output.device):
         rnn_backward_triton_kernel[GRID](
             W_ptr=weight,
@@ -174,7 +172,7 @@ def rnn_backward_triton(
             y_stride_b=output.stride(0),
             y_stride_s=output.stride(1),
             h_ptr=input_state,
-            h_stride_b=input_state.stride(0) if has_input_state else None,
+            h_stride_b=None if input_state is None else input_state.stride(0),
             dy_ptr=output_grad,
             dx_ptr=input_grad,
             dW_ptr=weight_grad,
