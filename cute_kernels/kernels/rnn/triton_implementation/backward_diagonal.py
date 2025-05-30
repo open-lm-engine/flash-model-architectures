@@ -80,7 +80,7 @@ def diagonal_rnn_backward_triton_kernel(
     dh = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_N), dtype=W_ptr.dtype.element_ty)
     dW = tl.zeros((BLOCK_SIZE_N,), dtype=tl.float32)
 
-    W = tl.load(W_ptr + indices_n, mask=mask_n)
+    W = tl.load(W_ptr + indices_n, mask=mask_n)[None, :]
 
     indices = indices_b[:, None] * y_stride_b + (S - 1) * N + indices_n[None, :]
     y = tl.load(y_ptr + indices, mask=mask_bn)
