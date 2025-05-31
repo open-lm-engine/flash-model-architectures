@@ -176,7 +176,7 @@ void allocate(const std::vector<typename ProblemShape::UnderlyingProblemShape> &
     int64_t total_elements_C = 0;
     int64_t total_elements_D = 0;
 
-    const uint32 num_groups = problem_sizes_host.size();
+    const uint num_groups = problem_sizes_host.size();
 
     for (uint i = 0; i < num_groups; i++) {
         auto problem = problem_sizes_host.at(i);
@@ -215,10 +215,11 @@ void allocate(const std::vector<typename ProblemShape::UnderlyingProblemShape> &
 }
 
 /// Initialize operands to be used in the GEMM and reference GEMM
-void initialize(const uint &num_groups,
-                const float &alpha,
+void initialize(const float &alpha,
                 const float &beta,
                 const std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host) {
+    const uint num_groups = problem_sizes_host.size();
+
     problem_sizes.reset(num_groups);
     problem_sizes.copy_from_host(problem_sizes_host.data());
 
@@ -389,8 +390,6 @@ int main() {
     dim3 cluster_shape_fallback = dim3(2, 1, 1);
     RasterOrderOptions raster_order = RasterOrderOptions::AlongM;
     std::vector<typename ProblemShape::UnderlyingProblemShape> problem_sizes_host;
-    int const tma_alignment_bits = 128;
-    int const alignment = tma_alignment_bits / cutlass::sizeof_bits<ElementA>::value;
 
     problem_sizes_host.reserve(num_groups);
     for (int i = 0; i < num_groups; i++) {
@@ -398,7 +397,7 @@ int main() {
     }
 
     allocate(problem_sizes_host);
-    initialize(num_groups, alpha, beta, problem_sizes_host);
+    initialize(alpha, beta, problem_sizes_host);
 
     const bool host_problem_shapes_available = false;
     const bool use_pdl = false;
