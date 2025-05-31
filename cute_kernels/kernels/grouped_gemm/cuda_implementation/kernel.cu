@@ -146,28 +146,6 @@ cutlass::DeviceAllocation<ElementAccumulator> block_beta;
 using RasterOrderOptions = typename cutlass::gemm::kernel::detail::PersistentTileSchedulerSm100GroupParams<
     typename ProblemShape::UnderlyingProblemShape>::RasterOrderOptions;
 
-// Command line options parsing
-struct Options {
-    float alpha = FLT_MAX;
-    float beta = FLT_MAX;
-    int iterations = 10;
-    int m = 65536, n = 512, k = 4096, groups = 10;
-    dim3 cluster_shape = dim3(4, 2, 1);
-    dim3 cluster_shape_fallback = dim3(2, 1, 1);
-    RasterOrderOptions raster_order = RasterOrderOptions::AlongM;
-    std::vector<typename ProblemShape::UnderlyingProblemShape> problem_sizes_host;
-    int const tma_alignment_bits = 128;
-    int const alignment = tma_alignment_bits / cutlass::sizeof_bits<ElementA>::value;
-
-    void main() {
-        problem_sizes_host.reserve(groups);
-
-        for (int i = groups; i > 0; i--) {
-            problem_sizes_host.push_back({m, n, k});
-        }
-    }
-};
-
 /// Compute performance in GFLOP/s
 double get_gflops(const double &runtime_s,
                   std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host) {
@@ -298,7 +276,6 @@ void initialize(const uint &num_groups,
     block_beta.copy_from_host(beta_host.data());
 }
 
-/// Populates a Gemm::Arguments structure from the given commandline options
 typename Gemm::Arguments args_from_options(
     const uint &num_groups,
     const dim3 &cluster_shape,
@@ -403,11 +380,25 @@ bool verify(const uint &num_groups,
 }
 
 int main() {
-    Options options;
-    options.main();
+    float alpha = FLT_MAX;
+    float beta = FLT_MAX;
+    int iterations = 10;
+    int m = 65536, n = 512, k = 4096, num_groups = 10;
+    dim3 cluster_shape = dim3(4, 2, 1);
+    dim3 cluster_shape_fallback = dim3(2, 1, 1);
+    RasterOrderOptions raster_order = RasterOrderOptions::AlongM;
+    std::vector<typename ProblemShape::UnderlyingProblemShape> problem_sizes_host;
+    int const tma_alignment_bits = 128;
+    int const alignment = tma_alignment_bits / cutlass::sizeof_bits<ElementA>::value;
 
-    allocate(options.groups, options.problem_sizes_host);
-    initialize(options.groups, options.alpha, options.beta, options.problem_sizes_host);
+    problem_sizes_host.reserve(num_groups);
+
+    for (int i = num_groups; i > 0; i--) {
+        problem_sizes_host.push_back({m, n, k});
+    }
+
+    allocate(num_groups, problem_sizes_host);
+    initialize(num_groups, alpha, beta, problem_sizes_host);
 
     const bool host_problem_shapes_available = false;
     const bool use_pdl = false;
@@ -416,13 +407,13 @@ int main() {
     Gemm gemm;
 
     // Create a structure of gemm kernel arguments suitable for invoking an instance of Gemm
-    Gemm::Arguments arguments = args_from_options(options.groups,
-                                                  options.cluster_shape,
-                                                  options.cluster_shape_fallback,
-                                                  options.alpha,
-                                                  options.beta,
-                                                  options.raster_order,
-                                                  options.problem_sizes_host,
+    Gemm::Arguments arguments = args_from_options(num_groups,
+                                                  cluster_shape,
+                                                  cluster_shape_fallback,
+                                                  alpha,
+                                                  beta,
+                                                  raster_order,
+                                                  problem_sizes_host,
                                                   host_problem_shapes_available);
 
     // Using the arguments, query for extra workspace required for matrix multiplication computation
@@ -441,15 +432,15 @@ int main() {
     CUTLASS_CHECK(gemm.run(/* stream = */ nullptr, /* cuda_adapter = */ nullptr, /* launch_with_pdl = */ use_pdl));
 
     // Check if output from CUTLASS kernel and reference kernel are equal or not
-    const bool passed = verify(options.groups, options.problem_sizes_host);
+    const bool passed = verify(num_groups, problem_sizes_host);
 
     std::cout << "  Disposition: " << (passed ? "Passed" : "Failed") << std::endl;
 
     // Run profiling loop
-    if (options.iterations > 0) {
+    if (iterations > 0) {
         GpuTimer timer;
         timer.start();
-        for (int iter = 0; iter < options.iterations; ++iter) {
+        for (int iter = 0; iter < iterations; ++iter) {
             CUTLASS_CHECK(gemm.initialize(arguments, workspace.get()));
             CUTLASS_CHECK(gemm.run(
                 /* stream = */ nullptr, /* cuda_adapter = */ nullptr, /* launch_with_pdl = */ use_pdl));
@@ -457,8 +448,7 @@ int main() {
         timer.stop();
 
         // Compute average setup and runtime and GFLOPs.
-        double gflops = get_gflops(double(timer.elapsed_millis()) / double(options.iterations) / 1000.0,
-                                   options.problem_sizes_host);
+        double gflops = get_gflops(double(timer.elapsed_millis()) / double(iterations) / 1000.0, problem_sizes_host);
         std::cout << "  TFLOPS      : " << gflops / 1000.0 << std::endl;
     }
 
