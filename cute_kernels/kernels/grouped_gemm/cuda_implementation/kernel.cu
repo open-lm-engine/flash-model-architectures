@@ -33,35 +33,6 @@
  *
  **************************************************************************************************/
 
-/*! \file
-    \brief Grouped GEMM example using CUTLASS 3 APIs for the NVIDIA Blackwell SM100 architecture.
-
-    This example demonstrates an implementation of Grouped GEMM using a TMA + Blackwell SM100 TensorOp-based
-   warp-specialized kernel. For this example all scheduling work is performed on the device. The new feature showcased
-   in this example is device-side modification of TMA descriptors to move between groups/problem_count (represented by
-   groups). https://docs.nvidia.com/cuda/cuda-c-programming-guide/#encoding-a-tensor-map-on-device
-
-    To run this example:
-
-      $ ./examples/75_blackwell_grouped_gemm/75_blackwell_grouped_gemm --m=2048 --n=2048 --k=2048 --groups=10
-
-      The above example command makes all 10 groups to be sized at the given m, n, k sizes.
-      Skipping any of the problem dimensions randomizes it across the different groups.
-      Same applies for alpha and beta values that are randomized across the different groups.
-
-    To run this example for a set of problems using the benchmark option:
-
-      $ ./examples/75_blackwell_grouped_gemm/75_blackwell_grouped_gemm --benchmark=./test_benchmark.txt
-
-      Where the test_benchmark.txt may look as such:
-        0 256x512x128
-        1 256x512x512
-        2 512x256x128
-        3 256x256x128
-        4 256x512x1024
-        5 1024x512x128 and so on
-*/
-
 #include <float.h>
 
 #include <fstream>
@@ -89,35 +60,28 @@
 #include "cutlass/util/reference/device/tensor_fill.h"
 #include "cutlass/util/tensor_view_io.h"
 #include "helper.h"
+
 using namespace cute;
 
 using ProblemShape = cutlass::gemm::GroupProblemShape<Shape<int, int, int>>;  // <M,N,K> per group
-using ElementA = cutlass::float_e4m3_t;                                       // Element type for A matrix operand
-using ElementB = cutlass::float_e4m3_t;                                       // Element type for B matrix operand
-using ElementC = cutlass::half_t;  // Element type for C and D matrix operands
 
-// A matrix configuration
-using LayoutA = cutlass::layout::RowMajor;  // Layout type for A matrix operand
-constexpr int AlignmentA =
-    128 / cutlass::sizeof_bits<ElementA>::value;  // Alignment of A matrix in units of elements (up to 16 bytes)
+using ElementA = cutlass::bfloat16_t;
+using ElementB = cutlass::bfloat16_t;
+using ElementC = cutlass::bfloat16_t;
+using ElementAccumulator = float;
 
-// B matrix configuration
-using LayoutB = cutlass::layout::ColumnMajor;  // Layout type for B matrix operand
-constexpr int AlignmentB =
-    128 / cutlass::sizeof_bits<ElementB>::value;  // Alignment of B matrix in units of elements (up to 16 bytes)
+using LayoutA = cutlass::layout::RowMajor;
+using LayoutB = cutlass::layout::ColumnMajor;
+using LayoutC = cutlass::layout::ColumnMajor;
 
-// C/D matrix configuration
-using LayoutC = cutlass::layout::ColumnMajor;  // Layout type for C and D matrix operands
-constexpr int AlignmentC =
-    128 / cutlass::sizeof_bits<ElementC>::value;  // Alignment of C matrix in units of elements (up to 16 bytes)
+constexpr int AlignmentA = 128 / cutlass::sizeof_bits<ElementA>::value;
+constexpr int AlignmentB = 128 / cutlass::sizeof_bits<ElementB>::value;
+constexpr int AlignmentC = 128 / cutlass::sizeof_bits<ElementC>::value;
 
-// Core kernel configurations
-using ElementAccumulator = float;      // Element type for internal accumulation
-using ArchTag = cutlass::arch::Sm100;  // Tag indicating the minimum SM that supports the intended feature
-using OperatorClass = cutlass::arch::OpClassTensorOp;              // Operator class tag
-using StageCountType = cutlass::gemm::collective::StageCountAuto;  // Stage count maximized based on the tile size
+using ArchTag = cutlass::arch::Sm100;
+using OperatorClass = cutlass::arch::OpClassTensorOp;
+using StageCountType = cutlass::gemm::collective::StageCountAuto;
 
-// Runtime Cluster Shape
 using ClusterShape = Shape<int32_t, int32_t, _1>;
 
 // Different configs for 1SM and 2SM MMA kernel
@@ -173,11 +137,9 @@ struct GivenGemmSchedule {
     using Gemm = cutlass::gemm::device::GemmUniversalAdapter<GemmKernel>;
 };
 
-using GemmKernel1SM = GivenGemmSchedule<MMA1SMConfig>::GemmKernel;
 using Gemm1SM = GivenGemmSchedule<MMA1SMConfig>::Gemm;
 using Gemm = Gemm1SM;
 
-using GemmKernel2SM = GivenGemmSchedule<MMA2SMConfig>::GemmKernel;
 using Gemm2SM = GivenGemmSchedule<MMA2SMConfig>::Gemm;
 
 // Reference device GEMM implementation type
@@ -693,10 +655,7 @@ int main(int argc, char const **args) {
     allocate(options);
     initialize(options);
 
-    std::cout << "Running kernel with 1SM MMA config:" << std::endl;
-    run<Gemm1SM>(options, false /*host_problem_shapes_available*/);
-    std::cout << "Running kernel with 2SM MMA config:" << std::endl;
-    run<Gemm2SM>(options, false /*host_problem_shapes_available*/);
+    run<Gemm2SM>(options, false);
 
     return 0;
 }
