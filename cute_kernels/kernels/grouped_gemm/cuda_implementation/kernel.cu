@@ -103,7 +103,7 @@ using CollectiveEpilogue = typename cutlass::epilogue::collective::CollectiveBui
     ElementC,
     LayoutC *,
     AlignmentC,
-    typename EpilogueSchedule,
+    EpilogueSchedule,
     cutlass::epilogue::fusion::LinearCombination<ElementC, ElementAccumulator>>::CollectiveOp;
 
 using CollectiveMainloop = typename cutlass::gemm::collective::CollectiveBuilder<
@@ -120,7 +120,7 @@ using CollectiveMainloop = typename cutlass::gemm::collective::CollectiveBuilder
     ClusterShape,
     cutlass::gemm::collective::StageCountAutoCarveout<static_cast<int>(
         sizeof(typename CollectiveEpilogue::SharedStorage))>,
-    typename KernelSchedule>::CollectiveOp;
+    KernelSchedule>::CollectiveOp;
 
 using GemmKernel = cutlass::gemm::kernel::GemmUniversal<ProblemShape, CollectiveMainloop, CollectiveEpilogue>;
 using Gemm = cutlass::gemm::device::GemmUniversalAdapter<GemmKernel>;
@@ -563,8 +563,6 @@ bool verify(const Options &options) {
     return passed;
 }
 
-/// Execute a given example GEMM computation
-template <typename Gemm>
 int run(Options &options, bool host_problem_shapes_available = true) {
     std::cout << "  Problem Sizes, Alpha, Beta " << std::endl;
     for (int32_t i = 0; i < options.groups; ++i) {
@@ -638,7 +636,7 @@ int main(int argc, char const **args) {
     allocate(options);
     initialize(options);
 
-    run<Gemm>(options, false);
+    run(options, false);
 
     return 0;
 }
