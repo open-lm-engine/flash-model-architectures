@@ -28,6 +28,11 @@
 #include "cutlass/util/reference/device/tensor_compare.h"
 #include "cutlass/util/reference/device/tensor_fill.h"
 #include "cutlass/util/tensor_view_io.h"
+#include "include/cute_kernels.h"
+
+namespace ck = cute_kernels;
+
+using uint32 = ck::uint32;
 
 struct GpuTimer {
     cudaStream_t _stream_id;
@@ -200,9 +205,9 @@ void allocate(const std::vector<typename ProblemShape::UnderlyingProblemShape> &
     int64_t total_elements_B = 0;
     int64_t total_elements_C = 0;
 
-    const uint num_groups = problem_sizes_host.size();
+    const uint32 E = problem_sizes_host.size();
 
-    for (uint i = 0; i < num_groups; i++) {
+    for (uint32 i = 0; i < E; i++) {
         auto problem = problem_sizes_host.at(i);
         auto M = get<0>(problem);
         auto N = get<1>(problem);
@@ -238,45 +243,45 @@ void allocate(const std::vector<typename ProblemShape::UnderlyingProblemShape> &
 void initialize(const float &alpha,
                 const float &beta,
                 const std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host) {
-    const uint num_groups = problem_sizes_host.size();
+    const uint32 E = problem_sizes_host.size();
 
-    problem_sizes.reset(num_groups);
+    problem_sizes.reset(E);
     problem_sizes.copy_from_host(problem_sizes_host.data());
 
-    std::vector<ElementA *> ptr_A_host(num_groups);
-    std::vector<ElementB *> ptr_B_host(num_groups);
-    std::vector<ElementC *> ptr_C_host(num_groups);
-    std::vector<ElementC *> ptr_D_host(num_groups);
+    std::vector<ElementA *> ptr_A_host(E);
+    std::vector<ElementB *> ptr_B_host(E);
+    std::vector<ElementC *> ptr_C_host(E);
+    std::vector<ElementC *> ptr_D_host(E);
 
-    for (int32_t i = 0; i < num_groups; ++i) {
+    for (uint32 i = 0; i < E; ++i) {
         ptr_A_host.at(i) = block_A.get() + offset_A.at(i);
         ptr_B_host.at(i) = block_B.get() + offset_B.at(i);
         ptr_C_host.at(i) = block_C.get() + offset_C.at(i);
         ptr_D_host.at(i) = block_D.get() + offset_D.at(i);
     }
 
-    ptr_A.reset(num_groups);
+    ptr_A.reset(E);
     ptr_A.copy_from_host(ptr_A_host.data());
 
-    ptr_B.reset(num_groups);
+    ptr_B.reset(E);
     ptr_B.copy_from_host(ptr_B_host.data());
 
-    ptr_C.reset(num_groups);
+    ptr_C.reset(E);
     ptr_C.copy_from_host(ptr_C_host.data());
 
-    ptr_D.reset(num_groups);
+    ptr_D.reset(E);
     ptr_D.copy_from_host(ptr_D_host.data());
 
-    stride_A.reset(num_groups);
+    stride_A.reset(E);
     stride_A.copy_from_host(stride_A_host.data());
 
-    stride_B.reset(num_groups);
+    stride_B.reset(E);
     stride_B.copy_from_host(stride_B_host.data());
 
-    stride_C.reset(num_groups);
+    stride_C.reset(E);
     stride_C.copy_from_host(stride_C_host.data());
 
-    stride_D.reset(num_groups);
+    stride_D.reset(E);
     stride_D.copy_from_host(stride_D_host.data());
 
     initialize_block(block_A, 2023);
@@ -285,7 +290,7 @@ void initialize(const float &alpha,
 }
 
 typename Gemm::Arguments args_from_options(
-    const uint &num_groups,
+    const uint32 &E,
     const dim3 &cluster_shape,
     const dim3 &cluster_shape_fallback,
     const float &alpha,
@@ -323,7 +328,7 @@ typename Gemm::Arguments args_from_options(
     scheduler.raster_order = raster_order;
 
     arguments = typename Gemm::Arguments{cutlass::gemm::GemmUniversalMode::kGrouped,
-                                         {static_cast<int>(num_groups),
+                                         {static_cast<int>(E),
                                           problem_sizes.get(),
                                           host_problem_shapes_available ? problem_sizes_host.data() : nullptr},
                                          {ptr_A.get(), stride_A.get(), ptr_B.get(), stride_B.get()},
@@ -337,10 +342,10 @@ typename Gemm::Arguments args_from_options(
 bool verify(const float &alpha,
             const float &beta,
             const std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host) {
-    const uint num_groups = problem_sizes_host.size();
+    const uint32 E = problem_sizes_host.size();
 
     bool passed = true;
-    for (int32_t i = 0; i < num_groups; ++i) {
+    for (uint32 i = 0; i < E; ++i) {
         auto problem = problem_sizes_host.at(i);
         auto M = get<0>(problem);
         auto N = get<1>(problem);
@@ -371,15 +376,17 @@ void grouped_gemm_cuda(const torch::Tensor &A,
                        const torch::Tensor &output,
                        const float &alpha,
                        const float &beta) {
+    const uint32 E = A.size(0);
+
     int iterations = 10;
-    int m = 65536, n = 512, k = 4096, num_groups = 10;
+    int m = 65536, n = 512, k = 4096;
     dim3 cluster_shape = dim3(4, 2, 1);
     dim3 cluster_shape_fallback = dim3(2, 1, 1);
     RasterOrderOptions raster_order = RasterOrderOptions::AlongM;
     std::vector<typename ProblemShape::UnderlyingProblemShape> problem_sizes_host;
 
-    problem_sizes_host.reserve(num_groups);
-    for (int i = 0; i < num_groups; i++) {
+    problem_sizes_host.reserve(E);
+    for (int i = 0; i < E; i++) {
         problem_sizes_host.push_back({m, n, k});
     }
 
@@ -393,7 +400,7 @@ void grouped_gemm_cuda(const torch::Tensor &A,
     Gemm gemm;
 
     // Create a structure of gemm kernel arguments suitable for invoking an instance of Gemm
-    Gemm::Arguments arguments = args_from_options(num_groups,
+    Gemm::Arguments arguments = args_from_options(E,
                                                   cluster_shape,
                                                   cluster_shape_fallback,
                                                   alpha,
