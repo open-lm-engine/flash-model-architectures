@@ -370,7 +370,7 @@ bool verify(const std::vector<typename ProblemShape::UnderlyingProblemShape> &pr
                        ref_D);
 
         // Wait for kernel to finish
-        CUDA_CHECK(cudaDeviceSynchronize());
+        cudaDeviceSynchronize();
 
         // Check if output from CUTLASS kernel and reference kernel are equal or not
         passed &= cutlass::reference::device::BlockCompareEqual(
@@ -420,13 +420,13 @@ void oops() {
     cutlass::device_memory::allocation<uint8_t> workspace(workspace_size);
 
     // Check if the problem size is supported or not
-    CUTLASS_CHECK(gemm.can_implement(arguments));
+    gemm.can_implement(arguments);
 
     // Initialize CUTLASS kernel with arguments and workspace pointer
-    CUTLASS_CHECK(gemm.initialize(arguments, workspace.get()));
+    gemm.initialize(arguments, workspace.get());
 
     // Correctness / Warmup iteration
-    CUTLASS_CHECK(gemm.run(/* stream = */ nullptr, /* cuda_adapter = */ nullptr, /* launch_with_pdl = */ use_pdl));
+    gemm.run(/* stream = */ nullptr, /* cuda_adapter = */ nullptr, /* launch_with_pdl = */ use_pdl);
 
     // Check if output from CUTLASS kernel and reference kernel are equal or not
     const bool passed = verify(problem_sizes_host);
@@ -438,9 +438,9 @@ void oops() {
         GpuTimer timer;
         timer.start();
         for (int iter = 0; iter < iterations; ++iter) {
-            CUTLASS_CHECK(gemm.initialize(arguments, workspace.get()));
-            CUTLASS_CHECK(gemm.run(
-                /* stream = */ nullptr, /* cuda_adapter = */ nullptr, /* launch_with_pdl = */ use_pdl));
+            gemm.initialize(arguments, workspace.get());
+            gemm.run(
+                /* stream = */ nullptr, /* cuda_adapter = */ nullptr, /* launch_with_pdl = */ use_pdl);
         }
         timer.stop();
 
