@@ -379,7 +379,7 @@ bool verify(const std::vector<typename ProblemShape::UnderlyingProblemShape> &pr
     return passed;
 }
 
-void main() {
+void oops() {
     float alpha = FLT_MAX;
     float beta = FLT_MAX;
     int iterations = 10;

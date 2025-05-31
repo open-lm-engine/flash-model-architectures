@@ -4,6 +4,6 @@
 
 #include <torch/extension.h>
 
-void main();
+void oops();
 
-PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) { m.def("main", &main, "main GEMM (CUDA)"); }
+PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) { m.def("oops", &oops, "oops GEMM (CUDA)"); }
