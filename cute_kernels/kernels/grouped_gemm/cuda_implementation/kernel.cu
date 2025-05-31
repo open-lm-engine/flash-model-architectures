@@ -191,10 +191,12 @@ struct Options {
     int const tma_alignment_bits = 128;
     int const alignment = tma_alignment_bits / cutlass::sizeof_bits<ElementA>::value;
 
-    problem_sizes_host.reserve(groups);
+    void main() {
+        problem_sizes_host.reserve(groups);
 
-    for (int i = groups; i > 0; i--) {
-        problem_sizes_host.push_back({m, n, k});
+        for (int i = groups; i > 0; i--) {
+            problem_sizes_host.push_back({m, n, k});
+        }
     }
 
     /// Compute performance in GFLOP/s
@@ -337,6 +339,7 @@ void initialize(const Options &options) {
     initialize_block(block_A, seed + 2023);
     initialize_block(block_B, seed + 2022);
     initialize_block(block_C, seed + 2021);
+
     block_alpha.copy_from_host(alpha_host.data());
     block_beta.copy_from_host(beta_host.data());
 }
@@ -450,19 +453,13 @@ int main(int argc, char const **args) {
     CUDA_CHECK(cudaGetDevice(&current_device_id));
 
     Options options;
+    options.main();
 
     allocate(options);
     initialize(options);
 
     const bool host_problem_shapes_available = false;
     const bool use_pdl = false;
-
-    std::cout << "  Problem Sizes, Alpha, Beta " << std::endl;
-    for (int32_t i = 0; i < options.groups; ++i) {
-        std::cout << "    " << options.problem_sizes_host.at(i);
-        std::cout << ", " << alpha_host.at(i) << ", " << beta_host.at(i) << std::endl;
-    }
-    std::cout << "  Groups      : " << options.groups << std::endl;
 
     // Instantiate CUTLASS kernel depending on templates
     Gemm gemm;
