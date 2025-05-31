@@ -186,7 +186,6 @@ struct Options {
     dim3 cluster_shape_fallback = dim3(2, 1, 1);
     RasterOrderOptions raster_order = RasterOrderOptions::AlongM;
     int max_sm_count = INT_MAX;
-    std::string benchmark_path;
     std::vector<typename ProblemShape::UnderlyingProblemShape> problem_sizes_host;
     int const tma_alignment_bits = 128;
     int const alignment = tma_alignment_bits / cutlass::sizeof_bits<ElementA>::value;
@@ -202,22 +201,13 @@ struct Options {
         cmd.get_cmd_line_argument("alpha", alpha, FLT_MAX);
         cmd.get_cmd_line_argument("beta", beta, FLT_MAX);
         cmd.get_cmd_line_argument("iterations", iterations);
-        cmd.get_cmd_line_argument("benchmark", benchmark_path);
         cmd.get_cmd_line_argument("cluster_m", cluster_shape.x);
         cmd.get_cmd_line_argument("cluster_n", cluster_shape.y);
         cmd.get_cmd_line_argument("cluster_fallback_m", cluster_shape_fallback.x);
         cmd.get_cmd_line_argument("cluster_fallback_n", cluster_shape_fallback.y);
         cmd.get_cmd_line_argument("max_sm_count", max_sm_count, INT_MAX);
 
-        // Decide how to initialize the problems
-        if (!benchmark_path.empty()) {
-            if (!benchmark_problems()) {
-                problem_sizes_host.clear();
-                return;
-            }
-        } else {
-            randomize_problems(cmd);
-        }
+        randomize_problems(cmd);
 
         char raster_char;
         cmd.get_cmd_line_argument("raster", raster_char);
