@@ -299,13 +299,15 @@ void initialize(const uint &num_groups,
 }
 
 /// Populates a Gemm::Arguments structure from the given commandline options
-typename Gemm::Arguments args_from_options(const uint &num_groups,
-                                           const dim3 &cluster_shape,
-                                           const dim3 &cluster_shape_fallback,
-                                           const float &alpha,
-                                           const float &beta,
-                                           const RasterOrderOptions &raster_order,
-                                           bool host_problem_shapes_available = true) {
+typename Gemm::Arguments args_from_options(
+    const uint &num_groups,
+    const dim3 &cluster_shape,
+    const dim3 &cluster_shape_fallback,
+    const float &alpha,
+    const float &beta,
+    const RasterOrderOptions &raster_order,
+    const std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host,
+    bool host_problem_shapes_available = true) {
     cutlass::KernelHardwareInfo hw_info;
     cudaGetDevice(&hw_info.device_id);
     cudaDeviceGetAttribute(&hw_info.sm_count, cudaDevAttrMultiProcessorCount, hw_info.device_id);
@@ -356,7 +358,7 @@ typename Gemm::Arguments args_from_options(const uint &num_groups,
     arguments = typename Gemm::Arguments{cutlass::gemm::GemmUniversalMode::kGrouped,
                                          {static_cast<int>(num_groups),
                                           problem_sizes.get(),
-                                          host_problem_shapes_available ? options.problem_sizes_host.data() : nullptr},
+                                          host_problem_shapes_available ? problem_sizes_host.data() : nullptr},
                                          {ptr_A.get(), stride_A.get(), ptr_B.get(), stride_B.get()},
                                          {fusion_args, ptr_C.get(), stride_C.get(), ptr_D.get(), stride_D.get()},
                                          hw_info,
@@ -413,13 +415,14 @@ int main() {
     Gemm gemm;
 
     // Create a structure of gemm kernel arguments suitable for invoking an instance of Gemm
-    auto arguments = args_from_options(options.groups,
-                                       options.cluster_shape,
-                                       options.cluster_shape_fallback,
-                                       options.alpha,
-                                       options.beta,
-                                       options.raster_order,
-                                       host_problem_shapes_available);
+    Gemm::Arguments arguments = args_from_options(options.groups,
+                                                  options.cluster_shape,
+                                                  options.cluster_shape_fallback,
+                                                  options.alpha,
+                                                  options.beta,
+                                                  options.raster_order,
+                                                  options.problem_sizes_host,
+                                                  host_problem_shapes_available);
 
     // Using the arguments, query for extra workspace required for matrix multiplication computation
     size_t workspace_size = Gemm::get_workspace_size(arguments);
