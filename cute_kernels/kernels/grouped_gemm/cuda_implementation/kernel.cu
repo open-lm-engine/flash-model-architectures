@@ -379,7 +379,7 @@ bool verify(const std::vector<typename ProblemShape::UnderlyingProblemShape> &pr
     return passed;
 }
 
-int main() {
+void main() {
     float alpha = FLT_MAX;
     float beta = FLT_MAX;
     int iterations = 10;
@@ -448,6 +448,4 @@ int main() {
         double gflops = get_gflops(double(timer.elapsed_millis()) / double(iterations) / 1000.0, problem_sizes_host);
         std::cout << "  TFLOPS      : " << gflops / 1000.0 << std::endl;
     }
-
-    return 0;
 }
