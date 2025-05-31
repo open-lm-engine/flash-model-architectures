@@ -302,7 +302,9 @@ void initialize(const uint &num_groups,
 typename Gemm::Arguments args_from_options(const uint &num_groups,
                                            const dim3 &cluster_shape,
                                            const dim3 &cluster_shape_fallback,
-                                           Options &options,
+                                           const float &alpha,
+                                           const float &beta,
+                                           const RasterOrderOptions &raster_order,
                                            bool host_problem_shapes_available = true) {
     cutlass::KernelHardwareInfo hw_info;
     cudaGetDevice(&hw_info.device_id);
@@ -324,9 +326,9 @@ typename Gemm::Arguments args_from_options(const uint &num_groups,
 
     // If alpha/beta are provided (via cmd line args) and are scalar, then same alpha/beta applies to all batches.
     // If pointers to alpha/beta are provided, then alpha/beta can differ between batches/groups.
-    if (options.alpha != FLT_MAX) {
+    if (alpha != FLT_MAX) {
         // Single alpha for all groups
-        fusion_args.alpha = options.alpha;
+        fusion_args.alpha = alpha;
         fusion_args.alpha_ptr_array = nullptr;
         fusion_args.dAlpha = {_0{}, _0{}, 0};
     } else {
@@ -336,9 +338,9 @@ typename Gemm::Arguments args_from_options(const uint &num_groups,
         fusion_args.dAlpha = {_0{}, _0{}, 1};
     }
 
-    if (options.beta != FLT_MAX) {
+    if (beta != FLT_MAX) {
         // Single beta for all groups
-        fusion_args.beta = options.beta;
+        fusion_args.beta = beta;
         fusion_args.beta_ptr_array = nullptr;
         fusion_args.dBeta = {_0{}, _0{}, 0};
     } else {
@@ -349,7 +351,7 @@ typename Gemm::Arguments args_from_options(const uint &num_groups,
     }
 
     typename Gemm::GemmKernel::TileSchedulerArguments scheduler;
-    scheduler.raster_order = options.raster_order;
+    scheduler.raster_order = raster_order;
 
     arguments = typename Gemm::Arguments{cutlass::gemm::GemmUniversalMode::kGrouped,
                                          {static_cast<int>(num_groups),
@@ -411,8 +413,13 @@ int main() {
     Gemm gemm;
 
     // Create a structure of gemm kernel arguments suitable for invoking an instance of Gemm
-    auto arguments = args_from_options(
-        options.groups, options.cluster_shape, options.cluster_shape_fallback, options, host_problem_shapes_available);
+    auto arguments = args_from_options(options.groups,
+                                       options.cluster_shape,
+                                       options.cluster_shape_fallback,
+                                       options.alpha,
+                                       options.beta,
+                                       options.raster_order,
+                                       host_problem_shapes_available);
 
     // Using the arguments, query for extra workspace required for matrix multiplication computation
     size_t workspace_size = Gemm::get_workspace_size(arguments);
