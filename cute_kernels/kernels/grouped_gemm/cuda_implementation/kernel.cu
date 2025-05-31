@@ -186,7 +186,6 @@ struct Options {
     dim3 cluster_shape = dim3(4, 2, 1);
     dim3 cluster_shape_fallback = dim3(2, 1, 1);
     RasterOrderOptions raster_order = RasterOrderOptions::AlongM;
-    int max_sm_count = INT_MAX;
     std::vector<typename ProblemShape::UnderlyingProblemShape> problem_sizes_host;
     int const tma_alignment_bits = 128;
     int const alignment = tma_alignment_bits / cutlass::sizeof_bits<ElementA>::value;
@@ -332,11 +331,8 @@ void initialize(const Options &options) {
 /// Populates a Gemm::Arguments structure from the given commandline options
 typename Gemm::Arguments args_from_options(Options &options, bool host_problem_shapes_available = true) {
     cutlass::KernelHardwareInfo hw_info;
-    // Change device_id to another value if you are running on a machine with multiple GPUs and wish
-    // to use a GPU other than that with device ID 0.
-    hw_info.device_id = 0;
-    hw_info.sm_count =
-        min(cutlass::KernelHardwareInfo::query_device_multiprocessor_count(hw_info.device_id), options.max_sm_count);
+    cudaGetDevice(&hw_info.device_id);
+    cudaDeviceGetAttribute(&hw_info.sm_count, cudaDevAttrMultiProcessorCount, hw_info.device_id);
 
     if (!is_static_v<ClusterShape>) {
         if (size<0>(typename Gemm::GemmKernel::CollectiveMainloop::AtomThrShapeMNK{}) == 2 &&
@@ -365,6 +361,7 @@ typename Gemm::Arguments args_from_options(Options &options, bool host_problem_s
         // Only one alpha per each group
         fusion_args.dAlpha = {_0{}, _0{}, 1};
     }
+
     if (options.beta != FLT_MAX) {
         // Single beta for all groups
         fusion_args.beta = options.beta;
@@ -380,21 +377,14 @@ typename Gemm::Arguments args_from_options(Options &options, bool host_problem_s
     typename Gemm::GemmKernel::TileSchedulerArguments scheduler;
     scheduler.raster_order = options.raster_order;
 
-    if (host_problem_shapes_available) {
-        arguments = typename Gemm::Arguments{cutlass::gemm::GemmUniversalMode::kGrouped,
-                                             {options.groups, problem_sizes.get(), options.problem_sizes_host.data()},
-                                             {ptr_A.get(), stride_A.get(), ptr_B.get(), stride_B.get()},
-                                             {fusion_args, ptr_C.get(), stride_C.get(), ptr_D.get(), stride_D.get()},
-                                             hw_info,
-                                             scheduler};
-    } else {
-        arguments = typename Gemm::Arguments{cutlass::gemm::GemmUniversalMode::kGrouped,
-                                             {options.groups, problem_sizes.get(), nullptr},
-                                             {ptr_A.get(), stride_A.get(), ptr_B.get(), stride_B.get()},
-                                             {fusion_args, ptr_C.get(), stride_C.get(), ptr_D.get(), stride_D.get()},
-                                             hw_info,
-                                             scheduler};
-    }
+    arguments = typename Gemm::Arguments{cutlass::gemm::GemmUniversalMode::kGrouped,
+                                         {options.groups,
+                                          problem_sizes.get(),
+                                          host_problem_shapes_available ? options.problem_sizes_host.data() : nullptr},
+                                         {ptr_A.get(), stride_A.get(), ptr_B.get(), stride_B.get()},
+                                         {fusion_args, ptr_C.get(), stride_C.get(), ptr_D.get(), stride_D.get()},
+                                         hw_info,
+                                         scheduler};
 
     return arguments;
 }
@@ -434,9 +424,6 @@ bool verify(const Options &options) {
 }
 
 int main(int argc, char const **args) {
-    int current_device_id;
-    CUDA_CHECK(cudaGetDevice(&current_device_id));
-
     Options options;
     options.main();
 
