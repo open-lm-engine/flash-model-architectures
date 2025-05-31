@@ -146,9 +146,6 @@ std::vector<StrideB> stride_B_host;
 std::vector<StrideC> stride_C_host;
 std::vector<StrideD> stride_D_host;
 
-std::vector<ElementAccumulator> alpha_host;
-std::vector<ElementAccumulator> beta_host;
-
 // Device-side allocations
 cutlass::DeviceAllocation<typename ProblemShape::UnderlyingProblemShape> problem_sizes;
 
@@ -168,12 +165,6 @@ cutlass::DeviceAllocation<StrideA> stride_A;
 cutlass::DeviceAllocation<StrideB> stride_B;
 cutlass::DeviceAllocation<StrideC> stride_C;
 cutlass::DeviceAllocation<StrideD> stride_D;
-
-// Note, this is an array of pointers to alpha and beta scaling values per group
-cutlass::DeviceAllocation<ElementAccumulator *> alpha_device;
-cutlass::DeviceAllocation<ElementAccumulator *> beta_device;
-cutlass::DeviceAllocation<ElementAccumulator> block_alpha;
-cutlass::DeviceAllocation<ElementAccumulator> block_beta;
 
 using RasterOrderOptions = typename cutlass::gemm::kernel::detail::PersistentTileSchedulerSm100GroupParams<
     typename ProblemShape::UnderlyingProblemShape>::RasterOrderOptions;
@@ -239,8 +230,6 @@ void allocate(const std::vector<typename ProblemShape::UnderlyingProblemShape> &
     block_C.reset(total_elements_C);
     block_D.reset(total_elements_C);
     block_ref_D.reset(total_elements_C);
-    block_alpha.reset(num_groups);
-    block_beta.reset(num_groups);
 }
 
 /// Initialize operands to be used in the GEMM and reference GEMM
@@ -256,18 +245,12 @@ void initialize(const float &alpha,
     std::vector<ElementB *> ptr_B_host(num_groups);
     std::vector<ElementC *> ptr_C_host(num_groups);
     std::vector<ElementC *> ptr_D_host(num_groups);
-    std::vector<ElementAccumulator *> ptr_alpha_host(num_groups);
-    std::vector<ElementAccumulator *> ptr_beta_host(num_groups);
 
     for (int32_t i = 0; i < num_groups; ++i) {
         ptr_A_host.at(i) = block_A.get() + offset_A.at(i);
         ptr_B_host.at(i) = block_B.get() + offset_B.at(i);
         ptr_C_host.at(i) = block_C.get() + offset_C.at(i);
         ptr_D_host.at(i) = block_D.get() + offset_D.at(i);
-        alpha_host.push_back(alpha);
-        beta_host.push_back(beta);
-        ptr_alpha_host.at(i) = block_alpha.get() + i;
-        ptr_beta_host.at(i) = block_beta.get() + i;
     }
 
     ptr_A.reset(num_groups);
@@ -294,17 +277,9 @@ void initialize(const float &alpha,
     stride_D.reset(num_groups);
     stride_D.copy_from_host(stride_D_host.data());
 
-    alpha_device.reset(num_groups);
-    alpha_device.copy_from_host(ptr_alpha_host.data());
-    beta_device.reset(num_groups);
-    beta_device.copy_from_host(ptr_beta_host.data());
-
     initialize_block(block_A, 2023);
     initialize_block(block_B, 2022);
     initialize_block(block_C, 2021);
-
-    block_alpha.copy_from_host(alpha_host.data());
-    block_beta.copy_from_host(beta_host.data());
 }
 
 typename Gemm::Arguments args_from_options(
@@ -357,7 +332,9 @@ typename Gemm::Arguments args_from_options(
     return arguments;
 }
 
-bool verify(const std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host) {
+bool verify(const float &alpha,
+            const float &beta,
+            const std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host) {
     const uint num_groups = problem_sizes_host.size();
 
     bool passed = true;
@@ -375,13 +352,7 @@ bool verify(const std::vector<typename ProblemShape::UnderlyingProblemShape> &pr
         DeviceGemmReference gemm_reference;
 
         // Launch device reference gemm kernel
-        gemm_reference({M, N, K},
-                       ElementAccumulator(alpha_host.at(i)),
-                       ref_A,
-                       ref_B,
-                       ElementAccumulator(beta_host.at(i)),
-                       ref_C,
-                       ref_D);
+        gemm_reference({M, N, K}, ElementAccumulator(alpha), ref_A, ref_B, ElementAccumulator(beta), ref_C, ref_D);
 
         // Wait for kernel to finish
         cudaDeviceSynchronize();
@@ -443,7 +414,7 @@ void oops() {
     gemm.run(/* stream = */ nullptr, /* cuda_adapter = */ nullptr, /* launch_with_pdl = */ use_pdl);
 
     // Check if output from CUTLASS kernel and reference kernel are equal or not
-    const bool passed = verify(problem_sizes_host);
+    const bool passed = verify(alpha, beta, problem_sizes_host);
 
     std::cout << "  Disposition: " << (passed ? "Passed" : "Failed") << std::endl;
 
