@@ -484,11 +484,8 @@ int main(int argc, char const **args) {
         timer.stop();
 
         // Compute average setup and runtime and GFLOPs.
-        float elapsed_ms = timer.elapsed_millis();
-        double avg_runtime_ms = double(elapsed_ms) / double(options.iterations);
-        double gflops = options.gflops(avg_runtime_ms / 1000.0, options.problem_sizes_host);
-
-        std::cout << "  Avg runtime : " << avg_runtime_ms << " ms" << std::endl;
+        double gflops = options.gflops(double(timer.elapsed_millis()) / double(options.iterations) / 1000.0,
+                                       options.problem_sizes_host);
         std::cout << "  TFLOPS      : " << gflops / 1000.0 << std::endl;
     }
 
