@@ -28,7 +28,41 @@
 #include "cutlass/util/reference/device/tensor_compare.h"
 #include "cutlass/util/reference/device/tensor_fill.h"
 #include "cutlass/util/tensor_view_io.h"
-#include "helper.h"
+
+struct GpuTimer {
+    cudaStream_t _stream_id;
+    cudaEvent_t _start;
+    cudaEvent_t _stop;
+
+    /// Constructor
+    GpuTimer() : _stream_id(0) {
+        cudaEventCreate(&_start);
+        cudaEventCreate(&_stop);
+    }
+
+    /// Destructor
+    ~GpuTimer() {
+        cudaEventDestroy(_start);
+        cudaEventDestroy(_stop);
+    }
+
+    /// Start the timer for a given stream (defaults to the default stream)
+    void start(cudaStream_t stream_id = 0) {
+        _stream_id = stream_id;
+        cudaEventRecord(_start, _stream_id);
+    }
+
+    /// Stop the timer
+    void stop() { cudaEventRecord(_stop, _stream_id); }
+
+    /// Return the elapsed time (in milliseconds)
+    float elapsed_millis() {
+        float elapsed = 0.0;
+        cudaEventSynchronize(_stop);
+        cudaEventElapsedTime(&elapsed, _start, _stop);
+        return elapsed;
+    }
+};
 
 using namespace cute;
 
