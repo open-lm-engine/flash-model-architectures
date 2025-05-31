@@ -178,9 +178,6 @@ using RasterOrderOptions = typename cutlass::gemm::kernel::detail::PersistentTil
     typename ProblemShape::UnderlyingProblemShape>::RasterOrderOptions;
 // Command line options parsing
 struct Options {
-    bool help = false;
-    bool use_pdl = false;
-
     float alpha = FLT_MAX;
     float beta = FLT_MAX;
     int iterations = 10;
@@ -197,14 +194,6 @@ struct Options {
     // Parses the command line
     void parse(int argc, char const **args) {
         cutlass::CommandLine cmd(argc, args);
-
-        if (cmd.check_cmd_line_flag("help")) {
-            help = true;
-            return;
-        }
-        if (cmd.check_cmd_line_flag("use_pdl")) {
-            use_pdl = true;
-        }
 
         cmd.get_cmd_line_argument("m", m);
         cmd.get_cmd_line_argument("n", n);
@@ -455,7 +444,6 @@ void initialize(const Options &options) {
 }
 
 /// Populates a Gemm::Arguments structure from the given commandline options
-template <typename Gemm>
 typename Gemm::Arguments args_from_options(Options &options, bool host_problem_shapes_available = true) {
     cutlass::KernelHardwareInfo hw_info;
     // Change device_id to another value if you are running on a machine with multiple GPUs and wish
@@ -563,7 +551,19 @@ bool verify(const Options &options) {
     return passed;
 }
 
-int run(Options &options, bool host_problem_shapes_available = true) {
+int main(int argc, char const **args) {
+    int current_device_id;
+    CUDA_CHECK(cudaGetDevice(&current_device_id));
+
+    Options options;
+    options.parse(argc, args);
+
+    allocate(options);
+    initialize(options);
+
+    const bool host_problem_shapes_available = false;
+    const bool use_pdl = false;
+
     std::cout << "  Problem Sizes, Alpha, Beta " << std::endl;
     for (int32_t i = 0; i < options.groups; ++i) {
         std::cout << "    " << options.problem_sizes_host.at(i);
@@ -590,8 +590,7 @@ int run(Options &options, bool host_problem_shapes_available = true) {
     CUTLASS_CHECK(gemm.initialize(arguments, workspace.get()));
 
     // Correctness / Warmup iteration
-    CUTLASS_CHECK(
-        gemm.run(/* stream = */ nullptr, /* cuda_adapter = */ nullptr, /* launch_with_pdl = */ options.use_pdl));
+    CUTLASS_CHECK(gemm.run(/* stream = */ nullptr, /* cuda_adapter = */ nullptr, /* launch_with_pdl = */ use_pdl));
 
     // Check if output from CUTLASS kernel and reference kernel are equal or not
     Result result;
@@ -610,7 +609,7 @@ int run(Options &options, bool host_problem_shapes_available = true) {
         for (int iter = 0; iter < options.iterations; ++iter) {
             CUTLASS_CHECK(gemm.initialize(arguments, workspace.get()));
             CUTLASS_CHECK(gemm.run(
-                /* stream = */ nullptr, /* cuda_adapter = */ nullptr, /* launch_with_pdl = */ options.use_pdl));
+                /* stream = */ nullptr, /* cuda_adapter = */ nullptr, /* launch_with_pdl = */ use_pdl));
         }
         timer.stop();
 
@@ -622,21 +621,6 @@ int run(Options &options, bool host_problem_shapes_available = true) {
         std::cout << "  Avg runtime : " << result.avg_runtime_ms << " ms" << std::endl;
         std::cout << "  TFLOPS      : " << result.gflops / 1000.0 << std::endl;
     }
-
-    return 0;
-}
-
-int main(int argc, char const **args) {
-    int current_device_id;
-    CUDA_CHECK(cudaGetDevice(&current_device_id));
-
-    Options options;
-    options.parse(argc, args);
-
-    allocate(options);
-    initialize(options);
-
-    run(options, false);
 
     return 0;
 }
