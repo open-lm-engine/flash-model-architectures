@@ -219,7 +219,8 @@ struct Options {
 /// Helper to initialize a block of device data
 template <class Element>
 void initialize_block(cutlass::DeviceAllocation<Element> &block, uint64_t seed = 2023) {
-    cutlass::reference::device::BlockFillRandomUniform(block.get(), block.size(), seed, 8, -8, 0);
+    cutlass::reference::device::BlockFillRandomUniform(
+        block.get(), block.size(), seed, static_cast<Element>(8);, static_cast<Element>(-8);, 0);
 }
 
 /// Allocates device-side data
