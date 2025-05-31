@@ -174,7 +174,6 @@ void allocate(const std::vector<typename ProblemShape::UnderlyingProblemShape> &
     int64_t total_elements_A = 0;
     int64_t total_elements_B = 0;
     int64_t total_elements_C = 0;
-    int64_t total_elements_D = 0;
 
     const uint num_groups = problem_sizes_host.size();
 
@@ -187,17 +186,15 @@ void allocate(const std::vector<typename ProblemShape::UnderlyingProblemShape> &
         offset_A.push_back(total_elements_A);
         offset_B.push_back(total_elements_B);
         offset_C.push_back(total_elements_C);
-        offset_D.push_back(total_elements_D);
+        offset_D.push_back(total_elements_C);
 
         int64_t elements_A = M * K;
         int64_t elements_B = K * N;
         int64_t elements_C = M * N;
-        int64_t elements_D = M * N;
 
         total_elements_A += elements_A;
         total_elements_B += elements_B;
         total_elements_C += elements_C;
-        total_elements_D += elements_D;
 
         stride_A_host.push_back(cutlass::make_cute_packed_stride(StrideA{}, {M, K, 1}));
         stride_B_host.push_back(cutlass::make_cute_packed_stride(StrideB{}, {N, K, 1}));
@@ -208,8 +205,8 @@ void allocate(const std::vector<typename ProblemShape::UnderlyingProblemShape> &
     block_A.reset(total_elements_A);
     block_B.reset(total_elements_B);
     block_C.reset(total_elements_C);
-    block_D.reset(total_elements_D);
-    block_ref_D.reset(total_elements_D);
+    block_D.reset(total_elements_C);
+    block_ref_D.reset(total_elements_C);
     block_alpha.reset(num_groups);
     block_beta.reset(num_groups);
 }
