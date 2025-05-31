@@ -2,6 +2,8 @@
 // Copyright (c) 2025, Mayank Mishra
 // **************************************************
 
+#include <torch/extension.h>
+
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -369,8 +371,6 @@ void grouped_gemm_cuda(const torch::Tensor &A,
                        const torch::Tensor &output,
                        const float &alpha,
                        const float &beta) {
-    float alpha = 1;
-    float beta = 0;
     int iterations = 10;
     int m = 65536, n = 512, k = 4096, num_groups = 10;
     dim3 cluster_shape = dim3(4, 2, 1);
