@@ -346,8 +346,9 @@ typename Gemm::Arguments args_from_options(
     return arguments;
 }
 
-bool verify(const uint &num_groups,
-            const std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host) {
+bool verify(const std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host) {
+    const uint num_groups = problem_sizes_host.size();
+
     bool passed = true;
     for (int32_t i = 0; i < num_groups; ++i) {
         auto problem = problem_sizes_host.at(i);
@@ -431,7 +432,7 @@ int main() {
     CUTLASS_CHECK(gemm.run(/* stream = */ nullptr, /* cuda_adapter = */ nullptr, /* launch_with_pdl = */ use_pdl));
 
     // Check if output from CUTLASS kernel and reference kernel are equal or not
-    const bool passed = verify(num_groups, problem_sizes_host);
+    const bool passed = verify(problem_sizes_host);
 
     std::cout << "  Disposition: " << (passed ? "Passed" : "Failed") << std::endl;
 
