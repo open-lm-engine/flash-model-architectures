@@ -192,14 +192,15 @@ void initialize_block(cutlass::DeviceAllocation<Element> &block, uint64_t seed =
 }
 
 /// Allocates device-side data
-void allocate(const Options &options) {
+void allocate(const uint &num_groups,
+              const std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host) {
     int64_t total_elements_A = 0;
     int64_t total_elements_B = 0;
     int64_t total_elements_C = 0;
     int64_t total_elements_D = 0;
 
-    for (int32_t i = 0; i < options.groups; ++i) {
-        auto problem = options.problem_sizes_host.at(i);
+    for (int32_t i = 0; i < num_groups; ++i) {
+        auto problem = problem_sizes_host.at(i);
         auto M = get<0>(problem);
         auto N = get<1>(problem);
         auto K = get<2>(problem);
@@ -230,68 +231,68 @@ void allocate(const Options &options) {
     block_C.reset(total_elements_C);
     block_D.reset(total_elements_D);
     block_ref_D.reset(total_elements_D);
-    block_alpha.reset(options.groups);
-    block_beta.reset(options.groups);
+    block_alpha.reset(num_groups);
+    block_beta.reset(num_groups);
 }
 
 /// Initialize operands to be used in the GEMM and reference GEMM
-void initialize(const Options &options) {
-    uint64_t seed = 2020;
+void initialize(const uint &num_groups,
+                const float &alpha,
+                const float &beta,
+                const std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host) {
+    problem_sizes.reset(num_groups);
+    problem_sizes.copy_from_host(problem_sizes_host.data());
 
-    problem_sizes.reset(options.groups);
-    problem_sizes.copy_from_host(options.problem_sizes_host.data());
+    std::vector<ElementA *> ptr_A_host(num_groups);
+    std::vector<ElementB *> ptr_B_host(num_groups);
+    std::vector<ElementC *> ptr_C_host(num_groups);
+    std::vector<ElementC *> ptr_D_host(num_groups);
+    std::vector<ElementAccumulator *> ptr_alpha_host(num_groups);
+    std::vector<ElementAccumulator *> ptr_beta_host(num_groups);
 
-    std::vector<ElementA *> ptr_A_host(options.groups);
-    std::vector<ElementB *> ptr_B_host(options.groups);
-    std::vector<ElementC *> ptr_C_host(options.groups);
-    std::vector<ElementC *> ptr_D_host(options.groups);
-    std::vector<ElementAccumulator *> ptr_alpha_host(options.groups);
-    std::vector<ElementAccumulator *> ptr_beta_host(options.groups);
-
-    for (int32_t i = 0; i < options.groups; ++i) {
+    for (int32_t i = 0; i < num_groups; ++i) {
         ptr_A_host.at(i) = block_A.get() + offset_A.at(i);
         ptr_B_host.at(i) = block_B.get() + offset_B.at(i);
         ptr_C_host.at(i) = block_C.get() + offset_C.at(i);
         ptr_D_host.at(i) = block_D.get() + offset_D.at(i);
-        alpha_host.push_back((options.alpha == FLT_MAX) ? static_cast<ElementAccumulator>((rand() % 5) + 1)
-                                                        : options.alpha);
-        beta_host.push_back((options.beta == FLT_MAX) ? static_cast<ElementAccumulator>(rand() % 5) : options.beta);
+        alpha_host.push_back((alpha == FLT_MAX) ? static_cast<ElementAccumulator>((rand() % 5) + 1) : alpha);
+        beta_host.push_back((beta == FLT_MAX) ? static_cast<ElementAccumulator>(rand() % 5) : beta);
         ptr_alpha_host.at(i) = block_alpha.get() + i;
         ptr_beta_host.at(i) = block_beta.get() + i;
     }
 
-    ptr_A.reset(options.groups);
+    ptr_A.reset(num_groups);
     ptr_A.copy_from_host(ptr_A_host.data());
 
-    ptr_B.reset(options.groups);
+    ptr_B.reset(num_groups);
     ptr_B.copy_from_host(ptr_B_host.data());
 
-    ptr_C.reset(options.groups);
+    ptr_C.reset(num_groups);
     ptr_C.copy_from_host(ptr_C_host.data());
 
-    ptr_D.reset(options.groups);
+    ptr_D.reset(num_groups);
     ptr_D.copy_from_host(ptr_D_host.data());
 
-    stride_A.reset(options.groups);
+    stride_A.reset(num_groups);
     stride_A.copy_from_host(stride_A_host.data());
 
-    stride_B.reset(options.groups);
+    stride_B.reset(num_groups);
     stride_B.copy_from_host(stride_B_host.data());
 
-    stride_C.reset(options.groups);
+    stride_C.reset(num_groups);
     stride_C.copy_from_host(stride_C_host.data());
 
-    stride_D.reset(options.groups);
+    stride_D.reset(num_groups);
     stride_D.copy_from_host(stride_D_host.data());
 
-    alpha_device.reset(options.groups);
+    alpha_device.reset(num_groups);
     alpha_device.copy_from_host(ptr_alpha_host.data());
-    beta_device.reset(options.groups);
+    beta_device.reset(num_groups);
     beta_device.copy_from_host(ptr_beta_host.data());
 
-    initialize_block(block_A, seed + 2023);
-    initialize_block(block_B, seed + 2022);
-    initialize_block(block_C, seed + 2021);
+    initialize_block(block_A, 2023);
+    initialize_block(block_B, 2022);
+    initialize_block(block_C, 2021);
 
     block_alpha.copy_from_host(alpha_host.data());
     block_beta.copy_from_host(beta_host.data());
@@ -396,8 +397,8 @@ int main(int argc, char const **args) {
     Options options;
     options.main();
 
-    allocate(options);
-    initialize(options);
+    allocate(options.groups, options.problem_sizes_host);
+    initialize(options.groups, options.alpha, options.beta, options.problem_sizes_host);
 
     const bool host_problem_shapes_available = false;
     const bool use_pdl = false;
