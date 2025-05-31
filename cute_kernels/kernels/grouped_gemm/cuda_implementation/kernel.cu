@@ -84,63 +84,46 @@ using StageCountType = cutlass::gemm::collective::StageCountAuto;
 
 using ClusterShape = Shape<int32_t, int32_t, _1>;
 
-// Different configs for 1SM and 2SM MMA kernel
-struct MMA1SMConfig {
-    using MmaTileShape = Shape<_128, _256, Int<128 / sizeof(ElementA)>>;
-    using KernelSchedule = cutlass::gemm::KernelPtrArrayTmaWarpSpecialized1SmSm100;  // Kernel to launch
-    using EpilogueSchedule = cutlass::epilogue::PtrArrayTmaWarpSpecialized1Sm;       // Epilogue to launch
-};
+using MmaTileShape = Shape<_256, _256, Int<128 / sizeof(ElementA)>>;
 
-struct MMA2SMConfig {
-    using MmaTileShape = Shape<_256, _256, Int<128 / sizeof(ElementA)>>;
-    using KernelSchedule = cutlass::gemm::KernelPtrArrayTmaWarpSpecialized2SmSm100;  // Kernel to launch
-    using EpilogueSchedule = cutlass::epilogue::PtrArrayTmaWarpSpecialized2Sm;       // Epilogue to launch
-};
+using KernelSchedule = cutlass::gemm::KernelPtrArrayTmaWarpSpecialized2SmSm100;
+using EpilogueSchedule = cutlass::epilogue::PtrArrayTmaWarpSpecialized2Sm;
 
-template <typename ScheduleConfig>
-struct GivenGemmSchedule {
-    using CollectiveEpilogue = typename cutlass::epilogue::collective::CollectiveBuilder<
-        ArchTag,
-        OperatorClass,
-        typename ScheduleConfig::MmaTileShape,
-        ClusterShape,
-        cutlass::epilogue::collective::EpilogueTileAuto,
-        ElementAccumulator,
-        ElementAccumulator,
-        ElementC,
-        LayoutC *,
-        AlignmentC,
-        ElementC,
-        LayoutC *,
-        AlignmentC,
-        typename ScheduleConfig::EpilogueSchedule,
-        cutlass::epilogue::fusion::LinearCombination<ElementC, ElementAccumulator>>::CollectiveOp;
+using CollectiveEpilogue = typename cutlass::epilogue::collective::CollectiveBuilder<
+    ArchTag,
+    OperatorClass,
+    MmaTileShape,
+    ClusterShape,
+    cutlass::epilogue::collective::EpilogueTileAuto,
+    ElementAccumulator,
+    ElementAccumulator,
+    ElementC,
+    LayoutC *,
+    AlignmentC,
+    ElementC,
+    LayoutC *,
+    AlignmentC,
+    typename EpilogueSchedule,
+    cutlass::epilogue::fusion::LinearCombination<ElementC, ElementAccumulator>>::CollectiveOp;
 
-    using CollectiveMainloop = typename cutlass::gemm::collective::CollectiveBuilder<
-        ArchTag,
-        OperatorClass,
-        ElementA,
-        LayoutA *,
-        AlignmentA,
-        ElementB,
-        LayoutB *,
-        AlignmentB,
-        ElementAccumulator,
-        typename ScheduleConfig::MmaTileShape,
-        ClusterShape,
-        cutlass::gemm::collective::StageCountAutoCarveout<static_cast<int>(
-            sizeof(typename CollectiveEpilogue::SharedStorage))>,
-        typename ScheduleConfig::KernelSchedule>::CollectiveOp;
+using CollectiveMainloop = typename cutlass::gemm::collective::CollectiveBuilder<
+    ArchTag,
+    OperatorClass,
+    ElementA,
+    LayoutA *,
+    AlignmentA,
+    ElementB,
+    LayoutB *,
+    AlignmentB,
+    ElementAccumulator,
+    MmaTileShape,
+    ClusterShape,
+    cutlass::gemm::collective::StageCountAutoCarveout<static_cast<int>(
+        sizeof(typename CollectiveEpilogue::SharedStorage))>,
+    typename KernelSchedule>::CollectiveOp;
 
-    using GemmKernel = cutlass::gemm::kernel::GemmUniversal<ProblemShape, CollectiveMainloop, CollectiveEpilogue>;
-
-    using Gemm = cutlass::gemm::device::GemmUniversalAdapter<GemmKernel>;
-};
-
-using Gemm1SM = GivenGemmSchedule<MMA1SMConfig>::Gemm;
-using Gemm = Gemm1SM;
-
-using Gemm2SM = GivenGemmSchedule<MMA2SMConfig>::Gemm;
+using GemmKernel = cutlass::gemm::kernel::GemmUniversal<ProblemShape, CollectiveMainloop, CollectiveEpilogue>;
+using Gemm = cutlass::gemm::device::GemmUniversalAdapter<GemmKernel>;
 
 // Reference device GEMM implementation type
 using DeviceGemmReference = cutlass::reference::device::
@@ -655,7 +638,7 @@ int main(int argc, char const **args) {
     allocate(options);
     initialize(options);
 
-    run<Gemm2SM>(options, false);
+    run<Gemm>(options, false);
 
     return 0;
 }
