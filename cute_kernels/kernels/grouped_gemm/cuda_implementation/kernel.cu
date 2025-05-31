@@ -166,23 +166,23 @@ struct Options {
             problem_sizes_host.push_back({m, n, k});
         }
     }
-
-    /// Compute performance in GFLOP/s
-    double gflops(double runtime_s,
-                  std::vector<typename ProblemShape::UnderlyingProblemShape> problem_sizes_host) const {
-        // Number of real-valued multiply-adds
-        uint64_t fmas = uint64_t();
-
-        for (auto const &problem : problem_sizes_host) {
-            fmas += static_cast<uint64_t>(get<0>(problem)) * static_cast<uint64_t>(get<1>(problem)) *
-                    static_cast<uint64_t>(get<2>(problem));
-        }
-        // Two flops per multiply-add
-        uint64_t flop = uint64_t(2) * uint64_t(fmas);
-        double gflop = double(flop) / double(1.0e9);
-        return gflop / runtime_s;
-    }
 };
+
+/// Compute performance in GFLOP/s
+double get_gflops(const double &runtime_s,
+                  std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host) {
+    // Number of real-valued multiply-adds
+    uint64_t fmas = 0;
+
+    for (auto const &problem : problem_sizes_host) {
+        fmas += static_cast<uint64_t>(get<0>(problem)) * static_cast<uint64_t>(get<1>(problem)) *
+                static_cast<uint64_t>(get<2>(problem));
+    }
+    // Two flops per multiply-add
+    uint64_t flop = uint64_t(2) * uint64_t(fmas);
+    double gflop = double(flop) / double(1.0e9);
+    return gflop / runtime_s;
+}
 
 /// Helper to initialize a block of device data
 template <class Element>
@@ -299,18 +299,22 @@ void initialize(const uint &num_groups,
 }
 
 /// Populates a Gemm::Arguments structure from the given commandline options
-typename Gemm::Arguments args_from_options(Options &options, bool host_problem_shapes_available = true) {
+typename Gemm::Arguments args_from_options(const uint &num_groups,
+                                           const dim3 &cluster_shape,
+                                           const dim3 &cluster_shape_fallback,
+                                           Options &options,
+                                           bool host_problem_shapes_available = true) {
     cutlass::KernelHardwareInfo hw_info;
     cudaGetDevice(&hw_info.device_id);
     cudaDeviceGetAttribute(&hw_info.sm_count, cudaDevAttrMultiProcessorCount, hw_info.device_id);
 
     if (!is_static_v<ClusterShape>) {
         if (size<0>(typename Gemm::GemmKernel::CollectiveMainloop::AtomThrShapeMNK{}) == 2 &&
-            (options.cluster_shape.x < 2 || options.cluster_shape_fallback.x < 2)) {
+            (cluster_shape.x < 2 || cluster_shape_fallback.x < 2)) {
             std::cout << "Error: MMA2SMConfig kernel config needs cluster_dim.x >= 2" << std::endl;
         }
-        hw_info.cluster_shape = options.cluster_shape;
-        hw_info.cluster_shape_fallback = options.cluster_shape_fallback;
+        hw_info.cluster_shape = cluster_shape;
+        hw_info.cluster_shape_fallback = cluster_shape_fallback;
     }
 
     typename Gemm::Arguments arguments;
@@ -348,7 +352,7 @@ typename Gemm::Arguments args_from_options(Options &options, bool host_problem_s
     scheduler.raster_order = options.raster_order;
 
     arguments = typename Gemm::Arguments{cutlass::gemm::GemmUniversalMode::kGrouped,
-                                         {options.groups,
+                                         {static_cast<int>(num_groups),
                                           problem_sizes.get(),
                                           host_problem_shapes_available ? options.problem_sizes_host.data() : nullptr},
                                          {ptr_A.get(), stride_A.get(), ptr_B.get(), stride_B.get()},
@@ -393,7 +397,7 @@ bool verify(const Options &options) {
     return passed;
 }
 
-int main(int argc, char const **args) {
+int main() {
     Options options;
     options.main();
 
@@ -407,7 +411,8 @@ int main(int argc, char const **args) {
     Gemm gemm;
 
     // Create a structure of gemm kernel arguments suitable for invoking an instance of Gemm
-    auto arguments = args_from_options(options, host_problem_shapes_available);
+    auto arguments = args_from_options(
+        options.groups, options.cluster_shape, options.cluster_shape_fallback, options, host_problem_shapes_available);
 
     // Using the arguments, query for extra workspace required for matrix multiplication computation
     size_t workspace_size = Gemm::get_workspace_size(arguments);
@@ -441,8 +446,8 @@ int main(int argc, char const **args) {
         timer.stop();
 
         // Compute average setup and runtime and GFLOPs.
-        double gflops = options.gflops(double(timer.elapsed_millis()) / double(options.iterations) / 1000.0,
-                                       options.problem_sizes_host);
+        double gflops = get_gflops(double(timer.elapsed_millis()) / double(options.iterations) / 1000.0,
+                                   options.problem_sizes_host);
         std::cout << "  TFLOPS      : " << gflops / 1000.0 << std::endl;
     }
 
