@@ -176,12 +176,13 @@ cutlass::DeviceAllocation<ElementAccumulator> block_beta;
 
 using RasterOrderOptions = typename cutlass::gemm::kernel::detail::PersistentTileSchedulerSm100GroupParams<
     typename ProblemShape::UnderlyingProblemShape>::RasterOrderOptions;
+
 // Command line options parsing
 struct Options {
     float alpha = FLT_MAX;
     float beta = FLT_MAX;
     int iterations = 10;
-    int m = 1024, n = 2048, k = 512, groups = 10;
+    int m = 65536, n = 512, k = 4096, groups = 10;
     dim3 cluster_shape = dim3(4, 2, 1);
     dim3 cluster_shape_fallback = dim3(2, 1, 1);
     RasterOrderOptions raster_order = RasterOrderOptions::AlongM;
@@ -190,90 +191,10 @@ struct Options {
     int const tma_alignment_bits = 128;
     int const alignment = tma_alignment_bits / cutlass::sizeof_bits<ElementA>::value;
 
-    // Parses the command line
-    void parse(int argc, char const **args) {
-        cutlass::CommandLine cmd(argc, args);
+    problem_sizes_host.reserve(groups);
 
-        cmd.get_cmd_line_argument("m", m);
-        cmd.get_cmd_line_argument("n", n);
-        cmd.get_cmd_line_argument("k", k);
-        cmd.get_cmd_line_argument("groups", groups);
-        cmd.get_cmd_line_argument("alpha", alpha, FLT_MAX);
-        cmd.get_cmd_line_argument("beta", beta, FLT_MAX);
-        cmd.get_cmd_line_argument("iterations", iterations);
-        cmd.get_cmd_line_argument("cluster_m", cluster_shape.x);
-        cmd.get_cmd_line_argument("cluster_n", cluster_shape.y);
-        cmd.get_cmd_line_argument("cluster_fallback_m", cluster_shape_fallback.x);
-        cmd.get_cmd_line_argument("cluster_fallback_n", cluster_shape_fallback.y);
-        cmd.get_cmd_line_argument("max_sm_count", max_sm_count, INT_MAX);
-
-        randomize_problems(cmd);
-
-        char raster_char;
-        cmd.get_cmd_line_argument("raster", raster_char);
-
-        if (raster_char == 'N' || raster_char == 'n') {
-            raster_order = RasterOrderOptions::AlongN;
-        } else if (raster_char == 'M' || raster_char == 'm') {
-            raster_order = RasterOrderOptions::AlongM;
-        }
-    }
-
-    void randomize_problems(cutlass::CommandLine &cmd) {
-        int cmd_line_m = -1, cmd_line_n = -1, cmd_line_k = -1;
-        cmd.get_cmd_line_argument("m", cmd_line_m);
-        cmd.get_cmd_line_argument("n", cmd_line_n);
-        cmd.get_cmd_line_argument("k", cmd_line_k);
-
-        problem_sizes_host.reserve(groups);
-
-        for (int i = groups; i > 0; i--) {
-            int m = cmd_line_m;
-            int n = cmd_line_n;
-            int k = cmd_line_k;
-            if (m < 1) {
-                m = alignment * ((rand() % 64) + 1);
-            }
-            if (n < 1) {
-                n = alignment * ((rand() % 64) + 1);
-            }
-            if (k < 1) {
-                k = alignment * ((rand() % 64) + 1);
-            }
-            problem_sizes_host.push_back({m, n, k});
-        }
-    }
-
-    /// Load a benchmark
-    bool benchmark_problems() {
-        std::ifstream file(benchmark_path);
-        if (!file.good()) {
-            return false;
-        }
-
-        while (file.good()) {
-            int idx = -1;
-            std::string extent_str;
-
-            file >> idx >> extent_str;
-
-            if (idx < 0 || extent_str.empty()) {
-                break;
-            }
-
-            cutlass::gemm::GemmCoord extent;
-            std::vector<std::string> tokens;
-
-            cutlass::CommandLine::tokenize(tokens, extent_str, 'x');
-
-            for (int i = 0; i < int(tokens.size()); ++i) {
-                extent.at(i) = std::atoi(tokens.at(i).c_str());
-            }
-            problem_sizes_host.push_back({extent.m(), extent.n(), extent.k()});
-        }
-        groups = static_cast<int>(problem_sizes_host.size());
-
-        return true;
+    for (int i = groups; i > 0; i--) {
+        problem_sizes_host.push_back({m, n, k});
     }
 
     /// Compute performance in GFLOP/s
@@ -291,15 +212,6 @@ struct Options {
         double gflop = double(flop) / double(1.0e9);
         return gflop / runtime_s;
     }
-};
-
-/// Result structure
-struct Result {
-    double avg_runtime_ms = 0.0;
-    double gflops = 0.0;
-    cutlass::Status status = cutlass::Status::kSuccess;
-    cudaError_t error = cudaSuccess;
-    bool passed = false;
 };
 
 /// Helper to initialize a block of device data
@@ -373,10 +285,6 @@ void initialize(const Options &options) {
 
     problem_sizes.reset(options.groups);
     problem_sizes.copy_from_host(options.problem_sizes_host.data());
-
-    //
-    // Assign pointers
-    //
 
     std::vector<ElementA *> ptr_A_host(options.groups);
     std::vector<ElementB *> ptr_B_host(options.groups);
@@ -515,10 +423,6 @@ bool verify(const Options &options) {
         cutlass::TensorRef ref_C(block_C.get() + offset_C.at(i), Gemm::LayoutC::packed({M, N}));
         cutlass::TensorRef ref_D(block_ref_D.get() + offset_D.at(i), Gemm::LayoutD::packed({M, N}));
 
-        //
-        // Compute reference output
-        //
-
         // Create instantiation for device reference gemm kernel
         DeviceGemmReference gemm_reference;
 
@@ -546,7 +450,6 @@ int main(int argc, char const **args) {
     CUDA_CHECK(cudaGetDevice(&current_device_id));
 
     Options options;
-    options.parse(argc, args);
 
     allocate(options);
     initialize(options);
@@ -565,7 +468,7 @@ int main(int argc, char const **args) {
     Gemm gemm;
 
     // Create a structure of gemm kernel arguments suitable for invoking an instance of Gemm
-    auto arguments = args_from_options<Gemm>(options, host_problem_shapes_available);
+    auto arguments = args_from_options(options, host_problem_shapes_available);
 
     // Using the arguments, query for extra workspace required for matrix multiplication computation
     size_t workspace_size = Gemm::get_workspace_size(arguments);
@@ -583,14 +486,9 @@ int main(int argc, char const **args) {
     CUTLASS_CHECK(gemm.run(/* stream = */ nullptr, /* cuda_adapter = */ nullptr, /* launch_with_pdl = */ use_pdl));
 
     // Check if output from CUTLASS kernel and reference kernel are equal or not
-    Result result;
-    result.passed = verify(options);
+    const bool passed = verify(options);
 
-    std::cout << "  Disposition: " << (result.passed ? "Passed" : "Failed") << std::endl;
-
-    if (!result.passed) {
-        exit(-1);
-    }
+    std::cout << "  Disposition: " << (passed ? "Passed" : "Failed") << std::endl;
 
     // Run profiling loop
     if (options.iterations > 0) {
@@ -605,11 +503,11 @@ int main(int argc, char const **args) {
 
         // Compute average setup and runtime and GFLOPs.
         float elapsed_ms = timer.elapsed_millis();
-        result.avg_runtime_ms = double(elapsed_ms) / double(options.iterations);
-        result.gflops = options.gflops(result.avg_runtime_ms / 1000.0, options.problem_sizes_host);
+        double avg_runtime_ms = double(elapsed_ms) / double(options.iterations);
+        double gflops = options.gflops(avg_runtime_ms / 1000.0, options.problem_sizes_host);
 
-        std::cout << "  Avg runtime : " << result.avg_runtime_ms << " ms" << std::endl;
-        std::cout << "  TFLOPS      : " << result.gflops / 1000.0 << std::endl;
+        std::cout << "  Avg runtime : " << avg_runtime_ms << " ms" << std::endl;
+        std::cout << "  TFLOPS      : " << gflops / 1000.0 << std::endl;
     }
 
     return 0;
