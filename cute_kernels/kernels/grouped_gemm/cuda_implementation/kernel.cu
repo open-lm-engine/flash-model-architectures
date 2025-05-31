@@ -2,8 +2,6 @@
 // Copyright (c) 2025, Mayank Mishra
 // **************************************************
 
-#include <float.h>
-
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -266,8 +264,8 @@ void initialize(const float &alpha,
         ptr_B_host.at(i) = block_B.get() + offset_B.at(i);
         ptr_C_host.at(i) = block_C.get() + offset_C.at(i);
         ptr_D_host.at(i) = block_D.get() + offset_D.at(i);
-        alpha_host.push_back((alpha == FLT_MAX) ? static_cast<ElementAccumulator>((rand() % 5) + 1) : alpha);
-        beta_host.push_back((beta == FLT_MAX) ? static_cast<ElementAccumulator>(rand() % 5) : beta);
+        alpha_host.push_back(alpha);
+        beta_host.push_back(beta);
         ptr_alpha_host.at(i) = block_alpha.get() + i;
         ptr_beta_host.at(i) = block_beta.get() + i;
     }
@@ -336,31 +334,13 @@ typename Gemm::Arguments args_from_options(
     fusion_args.alpha_ptr = nullptr;
     fusion_args.beta_ptr = nullptr;
 
-    // If alpha/beta are provided (via cmd line args) and are scalar, then same alpha/beta applies to all batches.
-    // If pointers to alpha/beta are provided, then alpha/beta can differ between batches/groups.
-    if (alpha == FLT_MAX) {
-        fusion_args.alpha = 0;
-        fusion_args.alpha_ptr_array = alpha_device.get();
-        // Only one alpha per each group
-        fusion_args.dAlpha = {_0{}, _0{}, 1};
-    } else {
-        // Single alpha for all groups
-        fusion_args.alpha = alpha;
-        fusion_args.alpha_ptr_array = nullptr;
-        fusion_args.dAlpha = {_0{}, _0{}, 0};
-    }
-
-    if (beta == FLT_MAX) {
-        fusion_args.beta = 0;
-        fusion_args.beta_ptr_array = beta_device.get();
-        // Only one beta per each group
-        fusion_args.dBeta = {_0{}, _0{}, 1};
-    } else {
-        // Single beta for all groups
-        fusion_args.beta = beta;
-        fusion_args.beta_ptr_array = nullptr;
-        fusion_args.dBeta = {_0{}, _0{}, 0};
-    }
+    // Single alpha / beta for all groups
+    fusion_args.alpha = alpha;
+    fusion_args.beta = beta;
+    fusion_args.alpha_ptr_array = nullptr;
+    fusion_args.beta_ptr_array = nullptr;
+    fusion_args.dAlpha = {_0{}, _0{}, 0};
+    fusion_args.dBeta = {_0{}, _0{}, 0};
 
     typename Gemm::GemmKernel::TileSchedulerArguments scheduler;
     scheduler.raster_order = raster_order;
@@ -414,8 +394,8 @@ bool verify(const std::vector<typename ProblemShape::UnderlyingProblemShape> &pr
 }
 
 void oops() {
-    float alpha = FLT_MAX;
-    float beta = FLT_MAX;
+    float alpha = 1;
+    float beta = 0;
     int iterations = 10;
     int m = 65536, n = 512, k = 4096, num_groups = 10;
     dim3 cluster_shape = dim3(4, 2, 1);
