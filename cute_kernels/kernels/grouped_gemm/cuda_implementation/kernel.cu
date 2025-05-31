@@ -170,14 +170,15 @@ void initialize_block(cutlass::DeviceAllocation<Element> &block, uint64_t seed =
 }
 
 /// Allocates device-side data
-void allocate(const uint &num_groups,
-              const std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host) {
+void allocate(const std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host) {
     int64_t total_elements_A = 0;
     int64_t total_elements_B = 0;
     int64_t total_elements_C = 0;
     int64_t total_elements_D = 0;
 
-    for (int32_t i = 0; i < num_groups; ++i) {
+    const uint32 num_groups = problem_sizes_host.size();
+
+    for (uint i = 0; i < num_groups; i++) {
         auto problem = problem_sizes_host.at(i);
         auto M = get<0>(problem);
         auto N = get<1>(problem);
@@ -305,28 +306,28 @@ typename Gemm::Arguments args_from_options(
 
     // If alpha/beta are provided (via cmd line args) and are scalar, then same alpha/beta applies to all batches.
     // If pointers to alpha/beta are provided, then alpha/beta can differ between batches/groups.
-    if (alpha != FLT_MAX) {
-        // Single alpha for all groups
-        fusion_args.alpha = alpha;
-        fusion_args.alpha_ptr_array = nullptr;
-        fusion_args.dAlpha = {_0{}, _0{}, 0};
-    } else {
+    if (alpha == FLT_MAX) {
         fusion_args.alpha = 0;
         fusion_args.alpha_ptr_array = alpha_device.get();
         // Only one alpha per each group
         fusion_args.dAlpha = {_0{}, _0{}, 1};
+    } else {
+        // Single alpha for all groups
+        fusion_args.alpha = alpha;
+        fusion_args.alpha_ptr_array = nullptr;
+        fusion_args.dAlpha = {_0{}, _0{}, 0};
     }
 
-    if (beta != FLT_MAX) {
-        // Single beta for all groups
-        fusion_args.beta = beta;
-        fusion_args.beta_ptr_array = nullptr;
-        fusion_args.dBeta = {_0{}, _0{}, 0};
-    } else {
+    if (beta == FLT_MAX) {
         fusion_args.beta = 0;
         fusion_args.beta_ptr_array = beta_device.get();
         // Only one beta per each group
         fusion_args.dBeta = {_0{}, _0{}, 1};
+    } else {
+        // Single beta for all groups
+        fusion_args.beta = beta;
+        fusion_args.beta_ptr_array = nullptr;
+        fusion_args.dBeta = {_0{}, _0{}, 0};
     }
 
     typename Gemm::GemmKernel::TileSchedulerArguments scheduler;
@@ -392,12 +393,11 @@ int main() {
     int const alignment = tma_alignment_bits / cutlass::sizeof_bits<ElementA>::value;
 
     problem_sizes_host.reserve(num_groups);
-
-    for (int i = num_groups; i > 0; i--) {
+    for (int i = 0; i < num_groups; i++) {
         problem_sizes_host.push_back({m, n, k});
     }
 
-    allocate(num_groups, problem_sizes_host);
+    allocate(problem_sizes_host);
     initialize(num_groups, alpha, beta, problem_sizes_host);
 
     const bool host_problem_shapes_available = false;
