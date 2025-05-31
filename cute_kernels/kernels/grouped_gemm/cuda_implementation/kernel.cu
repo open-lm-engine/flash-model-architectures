@@ -364,7 +364,11 @@ bool verify(const float &alpha,
     return passed;
 }
 
-void oops() {
+void grouped_gemm_cuda(const torch::Tensor &A,
+                       const torch::Tensor &B,
+                       const torch::Tensor &output,
+                       const float &alpha,
+                       const float &beta) {
     float alpha = 1;
     float beta = 0;
     int iterations = 10;
