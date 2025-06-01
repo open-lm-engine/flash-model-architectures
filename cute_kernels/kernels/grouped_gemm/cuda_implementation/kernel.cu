@@ -33,6 +33,7 @@
 namespace ck = cute_kernels;
 
 using uint32 = ck::uint32;
+using int64 = ck::int64;
 
 struct GpuTimer {
     cudaStream_t _stream_id;
@@ -389,6 +390,9 @@ void grouped_gemm_cuda(const torch::Tensor &A,
 
     problem_sizes_host.reserve(E);
     for (int i = 0; i < E; i++) {
+        const uint32 start = expert_offsets[i].item<int64>();
+        const uint32 end = i == E - 1 ? TK : expert_offsets[i + 1].item<int64>();
+        const uint32 M = end - start;
         problem_sizes_host.push_back({M, N, K});
     }
 
