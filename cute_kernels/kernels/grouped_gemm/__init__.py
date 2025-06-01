@@ -15,9 +15,11 @@ def grouped_gemm_cute(alpha: float = 1, beta: float = 0) -> torch.Tensor:
     TK = 65536
     assert TK % E == 0
 
-    expert_offsets = torch.tensor(
-        list(range(0, 48000, 3000)) + [TK], device=torch.cuda.current_device(), dtype=torch.uint32
-    )
+    M_offsets = torch.tensor(list(range(0, 48000, 3000)) + [TK], device=torch.cuda.current_device(), dtype=torch.int32)
+
+    M_array = (M_offsets[1:] - M_offsets[:-1]).to(torch.uint32)
+    N_array = torch.full_like(M_array, fill_value=N)
+    K_array = torch.full_like(M_array, fill_value=K)
 
     A = torch.randn(TK, K, device=torch.cuda.current_device(), dtype=torch.bfloat16)
     B = torch.randn(E, N, K, device=torch.cuda.current_device(), dtype=torch.bfloat16)
@@ -27,12 +29,9 @@ def grouped_gemm_cute(alpha: float = 1, beta: float = 0) -> torch.Tensor:
         A=A,
         B=B,
         output=output,
-        M_offsets=expert_offsets,
-        M=M,
-        K_offsets=None,
-        K=K,
-        N_offsets=None,
-        N=N,
+        M_array=M_array,
+        N_array=N_array,
+        K_array=K_array,
         is_A_transposed=False,
         is_B_transposed=True,
         alpha=alpha,

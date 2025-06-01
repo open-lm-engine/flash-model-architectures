@@ -237,18 +237,18 @@ void allocate(const std::vector<typename ProblemShape::UnderlyingProblemShape> &
 }
 
 template <typename StrideA, typename StrideB, typename StrideC>
-__global__ void populate_strides_cuda_kernel(const uint32 *expert_offsets,
-                                             const uint32 E,
-                                             const uint32 K,
-                                             const uint32 N,
+__global__ void populate_strides_cuda_kernel(const uint32 *M_array,
+                                             const uint32 *N_array,
+                                             const uint32 *K_array,
                                              StrideA *stride_A,
                                              StrideB *stride_B,
-                                             StrideC *stride_C) {
+                                             StrideC *stride_C,
+                                             const uint32 E) {
     const uint32 thread_id = blockIdx.x * blockDim.x + threadIdx.x;
     if (thread_id < E) {
-        const uint32 start = expert_offsets[thread_id];
-        const uint32 end = expert_offsets[thread_id + 1];
-        const uint32 M = end - start;
+        const uint32 M = M_array[thread_id];
+        const uint32 N = N_array[thread_id];
+        const uint32 K = K_array[thread_id];
 
         stride_A[thread_id] = cutlass::make_cute_packed_stride(StrideA{}, {M, K, 1});
         stride_B[thread_id] = cutlass::make_cute_packed_stride(StrideB{}, {N, K, 1});
@@ -260,10 +260,10 @@ __global__ void populate_strides_cuda_kernel(const uint32 *expert_offsets,
 void initialize(const fp32 &alpha,
                 const fp32 &beta,
                 const std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host,
-                const torch::Tensor &expert_offsets,
                 const uint32 &E,
-                const uint32 &K,
-                const uint32 &N) {
+                const torch::Tensor &M_array,
+                const torch::Tensor &N_array,
+                const torch::Tensor &K_array) {
     problem_sizes.reset(E);
     problem_sizes.copy_from_host(problem_sizes_host.data());
 
@@ -295,8 +295,13 @@ void initialize(const fp32 &alpha,
     stride_B.reset(E);
     stride_C.reset(E);
 
-    populate_strides_cuda_kernel<StrideA, StrideB, StrideC>
-        <<<1, 1024>>>(expert_offsets.data_ptr<uint32>(), E, K, N, stride_A.get(), stride_B.get(), stride_C.get());
+    populate_strides_cuda_kernel<StrideA, StrideB, StrideC><<<1, 1024>>>(M_array.data_ptr<uint32>(),
+                                                                         N_array.data_ptr<uint32>(),
+                                                                         K_array.data_ptr<uint32>(),
+                                                                         stride_A.get(),
+                                                                         stride_B.get(),
+                                                                         stride_C.get(),
+                                                                         E);
 
     initialize_block(block_A, 2023);
     initialize_block(block_B, 2022);
@@ -385,34 +390,25 @@ bool verify(const fp32 &alpha,
     return passed;
 }
 
+inline uint32 get_size_at_index(const std::optional<torch::Tensor> &_offsets,
+                                const std::optional<uint32> &_size,
+                                const uint32 &index) {
+    return _offsets.has_value() ? _offsets.value()[index].item<int64>() : _size.value();
+}
+
 void grouped_gemm_cuda(const torch::Tensor &A,
                        const torch::Tensor &B,
                        torch::Tensor &output,
-                       const std::optional<torch::Tensor> &_M_offsets,
-                       const std::optional<torch::Tensor> &_M,
-                       const std::optional<torch::Tensor> &_K_offsets,
-                       const std::optional<torch::Tensor> &_K,
-                       const std::optional<torch::Tensor> &_N_offsets,
-                       const std::optional<torch::Tensor> &_N,
+                       const torch::Tensor &M_array,
+                       const torch::Tensor &N_array,
+                       const torch::Tensor &K_array,
                        const bool &is_A_transposed,
                        const bool &is_B_transposed,
                        const fp32 &alpha,
                        const fp32 &beta) {
-    const uint32 EM = _M_offsets.has_value() ? _M_offsets.value().numel() : 0;
-    const uint32 EK = _K_offsets.has_value() ? _K_offsets.value().numel() : 0;
-    const uint32 EN = _N_offsets.has_value() ? _N_offsets.value().numel() : 0;
-    const uint32 E = EM + EK + EN;
-
-    TORCH_CHECK(EM == 0 || EM == E);
-    TORCH_CHECK(EK == 0 || EK == E);
-    TORCH_CHECK(EN == 0 || EN == E);
-
-    return;
-
-    const uint32 E = B.size(0);
-    const uint32 N = B.size(1);
-    const uint32 K = B.size(2);
-    const uint32 TK = A.size(0);
+    const uint32 E = M_array.numel();
+    TORCH_CHECK(N_array.numel() == E);
+    TORCH_CHECK(K_array.numel() == E);
 
     dim3 cluster_shape = dim3(4, 2, 1);
     dim3 cluster_shape_fallback = dim3(2, 1, 1);
@@ -421,14 +417,15 @@ void grouped_gemm_cuda(const torch::Tensor &A,
 
     problem_sizes_host.reserve(E);
     for (int i = 0; i < E; i++) {
-        const uint32 start = expert_offsets[i].item<int64>();
-        const uint32 end = i == E - 1 ? TK : expert_offsets[i + 1].item<int64>();
-        const uint32 M = end - start;
+        const uint32 M = M_array[i].item<int64>();
+        const uint32 N = N_array[i].item<int64>();
+        const uint32 K = K_array[i].item<int64>();
+
         problem_sizes_host.push_back({M, N, K});
     }
 
     allocate(problem_sizes_host);
-    initialize(alpha, beta, problem_sizes_host, expert_offsets, E, K, N);
+    initialize(alpha, beta, problem_sizes_host, E, M_array, N_array, K_array);
 
     const bool host_problem_shapes_available = false;
 
