@@ -373,7 +373,8 @@ bool verify(const float &alpha,
 
 void grouped_gemm_cuda(const torch::Tensor &A,
                        const torch::Tensor &B,
-                       const torch::Tensor &output,
+                       torch::Tensor &output,
+                       const torch::Tensor &expert_offsets,
                        const float &alpha,
                        const float &beta) {
     const uint32 E = B.size(0);
