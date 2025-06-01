@@ -147,7 +147,6 @@ using StrideD = typename Gemm::GemmKernel::InternalStrideD;
 std::vector<int64_t> offset_A;
 std::vector<int64_t> offset_B;
 std::vector<int64_t> offset_C;
-std::vector<int64_t> offset_D;
 
 std::vector<StrideA> stride_A_host;
 std::vector<StrideB> stride_B_host;
@@ -217,7 +216,6 @@ void allocate(const std::vector<typename ProblemShape::UnderlyingProblemShape> &
         offset_A.push_back(total_elements_A);
         offset_B.push_back(total_elements_B);
         offset_C.push_back(total_elements_C);
-        offset_D.push_back(total_elements_C);
 
         int64_t elements_A = M * K;
         int64_t elements_B = K * N;
@@ -258,7 +256,7 @@ void initialize(const float &alpha,
         ptr_A_host.at(i) = block_A.get() + offset_A.at(i);
         ptr_B_host.at(i) = block_B.get() + offset_B.at(i);
         ptr_C_host.at(i) = block_C.get() + offset_C.at(i);
-        ptr_D_host.at(i) = block_D.get() + offset_D.at(i);
+        ptr_D_host.at(i) = block_D.get() + offset_C.at(i);
     }
 
     ptr_A.reset(E);
@@ -354,7 +352,7 @@ bool verify(const float &alpha,
         cutlass::TensorRef ref_A(block_A.get() + offset_A.at(i), Gemm::LayoutA::packed({M, K}));
         cutlass::TensorRef ref_B(block_B.get() + offset_B.at(i), Gemm::LayoutB::packed({K, N}));
         cutlass::TensorRef ref_C(block_C.get() + offset_C.at(i), Gemm::LayoutC::packed({M, N}));
-        cutlass::TensorRef ref_D(block_ref_D.get() + offset_D.at(i), Gemm::LayoutD::packed({M, N}));
+        cutlass::TensorRef ref_D(block_ref_D.get() + offset_C.at(i), Gemm::LayoutD::packed({M, N}));
 
         // Create instantiation for device reference gemm kernel
         DeviceGemmReference gemm_reference;
@@ -367,7 +365,7 @@ bool verify(const float &alpha,
 
         // Check if output from CUTLASS kernel and reference kernel are equal or not
         passed &= cutlass::reference::device::BlockCompareEqual(
-            block_ref_D.get() + offset_D.at(i), block_D.get() + offset_D.at(i), M * N);
+            block_ref_D.get() + offset_C.at(i), block_D.get() + offset_C.at(i), M * N);
     }
     return passed;
 }
