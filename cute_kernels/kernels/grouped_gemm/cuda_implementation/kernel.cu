@@ -376,10 +376,12 @@ void grouped_gemm_cuda(const torch::Tensor &A,
                        const torch::Tensor &output,
                        const float &alpha,
                        const float &beta) {
-    const uint32 E = A.size(0);
+    const uint32 E = B.size(0);
+    const uint32 N = B.size(1);
+    const uint32 K = B.size(2);
+    const uint32 TK = A.size(0);
 
     int iterations = 10;
-    int m = 65536, n = 512, k = 4096;
     dim3 cluster_shape = dim3(4, 2, 1);
     dim3 cluster_shape_fallback = dim3(2, 1, 1);
     RasterOrderOptions raster_order = RasterOrderOptions::AlongM;
@@ -387,7 +389,7 @@ void grouped_gemm_cuda(const torch::Tensor &A,
 
     problem_sizes_host.reserve(E);
     for (int i = 0; i < E; i++) {
-        problem_sizes_host.push_back({m, n, k});
+        problem_sizes_host.push_back({M, N, K});
     }
 
     allocate(problem_sizes_host);
