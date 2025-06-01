@@ -37,6 +37,7 @@ using uint64 = ck::uint64;
 using int32 = ck::int32;
 using int64 = ck::int64;
 using fp32 = ck::fp32;
+using bf16 = ck::bf16;
 
 #define MAX_NUM_GROUPS 1024
 
@@ -147,11 +148,6 @@ using StrideA = typename Gemm::GemmKernel::InternalStrideA;
 using StrideB = typename Gemm::GemmKernel::InternalStrideB;
 using StrideC = typename Gemm::GemmKernel::InternalStrideC;
 
-// Host-side allocations
-std::vector<int64_t> offset_A;
-std::vector<int64_t> offset_B;
-std::vector<int64_t> offset_C;
-
 std::vector<StrideA> stride_A_host;
 std::vector<StrideB> stride_B_host;
 std::vector<StrideC> stride_C_host;
@@ -238,7 +234,11 @@ __global__ void populate_strides_cuda_kernel(const uint32 *M_array,
 }
 
 /// Allocates device-side data
-void allocate(const std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host) {
+std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> allocate(
+    const std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host,
+    const torch::Tensor &M_array,
+    const torch::Tensor &N_array,
+    const torch::Tensor &K_array) {
     int64_t total_elements_A = 0;
     int64_t total_elements_B = 0;
     int64_t total_elements_C = 0;
@@ -250,10 +250,6 @@ void allocate(const std::vector<typename ProblemShape::UnderlyingProblemShape> &
         auto M = get<0>(problem);
         auto N = get<1>(problem);
         auto K = get<2>(problem);
-
-        offset_A.push_back(total_elements_A);
-        offset_B.push_back(total_elements_B);
-        offset_C.push_back(total_elements_C);
 
         int64_t elements_A = M * K;
         int64_t elements_B = K * N;
@@ -273,43 +269,6 @@ void allocate(const std::vector<typename ProblemShape::UnderlyingProblemShape> &
     block_C.reset(total_elements_C);
     block_D.reset(total_elements_C);
     block_ref_D.reset(total_elements_C);
-}
-
-/// Initialize operands to be used in the GEMM and reference GEMM
-std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> initialize(
-    const fp32 &alpha,
-    const fp32 &beta,
-    const std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host,
-    const uint32 &E,
-    const torch::Tensor &M_array,
-    const torch::Tensor &N_array,
-    const torch::Tensor &K_array) {
-    problem_sizes.reset(E);
-    problem_sizes.copy_from_host(problem_sizes_host.data());
-
-    std::vector<ElementA *> ptr_A_host(E);
-    std::vector<ElementB *> ptr_B_host(E);
-    std::vector<ElementC *> ptr_C_host(E);
-    std::vector<ElementC *> ptr_D_host(E);
-
-    for (uint32 i = 0; i < E; ++i) {
-        ptr_A_host.at(i) = block_A.get() + offset_A.at(i);
-        ptr_B_host.at(i) = block_B.get() + offset_B.at(i);
-        ptr_C_host.at(i) = block_C.get() + offset_C.at(i);
-        ptr_D_host.at(i) = block_D.get() + offset_C.at(i);
-    }
-
-    ptr_A.reset(E);
-    ptr_A.copy_from_host(ptr_A_host.data());
-
-    ptr_B.reset(E);
-    ptr_B.copy_from_host(ptr_B_host.data());
-
-    ptr_C.reset(E);
-    ptr_C.copy_from_host(ptr_C_host.data());
-
-    ptr_D.reset(E);
-    ptr_D.copy_from_host(ptr_D_host.data());
 
     stride_A.reset(E);
     stride_B.reset(E);
@@ -333,11 +292,47 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> initialize(
     offset_B_device = torch::cumsum(offset_B_device, 0);
     offset_C_device = torch::cumsum(offset_C_device, 0);
 
+    return std::make_tuple(offset_A_device, offset_B_device, offset_C_device);
+}
+
+/// Initialize operands to be used in the GEMM and reference GEMM
+void initialize(const fp32 &alpha,
+                const fp32 &beta,
+                const std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host,
+                const uint32 &E,
+                const torch::Tensor &offset_A_device,
+                const torch::Tensor &offset_B_device,
+                const torch::Tensor &offset_C_device) {
+    problem_sizes.reset(E);
+    problem_sizes.copy_from_host(problem_sizes_host.data());
+
+    std::vector<ElementA *> ptr_A_host(E);
+    std::vector<ElementB *> ptr_B_host(E);
+    std::vector<ElementC *> ptr_C_host(E);
+    std::vector<ElementC *> ptr_D_host(E);
+
+    for (uint32 i = 0; i < E; ++i) {
+        ptr_A_host.at(i) = block_A.get() + offset_A_device[i].item<int64_t>();
+        ptr_B_host.at(i) = block_B.get() + offset_B_device[i].item<int64_t>();
+        ptr_C_host.at(i) = block_C.get() + offset_C_device[i].item<int64_t>();
+        ptr_D_host.at(i) = block_D.get() + offset_C_device[i].item<int64_t>();
+    }
+
+    ptr_A.reset(E);
+    ptr_A.copy_from_host(ptr_A_host.data());
+
+    ptr_B.reset(E);
+    ptr_B.copy_from_host(ptr_B_host.data());
+
+    ptr_C.reset(E);
+    ptr_C.copy_from_host(ptr_C_host.data());
+
+    ptr_D.reset(E);
+    ptr_D.copy_from_host(ptr_D_host.data());
+
     initialize_block(block_A, 2023);
     initialize_block(block_B, 2022);
     initialize_block(block_C, 2021);
-
-    return std::make_tuple(offset_A_device, offset_B_device, offset_C_device);
 }
 
 typename Gemm::Arguments args_from_options(
@@ -462,9 +457,8 @@ void grouped_gemm_cuda(const torch::Tensor &A,
         problem_sizes_host.push_back({M, N, K});
     }
 
-    allocate(problem_sizes_host);
-    auto [offset_A_device, offset_B_device, offset_C_device] =
-        initialize(alpha, beta, problem_sizes_host, E, M_array, N_array, K_array);
+    auto [offset_A_device, offset_B_device, offset_C_device] = allocate(problem_sizes_host, M_array, N_array, K_array);
+    initialize(alpha, beta, problem_sizes_host, E, offset_A_device, offset_B_device, offset_C_device);
 
     const bool host_problem_shapes_available = false;
 
