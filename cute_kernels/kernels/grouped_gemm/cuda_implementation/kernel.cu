@@ -141,7 +141,6 @@ using DeviceGemmReference = cutlass::reference::device::
 using StrideA = typename Gemm::GemmKernel::InternalStrideA;
 using StrideB = typename Gemm::GemmKernel::InternalStrideB;
 using StrideC = typename Gemm::GemmKernel::InternalStrideC;
-using StrideD = typename Gemm::GemmKernel::InternalStrideD;
 
 // Host-side allocations
 std::vector<int64_t> offset_A;
