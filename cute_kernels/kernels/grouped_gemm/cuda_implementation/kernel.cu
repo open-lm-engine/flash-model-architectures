@@ -236,12 +236,34 @@ void allocate(const std::vector<typename ProblemShape::UnderlyingProblemShape> &
     block_ref_D.reset(total_elements_C);
 }
 
+template <typename StrideA, typename StideB, typename StrideC>
+__global__ void populate_strides_cuda_kernel(const uint32 *expert_offsets,
+                                             const uint32 E,
+                                             const uint32 K,
+                                             const uint32 N,
+                                             StrideA *stride_A,
+                                             StrideB *stride_B,
+                                             StrideC *stride_C) {
+    const uint32 thread_id = blockIdx.x * blockDim.x + threadIdx.x;
+    if (thread_id < E) {
+        const uint32 start = expert_offsets[thread_id];
+        const uint32 end = expert_offsets[thread_id + 1];
+        const uint32 M = end - start;
+
+        stride_A[thread_id] = cutlass::make_cute_packed_stride(StrideA{}, {M, K, 1});
+        stride_B[thread_id] = cutlass::make_cute_packed_stride(StrideB{}, {N, K, 1});
+        stride_C[thread_id] = cutlass::make_cute_packed_stride(StrideC{}, {M, N, 1});
+    }
+}
+
 /// Initialize operands to be used in the GEMM and reference GEMM
 void initialize(const fp32 &alpha,
                 const fp32 &beta,
-                const std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host) {
-    const uint32 E = problem_sizes_host.size();
-
+                const std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host,
+                const torch::Tensor &expert_offsets,
+                const uint32 &E,
+                const uint32 &K,
+                const uint32 &N) {
     problem_sizes.reset(E);
     problem_sizes.copy_from_host(problem_sizes_host.data());
 
@@ -270,13 +292,11 @@ void initialize(const fp32 &alpha,
     ptr_D.copy_from_host(ptr_D_host.data());
 
     stride_A.reset(E);
-    stride_A.copy_from_host(stride_A_host.data());
-
     stride_B.reset(E);
-    stride_B.copy_from_host(stride_B_host.data());
-
     stride_C.reset(E);
-    stride_C.copy_from_host(stride_C_host.data());
+
+    populate_strides_cuda_kernel<StrideA, StrideB, StrideC>
+        <<<1, 1024>>>(expert_offsets.data_ptr<uint32>(), E, K, N, stride_A.get(), stride_B.get(), stride_C.get());
 
     initialize_block(block_A, 2023);
     initialize_block(block_B, 2022);
@@ -390,7 +410,7 @@ void grouped_gemm_cuda(const torch::Tensor &A,
     }
 
     allocate(problem_sizes_host);
-    initialize(alpha, beta, problem_sizes_host);
+    initialize(alpha, beta, problem_sizes_host, expert_offsets, E, K, N);
 
     const bool host_problem_shapes_available = false;
 
