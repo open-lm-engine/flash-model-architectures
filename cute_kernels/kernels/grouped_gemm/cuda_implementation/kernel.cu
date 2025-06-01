@@ -236,13 +236,14 @@ void allocate(const std::vector<typename ProblemShape::UnderlyingProblemShape> &
     block_ref_D.reset(total_elements_C);
 }
 
-template <typename StrideA, typename StrideB>
+template <typename StrideA, typename StrideB, typename StrideC>
 __global__ void populate_strides_cuda_kernel(const uint32 *expert_offsets,
                                              const uint32 E,
                                              const uint32 K,
                                              const uint32 N,
                                              StrideA *stride_A,
-                                             StrideB *stride_B) {
+                                             StrideB *stride_B,
+                                             StrideC *stride_C) {
     const uint32 thread_id = blockIdx.x * blockDim.x + threadIdx.x;
     if (thread_id < E) {
         const uint32 start = expert_offsets[thread_id];
@@ -251,6 +252,7 @@ __global__ void populate_strides_cuda_kernel(const uint32 *expert_offsets,
 
         stride_A[thread_id] = cutlass::make_cute_packed_stride(StrideA{}, {M, K, 1});
         stride_B[thread_id] = cutlass::make_cute_packed_stride(StrideB{}, {N, K, 1});
+        stride_C[thread_id] = cutlass::make_cute_packed_stride(StrideC{}, {M, N, 1});
     }
 }
 
@@ -293,9 +295,8 @@ void initialize(const fp32 &alpha,
     stride_B.reset(E);
     stride_C.reset(E);
 
-    populate_strides_cuda_kernel<StrideA, StrideB>
-        <<<1, 1024>>>(expert_offsets.data_ptr<uint32>(), E, K, N, stride_A.get(), stride_B.get());
-    stride_C.copy_from_host(stride_C_host.data());
+    populate_strides_cuda_kernel<StrideA, StrideB, StrideC>
+        <<<1, 1024>>>(expert_offsets.data_ptr<uint32>(), E, K, N, stride_A.get(), stride_B.get(), stride_C.get());
 
     initialize_block(block_A, 2023);
     initialize_block(block_B, 2022);
