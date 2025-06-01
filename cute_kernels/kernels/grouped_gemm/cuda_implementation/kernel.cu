@@ -151,7 +151,6 @@ std::vector<int64_t> offset_C;
 std::vector<StrideA> stride_A_host;
 std::vector<StrideB> stride_B_host;
 std::vector<StrideC> stride_C_host;
-std::vector<StrideD> stride_D_host;
 
 // Device-side allocations
 cutlass::DeviceAllocation<typename ProblemShape::UnderlyingProblemShape> problem_sizes;
@@ -171,7 +170,6 @@ cutlass::DeviceAllocation<typename Gemm::EpilogueOutputOp::ElementOutput *> ptr_
 cutlass::DeviceAllocation<StrideA> stride_A;
 cutlass::DeviceAllocation<StrideB> stride_B;
 cutlass::DeviceAllocation<StrideC> stride_C;
-cutlass::DeviceAllocation<StrideD> stride_D;
 
 using RasterOrderOptions = typename cutlass::gemm::kernel::detail::PersistentTileSchedulerSm100GroupParams<
     typename ProblemShape::UnderlyingProblemShape>::RasterOrderOptions;
@@ -228,7 +226,6 @@ void allocate(const std::vector<typename ProblemShape::UnderlyingProblemShape> &
         stride_A_host.push_back(cutlass::make_cute_packed_stride(StrideA{}, {M, K, 1}));
         stride_B_host.push_back(cutlass::make_cute_packed_stride(StrideB{}, {N, K, 1}));
         stride_C_host.push_back(cutlass::make_cute_packed_stride(StrideC{}, {M, N, 1}));
-        stride_D_host.push_back(cutlass::make_cute_packed_stride(StrideD{}, {M, N, 1}));
     }
 
     block_A.reset(total_elements_A);
@@ -280,9 +277,6 @@ void initialize(const float &alpha,
     stride_C.reset(E);
     stride_C.copy_from_host(stride_C_host.data());
 
-    stride_D.reset(E);
-    stride_D.copy_from_host(stride_D_host.data());
-
     initialize_block(block_A, 2023);
     initialize_block(block_B, 2022);
     initialize_block(block_C, 2021);
@@ -331,7 +325,7 @@ typename Gemm::Arguments args_from_options(
                                           problem_sizes.get(),
                                           host_problem_shapes_available ? problem_sizes_host.data() : nullptr},
                                          {ptr_A.get(), stride_A.get(), ptr_B.get(), stride_B.get()},
-                                         {fusion_args, ptr_C.get(), stride_C.get(), ptr_D.get(), stride_D.get()},
+                                         {fusion_args, ptr_C.get(), stride_C.get(), ptr_D.get(), stride_C.get()},
                                          hw_info,
                                          scheduler};
 
