@@ -33,6 +33,7 @@
 namespace ck = cute_kernels;
 
 using uint32 = ck::uint32;
+using uint64 = ck::uint64;
 using int32 = ck::int32;
 using int64 = ck::int64;
 using fp32 = ck::fp32;
@@ -76,7 +77,7 @@ struct GpuTimer {
 
 using namespace cute;
 
-using ProblemShape = cutlass::gemm::GroupProblemShape<Shape<int32, int32, int32>>;  // <M,N,K> per group
+using ProblemShape = cutlass::gemm::GroupProblemShape<Shape<uint32, uint32, uint32>>;  // <M,N,K> per group
 
 using ElementA = cutlass::bfloat16_t;
 using ElementB = cutlass::bfloat16_t;
@@ -146,11 +147,6 @@ using StrideA = typename Gemm::GemmKernel::InternalStrideA;
 using StrideB = typename Gemm::GemmKernel::InternalStrideB;
 using StrideC = typename Gemm::GemmKernel::InternalStrideC;
 
-// Host-side allocations
-std::vector<int64_t> offset_A;
-std::vector<int64_t> offset_B;
-std::vector<int64_t> offset_C;
-
 std::vector<StrideA> stride_A_host;
 std::vector<StrideB> stride_B_host;
 std::vector<StrideC> stride_C_host;
@@ -202,32 +198,67 @@ void initialize_block(cutlass::DeviceAllocation<Element> &block, uint64_t seed =
 
 // TODO modify this kernel to use vector load/stores
 template <typename StrideA, typename StrideB, typename StrideC>
-__global__ void populate_strides_cuda_kernel(const uint32 *M_array,
-                                             const uint32 *N_array,
-                                             const uint32 *K_array,
+__global__ void populate_strides_cuda_kernel(const uint64 *M_array,
+                                             const uint64 *N_array,
+                                             const uint64 *K_array,
                                              StrideA *stride_A,
                                              StrideB *stride_B,
                                              StrideC *stride_C,
+                                             uint64 *offset_A,
+                                             uint64 *offset_B,
+                                             uint64 *offset_C,
                                              const uint32 E) {
     const uint32 thread_id = blockIdx.x * blockDim.x + threadIdx.x;
+
     if (thread_id < E) {
-        const uint32 M = M_array[thread_id];
-        const uint32 N = N_array[thread_id];
-        const uint32 K = K_array[thread_id];
+        const uint64 M = M_array[thread_id];
+        const uint64 N = N_array[thread_id];
+        const uint64 K = K_array[thread_id];
 
         stride_A[thread_id] = cutlass::make_cute_packed_stride(StrideA{}, {M, K, 1});
         stride_B[thread_id] = cutlass::make_cute_packed_stride(StrideB{}, {N, K, 1});
         stride_C[thread_id] = cutlass::make_cute_packed_stride(StrideC{}, {M, N, 1});
+
+        offset_A[thread_id] = M * K;
+        offset_B[thread_id] = N * K;
+        offset_C[thread_id] = M * N;
     }
 }
 
 /// Allocates device-side data
-void allocate(const std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host) {
+std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> allocate(
+    const std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host,
+    const torch::Tensor &M_array,
+    const torch::Tensor &N_array,
+    const torch::Tensor &K_array) {
+    const uint32 E = problem_sizes_host.size();
+
+    stride_A.reset(E);
+    stride_B.reset(E);
+    stride_C.reset(E);
+
+    torch::Tensor offset_A = torch::empty_like(M_array);
+    torch::Tensor offset_B = torch::empty_like(M_array);
+    torch::Tensor offset_C = torch::empty_like(M_array);
+
+    populate_strides_cuda_kernel<StrideA, StrideB, StrideC><<<1, 1024>>>(M_array.data_ptr<uint64>(),
+                                                                         N_array.data_ptr<uint64>(),
+                                                                         K_array.data_ptr<uint64>(),
+                                                                         stride_A.get(),
+                                                                         stride_B.get(),
+                                                                         stride_C.get(),
+                                                                         offset_A.data_ptr<uint64>(),
+                                                                         offset_B.data_ptr<uint64>(),
+                                                                         offset_C.data_ptr<uint64>(),
+                                                                         E);
+
+    offset_A = torch::cumsum(offset_A, 0);
+    offset_B = torch::cumsum(offset_B, 0);
+    offset_C = torch::cumsum(offset_C, 0);
+
     int64_t total_elements_A = 0;
     int64_t total_elements_B = 0;
     int64_t total_elements_C = 0;
-
-    const uint32 E = problem_sizes_host.size();
 
     for (uint32 i = 0; i < E; i++) {
         auto problem = problem_sizes_host.at(i);
@@ -235,17 +266,9 @@ void allocate(const std::vector<typename ProblemShape::UnderlyingProblemShape> &
         auto N = get<1>(problem);
         auto K = get<2>(problem);
 
-        offset_A.push_back(total_elements_A);
-        offset_B.push_back(total_elements_B);
-        offset_C.push_back(total_elements_C);
-
-        int64_t elements_A = M * K;
-        int64_t elements_B = K * N;
-        int64_t elements_C = M * N;
-
-        total_elements_A += elements_A;
-        total_elements_B += elements_B;
-        total_elements_C += elements_C;
+        total_elements_A += M * K;
+        total_elements_B += K * N;
+        total_elements_C += M * N;
 
         stride_A_host.push_back(cutlass::make_cute_packed_stride(StrideA{}, {M, K, 1}));
         stride_B_host.push_back(cutlass::make_cute_packed_stride(StrideB{}, {N, K, 1}));
@@ -257,16 +280,21 @@ void allocate(const std::vector<typename ProblemShape::UnderlyingProblemShape> &
     block_C.reset(total_elements_C);
     block_D.reset(total_elements_C);
     block_ref_D.reset(total_elements_C);
+
+    return std::make_tuple(offset_A, offset_B, offset_C);
 }
 
-/// Initialize operands to be used in the GEMM and reference GEMM
+// Initialize operands to be used in the GEMM and reference GEMM
 void initialize(const fp32 &alpha,
                 const fp32 &beta,
                 const std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host,
                 const uint32 &E,
                 const torch::Tensor &M_array,
                 const torch::Tensor &N_array,
-                const torch::Tensor &K_array) {
+                const torch::Tensor &K_array,
+                const torch::Tensor &offset_A,
+                const torch::Tensor &offset_B,
+                const torch::Tensor &offset_C) {
     problem_sizes.reset(E);
     problem_sizes.copy_from_host(problem_sizes_host.data());
 
@@ -276,10 +304,10 @@ void initialize(const fp32 &alpha,
     std::vector<ElementC *> ptr_D_host(E);
 
     for (uint32 i = 0; i < E; ++i) {
-        ptr_A_host.at(i) = block_A.get() + offset_A.at(i);
-        ptr_B_host.at(i) = block_B.get() + offset_B.at(i);
-        ptr_C_host.at(i) = block_C.get() + offset_C.at(i);
-        ptr_D_host.at(i) = block_D.get() + offset_C.at(i);
+        ptr_A_host.at(i) = block_A.get() + offset_A[i].item<int64>();
+        ptr_B_host.at(i) = block_B.get() + offset_B[i].item<int64>();
+        ptr_C_host.at(i) = block_C.get() + offset_C[i].item<int64>();
+        ptr_D_host.at(i) = block_D.get() + offset_C[i].item<int64>();
     }
 
     ptr_A.reset(E);
@@ -293,18 +321,6 @@ void initialize(const fp32 &alpha,
 
     ptr_D.reset(E);
     ptr_D.copy_from_host(ptr_D_host.data());
-
-    stride_A.reset(E);
-    stride_B.reset(E);
-    stride_C.reset(E);
-
-    populate_strides_cuda_kernel<StrideA, StrideB, StrideC><<<1, 1024>>>(M_array.data_ptr<uint32>(),
-                                                                         N_array.data_ptr<uint32>(),
-                                                                         K_array.data_ptr<uint32>(),
-                                                                         stride_A.get(),
-                                                                         stride_B.get(),
-                                                                         stride_C.get(),
-                                                                         E);
 
     initialize_block(block_A, 2023);
     initialize_block(block_B, 2022);
@@ -363,7 +379,10 @@ typename Gemm::Arguments args_from_options(
 
 bool verify(const fp32 &alpha,
             const fp32 &beta,
-            const std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host) {
+            const std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host,
+            const torch::Tensor &offset_A,
+            const torch::Tensor &offset_B,
+            const torch::Tensor &offset_C) {
     const uint32 E = problem_sizes_host.size();
 
     bool passed = true;
@@ -372,10 +391,10 @@ bool verify(const fp32 &alpha,
         auto M = get<0>(problem);
         auto N = get<1>(problem);
         auto K = get<2>(problem);
-        cutlass::TensorRef ref_A(block_A.get() + offset_A.at(i), Gemm::LayoutA::packed({M, K}));
-        cutlass::TensorRef ref_B(block_B.get() + offset_B.at(i), Gemm::LayoutB::packed({K, N}));
-        cutlass::TensorRef ref_C(block_C.get() + offset_C.at(i), Gemm::LayoutC::packed({M, N}));
-        cutlass::TensorRef ref_D(block_ref_D.get() + offset_C.at(i), Gemm::LayoutD::packed({M, N}));
+        cutlass::TensorRef ref_A(block_A.get() + offset_A[i].item<int64>(), Gemm::LayoutA::packed({M, K}));
+        cutlass::TensorRef ref_B(block_B.get() + offset_B[i].item<int64>(), Gemm::LayoutB::packed({K, N}));
+        cutlass::TensorRef ref_C(block_C.get() + offset_C[i].item<int64>(), Gemm::LayoutC::packed({M, N}));
+        cutlass::TensorRef ref_D(block_ref_D.get() + offset_C[i].item<int64>(), Gemm::LayoutD::packed({M, N}));
 
         // Create instantiation for device reference gemm kernel
         DeviceGemmReference gemm_reference;
@@ -388,7 +407,7 @@ bool verify(const fp32 &alpha,
 
         // Check if output from CUTLASS kernel and reference kernel are equal or not
         passed &= cutlass::reference::device::BlockCompareEqual(
-            block_ref_D.get() + offset_C.at(i), block_D.get() + offset_C.at(i), M * N);
+            block_ref_D.get() + offset_C[i].item<int64>(), block_D.get() + offset_C[i].item<int64>(), M * N);
     }
     return passed;
 }
@@ -421,15 +440,15 @@ void grouped_gemm_cuda(const torch::Tensor &A,
 
     problem_sizes_host.reserve(E);
     for (int i = 0; i < E; i++) {
-        const uint32 M = M_array[i].item<int64>();
-        const uint32 N = N_array[i].item<int64>();
-        const uint32 K = K_array[i].item<int64>();
+        const uint32 M = M_array[i].item<int32>();
+        const uint32 N = N_array[i].item<int32>();
+        const uint32 K = K_array[i].item<int32>();
 
         problem_sizes_host.push_back({M, N, K});
     }
 
-    allocate(problem_sizes_host);
-    initialize(alpha, beta, problem_sizes_host, E, M_array, N_array, K_array);
+    auto [offset_A, offset_B, offset_C] = allocate(problem_sizes_host, M_array, N_array, K_array);
+    initialize(alpha, beta, problem_sizes_host, E, M_array, N_array, K_array, offset_A, offset_B, offset_C);
 
     const bool host_problem_shapes_available = false;
 
@@ -462,7 +481,7 @@ void grouped_gemm_cuda(const torch::Tensor &A,
     gemm.run(/* stream = */ nullptr, /* cuda_adapter = */ nullptr, /* launch_with_pdl = */ false);
 
     // Check if output from CUTLASS kernel and reference kernel are equal or not
-    const bool passed = verify(alpha, beta, problem_sizes_host);
+    const bool passed = verify(alpha, beta, problem_sizes_host, offset_A, offset_B, offset_C);
 
     std::cout << "  Disposition: " << (passed ? "Passed" : "Failed") << std::endl;
 
