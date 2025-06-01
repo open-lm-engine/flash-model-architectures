@@ -360,7 +360,7 @@ bool verify(const float &alpha,
         DeviceGemmReference gemm_reference;
 
         // Launch device reference gemm kernel
-        gemm_reference({M, N, K}, ElementAccumulator(alpha), ref_A, ref_B, ElementAccumulator(beta), ref_C, ref_D);
+        gemm_reference({M, N, K}, alpha, ref_A, ref_B, beta, ref_C, ref_D);
 
         // Wait for kernel to finish
         cudaDeviceSynchronize();
