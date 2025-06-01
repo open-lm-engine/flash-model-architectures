@@ -33,6 +33,7 @@
 namespace ck = cute_kernels;
 
 using uint32 = ck::uint32;
+using int32 = ck::int32;
 using int64 = ck::int64;
 
 struct GpuTimer {
@@ -72,7 +73,7 @@ struct GpuTimer {
 
 using namespace cute;
 
-using ProblemShape = cutlass::gemm::GroupProblemShape<Shape<int, int, int>>;  // <M,N,K> per group
+using ProblemShape = cutlass::gemm::GroupProblemShape<Shape<int32, int32, int32>>;  // <M,N,K> per group
 
 using ElementA = cutlass::bfloat16_t;
 using ElementB = cutlass::bfloat16_t;
