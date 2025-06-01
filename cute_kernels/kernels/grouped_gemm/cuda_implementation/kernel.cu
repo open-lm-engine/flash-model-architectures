@@ -250,9 +250,9 @@ __global__ void populate_strides_cuda_kernel(const uint32 *expert_offsets,
         const uint32 end = expert_offsets[thread_id + 1];
         const uint32 M = end - start;
 
-        stride_A[thread_id] = cutlass::make_cute_packed_stride(StrideA{}, {M, K, 1});
-        stride_B[thread_id] = cutlass::make_cute_packed_stride(StrideB{}, {N, K, 1});
-        stride_C[thread_id] = cutlass::make_cute_packed_stride(StrideC{}, {M, N, 1});
+        stride_A[thread_id] = make_cute_packed_stride(StrideA{}, {M, K, 1});
+        stride_B[thread_id] = make_cute_packed_stride(StrideB{}, {N, K, 1});
+        stride_C[thread_id] = make_cute_packed_stride(StrideC{}, {M, N, 1});
     }
 }
 
