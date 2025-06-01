@@ -382,7 +382,6 @@ void grouped_gemm_cuda(const torch::Tensor &A,
     const uint32 K = B.size(2);
     const uint32 TK = A.size(0);
 
-    int iterations = 10;
     dim3 cluster_shape = dim3(4, 2, 1);
     dim3 cluster_shape_fallback = dim3(2, 1, 1);
     RasterOrderOptions raster_order = RasterOrderOptions::AlongM;
@@ -432,7 +431,7 @@ void grouped_gemm_cuda(const torch::Tensor &A,
 
     std::cout << "  Disposition: " << (passed ? "Passed" : "Failed") << std::endl;
 
-    // Run profiling loop
+    const uint32 iterations = 10;
     if (iterations > 0) {
         GpuTimer timer;
         timer.start();
