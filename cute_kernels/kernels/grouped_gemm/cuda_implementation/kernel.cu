@@ -400,7 +400,6 @@ void grouped_gemm_cuda(const torch::Tensor &A,
     initialize(alpha, beta, problem_sizes_host);
 
     const bool host_problem_shapes_available = false;
-    const bool use_pdl = false;
 
     // Instantiate CUTLASS kernel depending on templates
     Gemm gemm;
@@ -428,7 +427,7 @@ void grouped_gemm_cuda(const torch::Tensor &A,
     gemm.initialize(arguments, workspace.get());
 
     // Correctness / Warmup iteration
-    gemm.run(/* stream = */ nullptr, /* cuda_adapter = */ nullptr, /* launch_with_pdl = */ use_pdl);
+    gemm.run(/* stream = */ nullptr, /* cuda_adapter = */ nullptr, /* launch_with_pdl = */ false);
 
     // Check if output from CUTLASS kernel and reference kernel are equal or not
     const bool passed = verify(alpha, beta, problem_sizes_host);
@@ -441,8 +440,7 @@ void grouped_gemm_cuda(const torch::Tensor &A,
         timer.start();
         for (int iter = 0; iter < iterations; ++iter) {
             gemm.initialize(arguments, workspace.get());
-            gemm.run(
-                /* stream = */ nullptr, /* cuda_adapter = */ nullptr, /* launch_with_pdl = */ use_pdl);
+            gemm.run(/* stream = */ nullptr, /* cuda_adapter = */ nullptr, /* launch_with_pdl = */ false);
         }
         timer.stop();
 
