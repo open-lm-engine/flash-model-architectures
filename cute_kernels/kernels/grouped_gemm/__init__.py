@@ -19,8 +19,8 @@ def grouped_gemm_cute(alpha: float = 1, beta: float = 0) -> torch.Tensor:
         list(range(0, 48000, 3000)) + [TK], device=torch.cuda.current_device(), dtype=torch.uint32
     )
 
-    A = torch.empty(TK, K, device=torch.cuda.current_device(), dtype=torch.bfloat16)
-    B = torch.empty(E, N, K, device=torch.cuda.current_device(), dtype=torch.bfloat16)
-    output = torch.empty(E, M, N, device=torch.cuda.current_device(), dtype=torch.bfloat16)
+    A = torch.randn(TK, K, device=torch.cuda.current_device(), dtype=torch.bfloat16)
+    B = torch.randn(E, N, K, device=torch.cuda.current_device(), dtype=torch.bfloat16)
+    output = torch.randn(E, M, N, device=torch.cuda.current_device(), dtype=torch.bfloat16)
 
     return grouped_gemm_cuda(A=A, B=B, output=output, expert_offsets=expert_offsets, alpha=alpha, beta=beta)
