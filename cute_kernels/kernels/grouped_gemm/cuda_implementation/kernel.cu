@@ -37,6 +37,8 @@ using int32 = ck::int32;
 using int64 = ck::int64;
 using fp32 = ck::fp32;
 
+#define MAX_NUM_GROUPS 1024
+
 struct GpuTimer {
     cudaStream_t _stream_id;
     cudaEvent_t _start;
@@ -236,6 +238,7 @@ void allocate(const std::vector<typename ProblemShape::UnderlyingProblemShape> &
     block_ref_D.reset(total_elements_C);
 }
 
+// TODO modify this kernel to use vector load/stores
 template <typename StrideA, typename StrideB, typename StrideC>
 __global__ void populate_strides_cuda_kernel(const uint32 *M_array,
                                              const uint32 *N_array,
@@ -407,6 +410,7 @@ void grouped_gemm_cuda(const torch::Tensor &A,
                        const fp32 &alpha,
                        const fp32 &beta) {
     const uint32 E = M_array.numel();
+    TORCH_CHECK(E <= MAX_NUM_GROUPS)
     TORCH_CHECK(N_array.numel() == E);
     TORCH_CHECK(K_array.numel() == E);
 
