@@ -35,6 +35,7 @@ namespace ck = cute_kernels;
 using uint32 = ck::uint32;
 using int32 = ck::int32;
 using int64 = ck::int64;
+using fp32 = ck::fp32;
 
 struct GpuTimer {
     cudaStream_t _stream_id;
@@ -63,8 +64,8 @@ struct GpuTimer {
     void stop() { cudaEventRecord(_stop, _stream_id); }
 
     /// Return the elapsed time (in milliseconds)
-    float elapsed_millis() {
-        float elapsed = 0.0;
+    fp32 elapsed_millis() {
+        fp32 elapsed = 0.0;
         cudaEventSynchronize(_stop);
         cudaEventElapsedTime(&elapsed, _start, _stop);
         return elapsed;
@@ -78,7 +79,7 @@ using ProblemShape = cutlass::gemm::GroupProblemShape<Shape<int32, int32, int32>
 using ElementA = cutlass::bfloat16_t;
 using ElementB = cutlass::bfloat16_t;
 using ElementC = cutlass::bfloat16_t;
-using ElementAccumulator = float;
+using ElementAccumulator = fp32;
 
 using LayoutA = cutlass::layout::RowMajor;
 using LayoutB = cutlass::layout::ColumnMajor;
@@ -236,8 +237,8 @@ void allocate(const std::vector<typename ProblemShape::UnderlyingProblemShape> &
 }
 
 /// Initialize operands to be used in the GEMM and reference GEMM
-void initialize(const float &alpha,
-                const float &beta,
+void initialize(const fp32 &alpha,
+                const fp32 &beta,
                 const std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host) {
     const uint32 E = problem_sizes_host.size();
 
@@ -286,8 +287,8 @@ typename Gemm::Arguments args_from_options(
     const uint32 &E,
     const dim3 &cluster_shape,
     const dim3 &cluster_shape_fallback,
-    const float &alpha,
-    const float &beta,
+    const fp32 &alpha,
+    const fp32 &beta,
     const RasterOrderOptions &raster_order,
     const std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host,
     bool host_problem_shapes_available = true) {
@@ -332,8 +333,8 @@ typename Gemm::Arguments args_from_options(
     return arguments;
 }
 
-bool verify(const float &alpha,
-            const float &beta,
+bool verify(const fp32 &alpha,
+            const fp32 &beta,
             const std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host) {
     const uint32 E = problem_sizes_host.size();
 
@@ -368,8 +369,8 @@ void grouped_gemm_cuda(const torch::Tensor &A,
                        const torch::Tensor &B,
                        torch::Tensor &output,
                        const torch::Tensor &expert_offsets,
-                       const float &alpha,
-                       const float &beta) {
+                       const fp32 &alpha,
+                       const fp32 &beta) {
     const uint32 E = B.size(0);
     const uint32 N = B.size(1);
     const uint32 K = B.size(2);
