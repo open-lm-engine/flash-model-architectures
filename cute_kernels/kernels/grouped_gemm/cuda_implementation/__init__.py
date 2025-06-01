@@ -15,5 +15,17 @@ _KERNEL_NAME = "grouped_gemm_cuda"
 @cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={})
 @cpp_jit()
 def grouped_gemm_cuda(
-    A: torch.Tensor, B: torch.Tensor, output: torch.Tensor, expert_offsets: torch.Tensor, alpha: float, beta: float
+    A: torch.Tensor,
+    B: torch.Tensor,
+    output: torch.Tensor,
+    M_offsets: torch.Tensor | None,
+    M: int | None,
+    K_offsets: torch.Tensor | None,
+    K: int | None,
+    N_offsets: torch.Tensor | None,
+    N: int | None,
+    is_A_transposed: bool,
+    is_B_transposed: bool,
+    alpha: float,
+    beta: float,
 ) -> None: ...

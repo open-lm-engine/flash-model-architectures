@@ -388,9 +388,27 @@ bool verify(const fp32 &alpha,
 void grouped_gemm_cuda(const torch::Tensor &A,
                        const torch::Tensor &B,
                        torch::Tensor &output,
-                       const torch::Tensor &expert_offsets,
+                       const std::optional<torch::Tensor> &_M_offsets,
+                       const std::optional<torch::Tensor> &_M,
+                       const std::optional<torch::Tensor> &_K_offsets,
+                       const std::optional<torch::Tensor> &_K,
+                       const std::optional<torch::Tensor> &_N_offsets,
+                       const std::optional<torch::Tensor> &_N,
+                       const bool &is_A_transposed,
+                       const bool &is_B_transposed,
                        const fp32 &alpha,
                        const fp32 &beta) {
+    const uint32 EM = _M_offsets.has_value() ? _M_offsets.value().numel() : 0;
+    const uint32 EK = _K_offsets.has_value() ? _K_offsets.value().numel() : 0;
+    const uint32 EN = _N_offsets.has_value() ? _N_offsets.value().numel() : 0;
+    const uint32 E = EM + EK + EN;
+
+    TORCH_CHECK(EM == 0 || EM == E);
+    TORCH_CHECK(EK == 0 || EK == E);
+    TORCH_CHECK(EN == 0 || EN == E);
+
+    return;
+
     const uint32 E = B.size(0);
     const uint32 N = B.size(1);
     const uint32 K = B.size(2);
