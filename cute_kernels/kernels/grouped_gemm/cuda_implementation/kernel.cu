@@ -31,6 +31,7 @@
 #include "include/cute_kernels.h"
 
 namespace ck = cute_kernels;
+using namespace cute;
 
 using uint32 = ck::uint32;
 using uint64 = ck::uint64;
@@ -39,6 +40,10 @@ using int64 = ck::int64;
 using fp32 = ck::fp32;
 using bf16 = ck::bf16;
 using fp64 = ck::fp64;
+
+using ProblemShape = cutlass::gemm::GroupProblemShape<Shape<int32, int32, int32>>;  // <M,N,K> per group
+using ColumnMajor = cutlass::layout::ColumnMajor;
+using RowMajor = cutlass::layout::RowMajor;
 
 #define MAX_NUM_GROUPS 1024
 
@@ -76,10 +81,6 @@ struct GpuTimer {
         return elapsed;
     }
 };
-
-using namespace cute;
-
-using ProblemShape = cutlass::gemm::GroupProblemShape<Shape<int32, int32, int32>>;  // <M,N,K> per group
 
 /// Compute performance in GFLOP/s
 fp64 get_gflops(const fp64 &runtime_s,
@@ -221,20 +222,19 @@ void grouped_gemm_cuda(const torch::Tensor &_A,
     using ElementD = cutlass::bfloat16_t;
     using ElementAccumulator = fp32;
 
-    using LayoutA = cutlass::layout::RowMajor;
-    using LayoutB = cutlass::layout::ColumnMajor;
-    using LayoutC = cutlass::layout::ColumnMajor;
-
     constexpr int AlignmentA = 128 / cutlass::sizeof_bits<ElementA>::value;
     constexpr int AlignmentB = 128 / cutlass::sizeof_bits<ElementB>::value;
     constexpr int AlignmentC = 128 / cutlass::sizeof_bits<ElementC>::value;
+
+    using LayoutA = std::conditional_t<is_A_transposed, ColumnMajor, RowMajor>;
+    using LayoutB = std::conditional_t<is_B_transposed, ColumnMajor, RowMajor>;
+    using LayoutC = RowMajor;
 
     using ArchTag = cutlass::arch::Sm100;
     using OperatorClass = cutlass::arch::OpClassTensorOp;
     using StageCountType = cutlass::gemm::collective::StageCountAuto;
 
     using ClusterShape = Shape<int32_t, int32_t, _1>;
-
     using MmaTileShape = Shape<_256, _256, Int<128 / sizeof(ElementA)>>;
 
     using KernelSchedule = cutlass::gemm::KernelPtrArrayTmaWarpSpecialized2SmSm100;
