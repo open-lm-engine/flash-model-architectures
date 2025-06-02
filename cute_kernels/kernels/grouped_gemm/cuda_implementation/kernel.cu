@@ -156,7 +156,6 @@ std::vector<StrideC> stride_C_host;
 // Device-side allocations
 cutlass::DeviceAllocation<typename ProblemShape::UnderlyingProblemShape> problem_sizes;
 
-cutlass::DeviceAllocation<typename Gemm::ElementA> block_A;
 cutlass::DeviceAllocation<typename Gemm::ElementB> block_B;
 cutlass::DeviceAllocation<typename Gemm::ElementC> block_C;
 cutlass::DeviceAllocation<typename Gemm::EpilogueOutputOp::ElementOutput> block_D;
@@ -264,7 +263,6 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> allocate(
     const torch::Tensor &M_array,
     const torch::Tensor &N_array,
     const torch::Tensor &K_array) {
-    uint64 total_elements_A = 0;
     uint64 total_elements_B = 0;
     uint64 total_elements_C = 0;
 
@@ -276,7 +274,6 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> allocate(
         auto N = get<1>(problem);
         auto K = get<2>(problem);
 
-        total_elements_A += M * K;
         total_elements_B += K * N;
         total_elements_C += M * N;
 
@@ -285,7 +282,6 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> allocate(
         stride_C_host.push_back(cutlass::make_cute_packed_stride(StrideC{}, {M, N, 1}));
     }
 
-    block_A.reset(total_elements_A);
     block_B.reset(total_elements_B);
     block_C.reset(total_elements_C);
     block_D.reset(total_elements_C);
@@ -320,24 +316,22 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> allocate(
     problem_sizes.reset(E);
     problem_sizes.copy_from_host(problem_sizes_host.data());
 
-    offset_pointers_kernel<ElementA, ElementB, ElementC, typename Gemm::EpilogueOutputOp::ElementOutput>
-        <<<1, 1024>>>(ptr_A.get(),
-                      ptr_B.get(),
-                      ptr_C.get(),
-                      ptr_D.get(),
-                      block_A.get(),
-                      block_B.get(),
-                      block_C.get(),
-                      block_D.get(),
-                      offset_A_device.data_ptr<int64_t>(),
-                      offset_B_device.data_ptr<int64_t>(),
-                      offset_C_device.data_ptr<int64_t>(),
-                      E);
-
-    DISPATCH_FLOAT_KERNEL(A.scalar_type(), "copy", scalar_t, ([&] {
-                              block_A.copy_from_device(reinterpret_cast<ElementA *>(A.data_ptr<scalar_t>()),
-                                                       total_elements_A);
-                          }));
+    DISPATCH_FLOAT_KERNEL(
+        A.scalar_type(), "copy", scalar_t, ([&] {
+            offset_pointers_kernel<ElementA, ElementB, ElementC, typename Gemm::EpilogueOutputOp::ElementOutput>
+                <<<1, 1024>>>(ptr_A.get(),
+                              ptr_B.get(),
+                              ptr_C.get(),
+                              ptr_D.get(),
+                              reinterpret_cast<ElementA *>(A.data_ptr<scalar_t>()),
+                              block_B.get(),
+                              block_C.get(),
+                              block_D.get(),
+                              offset_A_device.data_ptr<int64_t>(),
+                              offset_B_device.data_ptr<int64_t>(),
+                              offset_C_device.data_ptr<int64_t>(),
+                              E);
+        }));
 
     initialize_block(block_B, 2022);
     initialize_block(block_C, 2021);
@@ -395,40 +389,49 @@ typename Gemm::Arguments args_from_options(
     return arguments;
 }
 
-bool verify(const fp32 &alpha,
+bool verify(const torch::Tensor &A,
+            const fp32 &alpha,
             const fp32 &beta,
             const std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host,
             torch::Tensor &offset_A_device,
             torch::Tensor &offset_B_device,
             torch::Tensor &offset_C_device) {
     const uint32 E = problem_sizes_host.size();
-
     bool passed = true;
-    for (uint32 i = 0; i < E; ++i) {
-        auto problem = problem_sizes_host.at(i);
-        auto M = get<0>(problem);
-        auto N = get<1>(problem);
-        auto K = get<2>(problem);
-        cutlass::TensorRef ref_A(block_A.get() + offset_A_device[i].item<int64_t>(), Gemm::LayoutA::packed({M, K}));
-        cutlass::TensorRef ref_B(block_B.get() + offset_B_device[i].item<int64_t>(), Gemm::LayoutB::packed({K, N}));
-        cutlass::TensorRef ref_C(block_C.get() + offset_C_device[i].item<int64_t>(), Gemm::LayoutC::packed({M, N}));
-        cutlass::TensorRef ref_D(block_ref_D.get() + offset_C_device[i].item<int64_t>(),
-                                 Gemm::LayoutD::packed({M, N}));
 
-        // Create instantiation for device reference gemm kernel
-        DeviceGemmReference gemm_reference;
+    DISPATCH_FLOAT_KERNEL(A.scalar_type(), "copy", scalar_t, ([&] {
+                              for (uint32 i = 0; i < E; ++i) {
+                                  auto problem = problem_sizes_host.at(i);
+                                  auto M = get<0>(problem);
+                                  auto N = get<1>(problem);
+                                  auto K = get<2>(problem);
+                                  cutlass::TensorRef ref_A(reinterpret_cast<ElementA *>(A.data_ptr<scalar_t>()) +
+                                                               offset_A_device[i].item<int64_t>(),
+                                                           Gemm::LayoutA::packed({M, K}));
+                                  cutlass::TensorRef ref_B(block_B.get() + offset_B_device[i].item<int64_t>(),
+                                                           Gemm::LayoutB::packed({K, N}));
+                                  cutlass::TensorRef ref_C(block_C.get() + offset_C_device[i].item<int64_t>(),
+                                                           Gemm::LayoutC::packed({M, N}));
+                                  cutlass::TensorRef ref_D(block_ref_D.get() + offset_C_device[i].item<int64_t>(),
+                                                           Gemm::LayoutD::packed({M, N}));
 
-        // Launch device reference gemm kernel
-        gemm_reference({M, N, K}, alpha, ref_A, ref_B, beta, ref_C, ref_D);
+                                  // Create instantiation for device reference gemm kernel
+                                  DeviceGemmReference gemm_reference;
 
-        // Wait for kernel to finish
-        cudaDeviceSynchronize();
+                                  // Launch device reference gemm kernel
+                                  gemm_reference({M, N, K}, alpha, ref_A, ref_B, beta, ref_C, ref_D);
 
-        // Check if output from CUTLASS kernel and reference kernel are equal or not
-        passed &= cutlass::reference::device::BlockCompareEqual(block_ref_D.get() + offset_C_device[i].item<int64_t>(),
-                                                                block_D.get() + offset_C_device[i].item<int64_t>(),
-                                                                M * N);
-    }
+                                  // Wait for kernel to finish
+                                  cudaDeviceSynchronize();
+
+                                  // Check if output from CUTLASS kernel and reference kernel are equal or not
+                                  passed &= cutlass::reference::device::BlockCompareEqual(
+                                      block_ref_D.get() + offset_C_device[i].item<int64_t>(),
+                                      block_D.get() + offset_C_device[i].item<int64_t>(),
+                                      M * N);
+                              }
+                          }));
+
     return passed;
 }
 
@@ -501,7 +504,7 @@ void grouped_gemm_cuda(const torch::Tensor &A,
     gemm.run(/* stream = */ nullptr, /* cuda_adapter = */ nullptr, /* launch_with_pdl = */ false);
 
     // Check if output from CUTLASS kernel and reference kernel are equal or not
-    const bool passed = verify(alpha, beta, problem_sizes_host, offset_A_device, offset_B_device, offset_C_device);
+    const bool passed = verify(A, alpha, beta, problem_sizes_host, offset_A_device, offset_B_device, offset_C_device);
 
     std::cout << "  Disposition: " << (passed ? "Passed" : "Failed") << std::endl;
 
