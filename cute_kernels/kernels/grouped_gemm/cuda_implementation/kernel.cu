@@ -264,13 +264,9 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> allocate(
         auto N = get<1>(problem);
         auto K = get<2>(problem);
 
-        int64_t elements_A = M * K;
-        int64_t elements_B = K * N;
-        int64_t elements_C = M * N;
-
-        total_elements_A += elements_A;
-        total_elements_B += elements_B;
-        total_elements_C += elements_C;
+        total_elements_A += M * K;
+        total_elements_B += K * N;
+        total_elements_C += M * N;
 
         stride_A_host.push_back(cutlass::make_cute_packed_stride(StrideA{}, {M, K, 1}));
         stride_B_host.push_back(cutlass::make_cute_packed_stride(StrideB{}, {N, K, 1}));
