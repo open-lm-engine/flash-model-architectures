@@ -156,7 +156,6 @@ std::vector<StrideC> stride_C_host;
 // Device-side allocations
 cutlass::DeviceAllocation<typename ProblemShape::UnderlyingProblemShape> problem_sizes;
 
-cutlass::DeviceAllocation<typename Gemm::ElementB> block_B;
 cutlass::DeviceAllocation<typename Gemm::ElementC> block_C;
 cutlass::DeviceAllocation<typename Gemm::EpilogueOutputOp::ElementOutput> block_D;
 cutlass::DeviceAllocation<typename Gemm::EpilogueOutputOp::ElementOutput> block_ref_D;
@@ -259,11 +258,11 @@ __global__ void offset_pointers_kernel(const ElementA **output_pointers_A,
 /// Allocates device-side data
 std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> allocate(
     const torch::Tensor &A,
+    const torch::Tensor &B,
     const std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host,
     const torch::Tensor &M_array,
     const torch::Tensor &N_array,
     const torch::Tensor &K_array) {
-    uint64 total_elements_B = 0;
     uint64 total_elements_C = 0;
 
     const uint32 E = problem_sizes_host.size();
@@ -274,7 +273,6 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> allocate(
         auto N = get<1>(problem);
         auto K = get<2>(problem);
 
-        total_elements_B += K * N;
         total_elements_C += M * N;
 
         stride_A_host.push_back(cutlass::make_cute_packed_stride(StrideA{}, {M, K, 1}));
@@ -282,7 +280,6 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> allocate(
         stride_C_host.push_back(cutlass::make_cute_packed_stride(StrideC{}, {M, N, 1}));
     }
 
-    block_B.reset(total_elements_B);
     block_C.reset(total_elements_C);
     block_D.reset(total_elements_C);
     block_ref_D.reset(total_elements_C);
@@ -324,7 +321,7 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> allocate(
                               ptr_C.get(),
                               ptr_D.get(),
                               reinterpret_cast<ElementA *>(A.data_ptr<scalar_t>()),
-                              block_B.get(),
+                              reinterpret_cast<ElementB *>(B.data_ptr<scalar_t>()),
                               block_C.get(),
                               block_D.get(),
                               offset_A_device.data_ptr<int64_t>(),
@@ -333,7 +330,6 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> allocate(
                               E);
         }));
 
-    initialize_block(block_B, 2022);
     initialize_block(block_C, 2021);
 
     return std::make_tuple(offset_A_device, offset_B_device, offset_C_device);
@@ -390,6 +386,7 @@ typename Gemm::Arguments args_from_options(
 }
 
 bool verify(const torch::Tensor &A,
+            const torch::Tensor &B,
             const fp32 &alpha,
             const fp32 &beta,
             const std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host,
@@ -408,7 +405,8 @@ bool verify(const torch::Tensor &A,
                                   cutlass::TensorRef ref_A(reinterpret_cast<ElementA *>(A.data_ptr<scalar_t>()) +
                                                                offset_A_device[i].item<int64_t>(),
                                                            Gemm::LayoutA::packed({M, K}));
-                                  cutlass::TensorRef ref_B(block_B.get() + offset_B_device[i].item<int64_t>(),
+                                  cutlass::TensorRef ref_B(reinterpret_cast<ElementB *>(B.data_ptr<scalar_t>()) +
+                                                               offset_B_device[i].item<int64_t>(),
                                                            Gemm::LayoutB::packed({K, N}));
                                   cutlass::TensorRef ref_C(block_C.get() + offset_C_device[i].item<int64_t>(),
                                                            Gemm::LayoutC::packed({M, N}));
@@ -471,7 +469,7 @@ void grouped_gemm_cuda(const torch::Tensor &A,
     }
 
     auto [offset_A_device, offset_B_device, offset_C_device] =
-        allocate(A, problem_sizes_host, M_array, N_array, K_array);
+        allocate(A, B, problem_sizes_host, M_array, N_array, K_array);
 
     const bool host_problem_shapes_available = false;
 
