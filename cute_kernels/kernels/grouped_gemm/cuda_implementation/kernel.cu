@@ -193,7 +193,7 @@ fp64 get_gflops(const fp64 &runtime_s,
 
 /// Helper to initialize a block of device data
 template <class Element>
-void initialize_block(cutlass::DeviceAllocation<Element> &block, uint64_t seed = 2023) {
+void initialize_block(cutlass::DeviceAllocation<Element> &block, uint64 seed = 2023) {
     cutlass::reference::device::BlockFillRandomUniform(
         block.get(), block.size(), seed, static_cast<Element>(8), static_cast<Element>(-8), 0);
 }
@@ -253,9 +253,9 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> allocate(
     const torch::Tensor &M_array,
     const torch::Tensor &N_array,
     const torch::Tensor &K_array) {
-    int64_t total_elements_A = 0;
-    int64_t total_elements_B = 0;
-    int64_t total_elements_C = 0;
+    uint64 total_elements_A = 0;
+    uint64 total_elements_B = 0;
+    uint64 total_elements_C = 0;
 
     const uint32 E = problem_sizes_host.size();
 
