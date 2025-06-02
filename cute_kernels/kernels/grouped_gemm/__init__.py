@@ -24,7 +24,7 @@ def grouped_gemm_cute(alpha: float = 1, beta: float = 0) -> torch.Tensor:
     A = torch.randint(-8, 9, (TK, K), device=torch.cuda.current_device(), dtype=torch.bfloat16)
     B = torch.randint(-8, 9, (E, N, K), device=torch.cuda.current_device(), dtype=torch.bfloat16)
     C = torch.randint(-8, 9, (E, M, N), device=torch.cuda.current_device(), dtype=torch.bfloat16)
-    output = torch.randn(E, M, N, device=torch.cuda.current_device(), dtype=torch.bfloat16)
+    output = torch.empty(E, M, N, device=torch.cuda.current_device(), dtype=torch.bfloat16)
 
     grouped_gemm_cuda(
         A=A,
