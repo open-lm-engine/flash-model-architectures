@@ -459,8 +459,8 @@ void grouped_gemm_cuda(const torch::Tensor &_A,
 
     DISPATCH_FLOAT_KERNEL(
         _A.scalar_type(), "copy", scalar_t, ([&] {
-            const ElementA *A = reinterpret_cast<ElementA *>(_A.data_ptr<scalar_t>());
-            const ElementB *B = reinterpret_cast<ElementB *>(_B.data_ptr<scalar_t>());
+            ElementA *A = reinterpret_cast<ElementA *>(_A.data_ptr<scalar_t>());
+            ElementB *B = reinterpret_cast<ElementB *>(_B.data_ptr<scalar_t>());
 
             auto [offset_A_device, offset_B_device, offset_C_device] =
                 allocate(A, B, problem_sizes_host, M_array, N_array, K_array);
