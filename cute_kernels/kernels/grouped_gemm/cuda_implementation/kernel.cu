@@ -305,17 +305,6 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> allocate(
     offset_B_device = torch::cumsum(offset_B_device, 0);
     offset_C_device = torch::cumsum(offset_C_device, 0);
 
-    return std::make_tuple(offset_A_device, offset_B_device, offset_C_device);
-}
-
-/// Initialize operands to be used in the GEMM and reference GEMM
-void initialize(const fp32 &alpha,
-                const fp32 &beta,
-                const std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host,
-                const uint32 &E,
-                const torch::Tensor &offset_A_device,
-                const torch::Tensor &offset_B_device,
-                const torch::Tensor &offset_C_device) {
     problem_sizes.reset(E);
     problem_sizes.copy_from_host(problem_sizes_host.data());
 
@@ -333,7 +322,7 @@ void initialize(const fp32 &alpha,
 
     ptr_A.reset(E);
     ptr_A.copy_from_host(ptr_A_host.data());
-    populate_tensor_pointers_cuda_kernel<ElementA><<<1, 1024>>>(ptr_A.get(), offset_A_device, ptr_A.get());
+    // populate_tensor_pointers_cuda_kernel<ElementA><<<1, 1024>>>(ptr_A.get(), offset_A_device, ptr_A.get());
 
     ptr_B.reset(E);
     ptr_B.copy_from_host(ptr_B_host.data());
@@ -347,6 +336,8 @@ void initialize(const fp32 &alpha,
     initialize_block(block_A, 2023);
     initialize_block(block_B, 2022);
     initialize_block(block_C, 2021);
+
+    return std::make_tuple(offset_A_device, offset_B_device, offset_C_device);
 }
 
 typename Gemm::Arguments args_from_options(
@@ -472,7 +463,6 @@ void grouped_gemm_cuda(const torch::Tensor &A,
     }
 
     auto [offset_A_device, offset_B_device, offset_C_device] = allocate(problem_sizes_host, M_array, N_array, K_array);
-    initialize(alpha, beta, problem_sizes_host, E, offset_A_device, offset_B_device, offset_C_device);
 
     const bool host_problem_shapes_available = false;
 
