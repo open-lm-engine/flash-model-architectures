@@ -455,7 +455,7 @@ void grouped_gemm_cuda(const torch::Tensor &_A,
                           }));
 
     auto [offset_A_device, offset_B_device, offset_C_device] =
-        allocate(A, B, C, D, problem_sizes_host, M_array, N_array, K_array);
+        allocate<ElementA, ElementB, ElementC, ElementC>(A, B, C, D, problem_sizes_host, M_array, N_array, K_array);
 
     const bool host_problem_shapes_available = false;
 
