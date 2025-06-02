@@ -84,6 +84,7 @@ using ProblemShape = cutlass::gemm::GroupProblemShape<Shape<int32, int32, int32>
 using ElementA = cutlass::bfloat16_t;
 using ElementB = cutlass::bfloat16_t;
 using ElementC = cutlass::bfloat16_t;
+using ElementD = cutlass::bfloat16_t;
 using ElementAccumulator = fp32;
 
 using LayoutA = cutlass::layout::RowMajor;
