@@ -234,15 +234,26 @@ __global__ void populate_strides_cuda_kernel(const uint32 *M_array,
     }
 }
 
-template <typename T>
-__global__ void offset_pointers_kernel(const T **output_pointers,
-                                       T *base_pointer,
-                                       const int64_t *offsets,
+template <typename ElementA, typename ElementB, typename ElementC>
+__global__ void offset_pointers_kernel(const ElementA **output_pointers_A,
+                                       const ElementB **output_pointers_B,
+                                       const ElementC **output_pointers_C,
+                                       //    const ElementC **output_pointers_D,
+                                       ElementA *base_pointer_A,
+                                       ElementB *base_pointer_B,
+                                       ElementC *base_pointer_C,
+                                       //    ElementC *base_pointer_D,
+                                       const int64_t *offsets_A,
+                                       const int64_t *offsets_B,
+                                       const int64_t *offsets_C,
                                        const uint32 E) {
     const uint32 thread_id = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (thread_id < E) {
-        output_pointers[thread_id] = base_pointer + offsets[thread_id];
+        output_pointers_A[thread_id] = base_pointer_A + offsets_A[thread_id];
+        output_pointers_B[thread_id] = base_pointer_B + offsets_B[thread_id];
+        output_pointers_C[thread_id] = base_pointer_C + offsets_C[thread_id];
+        // output_pointers_D[thread_id] = base_pointer_D + offsets_C[thread_id];
     }
 }
 
@@ -320,9 +331,18 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> allocate(
         ptr_D_host.at(i) = block_D.get() + offset_C_device[i].item<int64_t>();
     }
 
-    offset_pointers_kernel<ElementA><<<1, 1024>>>(ptr_A.get(), block_A.get(), offset_A_device.data_ptr<int64_t>(), E);
-    offset_pointers_kernel<ElementA><<<1, 1024>>>(ptr_B.get(), block_B.get(), offset_B_device.data_ptr<int64_t>(), E);
-    ptr_C.copy_from_host(ptr_C_host.data());
+    offset_pointers_kernel<ElementA, ElementB, ElementC><<<1, 1024>>>(ptr_A.get(),
+                                                                      ptr_B.get(),
+                                                                      ptr_C.get(),
+                                                                      //   ptr_D.get(),
+                                                                      block_A.get(),
+                                                                      block_B.get(),
+                                                                      block_C.get(),
+                                                                      //   block_D.get(),
+                                                                      offset_A_device.data_ptr<int64_t>(),
+                                                                      offset_B_device.data_ptr<int64_t>(),
+                                                                      offset_C_device.data_ptr<int64_t>(),
+                                                                      E);
     ptr_D.copy_from_host(ptr_D_host.data());
 
     initialize_block(block_A, 2023);
