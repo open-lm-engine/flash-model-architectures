@@ -233,6 +233,19 @@ __global__ void populate_strides_cuda_kernel(const uint32 *M_array,
     }
 }
 
+// TODO modify this kernel to use vector load/stores
+template <typename scalar_t>
+__global__ void populate_tensor_pointers_cuda_kernel(const scalar_t *array,
+                                                     const int64_t *offsets,
+                                                     int64_t *output,
+                                                     const uint32 E) {
+    uint32 thread_id = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (thread_id < E) {
+        output[thread_id] = array + offsets[thread_id];
+    }
+}
+
 /// Allocates device-side data
 std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> allocate(
     const std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host,
@@ -320,6 +333,7 @@ void initialize(const fp32 &alpha,
 
     ptr_A.reset(E);
     ptr_A.copy_from_host(ptr_A_host.data());
+    populate_tensor_pointers_cuda_kernel<ElementA><<<1, 1024>>>(ptr_A.get(), offset_A_device, ptr_A.get());
 
     ptr_B.reset(E);
     ptr_B.copy_from_host(ptr_B_host.data());
