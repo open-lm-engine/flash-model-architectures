@@ -182,13 +182,6 @@ fp64 get_gflops(const fp64 &runtime_s,
     return gflop / runtime_s;
 }
 
-/// Helper to initialize a block of device data
-template <class Element>
-void initialize_block(cutlass::DeviceAllocation<Element> &block, uint64 seed = 2023) {
-    cutlass::reference::device::BlockFillRandomUniform(
-        block.get(), block.size(), seed, static_cast<Element>(8), static_cast<Element>(-8), 0);
-}
-
 // TODO modify this kernel to use vector load/stores
 template <typename StrideA, typename StrideB, typename StrideC>
 __global__ void populate_strides_cuda_kernel(const uint32 *M_array,
@@ -246,56 +239,6 @@ __global__ void offset_pointers_kernel(const ElementA **output_pointers_A,
         output_pointers_C[thread_id] = C + offsets_C[thread_id];
         output_pointers_D[thread_id] = D + offsets_C[thread_id];
     }
-}
-
-typename Gemm::Arguments args_from_options(
-    const uint32 &E,
-    const dim3 &cluster_shape,
-    const dim3 &cluster_shape_fallback,
-    const fp32 &alpha,
-    const fp32 &beta,
-    const RasterOrderOptions &raster_order,
-    const std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host,
-    bool host_problem_shapes_available = true) {
-    cutlass::KernelHardwareInfo hw_info;
-    cudaGetDevice(&hw_info.device_id);
-    cudaDeviceGetAttribute(&hw_info.sm_count, cudaDevAttrMultiProcessorCount, hw_info.device_id);
-
-    if (!is_static_v<ClusterShape>) {
-        if (size<0>(typename Gemm::GemmKernel::CollectiveMainloop::AtomThrShapeMNK{}) == 2 &&
-            (cluster_shape.x < 2 || cluster_shape_fallback.x < 2)) {
-            std::cout << "Error: MMA2SMConfig kernel config needs cluster_dim.x >= 2" << std::endl;
-        }
-        hw_info.cluster_shape = cluster_shape;
-        hw_info.cluster_shape_fallback = cluster_shape_fallback;
-    }
-
-    typename Gemm::Arguments arguments;
-    decltype(arguments.epilogue.thread) fusion_args;
-    fusion_args.alpha_ptr = nullptr;
-    fusion_args.beta_ptr = nullptr;
-
-    // Single alpha / beta for all groups
-    fusion_args.alpha = alpha;
-    fusion_args.beta = beta;
-    fusion_args.alpha_ptr_array = nullptr;
-    fusion_args.beta_ptr_array = nullptr;
-    fusion_args.dAlpha = {_0{}, _0{}, 0};
-    fusion_args.dBeta = {_0{}, _0{}, 0};
-
-    typename Gemm::GemmKernel::TileSchedulerArguments scheduler;
-    scheduler.raster_order = raster_order;
-
-    arguments = typename Gemm::Arguments{cutlass::gemm::GemmUniversalMode::kGrouped,
-                                         {static_cast<int>(E),
-                                          problem_sizes.get(),
-                                          host_problem_shapes_available ? problem_sizes_host.data() : nullptr},
-                                         {ptr_A.get(), stride_A.get(), ptr_B.get(), stride_B.get()},
-                                         {fusion_args, ptr_C.get(), stride_C.get(), ptr_D.get(), stride_C.get()},
-                                         hw_info,
-                                         scheduler};
-
-    return arguments;
 }
 
 template <typename ElementD>
@@ -446,15 +389,43 @@ void grouped_gemm_cuda(const torch::Tensor &_A,
     // Instantiate CUTLASS kernel depending on templates
     Gemm gemm;
 
-    // Create a structure of gemm kernel arguments suitable for invoking an instance of Gemm
-    Gemm::Arguments arguments = args_from_options(E,
-                                                  cluster_shape,
-                                                  cluster_shape_fallback,
-                                                  alpha,
-                                                  beta,
-                                                  raster_order,
-                                                  problem_sizes_host,
-                                                  host_problem_shapes_available);
+    cutlass::KernelHardwareInfo hw_info;
+    cudaGetDevice(&hw_info.device_id);
+    cudaDeviceGetAttribute(&hw_info.sm_count, cudaDevAttrMultiProcessorCount, hw_info.device_id);
+
+    if (!is_static_v<ClusterShape>) {
+        if (size<0>(typename Gemm::GemmKernel::CollectiveMainloop::AtomThrShapeMNK{}) == 2 &&
+            (cluster_shape.x < 2 || cluster_shape_fallback.x < 2)) {
+            std::cout << "Error: MMA2SMConfig kernel config needs cluster_dim.x >= 2" << std::endl;
+        }
+        hw_info.cluster_shape = cluster_shape;
+        hw_info.cluster_shape_fallback = cluster_shape_fallback;
+    }
+
+    typename Gemm::Arguments arguments;
+    decltype(arguments.epilogue.thread) fusion_args;
+    fusion_args.alpha_ptr = nullptr;
+    fusion_args.beta_ptr = nullptr;
+
+    // Single alpha / beta for all groups
+    fusion_args.alpha = alpha;
+    fusion_args.beta = beta;
+    fusion_args.alpha_ptr_array = nullptr;
+    fusion_args.beta_ptr_array = nullptr;
+    fusion_args.dAlpha = {_0{}, _0{}, 0};
+    fusion_args.dBeta = {_0{}, _0{}, 0};
+
+    typename Gemm::GemmKernel::TileSchedulerArguments scheduler;
+    scheduler.raster_order = raster_order;
+
+    arguments = typename Gemm::Arguments{cutlass::gemm::GemmUniversalMode::kGrouped,
+                                         {static_cast<int>(E),
+                                          problem_sizes.get(),
+                                          host_problem_shapes_available ? problem_sizes_host.data() : nullptr},
+                                         {ptr_A.get(), stride_A.get(), ptr_B.get(), stride_B.get()},
+                                         {fusion_args, ptr_C.get(), stride_C.get(), ptr_D.get(), stride_C.get()},
+                                         hw_info,
+                                         scheduler};
 
     // Using the arguments, query for extra workspace required for matrix multiplication computation
     size_t workspace_size = Gemm::get_workspace_size(arguments);
