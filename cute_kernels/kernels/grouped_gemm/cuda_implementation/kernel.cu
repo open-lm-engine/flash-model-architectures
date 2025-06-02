@@ -239,7 +239,7 @@ __global__ void offset_pointers_kernel(const ElementA **output_pointers_A,
                                        const ElementA *A,
                                        const ElementB *B,
                                        const ElementC *C,
-                                       ElementD *base_pointer_D,
+                                       ElementD *D,
                                        const int64_t *offsets_A,
                                        const int64_t *offsets_B,
                                        const int64_t *offsets_C,
@@ -250,7 +250,7 @@ __global__ void offset_pointers_kernel(const ElementA **output_pointers_A,
         output_pointers_A[thread_id] = A + offsets_A[thread_id];
         output_pointers_B[thread_id] = B + offsets_B[thread_id];
         output_pointers_C[thread_id] = C + offsets_C[thread_id];
-        output_pointers_D[thread_id] = base_pointer_D + offsets_C[thread_id];
+        output_pointers_D[thread_id] = D + offsets_C[thread_id];
     }
 }
 
