@@ -23,8 +23,8 @@ void grouped_gemm_cuda(const torch::Tensor &_A,
                        const torch::Tensor &K_array,
                        const bool &is_A_transposed,
                        const bool &is_B_transposed,
-                       const fp32 &alpha,
-                       const fp32 &beta) {
+                       const float &alpha,
+                       const float &beta) {
     if (is_A_transposed) {
         if (is_B_transposed) {
             _grouped_gemm_cuda<true, true>(_A, _B, _C, _D, M_array, N_array, K_array, alpha, beta);
