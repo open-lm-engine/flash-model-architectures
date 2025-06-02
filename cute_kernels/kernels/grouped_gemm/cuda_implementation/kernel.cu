@@ -380,6 +380,7 @@ typename Gemm::Arguments args_from_options(
 bool verify(ElementA *A,
             ElementB *B,
             ElementC *C,
+            ElementC *D,
             const fp32 &alpha,
             const fp32 &beta,
             const std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host,
@@ -501,7 +502,7 @@ void grouped_gemm_cuda(const torch::Tensor &_A,
 
     // Check if output from CUTLASS kernel and reference kernel are equal or not
     const bool passed =
-        verify(A, B, C, alpha, beta, problem_sizes_host, offset_A_device, offset_B_device, offset_C_device);
+        verify(A, B, C, D, alpha, beta, problem_sizes_host, offset_A_device, offset_B_device, offset_C_device);
 
     std::cout << "  Disposition: " << (passed ? "Passed" : "Failed") << std::endl;
 
