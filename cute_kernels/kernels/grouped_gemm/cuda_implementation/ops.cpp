@@ -4,8 +4,8 @@
 
 #include <torch/extension.h>
 
-void grouped_gemm_cuda(const torch::Tensor &A,
-                       const torch::Tensor &B,
+void grouped_gemm_cuda(const torch::Tensor &_A,
+                       const torch::Tensor &_B,
                        torch::Tensor &output,
                        const torch::Tensor &M_array,
                        const torch::Tensor &N_array,

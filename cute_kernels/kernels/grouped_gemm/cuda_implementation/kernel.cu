@@ -439,8 +439,8 @@ inline uint32 get_size_at_index(const std::optional<torch::Tensor> &_offsets,
     return _offsets.has_value() ? _offsets.value()[index].item<int64>() : _size.value();
 }
 
-void grouped_gemm_cuda(const torch::Tensor &A,
-                       const torch::Tensor &B,
+void grouped_gemm_cuda(const torch::Tensor &_A,
+                       const torch::Tensor &_B,
                        torch::Tensor &output,
                        const torch::Tensor &M_array,
                        const torch::Tensor &N_array,
@@ -469,7 +469,7 @@ void grouped_gemm_cuda(const torch::Tensor &A,
     }
 
     auto [offset_A_device, offset_B_device, offset_C_device] =
-        allocate(A, B, problem_sizes_host, M_array, N_array, K_array);
+        allocate(_A, _B, problem_sizes_host, M_array, N_array, K_array);
 
     const bool host_problem_shapes_available = false;
 
@@ -503,7 +503,7 @@ void grouped_gemm_cuda(const torch::Tensor &A,
 
     // Check if output from CUTLASS kernel and reference kernel are equal or not
     const bool passed =
-        verify(A, B, alpha, beta, problem_sizes_host, offset_A_device, offset_B_device, offset_C_device);
+        verify(_A, _B, alpha, beta, problem_sizes_host, offset_A_device, offset_B_device, offset_C_device);
 
     std::cout << "  Disposition: " << (passed ? "Passed" : "Failed") << std::endl;
 
