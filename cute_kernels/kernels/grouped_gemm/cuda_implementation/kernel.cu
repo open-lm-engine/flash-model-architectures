@@ -133,7 +133,7 @@ __global__ void populate_strides_cuda_kernel(const uint32 *M_array,
     }
 }
 
-template <typename ElementA, typename ElementB, typename ElementC, typename ElementD>
+template <typename ElementA, typename ElementB, typename ElementC, typename ElementD, typename DeviceGemmReference>
 __global__ void offset_pointers_kernel(const ElementA **output_pointers_A,
                                        const ElementB **output_pointers_B,
                                        const ElementC **output_pointers_C,
@@ -443,7 +443,7 @@ void grouped_gemm_cuda(const torch::Tensor &_A,
     gemm.run(/* stream = */ nullptr, /* cuda_adapter = */ nullptr, /* launch_with_pdl = */ false);
 
     // Check if output from CUTLASS kernel and reference kernel are equal or not
-    const bool passed = verify<ElementA, ElementB, ElementC, ElementC>(
+    const bool passed = verify<ElementA, ElementB, ElementC, ElementC, DeviceGemmReference>(
         A, B, C, D, block_ref_D, alpha, beta, problem_sizes_host, offset_A_device, offset_B_device, offset_C_device);
 
     std::cout << "  Disposition: " << (passed ? "Passed" : "Failed") << std::endl;
