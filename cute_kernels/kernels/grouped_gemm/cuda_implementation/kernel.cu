@@ -380,7 +380,6 @@ typename Gemm::Arguments args_from_options(
 bool verify(ElementA *A,
             ElementB *B,
             ElementC *C,
-            ElementC *D,
             const fp32 &alpha,
             const fp32 &beta,
             const std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host,
