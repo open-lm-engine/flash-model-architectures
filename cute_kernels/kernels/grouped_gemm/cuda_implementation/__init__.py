@@ -17,6 +17,7 @@ _KERNEL_NAME = "grouped_gemm_cuda"
 def grouped_gemm_cuda(
     A: torch.Tensor,
     B: torch.Tensor,
+    C: torch.Tensor | None,
     output: torch.Tensor,
     M_array: torch.Tensor,
     N_array: torch.Tensor,

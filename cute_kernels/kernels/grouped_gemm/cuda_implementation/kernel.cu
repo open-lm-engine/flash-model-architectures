@@ -156,7 +156,6 @@ std::vector<StrideC> stride_C_host;
 // Device-side allocations
 cutlass::DeviceAllocation<typename ProblemShape::UnderlyingProblemShape> problem_sizes;
 
-cutlass::DeviceAllocation<typename Gemm::ElementC> block_C;
 cutlass::DeviceAllocation<typename Gemm::EpilogueOutputOp::ElementOutput> block_D;
 cutlass::DeviceAllocation<typename Gemm::EpilogueOutputOp::ElementOutput> block_ref_D;
 
@@ -259,6 +258,7 @@ __global__ void offset_pointers_kernel(const ElementA **output_pointers_A,
 std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> allocate(
     const ElementA *A,
     const ElementB *B,
+    const ElementC *C,
     const std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host,
     const torch::Tensor &M_array,
     const torch::Tensor &N_array,
@@ -280,7 +280,6 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> allocate(
         stride_C_host.push_back(cutlass::make_cute_packed_stride(StrideC{}, {M, N, 1}));
     }
 
-    block_C.reset(total_elements_C);
     block_D.reset(total_elements_C);
     block_ref_D.reset(total_elements_C);
 
@@ -320,14 +319,12 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> allocate(
                       ptr_D.get(),
                       A,
                       B,
-                      block_C.get(),
+                      C,
                       block_D.get(),
                       offset_A_device.data_ptr<int64_t>(),
                       offset_B_device.data_ptr<int64_t>(),
                       offset_C_device.data_ptr<int64_t>(),
                       E);
-
-    initialize_block(block_C, 2021);
 
     return std::make_tuple(offset_A_device, offset_B_device, offset_C_device);
 }
@@ -384,6 +381,7 @@ typename Gemm::Arguments args_from_options(
 
 bool verify(ElementA *A,
             ElementB *B,
+            ElementC *C,
             const fp32 &alpha,
             const fp32 &beta,
             const std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host,
@@ -400,7 +398,7 @@ bool verify(ElementA *A,
         auto K = get<2>(problem);
         cutlass::TensorRef ref_A(A + offset_A_device[i].item<int64_t>(), Gemm::LayoutA::packed({M, K}));
         cutlass::TensorRef ref_B(B + offset_B_device[i].item<int64_t>(), Gemm::LayoutB::packed({K, N}));
-        cutlass::TensorRef ref_C(block_C.get() + offset_C_device[i].item<int64_t>(), Gemm::LayoutC::packed({M, N}));
+        cutlass::TensorRef ref_C(C + offset_C_device[i].item<int64_t>(), Gemm::LayoutC::packed({M, N}));
         cutlass::TensorRef ref_D(block_ref_D.get() + offset_C_device[i].item<int64_t>(),
                                  Gemm::LayoutD::packed({M, N}));
 
@@ -430,6 +428,7 @@ inline uint32 get_size_at_index(const std::optional<torch::Tensor> &_offsets,
 
 void grouped_gemm_cuda(const torch::Tensor &_A,
                        const torch::Tensor &_B,
+                       const std::optional<torch::Tensor> &_C,
                        torch::Tensor &output,
                        const torch::Tensor &M_array,
                        const torch::Tensor &N_array,
@@ -461,9 +460,10 @@ void grouped_gemm_cuda(const torch::Tensor &_A,
         _A.scalar_type(), "copy", scalar_t, ([&] {
             ElementA *A = reinterpret_cast<ElementA *>(_A.data_ptr<scalar_t>());
             ElementB *B = reinterpret_cast<ElementB *>(_B.data_ptr<scalar_t>());
+            ElementC *C = _C.has_value() ? reinterpret_cast<ElementC *>(_C.value().data_ptr<scalar_t>()) : nullptr;
 
             auto [offset_A_device, offset_B_device, offset_C_device] =
-                allocate(A, B, problem_sizes_host, M_array, N_array, K_array);
+                allocate(A, B, C, problem_sizes_host, M_array, N_array, K_array);
 
             const bool host_problem_shapes_available = false;
 
@@ -497,7 +497,7 @@ void grouped_gemm_cuda(const torch::Tensor &_A,
 
             // Check if output from CUTLASS kernel and reference kernel are equal or not
             const bool passed =
-                verify(A, B, alpha, beta, problem_sizes_host, offset_A_device, offset_B_device, offset_C_device);
+                verify(A, B, C, alpha, beta, problem_sizes_host, offset_A_device, offset_B_device, offset_C_device);
 
             std::cout << "  Disposition: " << (passed ? "Passed" : "Failed") << std::endl;
 
