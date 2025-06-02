@@ -81,91 +81,6 @@ using namespace cute;
 
 using ProblemShape = cutlass::gemm::GroupProblemShape<Shape<int32, int32, int32>>;  // <M,N,K> per group
 
-using ElementA = cutlass::bfloat16_t;
-using ElementB = cutlass::bfloat16_t;
-using ElementC = cutlass::bfloat16_t;
-using ElementD = cutlass::bfloat16_t;
-using ElementAccumulator = fp32;
-
-using LayoutA = cutlass::layout::RowMajor;
-using LayoutB = cutlass::layout::ColumnMajor;
-using LayoutC = cutlass::layout::ColumnMajor;
-
-constexpr int AlignmentA = 128 / cutlass::sizeof_bits<ElementA>::value;
-constexpr int AlignmentB = 128 / cutlass::sizeof_bits<ElementB>::value;
-constexpr int AlignmentC = 128 / cutlass::sizeof_bits<ElementC>::value;
-
-using ArchTag = cutlass::arch::Sm100;
-using OperatorClass = cutlass::arch::OpClassTensorOp;
-using StageCountType = cutlass::gemm::collective::StageCountAuto;
-
-using ClusterShape = Shape<int32_t, int32_t, _1>;
-
-using MmaTileShape = Shape<_256, _256, Int<128 / sizeof(ElementA)>>;
-
-using KernelSchedule = cutlass::gemm::KernelPtrArrayTmaWarpSpecialized2SmSm100;
-using EpilogueSchedule = cutlass::epilogue::PtrArrayTmaWarpSpecialized2Sm;
-
-using CollectiveEpilogue = typename cutlass::epilogue::collective::CollectiveBuilder<
-    ArchTag,
-    OperatorClass,
-    MmaTileShape,
-    ClusterShape,
-    cutlass::epilogue::collective::EpilogueTileAuto,
-    ElementAccumulator,
-    ElementAccumulator,
-    ElementC,
-    LayoutC *,
-    AlignmentC,
-    ElementC,
-    LayoutC *,
-    AlignmentC,
-    EpilogueSchedule,
-    cutlass::epilogue::fusion::LinearCombination<ElementC, ElementAccumulator>>::CollectiveOp;
-
-using CollectiveMainloop = typename cutlass::gemm::collective::CollectiveBuilder<
-    ArchTag,
-    OperatorClass,
-    ElementA,
-    LayoutA *,
-    AlignmentA,
-    ElementB,
-    LayoutB *,
-    AlignmentB,
-    ElementAccumulator,
-    MmaTileShape,
-    ClusterShape,
-    cutlass::gemm::collective::StageCountAutoCarveout<static_cast<int>(
-        sizeof(typename CollectiveEpilogue::SharedStorage))>,
-    KernelSchedule>::CollectiveOp;
-
-using GemmKernel = cutlass::gemm::kernel::GemmUniversal<ProblemShape, CollectiveMainloop, CollectiveEpilogue>;
-using Gemm = cutlass::gemm::device::GemmUniversalAdapter<GemmKernel>;
-
-// Reference device GEMM implementation type
-using DeviceGemmReference = cutlass::reference::device::
-    Gemm<ElementA, LayoutA, ElementB, LayoutB, ElementC, LayoutC, ElementAccumulator, ElementAccumulator>;
-
-using StrideA = typename Gemm::GemmKernel::InternalStrideA;
-using StrideB = typename Gemm::GemmKernel::InternalStrideB;
-using StrideC = typename Gemm::GemmKernel::InternalStrideC;
-
-// Device-side allocations
-cutlass::DeviceAllocation<typename ProblemShape::UnderlyingProblemShape> problem_sizes;
-
-cutlass::DeviceAllocation<const typename Gemm::ElementA *> ptr_A;
-cutlass::DeviceAllocation<const typename Gemm::ElementB *> ptr_B;
-cutlass::DeviceAllocation<const typename Gemm::ElementC *> ptr_C;
-cutlass::DeviceAllocation<typename Gemm::ElementC *> ptr_D;
-cutlass::DeviceAllocation<typename Gemm::ElementC *> ptr_ref_D;
-
-cutlass::DeviceAllocation<StrideA> stride_A;
-cutlass::DeviceAllocation<StrideB> stride_B;
-cutlass::DeviceAllocation<StrideC> stride_C;
-
-using RasterOrderOptions = typename cutlass::gemm::kernel::detail::PersistentTileSchedulerSm100GroupParams<
-    typename ProblemShape::UnderlyingProblemShape>::RasterOrderOptions;
-
 /// Compute performance in GFLOP/s
 fp64 get_gflops(const fp64 &runtime_s,
                 std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host) {
@@ -295,6 +210,91 @@ void grouped_gemm_cuda(const torch::Tensor &_A,
                        const bool &is_B_transposed,
                        const fp32 &alpha,
                        const fp32 &beta) {
+    using ElementA = cutlass::bfloat16_t;
+    using ElementB = cutlass::bfloat16_t;
+    using ElementC = cutlass::bfloat16_t;
+    using ElementD = cutlass::bfloat16_t;
+    using ElementAccumulator = fp32;
+
+    using LayoutA = cutlass::layout::RowMajor;
+    using LayoutB = cutlass::layout::ColumnMajor;
+    using LayoutC = cutlass::layout::ColumnMajor;
+
+    constexpr int AlignmentA = 128 / cutlass::sizeof_bits<ElementA>::value;
+    constexpr int AlignmentB = 128 / cutlass::sizeof_bits<ElementB>::value;
+    constexpr int AlignmentC = 128 / cutlass::sizeof_bits<ElementC>::value;
+
+    using ArchTag = cutlass::arch::Sm100;
+    using OperatorClass = cutlass::arch::OpClassTensorOp;
+    using StageCountType = cutlass::gemm::collective::StageCountAuto;
+
+    using ClusterShape = Shape<int32_t, int32_t, _1>;
+
+    using MmaTileShape = Shape<_256, _256, Int<128 / sizeof(ElementA)>>;
+
+    using KernelSchedule = cutlass::gemm::KernelPtrArrayTmaWarpSpecialized2SmSm100;
+    using EpilogueSchedule = cutlass::epilogue::PtrArrayTmaWarpSpecialized2Sm;
+
+    using CollectiveEpilogue = typename cutlass::epilogue::collective::CollectiveBuilder<
+        ArchTag,
+        OperatorClass,
+        MmaTileShape,
+        ClusterShape,
+        cutlass::epilogue::collective::EpilogueTileAuto,
+        ElementAccumulator,
+        ElementAccumulator,
+        ElementC,
+        LayoutC *,
+        AlignmentC,
+        ElementC,
+        LayoutC *,
+        AlignmentC,
+        EpilogueSchedule,
+        cutlass::epilogue::fusion::LinearCombination<ElementC, ElementAccumulator>>::CollectiveOp;
+
+    using CollectiveMainloop = typename cutlass::gemm::collective::CollectiveBuilder<
+        ArchTag,
+        OperatorClass,
+        ElementA,
+        LayoutA *,
+        AlignmentA,
+        ElementB,
+        LayoutB *,
+        AlignmentB,
+        ElementAccumulator,
+        MmaTileShape,
+        ClusterShape,
+        cutlass::gemm::collective::StageCountAutoCarveout<static_cast<int>(
+            sizeof(typename CollectiveEpilogue::SharedStorage))>,
+        KernelSchedule>::CollectiveOp;
+
+    using GemmKernel = cutlass::gemm::kernel::GemmUniversal<ProblemShape, CollectiveMainloop, CollectiveEpilogue>;
+    using Gemm = cutlass::gemm::device::GemmUniversalAdapter<GemmKernel>;
+
+    // Reference device GEMM implementation type
+    using DeviceGemmReference = cutlass::reference::device::
+        Gemm<ElementA, LayoutA, ElementB, LayoutB, ElementC, LayoutC, ElementAccumulator, ElementAccumulator>;
+
+    using StrideA = typename Gemm::GemmKernel::InternalStrideA;
+    using StrideB = typename Gemm::GemmKernel::InternalStrideB;
+    using StrideC = typename Gemm::GemmKernel::InternalStrideC;
+
+    // Device-side allocations
+    cutlass::DeviceAllocation<typename ProblemShape::UnderlyingProblemShape> problem_sizes;
+
+    cutlass::DeviceAllocation<const typename Gemm::ElementA *> ptr_A;
+    cutlass::DeviceAllocation<const typename Gemm::ElementB *> ptr_B;
+    cutlass::DeviceAllocation<const typename Gemm::ElementC *> ptr_C;
+    cutlass::DeviceAllocation<typename Gemm::ElementC *> ptr_D;
+    cutlass::DeviceAllocation<typename Gemm::ElementC *> ptr_ref_D;
+
+    cutlass::DeviceAllocation<StrideA> stride_A;
+    cutlass::DeviceAllocation<StrideB> stride_B;
+    cutlass::DeviceAllocation<StrideC> stride_C;
+
+    using RasterOrderOptions = typename cutlass::gemm::kernel::detail::PersistentTileSchedulerSm100GroupParams<
+        typename ProblemShape::UnderlyingProblemShape>::RasterOrderOptions;
+
     const uint32 E = M_array.numel();
     TORCH_CHECK(E <= MAX_NUM_GROUPS)
     TORCH_CHECK(N_array.numel() == E);
