@@ -282,6 +282,10 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> allocate(
     stride_A.reset(E);
     stride_B.reset(E);
     stride_C.reset(E);
+    ptr_A.reset(E);
+    ptr_B.reset(E);
+    ptr_C.reset(E);
+    ptr_D.reset(E);
 
     torch::Tensor offset_A_device = torch::empty({E + 1}).to(torch::kLong);
     torch::Tensor offset_B_device = torch::empty({E + 1}).to(torch::kLong);
@@ -316,16 +320,9 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> allocate(
         ptr_D_host.at(i) = block_D.get() + offset_C_device[i].item<int64_t>();
     }
 
-    ptr_A.reset(E);
     offset_pointers_kernel<ElementA><<<1, 1024>>>(ptr_A.get(), block_A.get(), offset_A_device.data_ptr<int64_t>(), E);
-
-    ptr_B.reset(E);
     ptr_B.copy_from_host(ptr_B_host.data());
-
-    ptr_C.reset(E);
     ptr_C.copy_from_host(ptr_C_host.data());
-
-    ptr_D.reset(E);
     ptr_D.copy_from_host(ptr_D_host.data());
 
     initialize_block(block_A, 2023);
