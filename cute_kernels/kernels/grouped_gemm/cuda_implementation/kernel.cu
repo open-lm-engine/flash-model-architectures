@@ -156,7 +156,6 @@ std::vector<StrideC> stride_C_host;
 // Device-side allocations
 cutlass::DeviceAllocation<typename ProblemShape::UnderlyingProblemShape> problem_sizes;
 
-cutlass::DeviceAllocation<typename Gemm::EpilogueOutputOp::ElementOutput> block_D;
 cutlass::DeviceAllocation<typename Gemm::EpilogueOutputOp::ElementOutput> block_ref_D;
 
 cutlass::DeviceAllocation<const typename Gemm::ElementA *> ptr_A;
@@ -239,7 +238,7 @@ __global__ void offset_pointers_kernel(const ElementA **output_pointers_A,
                                        const ElementA *A,
                                        const ElementB *B,
                                        const ElementC *C,
-                                       ElementD *D,
+                                       const ElementD *D,
                                        const int64_t *offsets_A,
                                        const int64_t *offsets_B,
                                        const int64_t *offsets_C,
@@ -259,12 +258,11 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> allocate(
     const ElementA *A,
     const ElementB *B,
     const ElementC *C,
+    const ElementC *D,
     const std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host,
     const torch::Tensor &M_array,
     const torch::Tensor &N_array,
     const torch::Tensor &K_array) {
-    uint64 total_elements_C = 0;
-
     const uint32 E = problem_sizes_host.size();
 
     for (uint32 i = 0; i < E; i++) {
@@ -273,14 +271,11 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> allocate(
         auto N = get<1>(problem);
         auto K = get<2>(problem);
 
-        total_elements_C += M * N;
-
         stride_A_host.push_back(cutlass::make_cute_packed_stride(StrideA{}, {M, K, 1}));
         stride_B_host.push_back(cutlass::make_cute_packed_stride(StrideB{}, {N, K, 1}));
         stride_C_host.push_back(cutlass::make_cute_packed_stride(StrideC{}, {M, N, 1}));
     }
 
-    block_D.reset(total_elements_C);
     block_ref_D.reset(total_elements_C);
 
     stride_A.reset(E);
@@ -320,7 +315,7 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> allocate(
                       A,
                       B,
                       C,
-                      block_D.get(),
+                      D,
                       offset_A_device.data_ptr<int64_t>(),
                       offset_B_device.data_ptr<int64_t>(),
                       offset_C_device.data_ptr<int64_t>(),
@@ -382,6 +377,7 @@ typename Gemm::Arguments args_from_options(
 bool verify(ElementA *A,
             ElementB *B,
             ElementC *C,
+            ElementC *D,
             const fp32 &alpha,
             const fp32 &beta,
             const std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host,
@@ -412,9 +408,8 @@ bool verify(ElementA *A,
         cudaDeviceSynchronize();
 
         // Check if output from CUTLASS kernel and reference kernel are equal or not
-        passed &= cutlass::reference::device::BlockCompareEqual(block_ref_D.get() + offset_C_device[i].item<int64_t>(),
-                                                                block_D.get() + offset_C_device[i].item<int64_t>(),
-                                                                M * N);
+        passed &= cutlass::reference::device::BlockCompareEqual(
+            block_ref_D.get() + offset_C_device[i].item<int64_t>(), D + offset_C_device[i].item<int64_t>(), M * N);
     }
 
     return passed;
@@ -429,7 +424,7 @@ inline uint32 get_size_at_index(const std::optional<torch::Tensor> &_offsets,
 void grouped_gemm_cuda(const torch::Tensor &_A,
                        const torch::Tensor &_B,
                        const std::optional<torch::Tensor> &_C,
-                       torch::Tensor &output,
+                       torch::Tensor &_D,
                        const torch::Tensor &M_array,
                        const torch::Tensor &N_array,
                        const torch::Tensor &K_array,
@@ -461,9 +456,10 @@ void grouped_gemm_cuda(const torch::Tensor &_A,
             ElementA *A = reinterpret_cast<ElementA *>(_A.data_ptr<scalar_t>());
             ElementB *B = reinterpret_cast<ElementB *>(_B.data_ptr<scalar_t>());
             ElementC *C = _C.has_value() ? reinterpret_cast<ElementC *>(_C.value().data_ptr<scalar_t>()) : nullptr;
+            ElementC *D = reinterpret_cast<ElementC *>(_D.data_ptr<scalar_t>());
 
             auto [offset_A_device, offset_B_device, offset_C_device] =
-                allocate(A, B, C, problem_sizes_host, M_array, N_array, K_array);
+                allocate(A, B, C, D, problem_sizes_host, M_array, N_array, K_array);
 
             const bool host_problem_shapes_available = false;
 

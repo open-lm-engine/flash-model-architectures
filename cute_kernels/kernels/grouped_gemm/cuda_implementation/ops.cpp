@@ -7,7 +7,7 @@
 void grouped_gemm_cuda(const torch::Tensor &_A,
                        const torch::Tensor &_B,
                        const std::optional<torch::Tensor> &_C,
-                       torch::Tensor &output,
+                       torch::Tensor &_D,
                        const torch::Tensor &M_array,
                        const torch::Tensor &N_array,
                        const torch::Tensor &K_array,
