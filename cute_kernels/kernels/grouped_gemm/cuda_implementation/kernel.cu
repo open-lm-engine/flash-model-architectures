@@ -133,7 +133,7 @@ __global__ void populate_strides_cuda_kernel(const uint32 *M_array,
     }
 }
 
-template <typename ElementA, typename ElementB, typename ElementC, typename ElementD, typename DeviceGemmReference>
+template <typename ElementA, typename ElementB, typename ElementC, typename ElementD>
 __global__ void offset_pointers_kernel(const ElementA **output_pointers_A,
                                        const ElementB **output_pointers_B,
                                        const ElementC **output_pointers_C,
@@ -156,7 +156,7 @@ __global__ void offset_pointers_kernel(const ElementA **output_pointers_A,
     }
 }
 
-template <typename ElementA, typename ElementB, typename ElementC, typename ElementD>
+template <typename ElementA, typename ElementB, typename ElementC, typename ElementD, typename DeviceGemmReference>
 bool verify(ElementA *A,
             ElementB *B,
             ElementC *C,
