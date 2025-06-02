@@ -21,7 +21,7 @@ def grouped_gemm_cute(alpha: float = 1, beta: float = 0) -> torch.Tensor:
     N_array = torch.full_like(M_array, fill_value=N)
     K_array = torch.full_like(M_array, fill_value=K)
 
-    A = torch.randn(TK, K, device=torch.cuda.current_device(), dtype=torch.bfloat16)
+    A = torch.randint(-8, 9, (TK, K), device=torch.cuda.current_device(), dtype=torch.bfloat16)
     B = torch.randn(E, N, K, device=torch.cuda.current_device(), dtype=torch.bfloat16)
     output = torch.randn(E, M, N, device=torch.cuda.current_device(), dtype=torch.bfloat16)
 

@@ -259,6 +259,7 @@ __global__ void offset_pointers_kernel(const ElementA **output_pointers_A,
 
 /// Allocates device-side data
 std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> allocate(
+    const torch::Tensor &A,
     const std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host,
     const torch::Tensor &M_array,
     const torch::Tensor &N_array,
@@ -333,7 +334,11 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> allocate(
                       offset_C_device.data_ptr<int64_t>(),
                       E);
 
-    initialize_block(block_A, 2023);
+    DISPATCH_FLOAT_KERNEL(A.scalar_type(), "copy", scalar_t, ([&] {
+                              block_A.copy_from_device(reinterpret_cast<ElementA *>(A.data_ptr<scalar_t>()),
+                                                       total_elements_A);
+                          }));
+
     initialize_block(block_B, 2022);
     initialize_block(block_C, 2021);
 
@@ -462,7 +467,8 @@ void grouped_gemm_cuda(const torch::Tensor &A,
         problem_sizes_host.push_back({M, N, K});
     }
 
-    auto [offset_A_device, offset_B_device, offset_C_device] = allocate(problem_sizes_host, M_array, N_array, K_array);
+    auto [offset_A_device, offset_B_device, offset_C_device] =
+        allocate(A, problem_sizes_host, M_array, N_array, K_array);
 
     const bool host_problem_shapes_available = false;
 
