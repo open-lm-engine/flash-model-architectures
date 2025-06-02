@@ -152,8 +152,6 @@ using StrideC = typename Gemm::GemmKernel::InternalStrideC;
 // Device-side allocations
 cutlass::DeviceAllocation<typename ProblemShape::UnderlyingProblemShape> problem_sizes;
 
-cutlass::DeviceAllocation<typename Gemm::ElementC> block_ref_D;
-
 cutlass::DeviceAllocation<const typename Gemm::ElementA *> ptr_A;
 cutlass::DeviceAllocation<const typename Gemm::ElementB *> ptr_B;
 cutlass::DeviceAllocation<const typename Gemm::ElementC *> ptr_C;
@@ -249,76 +247,6 @@ __global__ void offset_pointers_kernel(const ElementA **output_pointers_A,
     }
 }
 
-/// Allocates device-side data
-template <typename ElementA, typename ElementB, typename ElementC, typename ElementD>
-std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> allocate(
-    const ElementA *A,
-    const ElementB *B,
-    const ElementC *C,
-    ElementD *D,
-    const std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host,
-    const torch::Tensor &M_array,
-    const torch::Tensor &N_array,
-    const torch::Tensor &K_array) {
-    uint64 total_elements_C = 0;
-    const uint32 E = problem_sizes_host.size();
-
-    for (uint32 i = 0; i < E; i++) {
-        auto problem = problem_sizes_host.at(i);
-        auto M = get<0>(problem);
-        auto N = get<1>(problem);
-        auto K = get<2>(problem);
-
-        total_elements_C += M * N;
-    }
-
-    block_ref_D.reset(total_elements_C);
-
-    stride_A.reset(E);
-    stride_B.reset(E);
-    stride_C.reset(E);
-    ptr_A.reset(E);
-    ptr_B.reset(E);
-    ptr_C.reset(E);
-    ptr_D.reset(E);
-
-    torch::Tensor offset_A_device = torch::empty({E + 1}).to(torch::kLong);
-    torch::Tensor offset_B_device = torch::empty({E + 1}).to(torch::kLong);
-    torch::Tensor offset_C_device = torch::empty({E + 1}).to(torch::kLong);
-
-    populate_strides_cuda_kernel<StrideA, StrideB, StrideC><<<1, 1024>>>(M_array.data_ptr<uint32>(),
-                                                                         N_array.data_ptr<uint32>(),
-                                                                         K_array.data_ptr<uint32>(),
-                                                                         stride_A.get(),
-                                                                         stride_B.get(),
-                                                                         stride_C.get(),
-                                                                         offset_A_device.data_ptr<int64_t>(),
-                                                                         offset_B_device.data_ptr<int64_t>(),
-                                                                         offset_C_device.data_ptr<int64_t>(),
-                                                                         E);
-    offset_A_device = torch::cumsum(offset_A_device, 0);
-    offset_B_device = torch::cumsum(offset_B_device, 0);
-    offset_C_device = torch::cumsum(offset_C_device, 0);
-
-    problem_sizes.reset(E);
-    problem_sizes.copy_from_host(problem_sizes_host.data());
-
-    offset_pointers_kernel<ElementA, ElementB, ElementC, ElementD><<<1, 1024>>>(ptr_A.get(),
-                                                                                ptr_B.get(),
-                                                                                ptr_C.get(),
-                                                                                ptr_D.get(),
-                                                                                A,
-                                                                                B,
-                                                                                C,
-                                                                                D,
-                                                                                offset_A_device.data_ptr<int64_t>(),
-                                                                                offset_B_device.data_ptr<int64_t>(),
-                                                                                offset_C_device.data_ptr<int64_t>(),
-                                                                                E);
-
-    return std::make_tuple(offset_A_device, offset_B_device, offset_C_device);
-}
-
 typename Gemm::Arguments args_from_options(
     const uint32 &E,
     const dim3 &cluster_shape,
@@ -369,10 +297,12 @@ typename Gemm::Arguments args_from_options(
     return arguments;
 }
 
+template <typename ElementD>
 bool verify(ElementA *A,
             ElementB *B,
             ElementC *C,
             ElementC *D,
+            cutlass::DeviceAllocation<ElementD> block_ref_D,
             const fp32 &alpha,
             const fp32 &beta,
             const std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host,
@@ -454,8 +384,62 @@ void grouped_gemm_cuda(const torch::Tensor &_A,
                               D = reinterpret_cast<ElementC *>(_D.data_ptr<scalar_t>());
                           }));
 
-    auto [offset_A_device, offset_B_device, offset_C_device] =
-        allocate<ElementA, ElementB, ElementC, ElementC>(A, B, C, D, problem_sizes_host, M_array, N_array, K_array);
+    uint64 total_elements_C = 0;
+    const uint32 E = problem_sizes_host.size();
+
+    for (uint32 i = 0; i < E; i++) {
+        auto problem = problem_sizes_host.at(i);
+        auto M = get<0>(problem);
+        auto N = get<1>(problem);
+        auto K = get<2>(problem);
+
+        total_elements_C += M * N;
+    }
+
+    cutlass::DeviceAllocation<ElementD> block_ref_D;
+    block_ref_D.reset(total_elements_C);
+
+    stride_A.reset(E);
+    stride_B.reset(E);
+    stride_C.reset(E);
+    ptr_A.reset(E);
+    ptr_B.reset(E);
+    ptr_C.reset(E);
+    ptr_D.reset(E);
+
+    torch::Tensor offset_A_device = torch::empty({E + 1}).to(torch::kLong);
+    torch::Tensor offset_B_device = torch::empty({E + 1}).to(torch::kLong);
+    torch::Tensor offset_C_device = torch::empty({E + 1}).to(torch::kLong);
+
+    populate_strides_cuda_kernel<StrideA, StrideB, StrideC><<<1, 1024>>>(M_array.data_ptr<uint32>(),
+                                                                         N_array.data_ptr<uint32>(),
+                                                                         K_array.data_ptr<uint32>(),
+                                                                         stride_A.get(),
+                                                                         stride_B.get(),
+                                                                         stride_C.get(),
+                                                                         offset_A_device.data_ptr<int64_t>(),
+                                                                         offset_B_device.data_ptr<int64_t>(),
+                                                                         offset_C_device.data_ptr<int64_t>(),
+                                                                         E);
+    offset_A_device = torch::cumsum(offset_A_device, 0);
+    offset_B_device = torch::cumsum(offset_B_device, 0);
+    offset_C_device = torch::cumsum(offset_C_device, 0);
+
+    problem_sizes.reset(E);
+    problem_sizes.copy_from_host(problem_sizes_host.data());
+
+    offset_pointers_kernel<ElementA, ElementB, ElementC, ElementD><<<1, 1024>>>(ptr_A.get(),
+                                                                                ptr_B.get(),
+                                                                                ptr_C.get(),
+                                                                                ptr_D.get(),
+                                                                                A,
+                                                                                B,
+                                                                                C,
+                                                                                D,
+                                                                                offset_A_device.data_ptr<int64_t>(),
+                                                                                offset_B_device.data_ptr<int64_t>(),
+                                                                                offset_C_device.data_ptr<int64_t>(),
+                                                                                E);
 
     const bool host_problem_shapes_available = false;
 
@@ -488,8 +472,8 @@ void grouped_gemm_cuda(const torch::Tensor &_A,
     gemm.run(/* stream = */ nullptr, /* cuda_adapter = */ nullptr, /* launch_with_pdl = */ false);
 
     // Check if output from CUTLASS kernel and reference kernel are equal or not
-    const bool passed =
-        verify(A, B, C, D, alpha, beta, problem_sizes_host, offset_A_device, offset_B_device, offset_C_device);
+    const bool passed = verify<ElementC>(
+        A, B, C, D, block_ref_D, alpha, beta, problem_sizes_host, offset_A_device, offset_B_device, offset_C_device);
 
     std::cout << "  Disposition: " << (passed ? "Passed" : "Failed") << std::endl;
 
