@@ -38,6 +38,7 @@ using int32 = ck::int32;
 using int64 = ck::int64;
 using fp32 = ck::fp32;
 using bf16 = ck::bf16;
+using fp64 = ck::fp64;
 
 #define MAX_NUM_GROUPS 1024
 
@@ -175,18 +176,18 @@ using RasterOrderOptions = typename cutlass::gemm::kernel::detail::PersistentTil
     typename ProblemShape::UnderlyingProblemShape>::RasterOrderOptions;
 
 /// Compute performance in GFLOP/s
-double get_gflops(const double &runtime_s,
-                  std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host) {
+fp64 get_gflops(const fp64 &runtime_s,
+                std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host) {
     // Number of real-valued multiply-adds
-    uint64_t fmas = 0;
+    uint64 fmas = 0;
 
     for (auto const &problem : problem_sizes_host) {
-        fmas += static_cast<uint64_t>(get<0>(problem)) * static_cast<uint64_t>(get<1>(problem)) *
-                static_cast<uint64_t>(get<2>(problem));
+        fmas += static_cast<uint64>(get<0>(problem)) * static_cast<uint64>(get<1>(problem)) *
+                static_cast<uint64>(get<2>(problem));
     }
     // Two flops per multiply-add
-    uint64_t flop = uint64_t(2) * uint64_t(fmas);
-    double gflop = double(flop) / double(1.0e9);
+    uint64 flop = uint64(2) * uint64(fmas);
+    fp64 gflop = fp64(flop) / fp64(1.0e9);
     return gflop / runtime_s;
 }
 
@@ -506,7 +507,7 @@ void grouped_gemm_cuda(const torch::Tensor &A,
         timer.stop();
 
         // Compute average setup and runtime and GFLOPs.
-        double gflops = get_gflops(double(timer.elapsed_millis()) / double(iterations) / 1000.0, problem_sizes_host);
+        fp64 gflops = get_gflops(fp64(timer.elapsed_millis()) / fp64(iterations) / 1000.0, problem_sizes_host);
         std::cout << "  TFLOPS      : " << gflops / 1000.0 << std::endl;
     }
 }
