@@ -382,8 +382,8 @@ typename Gemm::Arguments args_from_options(
     return arguments;
 }
 
-bool verify(const ElementA *A,
-            const ElementB *B,
+bool verify(ElementA *A,
+            ElementB *B,
             const fp32 &alpha,
             const fp32 &beta,
             const std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host,
