@@ -234,7 +234,7 @@ void grouped_gemm_cuda(const torch::Tensor &_A,
     using OperatorClass = cutlass::arch::OpClassTensorOp;
     using StageCountType = cutlass::gemm::collective::StageCountAuto;
 
-    using ClusterShape = Shape<int32_t, int32_t, _1>;
+    using ClusterShape = Shape<int32, int32, _1>;
     using MmaTileShape = Shape<_256, _256, Int<128 / sizeof(ElementA)>>;
 
     using KernelSchedule = cutlass::gemm::KernelPtrArrayTmaWarpSpecialized2SmSm100;
