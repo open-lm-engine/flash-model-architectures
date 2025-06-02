@@ -156,13 +156,13 @@ std::vector<StrideC> stride_C_host;
 // Device-side allocations
 cutlass::DeviceAllocation<typename ProblemShape::UnderlyingProblemShape> problem_sizes;
 
-cutlass::DeviceAllocation<typename Gemm::EpilogueOutputOp::ElementOutput> block_ref_D;
+cutlass::DeviceAllocation<typename Gemm::ElementC> block_ref_D;
 
 cutlass::DeviceAllocation<const typename Gemm::ElementA *> ptr_A;
 cutlass::DeviceAllocation<const typename Gemm::ElementB *> ptr_B;
 cutlass::DeviceAllocation<const typename Gemm::ElementC *> ptr_C;
-cutlass::DeviceAllocation<typename Gemm::EpilogueOutputOp::ElementOutput *> ptr_D;
-cutlass::DeviceAllocation<typename Gemm::EpilogueOutputOp::ElementOutput *> ptr_ref_D;
+cutlass::DeviceAllocation<typename Gemm::ElementC *> ptr_D;
+cutlass::DeviceAllocation<typename Gemm::ElementC *> ptr_ref_D;
 
 cutlass::DeviceAllocation<StrideA> stride_A;
 cutlass::DeviceAllocation<StrideB> stride_B;
@@ -238,7 +238,7 @@ __global__ void offset_pointers_kernel(const ElementA **output_pointers_A,
                                        const ElementA *A,
                                        const ElementB *B,
                                        const ElementC *C,
-                                       const ElementD *D,
+                                       ElementD *D,
                                        const int64_t *offsets_A,
                                        const int64_t *offsets_B,
                                        const int64_t *offsets_C,
@@ -258,7 +258,7 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> allocate(
     const ElementA *A,
     const ElementB *B,
     const ElementC *C,
-    const ElementC *D,
+    ElementC *D,
     const std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host,
     const torch::Tensor &M_array,
     const torch::Tensor &N_array,
@@ -310,19 +310,18 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> allocate(
     problem_sizes.reset(E);
     problem_sizes.copy_from_host(problem_sizes_host.data());
 
-    offset_pointers_kernel<ElementA, ElementB, ElementC, typename Gemm::EpilogueOutputOp::ElementOutput>
-        <<<1, 1024>>>(ptr_A.get(),
-                      ptr_B.get(),
-                      ptr_C.get(),
-                      ptr_D.get(),
-                      A,
-                      B,
-                      C,
-                      D,
-                      offset_A_device.data_ptr<int64_t>(),
-                      offset_B_device.data_ptr<int64_t>(),
-                      offset_C_device.data_ptr<int64_t>(),
-                      E);
+    offset_pointers_kernel<ElementA, ElementB, ElementC, ElementC><<<1, 1024>>>(ptr_A.get(),
+                                                                                ptr_B.get(),
+                                                                                ptr_C.get(),
+                                                                                ptr_D.get(),
+                                                                                A,
+                                                                                B,
+                                                                                C,
+                                                                                D,
+                                                                                offset_A_device.data_ptr<int64_t>(),
+                                                                                offset_B_device.data_ptr<int64_t>(),
+                                                                                offset_C_device.data_ptr<int64_t>(),
+                                                                                E);
 
     return std::make_tuple(offset_A_device, offset_B_device, offset_C_device);
 }
