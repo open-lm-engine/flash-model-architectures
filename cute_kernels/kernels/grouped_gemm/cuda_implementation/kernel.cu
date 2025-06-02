@@ -263,6 +263,7 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> allocate(
     const torch::Tensor &M_array,
     const torch::Tensor &N_array,
     const torch::Tensor &K_array) {
+    uint64 total_elements_C = 0;
     const uint32 E = problem_sizes_host.size();
 
     for (uint32 i = 0; i < E; i++) {
@@ -270,6 +271,8 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> allocate(
         auto M = get<0>(problem);
         auto N = get<1>(problem);
         auto K = get<2>(problem);
+
+        total_elements_C += M * N;
 
         stride_A_host.push_back(cutlass::make_cute_packed_stride(StrideA{}, {M, K, 1}));
         stride_B_host.push_back(cutlass::make_cute_packed_stride(StrideB{}, {N, K, 1}));
