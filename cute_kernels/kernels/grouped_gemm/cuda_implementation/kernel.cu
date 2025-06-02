@@ -237,8 +237,8 @@ __global__ void offset_pointers_kernel(const ElementA **output_pointers_A,
                                        const ElementB **output_pointers_B,
                                        const ElementC **output_pointers_C,
                                        ElementD **output_pointers_D,
-                                       ElementA *base_pointer_A,
-                                       ElementB *base_pointer_B,
+                                       const ElementA *A,
+                                       const ElementB *B,
                                        ElementC *base_pointer_C,
                                        ElementD *base_pointer_D,
                                        const int64_t *offsets_A,
@@ -248,8 +248,8 @@ __global__ void offset_pointers_kernel(const ElementA **output_pointers_A,
     const uint32 thread_id = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (thread_id < E) {
-        output_pointers_A[thread_id] = base_pointer_A + offsets_A[thread_id];
-        output_pointers_B[thread_id] = base_pointer_B + offsets_B[thread_id];
+        output_pointers_A[thread_id] = A + offsets_A[thread_id];
+        output_pointers_B[thread_id] = B + offsets_B[thread_id];
         output_pointers_C[thread_id] = base_pointer_C + offsets_C[thread_id];
         output_pointers_D[thread_id] = base_pointer_D + offsets_C[thread_id];
     }
@@ -257,8 +257,8 @@ __global__ void offset_pointers_kernel(const ElementA **output_pointers_A,
 
 /// Allocates device-side data
 std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> allocate(
-    const torch::Tensor &A,
-    const torch::Tensor &B,
+    const ElementA *A,
+    const ElementB *B,
     const std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host,
     const torch::Tensor &M_array,
     const torch::Tensor &N_array,
@@ -313,26 +313,24 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> allocate(
     problem_sizes.reset(E);
     problem_sizes.copy_from_host(problem_sizes_host.data());
 
-    DISPATCH_FLOAT_KERNEL(
-        A.scalar_type(), "copy", scalar_t, ([&] {
-            offset_pointers_kernel<ElementA, ElementB, ElementC, typename Gemm::EpilogueOutputOp::ElementOutput>
-                <<<1, 1024>>>(ptr_A.get(),
-                              ptr_B.get(),
-                              ptr_C.get(),
-                              ptr_D.get(),
-                              reinterpret_cast<ElementA *>(A.data_ptr<scalar_t>()),
-                              reinterpret_cast<ElementB *>(B.data_ptr<scalar_t>()),
-                              block_C.get(),
-                              block_D.get(),
-                              offset_A_device.data_ptr<int64_t>(),
-                              offset_B_device.data_ptr<int64_t>(),
-                              offset_C_device.data_ptr<int64_t>(),
-                              E);
-        }));
+    A.scalar_type(), "copy", scalar_t, ([&] {
+        offset_pointers_kernel<ElementA, ElementB, ElementC, typename Gemm::EpilogueOutputOp::ElementOutput>
+            <<<1, 1024>>>(ptr_A.get(),
+                          ptr_B.get(),
+                          ptr_C.get(),
+                          ptr_D.get(),
+                          A,
+                          B,
+                          block_C.get(),
+                          block_D.get(),
+                          offset_A_device.data_ptr<int64_t>(),
+                          offset_B_device.data_ptr<int64_t>(),
+                          offset_C_device.data_ptr<int64_t>(),
+                          E);
 
-    initialize_block(block_C, 2021);
+        initialize_block(block_C, 2021);
 
-    return std::make_tuple(offset_A_device, offset_B_device, offset_C_device);
+        return std::make_tuple(offset_A_device, offset_B_device, offset_C_device);
 }
 
 typename Gemm::Arguments args_from_options(
@@ -344,99 +342,93 @@ typename Gemm::Arguments args_from_options(
     const RasterOrderOptions &raster_order,
     const std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host,
     bool host_problem_shapes_available = true) {
-    cutlass::KernelHardwareInfo hw_info;
-    cudaGetDevice(&hw_info.device_id);
-    cudaDeviceGetAttribute(&hw_info.sm_count, cudaDevAttrMultiProcessorCount, hw_info.device_id);
+        cutlass::KernelHardwareInfo hw_info;
+        cudaGetDevice(&hw_info.device_id);
+        cudaDeviceGetAttribute(&hw_info.sm_count, cudaDevAttrMultiProcessorCount, hw_info.device_id);
 
-    if (!is_static_v<ClusterShape>) {
-        if (size<0>(typename Gemm::GemmKernel::CollectiveMainloop::AtomThrShapeMNK{}) == 2 &&
-            (cluster_shape.x < 2 || cluster_shape_fallback.x < 2)) {
-            std::cout << "Error: MMA2SMConfig kernel config needs cluster_dim.x >= 2" << std::endl;
+        if (!is_static_v<ClusterShape>) {
+            if (size<0>(typename Gemm::GemmKernel::CollectiveMainloop::AtomThrShapeMNK{}) == 2 &&
+                (cluster_shape.x < 2 || cluster_shape_fallback.x < 2)) {
+                std::cout << "Error: MMA2SMConfig kernel config needs cluster_dim.x >= 2" << std::endl;
+            }
+            hw_info.cluster_shape = cluster_shape;
+            hw_info.cluster_shape_fallback = cluster_shape_fallback;
         }
-        hw_info.cluster_shape = cluster_shape;
-        hw_info.cluster_shape_fallback = cluster_shape_fallback;
-    }
 
-    typename Gemm::Arguments arguments;
-    decltype(arguments.epilogue.thread) fusion_args;
-    fusion_args.alpha_ptr = nullptr;
-    fusion_args.beta_ptr = nullptr;
+        typename Gemm::Arguments arguments;
+        decltype(arguments.epilogue.thread) fusion_args;
+        fusion_args.alpha_ptr = nullptr;
+        fusion_args.beta_ptr = nullptr;
 
-    // Single alpha / beta for all groups
-    fusion_args.alpha = alpha;
-    fusion_args.beta = beta;
-    fusion_args.alpha_ptr_array = nullptr;
-    fusion_args.beta_ptr_array = nullptr;
-    fusion_args.dAlpha = {_0{}, _0{}, 0};
-    fusion_args.dBeta = {_0{}, _0{}, 0};
+        // Single alpha / beta for all groups
+        fusion_args.alpha = alpha;
+        fusion_args.beta = beta;
+        fusion_args.alpha_ptr_array = nullptr;
+        fusion_args.beta_ptr_array = nullptr;
+        fusion_args.dAlpha = {_0{}, _0{}, 0};
+        fusion_args.dBeta = {_0{}, _0{}, 0};
 
-    typename Gemm::GemmKernel::TileSchedulerArguments scheduler;
-    scheduler.raster_order = raster_order;
+        typename Gemm::GemmKernel::TileSchedulerArguments scheduler;
+        scheduler.raster_order = raster_order;
 
-    arguments = typename Gemm::Arguments{cutlass::gemm::GemmUniversalMode::kGrouped,
-                                         {static_cast<int>(E),
-                                          problem_sizes.get(),
-                                          host_problem_shapes_available ? problem_sizes_host.data() : nullptr},
-                                         {ptr_A.get(), stride_A.get(), ptr_B.get(), stride_B.get()},
-                                         {fusion_args, ptr_C.get(), stride_C.get(), ptr_D.get(), stride_C.get()},
-                                         hw_info,
-                                         scheduler};
+        arguments = typename Gemm::Arguments{cutlass::gemm::GemmUniversalMode::kGrouped,
+                                             {static_cast<int>(E),
+                                              problem_sizes.get(),
+                                              host_problem_shapes_available ? problem_sizes_host.data() : nullptr},
+                                             {ptr_A.get(), stride_A.get(), ptr_B.get(), stride_B.get()},
+                                             {fusion_args, ptr_C.get(), stride_C.get(), ptr_D.get(), stride_C.get()},
+                                             hw_info,
+                                             scheduler};
 
-    return arguments;
+        return arguments;
 }
 
-bool verify(const torch::Tensor &A,
-            const torch::Tensor &B,
+bool verify(const ElementA *A,
+            const ElementB *B,
             const fp32 &alpha,
             const fp32 &beta,
             const std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host,
             torch::Tensor &offset_A_device,
             torch::Tensor &offset_B_device,
             torch::Tensor &offset_C_device) {
-    const uint32 E = problem_sizes_host.size();
-    bool passed = true;
+        const uint32 E = problem_sizes_host.size();
+        bool passed = true;
 
-    DISPATCH_FLOAT_KERNEL(A.scalar_type(), "copy", scalar_t, ([&] {
-                              for (uint32 i = 0; i < E; ++i) {
-                                  auto problem = problem_sizes_host.at(i);
-                                  auto M = get<0>(problem);
-                                  auto N = get<1>(problem);
-                                  auto K = get<2>(problem);
-                                  cutlass::TensorRef ref_A(reinterpret_cast<ElementA *>(A.data_ptr<scalar_t>()) +
-                                                               offset_A_device[i].item<int64_t>(),
-                                                           Gemm::LayoutA::packed({M, K}));
-                                  cutlass::TensorRef ref_B(reinterpret_cast<ElementB *>(B.data_ptr<scalar_t>()) +
-                                                               offset_B_device[i].item<int64_t>(),
-                                                           Gemm::LayoutB::packed({K, N}));
-                                  cutlass::TensorRef ref_C(block_C.get() + offset_C_device[i].item<int64_t>(),
-                                                           Gemm::LayoutC::packed({M, N}));
-                                  cutlass::TensorRef ref_D(block_ref_D.get() + offset_C_device[i].item<int64_t>(),
-                                                           Gemm::LayoutD::packed({M, N}));
+        for (uint32 i = 0; i < E; ++i) {
+            auto problem = problem_sizes_host.at(i);
+            auto M = get<0>(problem);
+            auto N = get<1>(problem);
+            auto K = get<2>(problem);
+            cutlass::TensorRef ref_A(A + offset_A_device[i].item<int64_t>(), Gemm::LayoutA::packed({M, K}));
+            cutlass::TensorRef ref_B(B + offset_B_device[i].item<int64_t>(), Gemm::LayoutB::packed({K, N}));
+            cutlass::TensorRef ref_C(block_C.get() + offset_C_device[i].item<int64_t>(),
+                                     Gemm::LayoutC::packed({M, N}));
+            cutlass::TensorRef ref_D(block_ref_D.get() + offset_C_device[i].item<int64_t>(),
+                                     Gemm::LayoutD::packed({M, N}));
 
-                                  // Create instantiation for device reference gemm kernel
-                                  DeviceGemmReference gemm_reference;
+            // Create instantiation for device reference gemm kernel
+            DeviceGemmReference gemm_reference;
 
-                                  // Launch device reference gemm kernel
-                                  gemm_reference({M, N, K}, alpha, ref_A, ref_B, beta, ref_C, ref_D);
+            // Launch device reference gemm kernel
+            gemm_reference({M, N, K}, alpha, ref_A, ref_B, beta, ref_C, ref_D);
 
-                                  // Wait for kernel to finish
-                                  cudaDeviceSynchronize();
+            // Wait for kernel to finish
+            cudaDeviceSynchronize();
 
-                                  // Check if output from CUTLASS kernel and reference kernel are equal or not
-                                  passed &= cutlass::reference::device::BlockCompareEqual(
-                                      block_ref_D.get() + offset_C_device[i].item<int64_t>(),
-                                      block_D.get() + offset_C_device[i].item<int64_t>(),
-                                      M * N);
-                              }
-                          }));
+            // Check if output from CUTLASS kernel and reference kernel are equal or not
+            passed &=
+                cutlass::reference::device::BlockCompareEqual(block_ref_D.get() + offset_C_device[i].item<int64_t>(),
+                                                              block_D.get() + offset_C_device[i].item<int64_t>(),
+                                                              M * N);
+        }
 
-    return passed;
+        return passed;
 }
 
 inline uint32 get_size_at_index(const std::optional<torch::Tensor> &_offsets,
                                 const std::optional<uint32> &_size,
                                 const uint32 &index) {
-    return _offsets.has_value() ? _offsets.value()[index].item<int64>() : _size.value();
+        return _offsets.has_value() ? _offsets.value()[index].item<int64>() : _size.value();
 }
 
 void grouped_gemm_cuda(const torch::Tensor &_A,
@@ -449,76 +441,81 @@ void grouped_gemm_cuda(const torch::Tensor &_A,
                        const bool &is_B_transposed,
                        const fp32 &alpha,
                        const fp32 &beta) {
-    const uint32 E = M_array.numel();
-    TORCH_CHECK(E <= MAX_NUM_GROUPS)
-    TORCH_CHECK(N_array.numel() == E);
-    TORCH_CHECK(K_array.numel() == E);
+        const uint32 E = M_array.numel();
+        TORCH_CHECK(E <= MAX_NUM_GROUPS)
+        TORCH_CHECK(N_array.numel() == E);
+        TORCH_CHECK(K_array.numel() == E);
 
-    dim3 cluster_shape = dim3(4, 2, 1);
-    dim3 cluster_shape_fallback = dim3(2, 1, 1);
-    RasterOrderOptions raster_order = RasterOrderOptions::AlongM;
-    std::vector<typename ProblemShape::UnderlyingProblemShape> problem_sizes_host;
+        dim3 cluster_shape = dim3(4, 2, 1);
+        dim3 cluster_shape_fallback = dim3(2, 1, 1);
+        RasterOrderOptions raster_order = RasterOrderOptions::AlongM;
+        std::vector<typename ProblemShape::UnderlyingProblemShape> problem_sizes_host;
 
-    problem_sizes_host.reserve(E);
-    for (int i = 0; i < E; i++) {
-        const uint32 M = M_array[i].item<int64>();
-        const uint32 N = N_array[i].item<int64>();
-        const uint32 K = K_array[i].item<int64>();
+        problem_sizes_host.reserve(E);
+        for (int i = 0; i < E; i++) {
+            const uint32 M = M_array[i].item<int64>();
+            const uint32 N = N_array[i].item<int64>();
+            const uint32 K = K_array[i].item<int64>();
 
-        problem_sizes_host.push_back({M, N, K});
-    }
-
-    auto [offset_A_device, offset_B_device, offset_C_device] =
-        allocate(_A, _B, problem_sizes_host, M_array, N_array, K_array);
-
-    const bool host_problem_shapes_available = false;
-
-    // Instantiate CUTLASS kernel depending on templates
-    Gemm gemm;
-
-    // Create a structure of gemm kernel arguments suitable for invoking an instance of Gemm
-    Gemm::Arguments arguments = args_from_options(E,
-                                                  cluster_shape,
-                                                  cluster_shape_fallback,
-                                                  alpha,
-                                                  beta,
-                                                  raster_order,
-                                                  problem_sizes_host,
-                                                  host_problem_shapes_available);
-
-    // Using the arguments, query for extra workspace required for matrix multiplication computation
-    size_t workspace_size = Gemm::get_workspace_size(arguments);
-
-    // Allocate workspace memory
-    cutlass::device_memory::allocation<uint8_t> workspace(workspace_size);
-
-    // Check if the problem size is supported or not
-    gemm.can_implement(arguments);
-
-    // Initialize CUTLASS kernel with arguments and workspace pointer
-    gemm.initialize(arguments, workspace.get());
-
-    // Correctness / Warmup iteration
-    gemm.run(/* stream = */ nullptr, /* cuda_adapter = */ nullptr, /* launch_with_pdl = */ false);
-
-    // Check if output from CUTLASS kernel and reference kernel are equal or not
-    const bool passed =
-        verify(_A, _B, alpha, beta, problem_sizes_host, offset_A_device, offset_B_device, offset_C_device);
-
-    std::cout << "  Disposition: " << (passed ? "Passed" : "Failed") << std::endl;
-
-    const uint32 iterations = 10;
-    if (iterations > 0) {
-        GpuTimer timer;
-        timer.start();
-        for (int iter = 0; iter < iterations; ++iter) {
-            gemm.initialize(arguments, workspace.get());
-            gemm.run(/* stream = */ nullptr, /* cuda_adapter = */ nullptr, /* launch_with_pdl = */ false);
+            problem_sizes_host.push_back({M, N, K});
         }
-        timer.stop();
 
-        // Compute average setup and runtime and GFLOPs.
-        fp64 gflops = get_gflops(fp64(timer.elapsed_millis()) / fp64(iterations) / 1000.0, problem_sizes_host);
-        std::cout << "  TFLOPS      : " << gflops / 1000.0 << std::endl;
-    }
+        DISPATCH_FLOAT_KERNEL(_A.scalar_type(), "copy", scalar_t, ([&] {
+                                  const ElementA *A = reinterpret_cast<ElementA *>(_A.data_ptr<scalar_t>());
+                                  const ElementB *B = reinterpret_cast<ElementB *>(_B.data_ptr<scalar_t>());
+                              }));
+
+        auto [offset_A_device, offset_B_device, offset_C_device] =
+            allocate(A, B, problem_sizes_host, M_array, N_array, K_array);
+
+        const bool host_problem_shapes_available = false;
+
+        // Instantiate CUTLASS kernel depending on templates
+        Gemm gemm;
+
+        // Create a structure of gemm kernel arguments suitable for invoking an instance of Gemm
+        Gemm::Arguments arguments = args_from_options(E,
+                                                      cluster_shape,
+                                                      cluster_shape_fallback,
+                                                      alpha,
+                                                      beta,
+                                                      raster_order,
+                                                      problem_sizes_host,
+                                                      host_problem_shapes_available);
+
+        // Using the arguments, query for extra workspace required for matrix multiplication computation
+        size_t workspace_size = Gemm::get_workspace_size(arguments);
+
+        // Allocate workspace memory
+        cutlass::device_memory::allocation<uint8_t> workspace(workspace_size);
+
+        // Check if the problem size is supported or not
+        gemm.can_implement(arguments);
+
+        // Initialize CUTLASS kernel with arguments and workspace pointer
+        gemm.initialize(arguments, workspace.get());
+
+        // Correctness / Warmup iteration
+        gemm.run(/* stream = */ nullptr, /* cuda_adapter = */ nullptr, /* launch_with_pdl = */ false);
+
+        // Check if output from CUTLASS kernel and reference kernel are equal or not
+        const bool passed =
+            verify(A, B, alpha, beta, problem_sizes_host, offset_A_device, offset_B_device, offset_C_device);
+
+        std::cout << "  Disposition: " << (passed ? "Passed" : "Failed") << std::endl;
+
+        const uint32 iterations = 10;
+        if (iterations > 0) {
+            GpuTimer timer;
+            timer.start();
+            for (int iter = 0; iter < iterations; ++iter) {
+                gemm.initialize(arguments, workspace.get());
+                gemm.run(/* stream = */ nullptr, /* cuda_adapter = */ nullptr, /* launch_with_pdl = */ false);
+            }
+            timer.stop();
+
+            // Compute average setup and runtime and GFLOPs.
+            fp64 gflops = get_gflops(fp64(timer.elapsed_millis()) / fp64(iterations) / 1000.0, problem_sizes_host);
+            std::cout << "  TFLOPS      : " << gflops / 1000.0 << std::endl;
+        }
 }
