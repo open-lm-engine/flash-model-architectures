@@ -149,10 +149,6 @@ using StrideA = typename Gemm::GemmKernel::InternalStrideA;
 using StrideB = typename Gemm::GemmKernel::InternalStrideB;
 using StrideC = typename Gemm::GemmKernel::InternalStrideC;
 
-std::vector<StrideA> stride_A_host;
-std::vector<StrideB> stride_B_host;
-std::vector<StrideC> stride_C_host;
-
 // Device-side allocations
 cutlass::DeviceAllocation<typename ProblemShape::UnderlyingProblemShape> problem_sizes;
 
@@ -254,11 +250,12 @@ __global__ void offset_pointers_kernel(const ElementA **output_pointers_A,
 }
 
 /// Allocates device-side data
+template <typename ElementA, typename ElementB, typename ElementC, typename ElementD>
 std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> allocate(
     const ElementA *A,
     const ElementB *B,
     const ElementC *C,
-    ElementC *D,
+    ElementD *D,
     const std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host,
     const torch::Tensor &M_array,
     const torch::Tensor &N_array,
@@ -273,10 +270,6 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> allocate(
         auto K = get<2>(problem);
 
         total_elements_C += M * N;
-
-        stride_A_host.push_back(cutlass::make_cute_packed_stride(StrideA{}, {M, K, 1}));
-        stride_B_host.push_back(cutlass::make_cute_packed_stride(StrideB{}, {N, K, 1}));
-        stride_C_host.push_back(cutlass::make_cute_packed_stride(StrideC{}, {M, N, 1}));
     }
 
     block_ref_D.reset(total_elements_C);
@@ -310,7 +303,7 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> allocate(
     problem_sizes.reset(E);
     problem_sizes.copy_from_host(problem_sizes_host.data());
 
-    offset_pointers_kernel<ElementA, ElementB, ElementC, ElementC><<<1, 1024>>>(ptr_A.get(),
+    offset_pointers_kernel<ElementA, ElementB, ElementC, ElementD><<<1, 1024>>>(ptr_A.get(),
                                                                                 ptr_B.get(),
                                                                                 ptr_C.get(),
                                                                                 ptr_D.get(),
@@ -417,12 +410,6 @@ bool verify(ElementA *A,
     return passed;
 }
 
-inline uint32 get_size_at_index(const std::optional<torch::Tensor> &_offsets,
-                                const std::optional<uint32> &_size,
-                                const uint32 &index) {
-    return _offsets.has_value() ? _offsets.value()[index].item<int64>() : _size.value();
-}
-
 void grouped_gemm_cuda(const torch::Tensor &_A,
                        const torch::Tensor &_B,
                        const std::optional<torch::Tensor> &_C,
@@ -441,6 +428,7 @@ void grouped_gemm_cuda(const torch::Tensor &_A,
 
     dim3 cluster_shape = dim3(4, 2, 1);
     dim3 cluster_shape_fallback = dim3(2, 1, 1);
+
     RasterOrderOptions raster_order = RasterOrderOptions::AlongM;
     std::vector<typename ProblemShape::UnderlyingProblemShape> problem_sizes_host;
 
