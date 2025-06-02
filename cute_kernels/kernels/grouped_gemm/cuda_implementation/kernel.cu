@@ -502,7 +502,8 @@ void grouped_gemm_cuda(const torch::Tensor &A,
     gemm.run(/* stream = */ nullptr, /* cuda_adapter = */ nullptr, /* launch_with_pdl = */ false);
 
     // Check if output from CUTLASS kernel and reference kernel are equal or not
-    const bool passed = verify(A, alpha, beta, problem_sizes_host, offset_A_device, offset_B_device, offset_C_device);
+    const bool passed =
+        verify(A, B, alpha, beta, problem_sizes_host, offset_A_device, offset_B_device, offset_C_device);
 
     std::cout << "  Disposition: " << (passed ? "Passed" : "Failed") << std::endl;
 
