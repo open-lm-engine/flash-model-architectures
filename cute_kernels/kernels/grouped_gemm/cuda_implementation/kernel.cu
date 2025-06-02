@@ -321,7 +321,7 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> allocate(
     }
 
     offset_pointers_kernel<ElementA><<<1, 1024>>>(ptr_A.get(), block_A.get(), offset_A_device.data_ptr<int64_t>(), E);
-    ptr_B.copy_from_host(ptr_B_host.data());
+    offset_pointers_kernel<ElementA><<<1, 1024>>>(ptr_B.get(), block_B.get(), offset_B_device.data_ptr<int64_t>(), E);
     ptr_C.copy_from_host(ptr_C_host.data());
     ptr_D.copy_from_host(ptr_D_host.data());
 
