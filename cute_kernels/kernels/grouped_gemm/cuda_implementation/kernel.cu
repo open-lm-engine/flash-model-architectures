@@ -99,7 +99,7 @@ fp64 get_gflops(const fp64 &runtime_s,
 }
 
 // TODO modify this kernel to use vector load/stores
-template <typename StrideA, typename StrideB, typename StrideC>
+template <typename StrideA, typename StrideB, typename StrideC, bool is_A_transposed, bool is_B_transposed>
 __global__ void populate_strides_cuda_kernel(const uint32 *M_array,
                                              const uint32 *N_array,
                                              const uint32 *K_array,
@@ -358,16 +358,18 @@ void _grouped_gemm_cuda(const torch::Tensor &_A,
     torch::Tensor offset_B_device = torch::empty({E + 1}).to(torch::kLong);
     torch::Tensor offset_C_device = torch::empty({E + 1}).to(torch::kLong);
 
-    populate_strides_cuda_kernel<StrideA, StrideB, StrideC><<<1, 1024>>>(M_array.data_ptr<uint32>(),
-                                                                         N_array.data_ptr<uint32>(),
-                                                                         K_array.data_ptr<uint32>(),
-                                                                         stride_A.get(),
-                                                                         stride_B.get(),
-                                                                         stride_C.get(),
-                                                                         offset_A_device.data_ptr<int64_t>(),
-                                                                         offset_B_device.data_ptr<int64_t>(),
-                                                                         offset_C_device.data_ptr<int64_t>(),
-                                                                         E);
+    populate_strides_cuda_kernel<StrideA, StrideB, StrideC, is_A_transposed, is_B_transposed>
+        <<<1, 1024>>>(M_array.data_ptr<uint32>(),
+                      N_array.data_ptr<uint32>(),
+                      K_array.data_ptr<uint32>(),
+                      stride_A.get(),
+                      stride_B.get(),
+                      stride_C.get(),
+                      offset_A_device.data_ptr<int64_t>(),
+                      offset_B_device.data_ptr<int64_t>(),
+                      offset_C_device.data_ptr<int64_t>(),
+                      E);
+
     offset_A_device = torch::cumsum(offset_A_device, 0);
     offset_B_device = torch::cumsum(offset_B_device, 0);
     offset_C_device = torch::cumsum(offset_C_device, 0);
