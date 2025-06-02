@@ -385,7 +385,6 @@ void grouped_gemm_cuda(const torch::Tensor &_A,
                           }));
 
     uint64 total_elements_C = 0;
-    const uint32 E = problem_sizes_host.size();
 
     for (uint32 i = 0; i < E; i++) {
         auto problem = problem_sizes_host.at(i);
