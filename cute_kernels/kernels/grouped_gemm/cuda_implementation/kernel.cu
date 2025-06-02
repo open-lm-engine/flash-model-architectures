@@ -234,16 +234,15 @@ __global__ void populate_strides_cuda_kernel(const uint32 *M_array,
     }
 }
 
-// TODO modify this kernel to use vector load/stores
-template <typename scalar_t>
-__global__ void populate_tensor_pointers_cuda_kernel(const scalar_t *array,
-                                                     const int64_t *offsets,
-                                                     int64_t *output,
-                                                     const uint32 E) {
-    uint32 thread_id = blockIdx.x * blockDim.x + threadIdx.x;
+template <typename T>
+__global__ void offset_pointers_kernel(const T **output_pointers,
+                                       T *base_pointer,
+                                       const int64_t *offsets,
+                                       const uint32 E) {
+    const uint32 thread_id = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (thread_id < E) {
-        output[thread_id] = array + offsets[thread_id];
+        output_pointers[thread_id] = base_pointer + offsets[thread_id];
     }
 }
 
@@ -318,8 +317,7 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> allocate(
     }
 
     ptr_A.reset(E);
-    ptr_A.copy_from_host(ptr_A_host.data());
-    // populate_tensor_pointers_cuda_kernel<ElementA><<<1, 1024>>>(ptr_A.get(), offset_A_device, ptr_A.get());
+    offset_pointers_kernel<ElementA><<<1, 1024>>>(ptr_A.get(), block_A.get(), offset_A_device.data_ptr<int64_t>(), E);
 
     ptr_B.reset(E);
     ptr_B.copy_from_host(ptr_B_host.data());
