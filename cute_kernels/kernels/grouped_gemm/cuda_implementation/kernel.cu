@@ -457,62 +457,63 @@ void grouped_gemm_cuda(const torch::Tensor &_A,
         problem_sizes_host.push_back({M, N, K});
     }
 
-    DISPATCH_FLOAT_KERNEL(_A.scalar_type(), "copy", scalar_t, ([&] {
-                              const ElementA *A = reinterpret_cast<ElementA *>(_A.data_ptr<scalar_t>());
-                              const ElementB *B = reinterpret_cast<ElementB *>(_B.data_ptr<scalar_t>());
-                          }));
+    DISPATCH_FLOAT_KERNEL(
+        _A.scalar_type(), "copy", scalar_t, ([&] {
+            const ElementA *A = reinterpret_cast<ElementA *>(_A.data_ptr<scalar_t>());
+            const ElementB *B = reinterpret_cast<ElementB *>(_B.data_ptr<scalar_t>());
 
-    auto [offset_A_device, offset_B_device, offset_C_device] =
-        allocate(A, B, problem_sizes_host, M_array, N_array, K_array);
+            auto [offset_A_device, offset_B_device, offset_C_device] =
+                allocate(A, B, problem_sizes_host, M_array, N_array, K_array);
 
-    const bool host_problem_shapes_available = false;
+            const bool host_problem_shapes_available = false;
 
-    // Instantiate CUTLASS kernel depending on templates
-    Gemm gemm;
+            // Instantiate CUTLASS kernel depending on templates
+            Gemm gemm;
 
-    // Create a structure of gemm kernel arguments suitable for invoking an instance of Gemm
-    Gemm::Arguments arguments = args_from_options(E,
-                                                  cluster_shape,
-                                                  cluster_shape_fallback,
-                                                  alpha,
-                                                  beta,
-                                                  raster_order,
-                                                  problem_sizes_host,
-                                                  host_problem_shapes_available);
+            // Create a structure of gemm kernel arguments suitable for invoking an instance of Gemm
+            Gemm::Arguments arguments = args_from_options(E,
+                                                          cluster_shape,
+                                                          cluster_shape_fallback,
+                                                          alpha,
+                                                          beta,
+                                                          raster_order,
+                                                          problem_sizes_host,
+                                                          host_problem_shapes_available);
 
-    // Using the arguments, query for extra workspace required for matrix multiplication computation
-    size_t workspace_size = Gemm::get_workspace_size(arguments);
+            // Using the arguments, query for extra workspace required for matrix multiplication computation
+            size_t workspace_size = Gemm::get_workspace_size(arguments);
 
-    // Allocate workspace memory
-    cutlass::device_memory::allocation<uint8_t> workspace(workspace_size);
+            // Allocate workspace memory
+            cutlass::device_memory::allocation<uint8_t> workspace(workspace_size);
 
-    // Check if the problem size is supported or not
-    gemm.can_implement(arguments);
+            // Check if the problem size is supported or not
+            gemm.can_implement(arguments);
 
-    // Initialize CUTLASS kernel with arguments and workspace pointer
-    gemm.initialize(arguments, workspace.get());
-
-    // Correctness / Warmup iteration
-    gemm.run(/* stream = */ nullptr, /* cuda_adapter = */ nullptr, /* launch_with_pdl = */ false);
-
-    // Check if output from CUTLASS kernel and reference kernel are equal or not
-    const bool passed =
-        verify(A, B, alpha, beta, problem_sizes_host, offset_A_device, offset_B_device, offset_C_device);
-
-    std::cout << "  Disposition: " << (passed ? "Passed" : "Failed") << std::endl;
-
-    const uint32 iterations = 10;
-    if (iterations > 0) {
-        GpuTimer timer;
-        timer.start();
-        for (int iter = 0; iter < iterations; ++iter) {
+            // Initialize CUTLASS kernel with arguments and workspace pointer
             gemm.initialize(arguments, workspace.get());
-            gemm.run(/* stream = */ nullptr, /* cuda_adapter = */ nullptr, /* launch_with_pdl = */ false);
-        }
-        timer.stop();
 
-        // Compute average setup and runtime and GFLOPs.
-        fp64 gflops = get_gflops(fp64(timer.elapsed_millis()) / fp64(iterations) / 1000.0, problem_sizes_host);
-        std::cout << "  TFLOPS      : " << gflops / 1000.0 << std::endl;
-    }
+            // Correctness / Warmup iteration
+            gemm.run(/* stream = */ nullptr, /* cuda_adapter = */ nullptr, /* launch_with_pdl = */ false);
+
+            // Check if output from CUTLASS kernel and reference kernel are equal or not
+            const bool passed =
+                verify(A, B, alpha, beta, problem_sizes_host, offset_A_device, offset_B_device, offset_C_device);
+
+            std::cout << "  Disposition: " << (passed ? "Passed" : "Failed") << std::endl;
+
+            const uint32 iterations = 10;
+            if (iterations > 0) {
+                GpuTimer timer;
+                timer.start();
+                for (int iter = 0; iter < iterations; ++iter) {
+                    gemm.initialize(arguments, workspace.get());
+                    gemm.run(/* stream = */ nullptr, /* cuda_adapter = */ nullptr, /* launch_with_pdl = */ false);
+                }
+                timer.stop();
+
+                // Compute average setup and runtime and GFLOPs.
+                fp64 gflops = get_gflops(fp64(timer.elapsed_millis()) / fp64(iterations) / 1000.0, problem_sizes_host);
+                std::cout << "  TFLOPS      : " << gflops / 1000.0 << std::endl;
+            }
+        }));
 }
