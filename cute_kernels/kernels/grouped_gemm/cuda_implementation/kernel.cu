@@ -319,18 +319,6 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> allocate(
     problem_sizes.reset(E);
     problem_sizes.copy_from_host(problem_sizes_host.data());
 
-    std::vector<ElementA *> ptr_A_host(E);
-    std::vector<ElementB *> ptr_B_host(E);
-    std::vector<ElementC *> ptr_C_host(E);
-    std::vector<ElementC *> ptr_D_host(E);
-
-    for (uint32 i = 0; i < E; ++i) {
-        ptr_A_host.at(i) = block_A.get() + offset_A_device[i].item<int64_t>();
-        ptr_B_host.at(i) = block_B.get() + offset_B_device[i].item<int64_t>();
-        ptr_C_host.at(i) = block_C.get() + offset_C_device[i].item<int64_t>();
-        ptr_D_host.at(i) = block_D.get() + offset_C_device[i].item<int64_t>();
-    }
-
     offset_pointers_kernel<ElementA, ElementB, ElementC, typename Gemm::EpilogueOutputOp::ElementOutput>
         <<<1, 1024>>>(ptr_A.get(),
                       ptr_B.get(),
