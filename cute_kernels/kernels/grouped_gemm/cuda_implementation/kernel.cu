@@ -156,7 +156,7 @@ __global__ void offset_pointers_kernel(const ElementA **output_pointers_A,
     }
 }
 
-template <typename ElementD>
+template <typename ElementA, typename ElementB, typename ElementC, typename ElementD>
 bool verify(ElementA *A,
             ElementB *B,
             ElementC *C,
@@ -443,7 +443,7 @@ void grouped_gemm_cuda(const torch::Tensor &_A,
     gemm.run(/* stream = */ nullptr, /* cuda_adapter = */ nullptr, /* launch_with_pdl = */ false);
 
     // Check if output from CUTLASS kernel and reference kernel are equal or not
-    const bool passed = verify<ElementC>(
+    const bool passed = verify<ElementA, ElementB, ElementC, ElementC>(
         A, B, C, D, block_ref_D, alpha, beta, problem_sizes_host, offset_A_device, offset_B_device, offset_C_device);
 
     std::cout << "  Disposition: " << (passed ? "Passed" : "Failed") << std::endl;
