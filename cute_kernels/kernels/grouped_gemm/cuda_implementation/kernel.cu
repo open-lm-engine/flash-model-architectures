@@ -184,7 +184,6 @@ void _grouped_gemm_cuda(const torch::Tensor &_A,
     cutlass::DeviceAllocation<const typename Gemm::ElementB *> ptr_B;
     cutlass::DeviceAllocation<const typename Gemm::ElementC *> ptr_C;
     cutlass::DeviceAllocation<typename Gemm::ElementC *> ptr_D;
-    cutlass::DeviceAllocation<typename Gemm::ElementC *> ptr_ref_D;
 
     cutlass::DeviceAllocation<StrideA> stride_A;
     cutlass::DeviceAllocation<StrideB> stride_B;
