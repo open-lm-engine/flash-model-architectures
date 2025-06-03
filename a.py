@@ -7,10 +7,10 @@ import torch
 from cute_kernels.kernels.grouped_gemm import grouped_gemm_cute
 
 
-E = 7
-K = 16
-M = 8
-N = 24
+E = 16
+K = 4096
+M = 4096
+N = 512
 
 is_A_transposed = False
 is_B_transposed = False
@@ -22,7 +22,30 @@ B = torch.randint(
     -8, 9, (E, N, K) if is_B_transposed else (E, K, N), device=torch.cuda.current_device(), dtype=torch.bfloat16
 )
 
-output = grouped_gemm_cute(A=A, B=B, C=None, is_A_transposed=is_A_transposed, is_B_transposed=is_B_transposed)
+torch_profiler = torch.profiler.profile(
+    activities=[torch.profiler.ProfilerActivity.CPU, torch.profiler.ProfilerActivity.CUDA],
+    schedule=torch.profiler.schedule(wait=5, warmup=5, active=1, repeat=1),
+    on_trace_ready=torch.profiler.tensorboard_trace_handler("tmp"),
+    record_shapes=True,
+)
+
+for i in range(10):
+    output = grouped_gemm_cute(A=A, B=B, C=None, is_A_transposed=is_A_transposed, is_B_transposed=is_B_transposed)
+    # torch_profiler.step()
+
+s = torch.cuda.Event(enable_timing=True)
+e = torch.cuda.Event(enable_timing=True)
+
+s.record()
+for i in range(10):
+    output = grouped_gemm_cute(A=A, B=B, C=None, is_A_transposed=is_A_transposed, is_B_transposed=is_B_transposed)
+    # torch_profiler.step()
+e.record()
+
+torch.cuda.synchronize()
+
+t = s.elapsed_time(e) / 10 / 1e3
+print(2 * M * N * K * E / t / 1e12)
 
 D = []
 for i in range(E):
