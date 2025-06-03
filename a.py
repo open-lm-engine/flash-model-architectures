@@ -33,7 +33,7 @@ for i in range(E):
     if is_B_transposed:
         b = b.T
 
-    D.append(alpha * a @ b + beta)
+    D.append(a @ b)
 
 D = torch.stack(D)
 
