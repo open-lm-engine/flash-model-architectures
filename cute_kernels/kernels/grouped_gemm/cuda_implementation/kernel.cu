@@ -26,6 +26,7 @@ using uint32 = ck::uint32;
 using uint64 = ck::uint64;
 using int32 = ck::int32;
 using int64 = ck::int64;
+using uint8 = ck::uint8;
 using fp32 = ck::fp32;
 using bf16 = ck::bf16;
 using fp64 = ck::fp64;
@@ -343,7 +344,7 @@ inline void _grouped_gemm_cuda(const torch::Tensor &_A,
     size_t workspace_size = Gemm::get_workspace_size(arguments);
 
     // Allocate workspace memory
-    cutlass::device_memory::allocation<uint8_t> workspace(workspace_size);
+    cutlass::device_memory::allocation<uint8> workspace(workspace_size);
 
     // Check if the problem size is supported or not
     gemm.can_implement(arguments);

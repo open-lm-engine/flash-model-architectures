@@ -16,7 +16,7 @@ namespace ck = cute_kernels;
 using uint32 = ck::uint32;
 using int32 = ck::int32;
 using uint64 = ck::uint64;
-
+using uint8 = ck::uint8;
 using fp32 = ck::fp32;
 
 template <bool is_A_transposed, bool is_B_transposed>
@@ -81,7 +81,7 @@ inline void _cutlass_tensorcore_mma_gemm_templated_layout(const fp32 *A,
                                          {1});
 
     uint64 workspace_size = CutlassGemm::get_workspace_size(args);
-    cutlass::device_memory::allocation<uint8_t> workspace(workspace_size);
+    cutlass::device_memory::allocation<uint8> workspace(workspace_size);
 
     cutlass::Status status = gemm_operator.can_implement(args);
     status = gemm_operator.initialize(args, workspace.get());
