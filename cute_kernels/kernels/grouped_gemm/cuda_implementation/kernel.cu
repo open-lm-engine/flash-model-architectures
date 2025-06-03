@@ -115,6 +115,7 @@ inline void _grouped_gemm_cuda(const torch::Tensor &_A,
                                const torch::Tensor &N_array,
                                const torch::Tensor &K_array,
                                torch::Tensor &_ptr_A,
+                               torch::Tensor &_ptr_B,
                                const fp32 &alpha,
                                const fp32 &beta,
                                const uint32 &E) {
@@ -190,7 +191,7 @@ inline void _grouped_gemm_cuda(const torch::Tensor &_A,
     cutlass::DeviceAllocation<typename ProblemShape::UnderlyingProblemShape> problem_sizes;
 
     const ElementA **ptr_A = reinterpret_cast<const ElementA **>(_ptr_A.data_ptr<uint64>());
-    cutlass::DeviceAllocation<const typename Gemm::ElementB *> ptr_B;
+    const ElementA **ptr_B = reinterpret_cast<const ElementB **>(_ptr_B.data_ptr<uint64>());
     cutlass::DeviceAllocation<const typename Gemm::ElementC *> ptr_C;
     cutlass::DeviceAllocation<typename Gemm::ElementC *> ptr_D;
 
@@ -223,7 +224,6 @@ inline void _grouped_gemm_cuda(const torch::Tensor &_A,
     stride_A.reset(E);
     stride_B.reset(E);
     stride_C.reset(E);
-    ptr_B.reset(E);
     ptr_C.reset(E);
     ptr_D.reset(E);
 
@@ -250,11 +250,10 @@ inline void _grouped_gemm_cuda(const torch::Tensor &_A,
 
     offsets = torch::cumsum(offsets, -1);
 
-    DISPATCH_FLOAT_KERNEL(
-        _A.scalar_type(), "offset_pointers_cuda", scalar_t, ([&] {
-            offset_pointers_cuda_kernel<ElementA, ElementB, ElementC, ElementD>
-                <<<1, 1024>>>(ptr_A, ptr_B.get(), ptr_C.get(), ptr_D.get(), A, B, C, D, offsets.data_ptr<int64>(), E);
-        }));
+    DISPATCH_FLOAT_KERNEL(_A.scalar_type(), "offset_pointers_cuda", scalar_t, ([&] {
+                              offset_pointers_cuda_kernel<ElementA, ElementB, ElementC, ElementD><<<1, 1024>>>(
+                                  ptr_A, ptr_B, ptr_C.get(), ptr_D.get(), A, B, C, D, offsets.data_ptr<int64>(), E);
+                          }));
 
     // Instantiate CUTLASS kernel depending on templates
     Gemm gemm;
@@ -290,7 +289,7 @@ inline void _grouped_gemm_cuda(const torch::Tensor &_A,
 
     arguments = typename Gemm::Arguments{cutlass::gemm::GemmUniversalMode::kGrouped,
                                          {static_cast<int>(E), problem_sizes.get(), nullptr},
-                                         {ptr_A, stride_A.get(), ptr_B.get(), stride_B.get()},
+                                         {ptr_A, stride_A.get(), ptr_B, stride_B.get()},
                                          {fusion_args, ptr_C.get(), stride_C.get(), ptr_D.get(), stride_C.get()},
                                          hw_info,
                                          scheduler};
@@ -319,6 +318,7 @@ void grouped_gemm_cuda(const torch::Tensor &_A,
                        const torch::Tensor &N_array,
                        const torch::Tensor &K_array,
                        torch::Tensor &_ptr_A,
+                       torch::Tensor &_ptr_B,
                        const bool &is_A_transposed,
                        const bool &is_B_transposed,
                        const fp32 &alpha,
@@ -334,15 +334,16 @@ void grouped_gemm_cuda(const torch::Tensor &_A,
 
     if (is_A_transposed) {
         if (is_B_transposed) {
-            _grouped_gemm_cuda<true, true>(_A, _B, _C, _D, M_array, N_array, K_array, _ptr_A, alpha, beta, E);
+            _grouped_gemm_cuda<true, true>(_A, _B, _C, _D, M_array, N_array, K_array, _ptr_A, _ptr_B, alpha, beta, E);
         } else {
-            _grouped_gemm_cuda<true, false>(_A, _B, _C, _D, M_array, N_array, K_array, _ptr_A, alpha, beta, E);
+            _grouped_gemm_cuda<true, false>(_A, _B, _C, _D, M_array, N_array, K_array, _ptr_A, _ptr_B, alpha, beta, E);
         }
     } else {
         if (is_B_transposed) {
-            _grouped_gemm_cuda<false, true>(_A, _B, _C, _D, M_array, N_array, K_array, _ptr_A, alpha, beta, E);
+            _grouped_gemm_cuda<false, true>(_A, _B, _C, _D, M_array, N_array, K_array, _ptr_A, _ptr_B, alpha, beta, E);
         } else {
-            _grouped_gemm_cuda<false, false>(_A, _B, _C, _D, M_array, N_array, K_array, _ptr_A, alpha, beta, E);
+            _grouped_gemm_cuda<false, false>(
+                _A, _B, _C, _D, M_array, N_array, K_array, _ptr_A, _ptr_B, alpha, beta, E);
         }
     }
 }
