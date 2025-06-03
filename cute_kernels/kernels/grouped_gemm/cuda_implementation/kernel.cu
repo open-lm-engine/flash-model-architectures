@@ -72,10 +72,14 @@ __global__ void populate_strides_cuda_kernel(const uint32 *M_array,
         stride_C[thread_id] = cutlass::make_cute_packed_stride(StrideC{}, {M, N, 1});
         problem_sizes[thread_id] = {M, N, K};
 
+        const uint32 offset_A = M * K;
+        const uint32 offset_B = K * N;
+        const uint32 offset_C = M * N;
+
         thread_id++;
-        offset_A_device[thread_id] = M * K;
-        offset_B_device[thread_id] = K * N;
-        offset_C_device[thread_id] = M * N;
+        offset_A_device[thread_id] = offset_A;
+        offset_B_device[thread_id] = offset_B;
+        offset_C_device[thread_id] = offset_C;
     }
 }
 
