@@ -49,17 +49,19 @@ __global__ void populate_strides_cuda_kernel(const uint32 *M_array,
                                              StrideA *stride_A,
                                              StrideB *stride_B,
                                              StrideC *stride_C,
-                                             int64 *offset_A_device,
-                                             int64 *offset_B_device,
-                                             int64 *offset_C_device,
+                                             int64 *offsets,
                                              UnderlyingProblemShape *problem_sizes,
                                              const uint32 E) {
     uint32 thread_id = blockIdx.x * blockDim.x + threadIdx.x;
 
+    int64 *offsets_A = offsets;
+    int64 *offsets_B = offsets_A + E + 1;
+    int64 *offsets_C = offsets_B + E + 1;
+
     if (thread_id == 0) {
-        offset_A_device[0] = 0;
-        offset_B_device[0] = 0;
-        offset_C_device[0] = 0;
+        offsets_A[0] = 0;
+        offsets_B[0] = 0;
+        offsets_C[0] = 0;
     }
 
     if (thread_id < E) {
@@ -72,14 +74,10 @@ __global__ void populate_strides_cuda_kernel(const uint32 *M_array,
         stride_C[thread_id] = cutlass::make_cute_packed_stride(StrideC{}, {M, N, 1});
         problem_sizes[thread_id] = {M, N, K};
 
-        const uint32 offset_A = M * K;
-        const uint32 offset_B = K * N;
-        const uint32 offset_C = M * N;
-
         thread_id++;
-        offset_A_device[thread_id] = offset_A;
-        offset_B_device[thread_id] = offset_B;
-        offset_C_device[thread_id] = offset_C;
+        offsets_A[thread_id] = M * K;
+        offsets_B[thread_id] = K * N;
+        offsets_C[thread_id] = M * N;
     }
 }
 
@@ -92,11 +90,13 @@ __global__ void offset_pointers_kernel(const ElementA **ptr_A,
                                        const ElementB *B,
                                        const ElementC *C,
                                        ElementD *D,
-                                       const int64 *offsets_A,
-                                       const int64 *offsets_B,
-                                       const int64 *offsets_C,
+                                       const int64 *offsets,
                                        const uint32 E) {
     const uint32 thread_id = blockIdx.x * blockDim.x + threadIdx.x;
+
+    const int64 *offsets_A = offsets;
+    const int64 *offsets_B = offsets_A + E + 1;
+    const int64 *offsets_C = offsets_B + E + 1;
 
     if (thread_id < E) {
         ptr_A[thread_id] = A + offsets_A[thread_id];
@@ -236,9 +236,7 @@ void _grouped_gemm_cuda(const torch::Tensor &_A,
     ptr_D.reset(E);
 
     torch::TensorOptions options = torch::TensorOptions().dtype(torch::kLong).device(_A.device());
-    torch::Tensor offset_A_device = torch::empty({E + 1}, options);
-    torch::Tensor offset_B_device = torch::empty({E + 1}, options);
-    torch::Tensor offset_C_device = torch::empty({E + 1}, options);
+    torch::Tensor offsets = torch::empty({3, E + 1}, options);
 
     populate_strides_cuda_kernel<StrideA,
                                  StrideB,
@@ -252,28 +250,14 @@ void _grouped_gemm_cuda(const torch::Tensor &_A,
                       stride_A.get(),
                       stride_B.get(),
                       stride_C.get(),
-                      offset_A_device.data_ptr<int64>(),
-                      offset_B_device.data_ptr<int64>(),
-                      offset_C_device.data_ptr<int64>(),
+                      offsets.data_ptr<int64>(),
                       problem_sizes.get(),
                       E);
 
-    offset_A_device = torch::cumsum(offset_A_device, 0);
-    offset_B_device = torch::cumsum(offset_B_device, 0);
-    offset_C_device = torch::cumsum(offset_C_device, 0);
+    offsets = torch::cumsum(offsets, -1);
 
-    offset_pointers_kernel<ElementA, ElementB, ElementC, ElementD><<<1, 1024>>>(ptr_A.get(),
-                                                                                ptr_B.get(),
-                                                                                ptr_C.get(),
-                                                                                ptr_D.get(),
-                                                                                A,
-                                                                                B,
-                                                                                C,
-                                                                                D,
-                                                                                offset_A_device.data_ptr<int64>(),
-                                                                                offset_B_device.data_ptr<int64>(),
-                                                                                offset_C_device.data_ptr<int64>(),
-                                                                                E);
+    offset_pointers_kernel<ElementA, ElementB, ElementC, ElementD>
+        <<<1, 1024>>>(ptr_A.get(), ptr_B.get(), ptr_C.get(), ptr_D.get(), A, B, C, D, offsets.data_ptr<int64>(), E);
 
     // Instantiate CUTLASS kernel depending on templates
     Gemm gemm;
