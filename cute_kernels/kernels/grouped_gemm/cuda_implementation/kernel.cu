@@ -49,9 +49,9 @@ __global__ void populate_strides_cuda_kernel(const uint32 *M_array,
                                              StrideA *stride_A,
                                              StrideB *stride_B,
                                              StrideC *stride_C,
-                                             int64_t *offset_A_device,
-                                             int64_t *offset_B_device,
-                                             int64_t *offset_C_device,
+                                             int64 *offset_A_device,
+                                             int64 *offset_B_device,
+                                             int64 *offset_C_device,
                                              UnderlyingProblemShape *problem_sizes,
                                              const uint32 E) {
     uint32 thread_id = blockIdx.x * blockDim.x + threadIdx.x;
@@ -92,9 +92,9 @@ __global__ void offset_pointers_kernel(const ElementA **ptr_A,
                                        const ElementB *B,
                                        const ElementC *C,
                                        ElementD *D,
-                                       const int64_t *offsets_A,
-                                       const int64_t *offsets_B,
-                                       const int64_t *offsets_C,
+                                       const int64 *offsets_A,
+                                       const int64 *offsets_B,
+                                       const int64 *offsets_C,
                                        const uint32 E) {
     const uint32 thread_id = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -252,9 +252,9 @@ void _grouped_gemm_cuda(const torch::Tensor &_A,
                       stride_A.get(),
                       stride_B.get(),
                       stride_C.get(),
-                      offset_A_device.data_ptr<int64_t>(),
-                      offset_B_device.data_ptr<int64_t>(),
-                      offset_C_device.data_ptr<int64_t>(),
+                      offset_A_device.data_ptr<int64>(),
+                      offset_B_device.data_ptr<int64>(),
+                      offset_C_device.data_ptr<int64>(),
                       problem_sizes.get(),
                       E);
 
@@ -270,9 +270,9 @@ void _grouped_gemm_cuda(const torch::Tensor &_A,
                                                                                 B,
                                                                                 C,
                                                                                 D,
-                                                                                offset_A_device.data_ptr<int64_t>(),
-                                                                                offset_B_device.data_ptr<int64_t>(),
-                                                                                offset_C_device.data_ptr<int64_t>(),
+                                                                                offset_A_device.data_ptr<int64>(),
+                                                                                offset_B_device.data_ptr<int64>(),
+                                                                                offset_C_device.data_ptr<int64>(),
                                                                                 E);
 
     // Instantiate CUTLASS kernel depending on templates
