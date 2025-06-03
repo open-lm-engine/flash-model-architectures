@@ -162,6 +162,7 @@ inline void _grouped_gemm_cuda(const torch::Tensor &_A,
                                torch::Tensor &_ptr_B,
                                torch::Tensor &_ptr_D,
                                torch::Tensor &_stride_A,
+                               torch::Tensor &_stride_B,
                                const fp32 &alpha,
                                const fp32 &beta,
                                const uint32 &E,
@@ -243,7 +244,7 @@ inline void _grouped_gemm_cuda(const torch::Tensor &_A,
     ElementD **ptr_D = reinterpret_cast<ElementD **>(_ptr_D.data_ptr<uint64>());
 
     StrideA *stride_A = reinterpret_cast<StrideA *>(_stride_A.data_ptr<uint64>());
-    cutlass::DeviceAllocation<StrideB> stride_B;
+    StrideB *stride_B = reinterpret_cast<StrideB *>(_stride_B.data_ptr<uint64>());
     cutlass::DeviceAllocation<StrideC> stride_C;
 
     using RasterOrderOptions = typename cutlass::gemm::kernel::detail::PersistentTileSchedulerSm100GroupParams<
@@ -268,7 +269,6 @@ inline void _grouped_gemm_cuda(const torch::Tensor &_A,
                           }));
 
     problem_sizes.reset(E);
-    stride_B.reset(E);
     stride_C.reset(E);
     ptr_C.reset(E);
 
@@ -286,7 +286,7 @@ inline void _grouped_gemm_cuda(const torch::Tensor &_A,
                                                 N_array.data_ptr<uint32>(),
                                                 K_array.data_ptr<uint32>(),
                                                 stride_A,
-                                                stride_B.get(),
+                                                stride_B,
                                                 stride_C.get(),
                                                 offsets.data_ptr<int64>(),
                                                 problem_sizes.get(),
@@ -334,7 +334,7 @@ inline void _grouped_gemm_cuda(const torch::Tensor &_A,
 
     arguments = typename Gemm::Arguments{cutlass::gemm::GemmUniversalMode::kGrouped,
                                          {static_cast<int>(E), problem_sizes.get(), nullptr},
-                                         {ptr_A, stride_A, ptr_B, stride_B.get()},
+                                         {ptr_A, stride_A, ptr_B, stride_B},
                                          {fusion_args, ptr_C.get(), stride_C.get(), ptr_D, stride_C.get()},
                                          hw_info,
                                          scheduler};
@@ -383,6 +383,7 @@ void grouped_gemm_cuda(const torch::Tensor &_A,
                        torch::Tensor &_ptr_B,
                        torch::Tensor &_ptr_D,
                        torch::Tensor &_stride_A,
+                       torch::Tensor &_stride_B,
                        const bool &is_A_transposed,
                        const bool &is_B_transposed,
                        const fp32 &alpha,
@@ -410,6 +411,7 @@ void grouped_gemm_cuda(const torch::Tensor &_A,
                                            _ptr_B,
                                            _ptr_D,
                                            _stride_A,
+                                           _stride_B,
                                            alpha,
                                            beta,
                                            E,
@@ -426,6 +428,7 @@ void grouped_gemm_cuda(const torch::Tensor &_A,
                                             _ptr_B,
                                             _ptr_D,
                                             _stride_A,
+                                            _stride_B,
                                             alpha,
                                             beta,
                                             E,
@@ -444,6 +447,7 @@ void grouped_gemm_cuda(const torch::Tensor &_A,
                                             _ptr_B,
                                             _ptr_D,
                                             _stride_A,
+                                            _stride_B,
                                             alpha,
                                             beta,
                                             E,
@@ -460,6 +464,7 @@ void grouped_gemm_cuda(const torch::Tensor &_A,
                                              _ptr_B,
                                              _ptr_D,
                                              _stride_A,
+                                             _stride_B,
                                              alpha,
                                              beta,
                                              E,

@@ -26,6 +26,7 @@ def grouped_gemm_cuda(
     ptr_B: torch.Tensor,
     ptr_D: torch.Tensor,
     stride_A: torch.Tensor,
+    stride_B: torch.Tensor,
     is_A_transposed: bool,
     is_B_transposed: bool,
     alpha: float,
