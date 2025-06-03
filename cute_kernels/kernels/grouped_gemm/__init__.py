@@ -8,21 +8,27 @@ from .cuda_implementation import grouped_gemm_cuda
 
 
 def grouped_gemm_cute(alpha: float = 1, beta: float = 0) -> torch.Tensor:
-    E = 16
-    K = 4096
-    M = 4096
-    N = 512
-    TK = 65536
-    assert TK % E == 0
+    E = 7
+    K = 16
+    M = 8
+    N = 24
+    EM = E * M
+    EK = E * K
+    EN = E * N
 
-    M_offsets = torch.tensor(list(range(0, 48000, 3000)) + [TK], device=torch.cuda.current_device(), dtype=torch.int32)
-
-    M_array = (M_offsets[1:] - M_offsets[:-1]).to(torch.uint32)
+    M_array = torch.tensor([M] * E, device=torch.cuda.current_device(), dtype=torch.uint32)
     N_array = torch.full_like(M_array, fill_value=N)
     K_array = torch.full_like(M_array, fill_value=K)
 
-    A = torch.randint(-8, 9, (TK, K), device=torch.cuda.current_device(), dtype=torch.bfloat16)
-    B = torch.randint(-8, 9, (E, N, K), device=torch.cuda.current_device(), dtype=torch.bfloat16)
+    is_A_transposed = True
+    is_B_transposed = True
+
+    A = torch.randint(
+        -8, 9, (E, K, M) if is_A_transposed else (E, M, K), device=torch.cuda.current_device(), dtype=torch.bfloat16
+    )
+    B = torch.randint(
+        -8, 9, (E, N, K) if is_B_transposed else (E, K, N), device=torch.cuda.current_device(), dtype=torch.bfloat16
+    )
     C = torch.randint(-8, 9, (E, M, N), device=torch.cuda.current_device(), dtype=torch.bfloat16)
     output = torch.empty(E, M, N, device=torch.cuda.current_device(), dtype=torch.bfloat16)
 
@@ -34,10 +40,28 @@ def grouped_gemm_cute(alpha: float = 1, beta: float = 0) -> torch.Tensor:
         M_array=M_array,
         N_array=N_array,
         K_array=K_array,
-        is_A_transposed=False,
-        is_B_transposed=True,
+        is_A_transposed=is_A_transposed,
+        is_B_transposed=is_B_transposed,
         alpha=alpha,
         beta=beta,
     )
+
+    # print(A)
+    # print(B)
+
+    D = []
+    for i in range(E):
+        a = A[i]
+        if is_A_transposed:
+            a = a.T
+        b = B[i]
+        if is_B_transposed:
+            b = b.T
+
+        D.append(alpha * a @ b + beta * C[i])
+
+    D = torch.stack(D)
+
+    print((output - D).abs().max())
 
     return output

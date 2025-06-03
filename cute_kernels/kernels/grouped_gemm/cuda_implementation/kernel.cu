@@ -47,57 +47,6 @@ using RowMajor = cutlass::layout::RowMajor;
 
 #define MAX_NUM_GROUPS 1024
 
-struct GpuTimer {
-    cudaStream_t _stream_id;
-    cudaEvent_t _start;
-    cudaEvent_t _stop;
-
-    /// Constructor
-    GpuTimer() : _stream_id(0) {
-        cudaEventCreate(&_start);
-        cudaEventCreate(&_stop);
-    }
-
-    /// Destructor
-    ~GpuTimer() {
-        cudaEventDestroy(_start);
-        cudaEventDestroy(_stop);
-    }
-
-    /// Start the timer for a given stream (defaults to the default stream)
-    void start(cudaStream_t stream_id = 0) {
-        _stream_id = stream_id;
-        cudaEventRecord(_start, _stream_id);
-    }
-
-    /// Stop the timer
-    void stop() { cudaEventRecord(_stop, _stream_id); }
-
-    /// Return the elapsed time (in milliseconds)
-    fp32 elapsed_millis() {
-        fp32 elapsed = 0.0;
-        cudaEventSynchronize(_stop);
-        cudaEventElapsedTime(&elapsed, _start, _stop);
-        return elapsed;
-    }
-};
-
-/// Compute performance in GFLOP/s
-fp64 get_gflops(const fp64 &runtime_s,
-                std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host) {
-    // Number of real-valued multiply-adds
-    uint64 fmas = 0;
-
-    for (auto const &problem : problem_sizes_host) {
-        fmas += static_cast<uint64>(get<0>(problem)) * static_cast<uint64>(get<1>(problem)) *
-                static_cast<uint64>(get<2>(problem));
-    }
-    // Two flops per multiply-add
-    uint64 flop = uint64(2) * uint64(fmas);
-    fp64 gflop = fp64(flop) / fp64(1.0e9);
-    return gflop / runtime_s;
-}
-
 // TODO modify this kernel to use vector load/stores
 template <typename StrideA, typename StrideB, typename StrideC, bool is_A_transposed, bool is_B_transposed>
 __global__ void populate_strides_cuda_kernel(const uint32 *M_array,
@@ -155,54 +104,6 @@ __global__ void offset_pointers_kernel(const ElementA **output_pointers_A,
         output_pointers_C[thread_id] = C + offsets_C[thread_id];
         output_pointers_D[thread_id] = D + offsets_C[thread_id];
     }
-}
-
-template <typename ElementA,
-          typename ElementB,
-          typename ElementC,
-          typename ElementD,
-          typename Gemm,
-          typename DeviceGemmReference>
-bool verify(ElementA *A,
-            ElementB *B,
-            ElementC *C,
-            ElementC *D,
-            cutlass::DeviceAllocation<ElementD> block_ref_D,
-            const fp32 &alpha,
-            const fp32 &beta,
-            const std::vector<typename ProblemShape::UnderlyingProblemShape> &problem_sizes_host,
-            torch::Tensor &offset_A_device,
-            torch::Tensor &offset_B_device,
-            torch::Tensor &offset_C_device) {
-    const uint32 E = problem_sizes_host.size();
-    bool passed = true;
-
-    for (uint32 i = 0; i < E; ++i) {
-        auto problem = problem_sizes_host.at(i);
-        auto M = get<0>(problem);
-        auto N = get<1>(problem);
-        auto K = get<2>(problem);
-        cutlass::TensorRef ref_A(A + offset_A_device[i].item<int64_t>(), Gemm::LayoutA::packed({M, K}));
-        cutlass::TensorRef ref_B(B + offset_B_device[i].item<int64_t>(), Gemm::LayoutB::packed({K, N}));
-        cutlass::TensorRef ref_C(C + offset_C_device[i].item<int64_t>(), Gemm::LayoutC::packed({M, N}));
-        cutlass::TensorRef ref_D(block_ref_D.get() + offset_C_device[i].item<int64_t>(),
-                                 Gemm::LayoutD::packed({M, N}));
-
-        // Create instantiation for device reference gemm kernel
-        DeviceGemmReference gemm_reference;
-
-        // Launch device reference gemm kernel
-        gemm_reference({M, N, K}, alpha, ref_A, ref_B, beta, ref_C, ref_D);
-
-        // Wait for kernel to finish
-        cudaDeviceSynchronize();
-
-        // Check if output from CUTLASS kernel and reference kernel are equal or not
-        passed &= cutlass::reference::device::BlockCompareEqual(
-            block_ref_D.get() + offset_C_device[i].item<int64_t>(), D + offset_C_device[i].item<int64_t>(), M * N);
-    }
-
-    return passed;
 }
 
 template <bool is_A_transposed, bool is_B_transposed>
@@ -447,27 +348,6 @@ void _grouped_gemm_cuda(const torch::Tensor &_A,
 
     // Correctness / Warmup iteration
     gemm.run(/* stream = */ nullptr, /* cuda_adapter = */ nullptr, /* launch_with_pdl = */ false);
-
-    // Check if output from CUTLASS kernel and reference kernel are equal or not
-    const bool passed = verify<ElementA, ElementB, ElementC, ElementC, Gemm, DeviceGemmReference>(
-        A, B, C, D, block_ref_D, alpha, beta, problem_sizes_host, offset_A_device, offset_B_device, offset_C_device);
-
-    std::cout << "  Disposition: " << (passed ? "Passed" : "Failed") << std::endl;
-
-    const uint32 iterations = 10;
-    if (iterations > 0) {
-        GpuTimer timer;
-        timer.start();
-        for (int iter = 0; iter < iterations; ++iter) {
-            gemm.initialize(arguments, workspace.get());
-            gemm.run(/* stream = */ nullptr, /* cuda_adapter = */ nullptr, /* launch_with_pdl = */ false);
-        }
-        timer.stop();
-
-        // Compute average setup and runtime and GFLOPs.
-        fp64 gflops = get_gflops(fp64(timer.elapsed_millis()) / fp64(iterations) / 1000.0, problem_sizes_host);
-        std::cout << "  TFLOPS      : " << gflops / 1000.0 << std::endl;
-    }
 }
 
 void grouped_gemm_cuda(const torch::Tensor &_A,
