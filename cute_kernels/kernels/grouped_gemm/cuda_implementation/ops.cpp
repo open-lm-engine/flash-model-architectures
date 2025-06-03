@@ -16,6 +16,7 @@ void grouped_gemm_cuda(const torch::Tensor &_A,
                        const bool &is_A_transposed,
                        const bool &is_B_transposed,
                        const float &alpha,
-                       const float &beta);
+                       const float &beta,
+                       const bool &benchmark);
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) { m.def("grouped_gemm_cuda", &grouped_gemm_cuda, "grouped GEMM (CUDA)"); }

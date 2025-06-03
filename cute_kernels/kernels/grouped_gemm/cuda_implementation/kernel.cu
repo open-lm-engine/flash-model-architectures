@@ -106,6 +106,50 @@ __global__ void offset_pointers_cuda_kernel(const ElementA **ptr_A,
     }
 }
 
+struct GpuTimer {
+    cudaStream_t _stream_id;
+    cudaEvent_t _start;
+    cudaEvent_t _stop;
+
+    /// Constructor
+    GpuTimer() : _stream_id(0) {
+        cudaEventCreate(&_start);
+        cudaEventCreate(&_stop);
+    }
+
+    /// Destructor
+    ~GpuTimer() {
+        cudaEventDestroy(_start);
+        cudaEventDestroy(_stop);
+    }
+
+    /// Start the timer for a given stream (defaults to the default stream)
+    void start(cudaStream_t stream_id = 0) {
+        _stream_id = stream_id;
+        cudaEventRecord(_start, _stream_id);
+    }
+
+    /// Stop the timer
+    void stop() { cudaEventRecord(_stop, _stream_id); }
+
+    /// Return the elapsed time (in milliseconds)
+    fp32 elapsed_millis() {
+        fp32 elapsed = 0.0;
+        cudaEventSynchronize(_stop);
+        cudaEventElapsedTime(&elapsed, _start, _stop);
+        return elapsed;
+    }
+};
+
+/// Compute performance in GFLOP/s
+fp64 get_gflops(const fp64 &runtime_s) {
+    // Number of real-valued multiply-adds
+    // Two flops per multiply-add
+    uint64 flop = uint64(2) * uint64(4096) * uint64(4096) * uint64(512) * uint64(16);
+    fp64 gflop = fp64(flop) / fp64(1.0e9);
+    return gflop / runtime_s;
+}
+
 template <bool is_A_transposed, bool is_B_transposed>
 inline void _grouped_gemm_cuda(const torch::Tensor &_A,
                                const torch::Tensor &_B,
@@ -118,7 +162,8 @@ inline void _grouped_gemm_cuda(const torch::Tensor &_A,
                                torch::Tensor &_ptr_B,
                                const fp32 &alpha,
                                const fp32 &beta,
-                               const uint32 &E) {
+                               const uint32 &E,
+                               const bool &benchmark) {
     using ElementA = cutlass::bfloat16_t;
     using ElementB = cutlass::bfloat16_t;
     using ElementC = cutlass::bfloat16_t;
@@ -308,6 +353,23 @@ inline void _grouped_gemm_cuda(const torch::Tensor &_A,
 
     // Correctness / Warmup iteration
     gemm.run(/* stream = */ nullptr, /* cuda_adapter = */ nullptr, /* launch_with_pdl = */ false);
+
+    if (benchmark) {
+        const uint32 iterations = 10;
+        if (iterations > 0) {
+            GpuTimer timer;
+            timer.start();
+            for (int iter = 0; iter < iterations; ++iter) {
+                gemm.initialize(arguments, workspace.get());
+                gemm.run(/* stream = */ nullptr, /* cuda_adapter = */ nullptr, /* launch_with_pdl = */ false);
+            }
+            timer.stop();
+
+            // Compute average setup and runtime and GFLOPs.
+            fp64 gflops = get_gflops(fp64(timer.elapsed_millis()) / fp64(iterations) / 1000.0);
+            std::cout << "  TFLOPS      : " << gflops / 1000.0 << std::endl;
+        }
+    }
 }
 
 void grouped_gemm_cuda(const torch::Tensor &_A,
@@ -322,7 +384,8 @@ void grouped_gemm_cuda(const torch::Tensor &_A,
                        const bool &is_A_transposed,
                        const bool &is_B_transposed,
                        const fp32 &alpha,
-                       const fp32 &beta) {
+                       const fp32 &beta,
+                       const bool &benchmark) {
     // the addition of C is incorrent right now so just raise an error
     TORCH_CHECK(beta == 0);
     TORCH_CHECK(!_C.has_value());
@@ -334,16 +397,19 @@ void grouped_gemm_cuda(const torch::Tensor &_A,
 
     if (is_A_transposed) {
         if (is_B_transposed) {
-            _grouped_gemm_cuda<true, true>(_A, _B, _C, _D, M_array, N_array, K_array, _ptr_A, _ptr_B, alpha, beta, E);
+            _grouped_gemm_cuda<true, true>(
+                _A, _B, _C, _D, M_array, N_array, K_array, _ptr_A, _ptr_B, alpha, beta, E, benchmark);
         } else {
-            _grouped_gemm_cuda<true, false>(_A, _B, _C, _D, M_array, N_array, K_array, _ptr_A, _ptr_B, alpha, beta, E);
+            _grouped_gemm_cuda<true, false>(
+                _A, _B, _C, _D, M_array, N_array, K_array, _ptr_A, _ptr_B, alpha, beta, E, benchmark);
         }
     } else {
         if (is_B_transposed) {
-            _grouped_gemm_cuda<false, true>(_A, _B, _C, _D, M_array, N_array, K_array, _ptr_A, _ptr_B, alpha, beta, E);
+            _grouped_gemm_cuda<false, true>(
+                _A, _B, _C, _D, M_array, N_array, K_array, _ptr_A, _ptr_B, alpha, beta, E, benchmark);
         } else {
             _grouped_gemm_cuda<false, false>(
-                _A, _B, _C, _D, M_array, N_array, K_array, _ptr_A, _ptr_B, alpha, beta, E);
+                _A, _B, _C, _D, M_array, N_array, K_array, _ptr_A, _ptr_B, alpha, beta, E, benchmark);
         }
     }
 }

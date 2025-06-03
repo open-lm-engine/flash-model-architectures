@@ -28,4 +28,5 @@ def grouped_gemm_cuda(
     is_B_transposed: bool,
     alpha: float,
     beta: float,
+    benchmark: bool,
 ) -> None: ...
