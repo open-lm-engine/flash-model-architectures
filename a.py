@@ -22,6 +22,10 @@ B = torch.randint(
     -8, 9, (E, N, K) if is_B_transposed else (E, K, N), device=torch.cuda.current_device(), dtype=torch.bfloat16
 )
 
+M_array = torch.tensor([M] * E, device=torch.cuda.current_device(), dtype=torch.uint32)
+N_array = torch.full_like(M_array, fill_value=N)
+K_array = torch.full_like(M_array, fill_value=K)
+
 torch_profiler = torch.profiler.profile(
     activities=[torch.profiler.ProfilerActivity.CPU, torch.profiler.ProfilerActivity.CUDA],
     schedule=torch.profiler.schedule(wait=5, warmup=5, active=1, repeat=1),
@@ -30,7 +34,16 @@ torch_profiler = torch.profiler.profile(
 )
 
 for i in range(10):
-    output = grouped_gemm_cute(A=A, B=B, C=None, is_A_transposed=is_A_transposed, is_B_transposed=is_B_transposed)
+    output = grouped_gemm_cute(
+        A=A,
+        B=B,
+        C=None,
+        M_array=M_array,
+        N_array=N_array,
+        K_array=K_array,
+        is_A_transposed=is_A_transposed,
+        is_B_transposed=is_B_transposed,
+    )
     # torch_profiler.step()
 
 s = torch.cuda.Event(enable_timing=True)
@@ -38,7 +51,16 @@ e = torch.cuda.Event(enable_timing=True)
 
 s.record()
 for i in range(10):
-    output = grouped_gemm_cute(A=A, B=B, C=None, is_A_transposed=is_A_transposed, is_B_transposed=is_B_transposed)
+    output = grouped_gemm_cute(
+        A=A,
+        B=B,
+        C=None,
+        M_array=M_array,
+        N_array=N_array,
+        K_array=K_array,
+        is_A_transposed=is_A_transposed,
+        is_B_transposed=is_B_transposed,
+    )
     # torch_profiler.step()
 e.record()
 

@@ -11,6 +11,9 @@ def grouped_gemm_cute(
     A: torch.Tensor,
     B: torch.Tensor,
     C: torch.Tensor | None,
+    M_array: torch.Tensor,
+    N_array: torch.Tensor,
+    K_array: torch.Tensor,
     alpha: float = 1,
     beta: float = 0,
     is_A_transposed: bool = False,
@@ -23,10 +26,6 @@ def grouped_gemm_cute(
     M = A.size(2 if is_A_transposed else 1)
     K = A.size(1 if is_A_transposed else 2)
     N = B.size(1 if is_B_transposed else 2)
-
-    M_array = torch.tensor([M] * E, device=torch.cuda.current_device(), dtype=torch.uint32)
-    N_array = torch.full_like(M_array, fill_value=N)
-    K_array = torch.full_like(M_array, fill_value=K)
 
     output = torch.empty(E, M, N, device=torch.cuda.current_device(), dtype=torch.bfloat16)
 
