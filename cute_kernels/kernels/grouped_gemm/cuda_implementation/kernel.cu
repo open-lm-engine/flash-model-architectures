@@ -246,7 +246,7 @@ inline void _grouped_gemm_cuda(const torch::Tensor &_A,
 
     StrideA *stride_A = reinterpret_cast<StrideA *>(_stride_A.data_ptr<uint64>());
     StrideB *stride_B = reinterpret_cast<StrideB *>(_stride_B.data_ptr<uint64>());
-    cutlass::DeviceAllocation<StrideC> stride_C;
+    StrideC *stride_C = reinterpret_cast<StrideC *>(_stride_C.data_ptr<uint64>());
 
     using RasterOrderOptions = typename cutlass::gemm::kernel::detail::PersistentTileSchedulerSm100GroupParams<
         typename ProblemShape::UnderlyingProblemShape>::RasterOrderOptions;
@@ -270,7 +270,6 @@ inline void _grouped_gemm_cuda(const torch::Tensor &_A,
                           }));
 
     problem_sizes.reset(E);
-    stride_C.reset(E);
     ptr_C.reset(E);
 
     torch::TensorOptions options = torch::TensorOptions().dtype(torch::kLong).device(_A.device());
@@ -288,7 +287,7 @@ inline void _grouped_gemm_cuda(const torch::Tensor &_A,
                                                 K_array.data_ptr<uint32>(),
                                                 stride_A,
                                                 stride_B,
-                                                stride_C.get(),
+                                                stride_C,
                                                 offsets.data_ptr<int64>(),
                                                 problem_sizes.get(),
                                                 E);
@@ -336,7 +335,7 @@ inline void _grouped_gemm_cuda(const torch::Tensor &_A,
     arguments = typename Gemm::Arguments{cutlass::gemm::GemmUniversalMode::kGrouped,
                                          {static_cast<int>(E), problem_sizes.get(), nullptr},
                                          {ptr_A, stride_A, ptr_B, stride_B},
-                                         {fusion_args, ptr_C.get(), stride_C.get(), ptr_D, stride_C.get()},
+                                         {fusion_args, ptr_C.get(), stride_C, ptr_D, stride_C},
                                          hw_info,
                                          scheduler};
 
@@ -385,6 +384,7 @@ void grouped_gemm_cuda(const torch::Tensor &_A,
                        torch::Tensor &_ptr_D,
                        torch::Tensor &_stride_A,
                        torch::Tensor &_stride_B,
+                       torch::Tensor &_stride_C,
                        const bool &is_A_transposed,
                        const bool &is_B_transposed,
                        const fp32 &alpha,
@@ -413,6 +413,7 @@ void grouped_gemm_cuda(const torch::Tensor &_A,
                                            _ptr_D,
                                            _stride_A,
                                            _stride_B,
+                                           _stride_C,
                                            alpha,
                                            beta,
                                            E,
@@ -430,6 +431,7 @@ void grouped_gemm_cuda(const torch::Tensor &_A,
                                             _ptr_D,
                                             _stride_A,
                                             _stride_B,
+                                            _stride_C,
                                             alpha,
                                             beta,
                                             E,
@@ -449,6 +451,7 @@ void grouped_gemm_cuda(const torch::Tensor &_A,
                                             _ptr_D,
                                             _stride_A,
                                             _stride_B,
+                                            _stride_C,
                                             alpha,
                                             beta,
                                             E,
@@ -466,6 +469,7 @@ void grouped_gemm_cuda(const torch::Tensor &_A,
                                              _ptr_D,
                                              _stride_A,
                                              _stride_B,
+                                             _stride_C,
                                              alpha,
                                              beta,
                                              E,
