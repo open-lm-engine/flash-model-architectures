@@ -4,9 +4,11 @@
 
 import torch
 
+from ...utils import ensure_contiguous
 from .cuda_implementation import grouped_gemm_cuda
 
 
+@ensure_contiguous
 def grouped_gemm_cute(
     A: torch.Tensor,
     B: torch.Tensor,
