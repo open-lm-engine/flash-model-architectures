@@ -161,6 +161,7 @@ inline void _grouped_gemm_cuda(const torch::Tensor &_A,
                                torch::Tensor &_ptr_A,
                                torch::Tensor &_ptr_B,
                                torch::Tensor &_ptr_D,
+                               torch::Tensor &_stride_A,
                                const fp32 &alpha,
                                const fp32 &beta,
                                const uint32 &E,
@@ -241,7 +242,7 @@ inline void _grouped_gemm_cuda(const torch::Tensor &_A,
     cutlass::DeviceAllocation<const typename Gemm::ElementC *> ptr_C;
     ElementD **ptr_D = reinterpret_cast<ElementD **>(_ptr_D.data_ptr<uint64>());
 
-    cutlass::DeviceAllocation<StrideA> stride_A;
+    StrideA *stride_A = reinterpret_cast<StrideA *>(_stride_A);
     cutlass::DeviceAllocation<StrideB> stride_B;
     cutlass::DeviceAllocation<StrideC> stride_C;
 
@@ -267,7 +268,6 @@ inline void _grouped_gemm_cuda(const torch::Tensor &_A,
                           }));
 
     problem_sizes.reset(E);
-    stride_A.reset(E);
     stride_B.reset(E);
     stride_C.reset(E);
     ptr_C.reset(E);
@@ -285,7 +285,7 @@ inline void _grouped_gemm_cuda(const torch::Tensor &_A,
                                   <<<1, 1024>>>(M_array.data_ptr<uint32>(),
                                                 N_array.data_ptr<uint32>(),
                                                 K_array.data_ptr<uint32>(),
-                                                stride_A.get(),
+                                                stride_A,
                                                 stride_B.get(),
                                                 stride_C.get(),
                                                 offsets.data_ptr<int64>(),
@@ -334,7 +334,7 @@ inline void _grouped_gemm_cuda(const torch::Tensor &_A,
 
     arguments = typename Gemm::Arguments{cutlass::gemm::GemmUniversalMode::kGrouped,
                                          {static_cast<int>(E), problem_sizes.get(), nullptr},
-                                         {ptr_A, stride_A.get(), ptr_B, stride_B.get()},
+                                         {ptr_A, stride_A, ptr_B, stride_B.get()},
                                          {fusion_args, ptr_C.get(), stride_C.get(), ptr_D, stride_C.get()},
                                          hw_info,
                                          scheduler};
@@ -382,6 +382,7 @@ void grouped_gemm_cuda(const torch::Tensor &_A,
                        torch::Tensor &_ptr_A,
                        torch::Tensor &_ptr_B,
                        torch::Tensor &_ptr_D,
+                       torch::Tensor &_stride_A,
                        const bool &is_A_transposed,
                        const bool &is_B_transposed,
                        const fp32 &alpha,
@@ -398,19 +399,71 @@ void grouped_gemm_cuda(const torch::Tensor &_A,
 
     if (is_A_transposed) {
         if (is_B_transposed) {
-            _grouped_gemm_cuda<true, true>(
-                _A, _B, _C, _D, M_array, N_array, K_array, _ptr_A, _ptr_B, _ptr_D, alpha, beta, E, benchmark);
+            _grouped_gemm_cuda<true, true>(_A,
+                                           _B,
+                                           _C,
+                                           _D,
+                                           M_array,
+                                           N_array,
+                                           K_array,
+                                           _ptr_A,
+                                           _ptr_B,
+                                           _ptr_D,
+                                           _stride_A,
+                                           alpha,
+                                           beta,
+                                           E,
+                                           benchmark);
         } else {
-            _grouped_gemm_cuda<true, false>(
-                _A, _B, _C, _D, M_array, N_array, K_array, _ptr_A, _ptr_B, _ptr_D, alpha, beta, E, benchmark);
+            _grouped_gemm_cuda<true, false>(_A,
+                                            _B,
+                                            _C,
+                                            _D,
+                                            M_array,
+                                            N_array,
+                                            K_array,
+                                            _ptr_A,
+                                            _ptr_B,
+                                            _ptr_D,
+                                            _stride_A,
+                                            alpha,
+                                            beta,
+                                            E,
+                                            benchmark);
         }
     } else {
         if (is_B_transposed) {
-            _grouped_gemm_cuda<false, true>(
-                _A, _B, _C, _D, M_array, N_array, K_array, _ptr_A, _ptr_B, _ptr_D, alpha, beta, E, benchmark);
+            _grouped_gemm_cuda<false, true>(_A,
+                                            _B,
+                                            _C,
+                                            _D,
+                                            M_array,
+                                            N_array,
+                                            K_array,
+                                            _ptr_A,
+                                            _ptr_B,
+                                            _ptr_D,
+                                            _stride_A,
+                                            alpha,
+                                            beta,
+                                            E,
+                                            benchmark);
         } else {
-            _grouped_gemm_cuda<false, false>(
-                _A, _B, _C, _D, M_array, N_array, K_array, _ptr_A, _ptr_B, _ptr_D, alpha, beta, E, benchmark);
+            _grouped_gemm_cuda<false, false>(_A,
+                                             _B,
+                                             _C,
+                                             _D,
+                                             M_array,
+                                             N_array,
+                                             K_array,
+                                             _ptr_A,
+                                             _ptr_B,
+                                             _ptr_D,
+                                             _stride_A,
+                                             alpha,
+                                             beta,
+                                             E,
+                                             benchmark);
         }
     }
 }

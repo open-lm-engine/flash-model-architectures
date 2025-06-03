@@ -17,6 +17,7 @@ def grouped_gemm_cute(
     ptr_A: torch.Tensor | None = None,
     ptr_B: torch.Tensor | None = None,
     ptr_D: torch.Tensor | None = None,
+    stride_A: torch.Tensor | None = None,
     output: torch.Tensor | None = None,
     alpha: float = 1,
     beta: float = 0,
@@ -39,6 +40,9 @@ def grouped_gemm_cute(
 
     if ptr_D is None:
         ptr_D = torch.empty(E, device=A.device, dtype=torch.uint64)
+
+    if stride_A is None:
+        stride_A = torch.empty(E, device=A.device, dtype=torch.uint64)
 
     if output is None:
         output = torch.empty(E, M, N, device=A.device, dtype=torch.bfloat16)
