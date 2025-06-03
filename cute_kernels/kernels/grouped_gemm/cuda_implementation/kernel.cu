@@ -84,10 +84,10 @@ __global__ void populate_strides_cuda_kernel(const uint32 *M_array,
 }
 
 template <typename ElementA, typename ElementB, typename ElementC, typename ElementD>
-__global__ void offset_pointers_kernel(const ElementA **output_pointers_A,
-                                       const ElementB **output_pointers_B,
-                                       const ElementC **output_pointers_C,
-                                       ElementD **output_pointers_D,
+__global__ void offset_pointers_kernel(const ElementA **ptr_A,
+                                       const ElementB **ptr_B,
+                                       const ElementC **ptr_C,
+                                       ElementD **ptr_D,
                                        const ElementA *A,
                                        const ElementB *B,
                                        const ElementC *C,
@@ -99,10 +99,10 @@ __global__ void offset_pointers_kernel(const ElementA **output_pointers_A,
     const uint32 thread_id = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (thread_id < E) {
-        output_pointers_A[thread_id] = A + offsets_A[thread_id];
-        output_pointers_B[thread_id] = B + offsets_B[thread_id];
-        output_pointers_C[thread_id] = C + offsets_C[thread_id];
-        output_pointers_D[thread_id] = D + offsets_C[thread_id];
+        ptr_A[thread_id] = A + offsets_A[thread_id];
+        ptr_B[thread_id] = B + offsets_B[thread_id];
+        ptr_C[thread_id] = C + offsets_C[thread_id];
+        ptr_D[thread_id] = D + offsets_C[thread_id];
     }
 }
 
