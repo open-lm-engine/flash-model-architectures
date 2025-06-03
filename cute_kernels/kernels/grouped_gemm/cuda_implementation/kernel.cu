@@ -250,7 +250,7 @@ inline void _grouped_gemm_cuda(const torch::Tensor &_A,
     StrideC *stride_C = reinterpret_cast<StrideC *>(_stride_C.data_ptr<uint64>());
 
     ProblemShape::UnderlyingProblemShape *problem_sizes =
-        reinterpret_cast<ProblemShape::UnderlyingProblemShape *>(_problem_sizes.data_ptr<uint64>());
+        reinterpret_cast<ProblemShape::UnderlyingProblemShape *>(_problem_sizes.data_ptr<uint32>());
 
     using RasterOrderOptions = typename cutlass::gemm::kernel::detail::PersistentTileSchedulerSm100GroupParams<
         typename ProblemShape::UnderlyingProblemShape>::RasterOrderOptions;
