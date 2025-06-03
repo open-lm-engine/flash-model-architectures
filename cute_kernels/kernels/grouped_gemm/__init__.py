@@ -8,6 +8,28 @@ from ...utils import ensure_contiguous
 from .cuda_implementation import grouped_gemm_cuda
 
 
+def prepare_grouped_gemm_inputs_cute(
+    A: torch.Tensor, B: torch.Tensor, is_A_transposed: bool = False, is_B_transposed: bool = False
+) -> tuple[torch.Tensor]:
+    E = A.size(0)
+    M = A.size(2 if is_A_transposed else 1)
+    N = B.size(1 if is_B_transposed else 2)
+
+    ptr_A = torch.empty(E, device=A.device, dtype=torch.uint64)
+    ptr_B = torch.empty(E, device=A.device, dtype=torch.uint64)
+    ptr_C = torch.empty(E, device=A.device, dtype=torch.uint64)
+    ptr_D = torch.empty(E, device=A.device, dtype=torch.uint64)
+
+    stride_A = torch.empty(E, device=A.device, dtype=torch.uint64)
+    stride_B = torch.empty(E, device=A.device, dtype=torch.uint64)
+    stride_C = torch.empty(E, device=A.device, dtype=torch.uint64)
+
+    problem_sizes = torch.empty(3 * E, device=A.device, dtype=torch.uint32)
+    output = torch.empty(E, M, N, device=A.device, dtype=torch.bfloat16)
+
+    return ptr_A, ptr_B, ptr_C, ptr_D, stride_A, stride_B, stride_C, problem_sizes, output
+
+
 @ensure_contiguous
 def grouped_gemm_cute(
     A: torch.Tensor,

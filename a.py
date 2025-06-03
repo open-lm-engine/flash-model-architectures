@@ -4,6 +4,7 @@
 
 import torch
 
+from cute_kernels import prepare_grouped_gemm_inputs_cute
 from cute_kernels.kernels.grouped_gemm import grouped_gemm_cute
 
 
@@ -26,14 +27,9 @@ M_array = torch.tensor([M] * E, device=torch.cuda.current_device(), dtype=torch.
 N_array = torch.full_like(M_array, fill_value=N)
 K_array = torch.full_like(M_array, fill_value=K)
 
-ptr_A = torch.empty(E, device=A.device, dtype=torch.uint64)
-ptr_B = torch.empty(E, device=A.device, dtype=torch.uint64)
-ptr_D = torch.empty(E, device=A.device, dtype=torch.uint64)
-stride_A = torch.empty(E, device=A.device, dtype=torch.uint64)
-stride_B = torch.empty(E, device=A.device, dtype=torch.uint64)
-stride_C = torch.empty(E, device=A.device, dtype=torch.uint64)
-problem_sizes = torch.empty(3 * E, device=A.device, dtype=torch.uint32)
-output = torch.empty(E, M, N, device=A.device, dtype=torch.bfloat16)
+ptr_A, ptr_B, ptr_C, ptr_D, stride_A, stride_B, stride_C, problem_sizes, output = prepare_grouped_gemm_inputs_cute(
+    A=A, B=B, is_A_transposed=is_A_transposed, is_B_transposed=is_B_transposed
+)
 
 torch_profiler = torch.profiler.profile(
     activities=[torch.profiler.ProfilerActivity.CPU, torch.profiler.ProfilerActivity.CUDA],
