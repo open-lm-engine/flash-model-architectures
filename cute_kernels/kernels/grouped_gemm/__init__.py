@@ -38,15 +38,15 @@ def grouped_gemm_cute(
     M_array: torch.Tensor,
     N_array: torch.Tensor,
     K_array: torch.Tensor,
-    ptr_A: torch.Tensor | None = None,
-    ptr_B: torch.Tensor | None = None,
-    ptr_C: torch.Tensor | None = None,
-    ptr_D: torch.Tensor | None = None,
-    stride_A: torch.Tensor | None = None,
-    stride_B: torch.Tensor | None = None,
-    stride_C: torch.Tensor | None = None,
-    problem_sizes: torch.Tensor | None = None,
-    output: torch.Tensor | None = None,
+    ptr_A: torch.Tensor,
+    ptr_B: torch.Tensor,
+    ptr_C: torch.Tensor,
+    ptr_D: torch.Tensor,
+    stride_A: torch.Tensor,
+    stride_B: torch.Tensor,
+    stride_C: torch.Tensor,
+    problem_sizes: torch.Tensor,
+    output: torch.Tensor,
     alpha: float = 1,
     beta: float = 0,
     is_A_transposed: bool = False,
@@ -59,33 +59,6 @@ def grouped_gemm_cute(
     E = A.size(0)
     M = A.size(2 if is_A_transposed else 1)
     N = B.size(1 if is_B_transposed else 2)
-
-    if ptr_A is None:
-        ptr_A = torch.empty(E, device=A.device, dtype=torch.uint64)
-
-    if ptr_B is None:
-        ptr_B = torch.empty(E, device=A.device, dtype=torch.uint64)
-
-    if ptr_C is None:
-        ptr_C = torch.empty(E, device=A.device, dtype=torch.uint64)
-
-    if ptr_D is None:
-        ptr_D = torch.empty(E, device=A.device, dtype=torch.uint64)
-
-    if stride_A is None:
-        stride_A = torch.empty(E, device=A.device, dtype=torch.uint64)
-
-    if stride_B is None:
-        stride_B = torch.empty(E, device=A.device, dtype=torch.uint64)
-
-    if stride_C is None:
-        stride_C = torch.empty(E, device=A.device, dtype=torch.uint64)
-
-    if problem_sizes is None:
-        problem_sizes = torch.empty(3 * E, device=A.device, dtype=torch.uint32)
-
-    if output is None:
-        output = torch.empty(E, M, N, device=A.device, dtype=torch.bfloat16)
 
     grouped_gemm_cuda(
         A=A,
