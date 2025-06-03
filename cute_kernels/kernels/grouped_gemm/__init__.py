@@ -58,6 +58,7 @@ def grouped_gemm_cute(
         ptr_A=ptr_A,
         ptr_B=ptr_B,
         ptr_D=ptr_D,
+        stride_A=stride_A,
         is_A_transposed=is_A_transposed,
         is_B_transposed=is_B_transposed,
         alpha=alpha,
