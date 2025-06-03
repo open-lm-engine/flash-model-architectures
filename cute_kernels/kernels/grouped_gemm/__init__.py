@@ -7,21 +7,29 @@ import torch
 from .cuda_implementation import grouped_gemm_cuda
 
 
-def grouped_gemm_cute(alpha: float = 1, beta: float = 0) -> torch.Tensor:
+def grouped_gemm_cute(
+    A: torch.Tensor,
+    B: torch.Tensor,
+    C: torch.Tensor | None,
+    alpha: float = 1,
+    beta: float = 0,
+    is_A_transposed: bool = False,
+    is_B_transposed: bool = False,
+) -> torch.Tensor:
+    assert beta == 0
+    assert C is None
+
     E = 7
     K = 16
     M = 8
     N = 24
-    EM = E * M
-    EK = E * K
-    EN = E * N
 
     M_array = torch.tensor([M] * E, device=torch.cuda.current_device(), dtype=torch.uint32)
     N_array = torch.full_like(M_array, fill_value=N)
     K_array = torch.full_like(M_array, fill_value=K)
 
-    is_A_transposed = True
-    is_B_transposed = True
+    is_A_transposed = False
+    is_B_transposed = False
 
     A = torch.randint(
         -8, 9, (E, K, M) if is_A_transposed else (E, M, K), device=torch.cuda.current_device(), dtype=torch.bfloat16
@@ -29,7 +37,7 @@ def grouped_gemm_cute(alpha: float = 1, beta: float = 0) -> torch.Tensor:
     B = torch.randint(
         -8, 9, (E, N, K) if is_B_transposed else (E, K, N), device=torch.cuda.current_device(), dtype=torch.bfloat16
     )
-    C = torch.randint(-8, 9, (E, M, N), device=torch.cuda.current_device(), dtype=torch.bfloat16)
+
     output = torch.empty(E, M, N, device=torch.cuda.current_device(), dtype=torch.bfloat16)
 
     grouped_gemm_cuda(
@@ -58,7 +66,7 @@ def grouped_gemm_cute(alpha: float = 1, beta: float = 0) -> torch.Tensor:
         if is_B_transposed:
             b = b.T
 
-        D.append(alpha * a @ b + beta * C[i])
+        D.append(alpha * a @ b + beta)
 
     D = torch.stack(D)
 

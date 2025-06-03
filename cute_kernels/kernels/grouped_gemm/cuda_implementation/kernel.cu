@@ -116,6 +116,10 @@ void _grouped_gemm_cuda(const torch::Tensor &_A,
                         const torch::Tensor &K_array,
                         const fp32 &alpha,
                         const fp32 &beta) {
+    // the addition of C is incorrent right now so just raise an error
+    TORCH_CHECK(beta == 0);
+    TORCH_CHECK(!_C.has_value());
+
     using ElementA = cutlass::bfloat16_t;
     using ElementB = cutlass::bfloat16_t;
     using ElementC = cutlass::bfloat16_t;
