@@ -237,9 +237,6 @@ void _grouped_gemm_cuda(const torch::Tensor &_A,
         total_elements_C += M * N;
     }
 
-    cutlass::DeviceAllocation<ElementD> block_ref_D;
-    block_ref_D.reset(total_elements_C);
-
     stride_A.reset(E);
     stride_B.reset(E);
     stride_C.reset(E);
