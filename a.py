@@ -32,6 +32,7 @@ ptr_D = torch.empty(E, device=A.device, dtype=torch.uint64)
 stride_A = torch.empty(E, device=A.device, dtype=torch.uint64)
 stride_B = torch.empty(E, device=A.device, dtype=torch.uint64)
 stride_C = torch.empty(E, device=A.device, dtype=torch.uint64)
+problem_sizes = torch.empty(3 * E, device=A.device, dtype=torch.uint32)
 output = torch.empty(E, M, N, device=A.device, dtype=torch.bfloat16)
 
 torch_profiler = torch.profiler.profile(
@@ -55,6 +56,7 @@ for i in range(10):
         stride_A=stride_A,
         stride_B=stride_B,
         stride_C=stride_C,
+        problem_sizes=problem_sizes,
         output=output,
         is_A_transposed=is_A_transposed,
         is_B_transposed=is_B_transposed,
@@ -79,6 +81,7 @@ for i in range(10):
         stride_A=stride_A,
         stride_B=stride_B,
         stride_C=stride_C,
+        problem_sizes=problem_sizes,
         output=output,
         is_A_transposed=is_A_transposed,
         is_B_transposed=is_B_transposed,
