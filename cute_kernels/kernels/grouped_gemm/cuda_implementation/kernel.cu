@@ -244,9 +244,10 @@ void _grouped_gemm_cuda(const torch::Tensor &_A,
     ptr_C.reset(E);
     ptr_D.reset(E);
 
-    torch::Tensor offset_A_device = torch::empty({E + 1}).to(torch::kLong);
-    torch::Tensor offset_B_device = torch::empty({E + 1}).to(torch::kLong);
-    torch::Tensor offset_C_device = torch::empty({E + 1}).to(torch::kLong);
+    torch::TensorOptions options = torch::TensorOptions().dtype(torch::kLong).device(torch::kCUDA);
+    torch::Tensor offset_A_device = torch::empty({E + 1}, options);
+    torch::Tensor offset_B_device = torch::empty({E + 1}, options);
+    torch::Tensor offset_C_device = torch::empty({E + 1}, options);
 
     populate_strides_cuda_kernel<StrideA, StrideB, StrideC, is_A_transposed, is_B_transposed>
         <<<1, 1024>>>(M_array.data_ptr<uint32>(),
