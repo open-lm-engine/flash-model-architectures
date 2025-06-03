@@ -4,8 +4,7 @@
 
 import torch
 
-from cute_kernels import prepare_grouped_gemm_inputs_cute
-from cute_kernels.kernels.grouped_gemm import grouped_gemm_cute
+from cute_kernels import grouped_gemm_cute, prepare_grouped_gemm_inputs_cute
 
 
 E = 16
