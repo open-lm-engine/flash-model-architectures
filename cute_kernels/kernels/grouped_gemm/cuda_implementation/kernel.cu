@@ -244,7 +244,7 @@ void _grouped_gemm_cuda(const torch::Tensor &_A,
     ptr_C.reset(E);
     ptr_D.reset(E);
 
-    torch::TensorOptions options = torch::TensorOptions().dtype(torch::kLong).device(torch::kCUDA);
+    torch::TensorOptions options = torch::TensorOptions().dtype(torch::kLong).device(A.device());
     torch::Tensor offset_A_device = torch::empty({E + 1}, options);
     torch::Tensor offset_B_device = torch::empty({E + 1}, options);
     torch::Tensor offset_C_device = torch::empty({E + 1}, options);
