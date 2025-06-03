@@ -28,6 +28,7 @@ K_array = torch.full_like(M_array, fill_value=K)
 
 ptr_A = torch.empty(E, device=A.device, dtype=torch.uint64)
 ptr_B = torch.empty(E, device=A.device, dtype=torch.uint64)
+ptr_D = torch.empty(E, device=A.device, dtype=torch.uint64)
 output = torch.empty(E, M, N, device=A.device, dtype=torch.bfloat16)
 
 torch_profiler = torch.profiler.profile(
@@ -47,6 +48,7 @@ for i in range(10):
         K_array=K_array,
         ptr_A=ptr_A,
         ptr_B=ptr_B,
+        ptr_D=ptr_D,
         output=output,
         is_A_transposed=is_A_transposed,
         is_B_transposed=is_B_transposed,
@@ -67,6 +69,7 @@ for i in range(10):
         K_array=K_array,
         ptr_A=ptr_A,
         ptr_B=ptr_B,
+        ptr_D=ptr_D,
         output=output,
         is_A_transposed=is_A_transposed,
         is_B_transposed=is_B_transposed,
