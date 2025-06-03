@@ -242,7 +242,7 @@ inline void _grouped_gemm_cuda(const torch::Tensor &_A,
     cutlass::DeviceAllocation<const typename Gemm::ElementC *> ptr_C;
     ElementD **ptr_D = reinterpret_cast<ElementD **>(_ptr_D.data_ptr<uint64>());
 
-    StrideA *stride_A = reinterpret_cast<StrideA *>(_stride_A);
+    StrideA *stride_A = reinterpret_cast<StrideA *>(_stride_A.data_ptr<uint64>());
     cutlass::DeviceAllocation<StrideB> stride_B;
     cutlass::DeviceAllocation<StrideC> stride_C;
 
