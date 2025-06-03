@@ -44,22 +44,4 @@ def grouped_gemm_cute(
         beta=beta,
     )
 
-    # print(A)
-    # print(B)
-
-    D = []
-    for i in range(E):
-        a = A[i]
-        if is_A_transposed:
-            a = a.T
-        b = B[i]
-        if is_B_transposed:
-            b = b.T
-
-        D.append(alpha * a @ b + beta)
-
-    D = torch.stack(D)
-
-    print((output - D).abs().max())
-
     return output
