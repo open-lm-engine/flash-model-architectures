@@ -24,6 +24,7 @@ def grouped_gemm_cuda(
     K_array: torch.Tensor,
     ptr_A: torch.Tensor,
     ptr_B: torch.Tensor,
+    ptr_C: torch.Tensor | None,
     ptr_D: torch.Tensor,
     stride_A: torch.Tensor,
     stride_B: torch.Tensor,

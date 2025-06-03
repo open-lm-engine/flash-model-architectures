@@ -18,6 +18,7 @@ def grouped_gemm_cute(
     K_array: torch.Tensor,
     ptr_A: torch.Tensor | None = None,
     ptr_B: torch.Tensor | None = None,
+    ptr_C: torch.Tensor | None = None,
     ptr_D: torch.Tensor | None = None,
     stride_A: torch.Tensor | None = None,
     stride_B: torch.Tensor | None = None,
@@ -41,6 +42,9 @@ def grouped_gemm_cute(
 
     if ptr_B is None:
         ptr_B = torch.empty(E, device=A.device, dtype=torch.uint64)
+
+    if ptr_C is None:
+        ptr_C = torch.empty(E, device=A.device, dtype=torch.uint64)
 
     if ptr_D is None:
         ptr_D = torch.empty(E, device=A.device, dtype=torch.uint64)
@@ -67,6 +71,7 @@ def grouped_gemm_cute(
         K_array=K_array,
         ptr_A=ptr_A,
         ptr_B=ptr_B,
+        ptr_C=ptr_C,
         ptr_D=ptr_D,
         stride_A=stride_A,
         stride_B=stride_B,

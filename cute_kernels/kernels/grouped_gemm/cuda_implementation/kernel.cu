@@ -161,6 +161,7 @@ inline void _grouped_gemm_cuda(const torch::Tensor &_A,
                                const torch::Tensor &K_array,
                                torch::Tensor &_ptr_A,
                                torch::Tensor &_ptr_B,
+                               std::optional<torch::Tensor> &_ptr_C,
                                torch::Tensor &_ptr_D,
                                torch::Tensor &_stride_A,
                                torch::Tensor &_stride_B,
@@ -241,8 +242,9 @@ inline void _grouped_gemm_cuda(const torch::Tensor &_A,
     cutlass::DeviceAllocation<typename ProblemShape::UnderlyingProblemShape> problem_sizes;
 
     const ElementA **ptr_A = reinterpret_cast<const ElementA **>(_ptr_A.data_ptr<uint64>());
-    const ElementA **ptr_B = reinterpret_cast<const ElementB **>(_ptr_B.data_ptr<uint64>());
-    cutlass::DeviceAllocation<const typename Gemm::ElementC *> ptr_C;
+    const ElementB **ptr_B = reinterpret_cast<const ElementB **>(_ptr_B.data_ptr<uint64>());
+    const ElementC **ptr_C =
+        reinterpret_cast<const ElementC **>(_ptr_C.has_value() ? _ptr_C.value().data_ptr<uint64>() : nullptr);
     ElementD **ptr_D = reinterpret_cast<ElementD **>(_ptr_D.data_ptr<uint64>());
 
     StrideA *stride_A = reinterpret_cast<StrideA *>(_stride_A.data_ptr<uint64>());
@@ -271,7 +273,6 @@ inline void _grouped_gemm_cuda(const torch::Tensor &_A,
                           }));
 
     problem_sizes.reset(E);
-    ptr_C.reset(E);
 
     torch::TensorOptions options = torch::TensorOptions().dtype(torch::kLong).device(_A.device());
     torch::Tensor offsets = torch::empty({3, E + 1}, options);
@@ -297,8 +298,8 @@ inline void _grouped_gemm_cuda(const torch::Tensor &_A,
     offsets = torch::cumsum(offsets, -1);
 
     DISPATCH_FLOAT_KERNEL(_A.scalar_type(), "offset_pointers_cuda", scalar_t, ([&] {
-                              offset_pointers_cuda_kernel<ElementA, ElementB, ElementC, ElementD><<<1, 1024>>>(
-                                  ptr_A, ptr_B, ptr_C.get(), ptr_D, A, B, C, D, offsets.data_ptr<int64>(), E);
+                              offset_pointers_cuda_kernel<ElementA, ElementB, ElementC, ElementD>
+                                  <<<1, 1024>>>(ptr_A, ptr_B, ptr_C, ptr_D, A, B, C, D, offsets.data_ptr<int64>(), E);
                           }));
 
     // Instantiate CUTLASS kernel depending on templates
@@ -336,7 +337,7 @@ inline void _grouped_gemm_cuda(const torch::Tensor &_A,
     arguments = typename Gemm::Arguments{cutlass::gemm::GemmUniversalMode::kGrouped,
                                          {static_cast<int>(E), problem_sizes.get(), nullptr},
                                          {ptr_A, stride_A, ptr_B, stride_B},
-                                         {fusion_args, ptr_C.get(), stride_C, ptr_D, stride_C},
+                                         {fusion_args, ptr_C, stride_C, ptr_D, stride_C},
                                          hw_info,
                                          scheduler};
 
@@ -382,6 +383,7 @@ void grouped_gemm_cuda(const torch::Tensor &_A,
                        const torch::Tensor &K_array,
                        torch::Tensor &_ptr_A,
                        torch::Tensor &_ptr_B,
+                       std::optional<torch::Tensor> &_ptr_C,
                        torch::Tensor &_ptr_D,
                        torch::Tensor &_stride_A,
                        torch::Tensor &_stride_B,
@@ -411,6 +413,7 @@ void grouped_gemm_cuda(const torch::Tensor &_A,
                                            K_array,
                                            _ptr_A,
                                            _ptr_B,
+                                           _ptr_C,
                                            _ptr_D,
                                            _stride_A,
                                            _stride_B,
@@ -429,6 +432,7 @@ void grouped_gemm_cuda(const torch::Tensor &_A,
                                             K_array,
                                             _ptr_A,
                                             _ptr_B,
+                                            _ptr_C,
                                             _ptr_D,
                                             _stride_A,
                                             _stride_B,
@@ -449,6 +453,7 @@ void grouped_gemm_cuda(const torch::Tensor &_A,
                                             K_array,
                                             _ptr_A,
                                             _ptr_B,
+                                            _ptr_C,
                                             _ptr_D,
                                             _stride_A,
                                             _stride_B,
@@ -467,6 +472,7 @@ void grouped_gemm_cuda(const torch::Tensor &_A,
                                              K_array,
                                              _ptr_A,
                                              _ptr_B,
+                                             _ptr_C,
                                              _ptr_D,
                                              _stride_A,
                                              _stride_B,
