@@ -82,16 +82,16 @@ __global__ void populate_strides_cuda_kernel(const uint32 *M_array,
 }
 
 template <typename ElementA, typename ElementB, typename ElementC, typename ElementD>
-__global__ void offset_pointers_kernel(const ElementA **ptr_A,
-                                       const ElementB **ptr_B,
-                                       const ElementC **ptr_C,
-                                       ElementD **ptr_D,
-                                       const ElementA *A,
-                                       const ElementB *B,
-                                       const ElementC *C,
-                                       ElementD *D,
-                                       const int64 *offsets,
-                                       const uint32 E) {
+__global__ void offset_pointers_cuda_kernel(const ElementA **ptr_A,
+                                            const ElementB **ptr_B,
+                                            const ElementC **ptr_C,
+                                            ElementD **ptr_D,
+                                            const ElementA *A,
+                                            const ElementB *B,
+                                            const ElementC *C,
+                                            ElementD *D,
+                                            const int64 *offsets,
+                                            const uint32 E) {
     const uint32 thread_id = blockIdx.x * blockDim.x + threadIdx.x;
 
     const int64 *offsets_A = offsets;
@@ -107,19 +107,16 @@ __global__ void offset_pointers_kernel(const ElementA **ptr_A,
 }
 
 template <bool is_A_transposed, bool is_B_transposed>
-void _grouped_gemm_cuda(const torch::Tensor &_A,
-                        const torch::Tensor &_B,
-                        const std::optional<torch::Tensor> &_C,
-                        torch::Tensor &_D,
-                        const torch::Tensor &M_array,
-                        const torch::Tensor &N_array,
-                        const torch::Tensor &K_array,
-                        const fp32 &alpha,
-                        const fp32 &beta) {
-    // the addition of C is incorrent right now so just raise an error
-    TORCH_CHECK(beta == 0);
-    TORCH_CHECK(!_C.has_value());
-
+inline void _grouped_gemm_cuda(const torch::Tensor &_A,
+                               const torch::Tensor &_B,
+                               const std::optional<torch::Tensor> &_C,
+                               torch::Tensor &_D,
+                               const torch::Tensor &M_array,
+                               const torch::Tensor &N_array,
+                               const torch::Tensor &K_array,
+                               const fp32 &alpha,
+                               const fp32 &beta,
+                               const uint32 &E) {
     using ElementA = cutlass::bfloat16_t;
     using ElementB = cutlass::bfloat16_t;
     using ElementC = cutlass::bfloat16_t;
@@ -203,11 +200,6 @@ void _grouped_gemm_cuda(const torch::Tensor &_A,
     using RasterOrderOptions = typename cutlass::gemm::kernel::detail::PersistentTileSchedulerSm100GroupParams<
         typename ProblemShape::UnderlyingProblemShape>::RasterOrderOptions;
 
-    const uint32 E = M_array.numel();
-    TORCH_CHECK(E <= MAX_NUM_GROUPS)
-    TORCH_CHECK(N_array.numel() == E);
-    TORCH_CHECK(K_array.numel() == E);
-
     dim3 cluster_shape = dim3(4, 2, 1);
     dim3 cluster_shape_fallback = dim3(2, 1, 1);
 
@@ -218,7 +210,7 @@ void _grouped_gemm_cuda(const torch::Tensor &_A,
     ElementC *C;
     ElementC *D;
 
-    DISPATCH_FLOAT_KERNEL(_A.scalar_type(), "copy", scalar_t, ([&] {
+    DISPATCH_FLOAT_KERNEL(_A.scalar_type(), "get_raw_pointers", scalar_t, ([&] {
                               A = reinterpret_cast<ElementA *>(_A.data_ptr<scalar_t>());
                               B = reinterpret_cast<ElementB *>(_B.data_ptr<scalar_t>());
                               C = _C.has_value() ? reinterpret_cast<ElementC *>(_C.value().data_ptr<scalar_t>())
@@ -238,26 +230,31 @@ void _grouped_gemm_cuda(const torch::Tensor &_A,
     torch::TensorOptions options = torch::TensorOptions().dtype(torch::kLong).device(_A.device());
     torch::Tensor offsets = torch::empty({3, E + 1}, options);
 
-    populate_strides_cuda_kernel<StrideA,
-                                 StrideB,
-                                 StrideC,
-                                 is_A_transposed,
-                                 is_B_transposed,
-                                 typename ProblemShape::UnderlyingProblemShape>
-        <<<1, 1024>>>(M_array.data_ptr<uint32>(),
-                      N_array.data_ptr<uint32>(),
-                      K_array.data_ptr<uint32>(),
-                      stride_A.get(),
-                      stride_B.get(),
-                      stride_C.get(),
-                      offsets.data_ptr<int64>(),
-                      problem_sizes.get(),
-                      E);
+    DISPATCH_FLOAT_KERNEL(_A.scalar_type(), "populate_strides_cuda", scalar_t, ([&] {
+                              populate_strides_cuda_kernel<StrideA,
+                                                           StrideB,
+                                                           StrideC,
+                                                           is_A_transposed,
+                                                           is_B_transposed,
+                                                           typename ProblemShape::UnderlyingProblemShape>
+                                  <<<1, 1024>>>(M_array.data_ptr<uint32>(),
+                                                N_array.data_ptr<uint32>(),
+                                                K_array.data_ptr<uint32>(),
+                                                stride_A.get(),
+                                                stride_B.get(),
+                                                stride_C.get(),
+                                                offsets.data_ptr<int64>(),
+                                                problem_sizes.get(),
+                                                E);
+                          }));
 
     offsets = torch::cumsum(offsets, -1);
 
-    offset_pointers_kernel<ElementA, ElementB, ElementC, ElementD>
-        <<<1, 1024>>>(ptr_A.get(), ptr_B.get(), ptr_C.get(), ptr_D.get(), A, B, C, D, offsets.data_ptr<int64>(), E);
+    DISPATCH_FLOAT_KERNEL(
+        _A.scalar_type(), "offset_pointers_cuda", scalar_t, ([&] {
+            offset_pointers_cuda_kernel<ElementA, ElementB, ElementC, ElementD><<<1, 1024>>>(
+                ptr_A.get(), ptr_B.get(), ptr_C.get(), ptr_D.get(), A, B, C, D, offsets.data_ptr<int64>(), E);
+        }));
 
     // Instantiate CUTLASS kernel depending on templates
     Gemm gemm;
@@ -325,17 +322,26 @@ void grouped_gemm_cuda(const torch::Tensor &_A,
                        const bool &is_B_transposed,
                        const fp32 &alpha,
                        const fp32 &beta) {
+    // the addition of C is incorrent right now so just raise an error
+    TORCH_CHECK(beta == 0);
+    TORCH_CHECK(!_C.has_value());
+
+    const uint32 E = M_array.numel();
+    TORCH_CHECK(E <= MAX_NUM_GROUPS)
+    TORCH_CHECK(N_array.numel() == E);
+    TORCH_CHECK(K_array.numel() == E);
+
     if (is_A_transposed) {
         if (is_B_transposed) {
-            _grouped_gemm_cuda<true, true>(_A, _B, _C, _D, M_array, N_array, K_array, alpha, beta);
+            _grouped_gemm_cuda<true, true>(_A, _B, _C, _D, M_array, N_array, K_array, alpha, beta, E);
         } else {
-            _grouped_gemm_cuda<true, false>(_A, _B, _C, _D, M_array, N_array, K_array, alpha, beta);
+            _grouped_gemm_cuda<true, false>(_A, _B, _C, _D, M_array, N_array, K_array, alpha, beta, E);
         }
     } else {
         if (is_B_transposed) {
-            _grouped_gemm_cuda<false, true>(_A, _B, _C, _D, M_array, N_array, K_array, alpha, beta);
+            _grouped_gemm_cuda<false, true>(_A, _B, _C, _D, M_array, N_array, K_array, alpha, beta, E);
         } else {
-            _grouped_gemm_cuda<false, false>(_A, _B, _C, _D, M_array, N_array, K_array, alpha, beta);
+            _grouped_gemm_cuda<false, false>(_A, _B, _C, _D, M_array, N_array, K_array, alpha, beta, E);
         }
     }
 }
