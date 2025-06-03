@@ -37,7 +37,12 @@ using RowMajor = cutlass::layout::RowMajor;
 #define MAX_NUM_GROUPS 1024
 
 // TODO modify this kernel to use vector load/stores
-template <typename StrideA, typename StrideB, typename StrideC, bool is_A_transposed, bool is_B_transposed>
+template <typename StrideA,
+          typename StrideB,
+          typename StrideC,
+          bool is_A_transposed,
+          bool is_B_transposed,
+          typename UnderlyingProblemShape>
 __global__ void populate_strides_cuda_kernel(const uint32 *M_array,
                                              const uint32 *N_array,
                                              const uint32 *K_array,
@@ -47,6 +52,7 @@ __global__ void populate_strides_cuda_kernel(const uint32 *M_array,
                                              int64_t *offset_A_device,
                                              int64_t *offset_B_device,
                                              int64_t *offset_C_device,
+                                             UnderlyingProblemShape *problem_sizes,
                                              const uint32 E) {
     uint32 thread_id = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -64,6 +70,7 @@ __global__ void populate_strides_cuda_kernel(const uint32 *M_array,
         stride_A[thread_id] = cutlass::make_cute_packed_stride(StrideA{}, {M, K, 1});
         stride_B[thread_id] = cutlass::make_cute_packed_stride(StrideB{}, {N, K, 1});
         stride_C[thread_id] = cutlass::make_cute_packed_stride(StrideC{}, {M, N, 1});
+        problem_sizes[thread_id] = {M, N, K};
 
         thread_id++;
         offset_A_device[thread_id] = M * K;
@@ -201,16 +208,6 @@ void _grouped_gemm_cuda(const torch::Tensor &_A,
     dim3 cluster_shape_fallback = dim3(2, 1, 1);
 
     RasterOrderOptions raster_order = RasterOrderOptions::AlongM;
-    std::vector<typename ProblemShape::UnderlyingProblemShape> problem_sizes_host;
-
-    problem_sizes_host.reserve(E);
-    for (int i = 0; i < E; i++) {
-        const uint32 M = M_array[i].item<int64>();
-        const uint32 N = N_array[i].item<int64>();
-        const uint32 K = K_array[i].item<int64>();
-
-        problem_sizes_host.push_back({M, N, K});
-    }
 
     ElementA *A;
     ElementB *B;
@@ -225,17 +222,7 @@ void _grouped_gemm_cuda(const torch::Tensor &_A,
                               D = reinterpret_cast<ElementC *>(_D.data_ptr<scalar_t>());
                           }));
 
-    uint64 total_elements_C = 0;
-
-    for (uint32 i = 0; i < E; i++) {
-        auto problem = problem_sizes_host.at(i);
-        auto M = get<0>(problem);
-        auto N = get<1>(problem);
-        auto K = get<2>(problem);
-
-        total_elements_C += M * N;
-    }
-
+    problem_sizes.reset(E);
     stride_A.reset(E);
     stride_B.reset(E);
     stride_C.reset(E);
@@ -249,7 +236,12 @@ void _grouped_gemm_cuda(const torch::Tensor &_A,
     torch::Tensor offset_B_device = torch::empty({E + 1}, options);
     torch::Tensor offset_C_device = torch::empty({E + 1}, options);
 
-    populate_strides_cuda_kernel<StrideA, StrideB, StrideC, is_A_transposed, is_B_transposed>
+    populate_strides_cuda_kernel<StrideA,
+                                 StrideB,
+                                 StrideC,
+                                 is_A_transposed,
+                                 is_B_transposed,
+                                 typename ProblemShape::UnderlyingProblemShape>
         <<<1, 1024>>>(M_array.data_ptr<uint32>(),
                       N_array.data_ptr<uint32>(),
                       K_array.data_ptr<uint32>(),
@@ -259,14 +251,12 @@ void _grouped_gemm_cuda(const torch::Tensor &_A,
                       offset_A_device.data_ptr<int64_t>(),
                       offset_B_device.data_ptr<int64_t>(),
                       offset_C_device.data_ptr<int64_t>(),
+                      problem_sizes.get(),
                       E);
 
     offset_A_device = torch::cumsum(offset_A_device, 0);
     offset_B_device = torch::cumsum(offset_B_device, 0);
     offset_C_device = torch::cumsum(offset_C_device, 0);
-
-    problem_sizes.reset(E);
-    problem_sizes.copy_from_host(problem_sizes_host.data());
 
     offset_pointers_kernel<ElementA, ElementB, ElementC, ElementD><<<1, 1024>>>(ptr_A.get(),
                                                                                 ptr_B.get(),
@@ -280,8 +270,6 @@ void _grouped_gemm_cuda(const torch::Tensor &_A,
                                                                                 offset_B_device.data_ptr<int64_t>(),
                                                                                 offset_C_device.data_ptr<int64_t>(),
                                                                                 E);
-
-    const bool host_problem_shapes_available = false;
 
     // Instantiate CUTLASS kernel depending on templates
     Gemm gemm;
@@ -316,9 +304,7 @@ void _grouped_gemm_cuda(const torch::Tensor &_A,
     scheduler.raster_order = raster_order;
 
     arguments = typename Gemm::Arguments{cutlass::gemm::GemmUniversalMode::kGrouped,
-                                         {static_cast<int>(E),
-                                          problem_sizes.get(),
-                                          host_problem_shapes_available ? problem_sizes_host.data() : nullptr},
+                                         {static_cast<int>(E), problem_sizes.get(), nullptr},
                                          {ptr_A.get(), stride_A.get(), ptr_B.get(), stride_B.get()},
                                          {fusion_args, ptr_C.get(), stride_C.get(), ptr_D.get(), stride_C.get()},
                                          hw_info,
