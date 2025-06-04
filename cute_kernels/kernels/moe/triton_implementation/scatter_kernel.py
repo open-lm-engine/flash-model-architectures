@@ -155,6 +155,8 @@ def scatter2scatter(
         ceil_divide(sorted_expert_idxs.size(0), meta["BLOCK_M"]) * ceil_divide(meta["N"], meta["BLOCK_N"]),
     )
 
+    BLOCK_M = 128
+
     with torch.device(X.device):
         scatter2scatter_triton_kernel[grid](
             # X_ptr, stride_xm, stride_xk,
