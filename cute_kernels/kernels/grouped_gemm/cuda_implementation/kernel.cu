@@ -318,19 +318,20 @@ inline void _grouped_gemm_cuda(const torch::Tensor &_A,
 
     if (benchmark) {
         const uint32 iterations = 10;
-        if (iterations > 0) {
-            ck::GpuTimer timer;
-            timer.start();
-            for (int iter = 0; iter < iterations; ++iter) {
-                gemm.initialize(arguments, workspace.data_ptr());
-                gemm.run(/* stream = */ nullptr, /* cuda_adapter = */ nullptr, /* launch_with_pdl = */ false);
-            }
-            timer.stop();
+        ck::GpuTimer timer;
 
-            // Compute average setup and runtime and GFLOPs.
-            fp64 gflops = get_gflops(fp64(timer.elapsed_millis()) / fp64(iterations) / 1000.0);
-            std::cout << "  TFLOPS      : " << gflops / 1000.0 << std::endl;
+        timer.start();
+
+        for (int iter = 0; iter < iterations; ++iter) {
+            gemm.initialize(arguments, workspace.data_ptr());
+            gemm.run(/* stream = */ nullptr, /* cuda_adapter = */ nullptr, /* launch_with_pdl = */ false);
         }
+
+        timer.stop();
+
+        // Compute average setup and runtime and GFLOPs.
+        std::cout << "  TFLOPS      : "
+                  << get_gflops(fp64(timer.elapsed_millis()) / fp64(iterations) / 1000.0) / 1000.0 << std::endl;
     }
 }
 
