@@ -5,7 +5,7 @@
 import torch
 from parameterized import parameterized
 
-from cute_kernels import MoE_Torch, MoE_Triton, set_seed
+from cute_kernels import MoE_Cute, MoE_Torch, set_seed
 
 from ..test_commons import TestCommons
 
@@ -55,7 +55,7 @@ class ScatterMoETest(TestCommons):
             )
 
         with torch.device(device):
-            moe_custom = MoE_Triton(
+            moe_custom = MoE_Cute(
                 num_experts=num_experts,
                 num_experts_per_tok=num_experts_per_tok,
                 hidden_size=hidden_size,

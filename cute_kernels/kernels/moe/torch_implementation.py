@@ -61,6 +61,8 @@ class Experts_Torch(nn.Module):
 
 
 class MoE_Torch(nn.Module):
+    linear_class = Experts_Torch
+
     def __init__(
         self,
         num_experts: int,
@@ -82,7 +84,7 @@ class MoE_Torch(nn.Module):
 
         self.gate = nn.Linear(in_features=self.hidden_size, out_features=num_experts, bias=False)
 
-        self.c_fc = Experts_Torch(
+        self.c_fc = self.linear_class(
             num_experts=num_experts,
             in_features=self.hidden_size,
             out_features=2 * self.intermediate_size if is_glu else self.intermediate_size,
@@ -92,7 +94,7 @@ class MoE_Torch(nn.Module):
 
         self.act = activation_function
 
-        self.c_proj = Experts_Torch(
+        self.c_proj = self.linear_class(
             num_experts=num_experts,
             in_features=self.intermediate_size,
             out_features=self.hidden_size,
