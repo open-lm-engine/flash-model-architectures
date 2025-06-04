@@ -21,15 +21,15 @@ class Experts_Cute(Experts_Torch):
         grouped_out: bool = False,
     ) -> torch.Tensor:
         hidden_states = scattered_experts(
-            hidden_states,
-            self.weight.permute(0, 2, 1),
-            k,
-            sorted_expert_idxs,
-            sorted_scattered_idxs,
-            expert_offsets,
-            gates,
-            grouped_in,
-            grouped_out,
+            inputs=hidden_states,
+            expert_weights=self.weight.permute(0, 2, 1),
+            k=k,
+            sorted_expert_idxs=sorted_expert_idxs,
+            sorted_scattered_idxs=sorted_scattered_idxs,
+            expert_offsets=expert_offsets,
+            gates=gates,
+            grouped_in=grouped_in,
+            grouped_out=grouped_out,
         )
 
         return hidden_states
