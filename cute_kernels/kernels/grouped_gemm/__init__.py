@@ -16,7 +16,6 @@ def grouped_gemm_cute(
     M_array: torch.Tensor,
     N_array: torch.Tensor,
     K_array: torch.Tensor,
-    output: torch.Tensor,
     alpha: float = 1,
     beta: float = 0,
     is_A_transposed: bool = False,
