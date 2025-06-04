@@ -2,11 +2,11 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
-from .add_scalar import add_scalar_cute, add_scalar_torch
-from .add_tensor import add_tensor_cute, add_tensor_torch
-from .bmm import bmm_cute, bmm_torch
-from .continuous_count import continuous_count_cute, continuous_count_torch
-from .cross_entropy import cross_entropy_cute, cross_entropy_torch
+from .add_scalar import add_scalar_cute
+from .add_tensor import add_tensor_cute
+from .bmm import bmm_cute
+from .continuous_count import continuous_count_cute
+from .cross_entropy import cross_entropy_cute
 from .fused_linear_cross_entropy import fused_linear_cross_entropy_cute, fused_linear_cross_entropy_torch
 from .fused_residual_add_rmsnorm import fused_residual_add_rmsnorm_cute, fused_residual_add_rmsnorm_torch
 from .gemm import gemm_cute, gemm_torch
