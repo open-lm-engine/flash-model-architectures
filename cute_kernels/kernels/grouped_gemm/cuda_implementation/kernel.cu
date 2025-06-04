@@ -344,13 +344,13 @@ inline void _grouped_gemm_cuda(const torch::Tensor &_A,
     size_t workspace_size = Gemm::get_workspace_size(arguments);
 
     // Allocate workspace memory
-    cutlass::device_memory::allocation<uint8> workspace(workspace_size);
+    torch::Tensor workspace = input.new_empty({(uint64(workspace_size)}, at::TensorOptions().dtype(at::kByte));
 
     // Check if the problem size is supported or not
     gemm.can_implement(arguments);
 
     // Initialize CUTLASS kernel with arguments and workspace pointer
-    gemm.initialize(arguments, workspace.get());
+    gemm.initialize(arguments, workspace.data_ptr());
 
     // Correctness / Warmup iteration
     gemm.run(/* stream = */ nullptr, /* cuda_adapter = */ nullptr, /* launch_with_pdl = */ false);
