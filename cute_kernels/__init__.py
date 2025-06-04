@@ -21,7 +21,6 @@ from .kernels import (
     continuous_count_cute,
     cross_entropy_cute,
     fused_linear_cross_entropy_cute,
-    fused_linear_cross_entropy_torch,
     fused_residual_add_rmsnorm_cute,
     fused_residual_add_rmsnorm_torch,
     gemm_cute,
