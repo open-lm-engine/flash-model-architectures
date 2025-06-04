@@ -9,7 +9,7 @@ import triton.language as tl
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide
 from ....utils import cute_op
-from .kernels import group_triton_kernel, groupXtY_triton_kernel
+from .group_backward_kernel import group_triton_kernel, groupXtY_triton_kernel
 
 
 @triton.autotune(configs=[triton.Config({"BLOCK_N": 256, "BLOCK_K": 128}, num_stages=4, num_warps=4)], key=["K"])

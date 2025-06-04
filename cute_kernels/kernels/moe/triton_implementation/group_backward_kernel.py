@@ -2,11 +2,14 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
+import torch
 import triton
 import triton.language as tl
 
-
-BLOCK_M = 128
+from ....constants import LIBRARY_NAME
+from ....math import ceil_divide
+from ....utils import cute_op
+from .group_backward_kernel import groupXtY_triton_kernel
 
 
 @triton.autotune(
@@ -98,59 +101,28 @@ def groupXtY_triton_kernel(
         tl.store(DW_blk_ptrs, acc, mask=K_mask[:, None] & N_mask[None, :])
 
 
-@triton.autotune(configs=[triton.Config({"BLOCK_N": 256, "BLOCK_K": 128}, num_stages=4, num_warps=4)], key=["K"])
-@triton.jit
-def group_triton_kernel(
-    src_ptr,
-    stride_sn,
-    stride_sk,
-    has_coeff: tl.constexpr,
-    coeff_ptr,
-    FAN_OUT,
-    tgt_ptr,
-    stride_tn,
-    stride_ti,
-    grouped_idx_ptr,
-    N,
-    K: tl.constexpr,
-    BLOCK_N: tl.constexpr,
-    BLOCK_K: tl.constexpr,
-):
-    pid = tl.program_id(axis=0)
+@cute_op(f"{LIBRARY_NAME}::group_bwd_W", mutates_args={"DW"})
+def group_bwd_W(DY: torch.Tensor, X: torch.Tensor, expert_offsets: torch.Tensor, DW: torch.Tensor, E: int) -> None:
+    grid = lambda meta: (E * ceil_divide(meta["K"], meta["BLOCK_K"]), ceil_divide(meta["N"], meta["BLOCK_N"]))
 
-    N_block_id = pid
-    N_blk = N_block_id * BLOCK_N + tl.arange(0, BLOCK_N)
-    N_mask = N_blk < N
-    N_blk = tl.max_contiguous(tl.multiple_of(N_blk % N, BLOCK_N), BLOCK_N)
-    N_idx = tl.load(grouped_idx_ptr + N_blk, mask=N_mask)
-
-    K_blk = tl.arange(0, BLOCK_K)
-    src_blk_ptrs = src_ptr + (N_idx // FAN_OUT)[:, None] * stride_sn + K_blk[None, :] * stride_sk
-    tgt_blk_ptrs = tgt_ptr + N_blk[:, None] * stride_tn + K_blk[None, :] * stride_ti
-
-    if has_coeff:
-        c = tl.load(coeff_ptr + N_idx, mask=N_mask)[:, None]
-
-    iters = tl.cdiv(K, BLOCK_K)
-    no_k_mask = K % BLOCK_K == 0
-
-    for i in range(iters):
-        if no_k_mask or i < iters - 1:
-            block = tl.load(src_blk_ptrs, mask=N_mask[:, None])
-
-            if has_coeff:
-                block *= c
-
-            tl.store(tgt_blk_ptrs, block, mask=N_mask[:, None])
-        else:
-            K_mask = (i * BLOCK_K + K_blk) < K
-            mask = N_mask[:, None] & K_mask[None, :]
-            block = tl.load(src_blk_ptrs, mask=mask)
-
-            if has_coeff:
-                block *= c
-
-            tl.store(tgt_blk_ptrs, block, mask=mask)
-
-        src_blk_ptrs += BLOCK_K * stride_sk
-        tgt_blk_ptrs += BLOCK_K * stride_ti
+    with torch.device(X.device):
+        groupXtY_triton_kernel[grid](
+            # DY_ptr, stride_dym, stride_dyk,
+            DY,
+            DY.stride(0),
+            DY.stride(1),
+            # X_ptr, stride_xm, stride_xn,
+            X,
+            X.stride(0),
+            X.stride(1),
+            # DW_ptr, stride_dwe, stride_dwk, stride_dwn,
+            DW,
+            DW.stride(0),
+            DW.stride(1),
+            DW.stride(2),
+            # expert_offsets_ptr,
+            expert_offsets,
+            # K: tl.constexpr, N: tl.constexpr,
+            N=DY.size(-1),
+            K=X.size(-1),
+        )
