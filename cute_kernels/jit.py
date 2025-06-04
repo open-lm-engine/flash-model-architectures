@@ -24,7 +24,7 @@ def _get_cpp_function(function_name: str, module_name: str, source_files: list[s
     module_name = f"{_CPP_MODULE_PREFIX}_{module_name}"
 
     extra_cflags = ["-O3", "-Wall", "-shared", "-fPIC", "-fdiagnostics-color"]
-    extra_cuda_cflags = ["-lineinfo"]
+    extra_cuda_cflags = ["-O3", "-lineinfo"]
     extra_include_paths = [
         os.path.dirname(__file__),  # cute_kernels/include
         os.path.dirname(os.path.dirname(__file__)) + "/cutlass/include",  # cutlass

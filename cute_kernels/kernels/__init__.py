@@ -10,6 +10,7 @@ from .cross_entropy import cross_entropy_cute, cross_entropy_torch
 from .fused_linear_cross_entropy import fused_linear_cross_entropy_cute, fused_linear_cross_entropy_torch
 from .fused_residual_add_rmsnorm import fused_residual_add_rmsnorm_cute, fused_residual_add_rmsnorm_torch
 from .gemm import gemm_cute, gemm_torch
+from .grouped_gemm import grouped_gemm_cute
 from .gru import gru_cute, gru_torch
 from .linear import linear_cute, linear_torch
 from .matrix_transpose import matrix_transpose_cute, matrix_transpose_torch

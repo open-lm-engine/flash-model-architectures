@@ -31,6 +31,7 @@ from .kernels import (
     fused_residual_add_rmsnorm_torch,
     gemm_cute,
     gemm_torch,
+    grouped_gemm_cute,
     gru_cute,
     gru_torch,
     linear_cute,

@@ -14,3 +14,4 @@
 #include "memory/global_memory.h"
 #include "memory/shared_memory.h"
 #include "threads.h"
+#include "timer.h"
