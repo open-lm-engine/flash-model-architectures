@@ -361,7 +361,7 @@ inline void _grouped_gemm_cuda(const torch::Tensor &_A,
             GpuTimer timer;
             timer.start();
             for (int iter = 0; iter < iterations; ++iter) {
-                gemm.initialize(arguments, workspace.get());
+                gemm.initialize(arguments, workspace.data_ptr());
                 gemm.run(/* stream = */ nullptr, /* cuda_adapter = */ nullptr, /* launch_with_pdl = */ false);
             }
             timer.stop();
