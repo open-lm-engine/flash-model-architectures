@@ -3,10 +3,13 @@
 # **************************************************
 
 import torch
+import torch.nn.functional as F
 
+from ...cutotune import CutoTuneParameter
+from ...kernel_backend import KernelBackend
 from ...math import ceil_divide, get_next_power_of_2
 from ...utils import ensure_contiguous
-from ..cross_entropy import cross_entropy_forward_backward_triton
+from ..cross_entropy import cross_entropy_cute, cross_entropy_forward_backward_triton
 from .torch_implementation import fused_linear_cross_entropy_torch
 
 
@@ -88,6 +91,7 @@ def fused_linear_cross_entropy_cute(
     labels: torch.Tensor,
     reduction: str = "mean",
     logits_multiplier: float | None = None,
+    kernel_backend: KernelBackend | CutoTuneParameter = KernelBackend.triton,
 ) -> torch.Tensor:
     """compute cross entropy loss without materializing the full output logits matrix
 
@@ -102,5 +106,14 @@ def fused_linear_cross_entropy_cute(
     Returns:
         torch.Tensor: loss
     """
+
+    if kernel_backend == KernelBackend.torch:
+        return cross_entropy_cute(
+            x=F.linear(x, weight),
+            labels=labels,
+            reduction=reduction,
+            logits_multiplier=logits_multiplier,
+            kernel_backend=kernel_backend,
+        )
 
     return _FusedLinearCrossEntropy_Cute.apply(x, weight, labels, reduction, logits_multiplier)
