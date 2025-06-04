@@ -5,7 +5,7 @@
 import torch
 
 from .torch_implementation import Experts_Torch, MoE_Torch
-from .triton_implementation import bincount_op, scattered_experts
+from .triton_implementation import bincount, scattered_experts
 
 
 class Experts_Cute(Experts_Torch):
@@ -42,7 +42,7 @@ class MoE_Cute(MoE_Torch):
         self, hidden_states: torch.Tensor, router_weights: torch.Tensor, selected_experts: torch.Tensor
     ) -> torch.Tensor:
         sorted_expert_idxs, sorted_scattered_idxs = selected_experts.flatten().sort()
-        expert_offsets = bincount_op(sorted_expert_idxs, self.num_experts).cumsum(-1)
+        expert_offsets = bincount(sorted_expert_idxs, self.num_experts).cumsum(-1)
 
         hidden_states = self.c_fc(
             hidden_states,
