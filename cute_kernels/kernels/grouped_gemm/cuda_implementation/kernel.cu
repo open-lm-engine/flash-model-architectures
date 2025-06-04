@@ -159,10 +159,7 @@ inline void _grouped_gemm_cuda(const torch::Tensor &_A,
                                const torch::Tensor &M_array,
                                const torch::Tensor &N_array,
                                const torch::Tensor &K_array,
-                               torch::Tensor &_ptr_A,
-                               torch::Tensor &_ptr_B,
                                std::optional<torch::Tensor> &_ptr_C,
-                               torch::Tensor &_ptr_D,
                                torch::Tensor &_problem_sizes,
                                const fp32 &alpha,
                                const fp32 &beta,
@@ -236,17 +233,18 @@ inline void _grouped_gemm_cuda(const torch::Tensor &_A,
     using StrideB = typename Gemm::GemmKernel::InternalStrideB;
     using StrideC = typename Gemm::GemmKernel::InternalStrideC;
 
-    const ElementA **ptr_A = reinterpret_cast<const ElementA **>(_ptr_A.data_ptr<uint64>());
-    const ElementB **ptr_B = reinterpret_cast<const ElementB **>(_ptr_B.data_ptr<uint64>());
     const ElementC **ptr_C =
         reinterpret_cast<const ElementC **>(_ptr_C.has_value() ? _ptr_C.value().data_ptr<uint64>() : nullptr);
-    ElementD **ptr_D = reinterpret_cast<ElementD **>(_ptr_D.data_ptr<uint64>());
 
-    torch::Tensor memory = torch::empty({3 * E}, torch::TensorOptions().dtype(torch::kUInt64).device(_A.device()));
+    torch::Tensor memory = torch::empty({6 * E}, torch::TensorOptions().dtype(torch::kUInt64).device(_A.device()));
 
     StrideA *stride_A = reinterpret_cast<StrideA *>(memory.data_ptr<uint64>());
     StrideB *stride_B = reinterpret_cast<StrideB *>(memory.data_ptr<uint64>() + E);
     StrideC *stride_C = reinterpret_cast<StrideC *>(memory.data_ptr<uint64>() + 2 * E);
+
+    const ElementA **ptr_A = reinterpret_cast<const ElementA **>(memory.data_ptr<uint64>() + 3 * E);
+    const ElementB **ptr_B = reinterpret_cast<const ElementB **>(memory.data_ptr<uint64>() + 4 * E);
+    ElementD **ptr_D = reinterpret_cast<ElementD **>(memory.data_ptr<uint64>() + 5 * E);
 
     ProblemShape::UnderlyingProblemShape *problem_sizes =
         reinterpret_cast<ProblemShape::UnderlyingProblemShape *>(_problem_sizes.data_ptr<uint32>());
@@ -378,10 +376,7 @@ void grouped_gemm_cuda(const torch::Tensor &_A,
                        const torch::Tensor &M_array,
                        const torch::Tensor &N_array,
                        const torch::Tensor &K_array,
-                       torch::Tensor &_ptr_A,
-                       torch::Tensor &_ptr_B,
                        std::optional<torch::Tensor> &_ptr_C,
-                       torch::Tensor &_ptr_D,
                        torch::Tensor &_problem_sizes,
                        const bool &is_A_transposed,
                        const bool &is_B_transposed,
@@ -399,75 +394,19 @@ void grouped_gemm_cuda(const torch::Tensor &_A,
 
     if (is_A_transposed) {
         if (is_B_transposed) {
-            _grouped_gemm_cuda<true, true>(_A,
-                                           _B,
-                                           _C,
-                                           _D,
-                                           M_array,
-                                           N_array,
-                                           K_array,
-                                           _ptr_A,
-                                           _ptr_B,
-                                           _ptr_C,
-                                           _ptr_D,
-                                           _problem_sizes,
-                                           alpha,
-                                           beta,
-                                           E,
-                                           benchmark);
+            _grouped_gemm_cuda<true, true>(
+                _A, _B, _C, _D, M_array, N_array, K_array, _ptr_C, _problem_sizes, alpha, beta, E, benchmark);
         } else {
-            _grouped_gemm_cuda<true, false>(_A,
-                                            _B,
-                                            _C,
-                                            _D,
-                                            M_array,
-                                            N_array,
-                                            K_array,
-                                            _ptr_A,
-                                            _ptr_B,
-                                            _ptr_C,
-                                            _ptr_D,
-                                            _problem_sizes,
-                                            alpha,
-                                            beta,
-                                            E,
-                                            benchmark);
+            _grouped_gemm_cuda<true, false>(
+                _A, _B, _C, _D, M_array, N_array, K_array, _ptr_C, _problem_sizes, alpha, beta, E, benchmark);
         }
     } else {
         if (is_B_transposed) {
-            _grouped_gemm_cuda<false, true>(_A,
-                                            _B,
-                                            _C,
-                                            _D,
-                                            M_array,
-                                            N_array,
-                                            K_array,
-                                            _ptr_A,
-                                            _ptr_B,
-                                            _ptr_C,
-                                            _ptr_D,
-                                            _problem_sizes,
-                                            alpha,
-                                            beta,
-                                            E,
-                                            benchmark);
+            _grouped_gemm_cuda<false, true>(
+                _A, _B, _C, _D, M_array, N_array, K_array, _ptr_C, _problem_sizes, alpha, beta, E, benchmark);
         } else {
-            _grouped_gemm_cuda<false, false>(_A,
-                                             _B,
-                                             _C,
-                                             _D,
-                                             M_array,
-                                             N_array,
-                                             K_array,
-                                             _ptr_A,
-                                             _ptr_B,
-                                             _ptr_C,
-                                             _ptr_D,
-                                             _problem_sizes,
-                                             alpha,
-                                             beta,
-                                             E,
-                                             benchmark);
+            _grouped_gemm_cuda<false, false>(
+                _A, _B, _C, _D, M_array, N_array, K_array, _ptr_C, _problem_sizes, alpha, beta, E, benchmark);
         }
     }
 }
