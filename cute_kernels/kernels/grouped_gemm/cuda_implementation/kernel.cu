@@ -82,7 +82,7 @@ __global__ void populate_strides_cuda_kernel(const uint32 *M_array,
     }
 }
 
-template <typename ElementA, typename ElementB, typename ElementC, typename ElementD>
+template <typename ElementA, typename ElementB, typename ElementC, typename ElementD, bool has_C>
 __global__ void offset_pointers_cuda_kernel(const ElementA **ptr_A,
                                             const ElementB **ptr_B,
                                             const ElementC **ptr_C,
@@ -102,7 +102,9 @@ __global__ void offset_pointers_cuda_kernel(const ElementA **ptr_A,
     if (thread_id < E) {
         ptr_A[thread_id] = A + offsets_A[thread_id];
         ptr_B[thread_id] = B + offsets_B[thread_id];
-        ptr_C[thread_id] = C + offsets_C[thread_id];
+        if (has_C) {
+            ptr_C[thread_id] = C + offsets_C[thread_id];
+        }
         ptr_D[thread_id] = D + offsets_C[thread_id];
     }
 }
@@ -197,10 +199,8 @@ inline void _grouped_gemm_cuda(const torch::Tensor &_A,
     using StrideB = typename Gemm::GemmKernel::InternalStrideB;
     using StrideC = typename Gemm::GemmKernel::InternalStrideC;
 
-    const ElementC **ptr_C =
-        reinterpret_cast<const ElementC **>(_ptr_C.has_value() ? _ptr_C.value().data_ptr<uint64>() : nullptr);
-
-    torch::Tensor memory = torch::empty({6 * E}, torch::TensorOptions().dtype(torch::kUInt64).device(_A.device()));
+    torch::Tensor memory = torch::empty({6 * E + (_C.has_value() ? E : 0)},
+                                        torch::TensorOptions().dtype(torch::kUInt64).device(_A.device()));
 
     StrideA *stride_A = reinterpret_cast<StrideA *>(memory.data_ptr<uint64>());
     StrideB *stride_B = reinterpret_cast<StrideB *>(memory.data_ptr<uint64>() + E);
@@ -209,6 +209,8 @@ inline void _grouped_gemm_cuda(const torch::Tensor &_A,
     const ElementA **ptr_A = reinterpret_cast<const ElementA **>(memory.data_ptr<uint64>() + 3 * E);
     const ElementB **ptr_B = reinterpret_cast<const ElementB **>(memory.data_ptr<uint64>() + 4 * E);
     ElementD **ptr_D = reinterpret_cast<ElementD **>(memory.data_ptr<uint64>() + 5 * E);
+    const ElementC **ptr_C =
+        reinterpret_cast<const ElementC **>(_C.has_value() ? memory.data_ptr<uint64>() + 6 * E : nullptr);
 
     torch::Tensor memory1 = torch::empty({3 * E}, torch::TensorOptions().dtype(torch::kUInt32).device(_A.device()));
     ProblemShape::UnderlyingProblemShape *problem_sizes =
@@ -258,10 +260,16 @@ inline void _grouped_gemm_cuda(const torch::Tensor &_A,
 
     offsets.cumsum_(-1);
 
-    DISPATCH_FLOAT_KERNEL(_A.scalar_type(), "offset_pointers_cuda", scalar_t, ([&] {
-                              offset_pointers_cuda_kernel<ElementA, ElementB, ElementC, ElementD>
-                                  <<<1, 1024>>>(ptr_A, ptr_B, ptr_C, ptr_D, A, B, C, D, offsets.data_ptr<int64>(), E);
-                          }));
+    DISPATCH_FLOAT_KERNEL(
+        _A.scalar_type(), "offset_pointers_cuda", scalar_t, ([&] {
+            if (_C.has_value()) {
+                offset_pointers_cuda_kernel<ElementA, ElementB, ElementC, ElementD, true>
+                    <<<1, 1024>>>(ptr_A, ptr_B, ptr_C, ptr_D, A, B, C, D, offsets.data_ptr<int64>(), E);
+            } else {
+                offset_pointers_cuda_kernel<ElementA, ElementB, ElementC, ElementD, false>
+                    <<<1, 1024>>>(ptr_A, ptr_B, ptr_C, ptr_D, A, B, C, D, offsets.data_ptr<int64>(), E);
+            }
+        }));
 
     // Instantiate CUTLASS kernel depending on templates
     Gemm gemm;
