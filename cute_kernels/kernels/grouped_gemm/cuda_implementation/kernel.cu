@@ -126,7 +126,6 @@ inline void _grouped_gemm_cuda(const torch::Tensor &_A,
                                const torch::Tensor &M_array,
                                const torch::Tensor &N_array,
                                const torch::Tensor &K_array,
-                               std::optional<torch::Tensor> &_ptr_C,
                                const fp32 &alpha,
                                const fp32 &beta,
                                const uint32 &E,
@@ -350,7 +349,6 @@ void grouped_gemm_cuda(const torch::Tensor &_A,
                        const torch::Tensor &M_array,
                        const torch::Tensor &N_array,
                        const torch::Tensor &K_array,
-                       std::optional<torch::Tensor> &_ptr_C,
                        const bool &is_A_transposed,
                        const bool &is_B_transposed,
                        const fp32 &alpha,
@@ -367,19 +365,15 @@ void grouped_gemm_cuda(const torch::Tensor &_A,
 
     if (is_A_transposed) {
         if (is_B_transposed) {
-            _grouped_gemm_cuda<true, true>(
-                _A, _B, _C, _D, M_array, N_array, K_array, _ptr_C, alpha, beta, E, benchmark);
+            _grouped_gemm_cuda<true, true>(_A, _B, _C, _D, M_array, N_array, K_array, alpha, beta, E, benchmark);
         } else {
-            _grouped_gemm_cuda<true, false>(
-                _A, _B, _C, _D, M_array, N_array, K_array, _ptr_C, alpha, beta, E, benchmark);
+            _grouped_gemm_cuda<true, false>(_A, _B, _C, _D, M_array, N_array, K_array, alpha, beta, E, benchmark);
         }
     } else {
         if (is_B_transposed) {
-            _grouped_gemm_cuda<false, true>(
-                _A, _B, _C, _D, M_array, N_array, K_array, _ptr_C, alpha, beta, E, benchmark);
+            _grouped_gemm_cuda<false, true>(_A, _B, _C, _D, M_array, N_array, K_array, alpha, beta, E, benchmark);
         } else {
-            _grouped_gemm_cuda<false, false>(
-                _A, _B, _C, _D, M_array, N_array, K_array, _ptr_C, alpha, beta, E, benchmark);
+            _grouped_gemm_cuda<false, false>(_A, _B, _C, _D, M_array, N_array, K_array, alpha, beta, E, benchmark);
         }
     }
 }
