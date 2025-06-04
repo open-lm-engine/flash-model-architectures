@@ -8,7 +8,6 @@ from ...cutotune import CutoTuneConfig, CutoTuneParameter, cutotune
 from ...kernel_backend import KernelBackend, is_cuda_kernel_backend_allowed, is_triton_kernel_backend_allowed
 from ...utils import is_nvidia_gpu
 from .cuda_implementation import add_scalar_cuda
-from .torch_implementation import add_scalar_torch
 from .triton_implementation import add_scalar_triton
 
 
