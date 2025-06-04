@@ -11,9 +11,6 @@ from ....math import ceil_divide
 from ....utils import cute_op
 
 
-BLOCK_M = 128
-
-
 @triton.jit
 def _compute_expert_block(
     E_idx,
@@ -157,8 +154,6 @@ def scatter2scatter(
     grid = lambda meta: (
         ceil_divide(sorted_expert_idxs.size(0), meta["BLOCK_M"]) * ceil_divide(meta["N"], meta["BLOCK_N"]),
     )
-
-    BLOCK_M = 128
 
     with torch.device(X.device):
         scatter2scatter_triton_kernel[grid](
