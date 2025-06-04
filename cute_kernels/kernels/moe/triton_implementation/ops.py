@@ -12,15 +12,6 @@ from .kernels import group_triton_kernel, groupXtY_triton_kernel
 from .scatter_kernel import scatter2scatter
 
 
-def _fake_bincount(x: torch.Tensor, minlength: int) -> torch.Tensor:
-    return torch.empty(minlength, device=x.device, dtype=torch.int)
-
-
-@cute_op(f"{LIBRARY_NAME}::bincount", mutates_args={}, fake_func=_fake_bincount)
-def bincount(x: torch.Tensor, minlength: int) -> torch.Tensor:
-    return x.bincount(minlength=minlength)
-
-
 @cute_op(f"{LIBRARY_NAME}::group_bwd_W", mutates_args={"DW"})
 def group_bwd_W(DY: torch.Tensor, X: torch.Tensor, expert_offsets: torch.Tensor, DW: torch.Tensor, E: int) -> None:
     grid = lambda meta: (E * ceil_divide(meta["K"], meta["BLOCK_K"]), ceil_divide(meta["N"], meta["BLOCK_N"]))
