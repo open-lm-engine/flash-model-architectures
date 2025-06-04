@@ -5,12 +5,11 @@
 import torch
 import torch.nn.functional as F
 
-from ...cutotune import CutoTuneParameter
-from ...kernel_backend import KernelBackend
-from ...math import ceil_divide, get_next_power_of_2
-from ...utils import ensure_contiguous
-from ..cross_entropy import cross_entropy_cute, cross_entropy_forward_backward_triton
-from .torch_implementation import fused_linear_cross_entropy_torch
+from ..cutotune import CutoTuneParameter
+from ..kernel_backend import KernelBackend
+from ..math import ceil_divide, get_next_power_of_2
+from ..utils import ensure_contiguous
+from .cross_entropy import cross_entropy_cute, cross_entropy_forward_backward_triton
 
 
 class _FusedLinearCrossEntropy_Cute(torch.autograd.Function):
