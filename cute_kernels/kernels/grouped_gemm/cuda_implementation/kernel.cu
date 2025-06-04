@@ -256,7 +256,7 @@ inline void _grouped_gemm_cuda(const torch::Tensor &_A,
                                                 E);
                           }));
 
-    offsets = torch::cumsum(offsets, -1);
+    offsets.cumsum_(-1);
 
     DISPATCH_FLOAT_KERNEL(_A.scalar_type(), "offset_pointers_cuda", scalar_t, ([&] {
                               offset_pointers_cuda_kernel<ElementA, ElementB, ElementC, ElementD>
