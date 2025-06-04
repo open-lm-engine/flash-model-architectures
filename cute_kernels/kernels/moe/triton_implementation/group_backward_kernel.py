@@ -9,7 +9,6 @@ import triton.language as tl
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide
 from ....utils import cute_op
-from .group_backward_kernel import groupXtY_triton_kernel
 
 
 @triton.autotune(
