@@ -20,7 +20,7 @@ class Experts_Cute(Experts_Torch):
         grouped_in: bool = False,
         grouped_out: bool = False,
     ) -> torch.Tensor:
-        return scattered_experts(
+        hidden_states = scattered_experts(
             hidden_states,
             self.weight.permute(0, 2, 1),
             k,
@@ -31,6 +31,8 @@ class Experts_Cute(Experts_Torch):
             grouped_in,
             grouped_out,
         )
+
+        return hidden_states
 
 
 class MoE_Cute(MoE_Torch):
