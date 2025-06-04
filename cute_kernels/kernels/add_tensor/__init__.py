@@ -77,4 +77,7 @@ def add_tensor_cute(
         torch.Tensor: output tensor
     """
 
+    if kernel_backend == KernelBackend.torch:
+        return x + y
+
     return _AddTensor_Cute.apply(x, y, kernel_backend)

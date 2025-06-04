@@ -72,4 +72,7 @@ def add_scalar_cute(
     if y == 0:
         return x
 
+    if kernel_backend == KernelBackend.torch:
+        return x + y
+
     return _AddScalar_Cute.apply(x, y, kernel_backend)
