@@ -8,7 +8,8 @@ import triton
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide
 from ....utils import cute_op
-from .kernels import group_triton_kernel, groupXtY_triton_kernel, scatter2scatter_triton_kernel
+from .kernels import group_triton_kernel, groupXtY_triton_kernel
+from .scatter_kernel import scatter2scatter
 
 
 def _fake_bincount(x: torch.Tensor, minlength: int) -> torch.Tensor:
@@ -18,63 +19,6 @@ def _fake_bincount(x: torch.Tensor, minlength: int) -> torch.Tensor:
 @cute_op(f"{LIBRARY_NAME}::bincount", mutates_args={}, fake_func=_fake_bincount)
 def bincount(x: torch.Tensor, minlength: int) -> torch.Tensor:
     return x.bincount(minlength=minlength)
-
-
-def expert_boundaries(sorted_experts_idxs: torch.Tensor, k: int) -> torch.Tensor:
-    # there is an overhead of launching a custom op so we only use the custom op when compiling
-    expert_counts = bincount(sorted_experts_idxs, k)
-    expert_boundaries_end = expert_counts.cumsum(-1)
-    return expert_boundaries_end
-
-
-@cute_op(f"{LIBRARY_NAME}::scatter2scatter", mutates_args={"out"})
-def scatter2scatter(
-    X: torch.Tensor,
-    W: torch.Tensor,
-    sorted_expert_idxs: torch.Tensor,
-    sorted_scattered_idxs: torch.Tensor,
-    out: torch.Tensor,
-    FAN_OUT: int,
-    x_grouped: bool = False,
-    y_grouped: bool = False,
-) -> None:
-    assert sorted_scattered_idxs.size(0) == sorted_expert_idxs.size(0)
-    assert sorted_scattered_idxs.size(0) == X.size(0) * FAN_OUT
-    assert out.size(0) == sorted_expert_idxs.size(0)
-    assert out.size(1) == W.size(-1)
-
-    grid = lambda meta: (
-        ceil_divide(sorted_expert_idxs.size(0), meta["BLOCK_M"]) * ceil_divide(meta["N"], meta["BLOCK_N"]),
-    )
-
-    BLOCK_M = 128
-
-    with torch.device(X.device):
-        scatter2scatter_triton_kernel[grid](
-            # X_ptr, stride_xm, stride_xk,
-            X,
-            X.stride(0),
-            X.stride(1),
-            # W_ptr, stride_we, stride_wk, stride_wn,
-            W,
-            W.stride(0),
-            W.stride(1),
-            W.stride(2),
-            # Y_ptr, stride_ym, stride_yn,
-            out,
-            out.stride(0),
-            out.stride(1),
-            grouped_idx_ptr=sorted_scattered_idxs,
-            expert_idxs_ptr=sorted_expert_idxs,
-            FAN_OUT=FAN_OUT,
-            M=X.size(0),
-            K=X.size(1),
-            N=out.size(1),
-            E=W.size(0),
-            BLOCK_M=BLOCK_M,
-            x_grouped=x_grouped,
-            y_grouped=y_grouped,
-        )
 
 
 @cute_op(f"{LIBRARY_NAME}::group_bwd_W", mutates_args={"DW"})

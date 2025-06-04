@@ -3,3 +3,4 @@
 # **************************************************
 
 from .ops import bincount, scattered_experts
+from .scatter_kernel import scatter2scatter
