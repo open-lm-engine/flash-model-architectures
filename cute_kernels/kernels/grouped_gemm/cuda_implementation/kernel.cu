@@ -342,7 +342,7 @@ inline void _grouped_gemm_cuda(const torch::Tensor &_A,
 
     // allocate workspace memory
     const uint64 workspace_size = Gemm::get_workspace_size(arguments);
-    torch::Tensor workspace = torch::empty({uint64(workspace_size)}, torch::TensorOptions().dtype(at::kByte));
+    torch::Tensor workspace = torch::empty({int64(workspace_size)}, torch::TensorOptions().dtype(at::kByte));
 
     // Check if the problem size is supported or not
     gemm.can_implement(arguments);
