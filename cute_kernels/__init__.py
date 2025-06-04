@@ -13,8 +13,8 @@ from .cutotune import (
 from .inductor import init_inductor
 from .kernel_backend import KernelBackend
 from .kernels import (
+    MoE_Cute,
     MoE_Torch,
-    MoE_Triton,
     add_scalar_cute,
     add_scalar_torch,
     add_tensor_cute,
