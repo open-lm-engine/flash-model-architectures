@@ -11,17 +11,17 @@ from .triton_implementation import bincount, scattered_experts
 class Experts_Cute(Experts_Torch):
     def forward(
         self,
-        inputs,
-        k,
-        sorted_expert_idxs,
-        sorted_scattered_idxs,
-        expert_offsets,
-        gates=None,
-        grouped_in=False,
-        grouped_out=False,
-    ):
+        hidden_states: torch.Tensor,
+        k: int,
+        sorted_expert_idxs: torch.Tensor,
+        sorted_scattered_idxs: torch.Tensor,
+        expert_offsets: torch.Tensor,
+        gates: torch.Tensor | None = None,
+        grouped_in: bool = False,
+        grouped_out: bool = False,
+    ) -> torch.Tensor:
         return scattered_experts(
-            inputs,
+            hidden_states,
             self.weight.permute(0, 2, 1),
             k,
             sorted_expert_idxs,
