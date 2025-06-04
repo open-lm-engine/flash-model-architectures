@@ -48,6 +48,12 @@ def bmm_cute(
     assert B.size(2 if is_B_transposed else 1) == K
     N = B.size(1 if is_B_transposed else 2)
 
+    if beta == 0:
+        assert C is None
+    else:
+        assert C is not None
+        assert C.size() == (L, M, N)
+
     if kernel_backend == KernelBackend.torch:
         if is_A_transposed:
             A = A.transpose(1, 2)
@@ -66,12 +72,6 @@ def bmm_cute(
             output = torch.baddbmm(C, A, B, alpha=alpha, beta=beta)
     elif kernel_backend == KernelBackend.triton:
         output = torch.empty(L, M, N, dtype=A.dtype, device=A.device)
-
-        if beta == 0:
-            assert C is None
-        else:
-            assert C is not None
-            assert C.size() == (L, M, N)
 
         bmm_triton(
             A=A,

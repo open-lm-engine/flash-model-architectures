@@ -5,6 +5,7 @@
 import torch
 import torch.nn.functional as F
 
+from ...cutotune import CutoTuneParameter
 from ...kernel_backend import KernelBackend
 from ...utils import ensure_contiguous, get_num_elements_and_hidden_size
 from .triton_implementation import cross_entropy_forward_backward_triton
@@ -14,7 +15,12 @@ class _CrossEntropy_Cute(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
     def forward(
-        ctx, x: torch.Tensor, labels: torch.Tensor, reduction: str, logits_multiplier: float | None
+        ctx,
+        x: torch.Tensor,
+        labels: torch.Tensor,
+        reduction: str,
+        logits_multiplier: float | None,
+        kernel_backend: KernelBackend | CutoTuneParameter,
     ) -> torch.Tensor:
         assert reduction in ["sum", "mean"]
         assert x.dim() == 2, "x should be 2 dimensional"
@@ -22,6 +28,7 @@ class _CrossEntropy_Cute(torch.autograd.Function):
         assert (
             labels.size(0) == get_num_elements_and_hidden_size(x)[0]
         ), "x and labels have different number of elements along batch dimension"
+        assert kernel_backend in [KernelBackend.triton, CutoTuneParameter]
 
         loss = torch.tensor(0, device=x.device, dtype=torch.float32)
         x_grad = torch.empty_like(x)
@@ -39,7 +46,7 @@ class _CrossEntropy_Cute(torch.autograd.Function):
         x_grad = ctx.saved_tensors[0]
         x_grad *= output_grad
 
-        return x_grad, *[None] * 5
+        return x_grad, *[None] * 4
 
 
 def cross_entropy_cute(
@@ -68,8 +75,8 @@ def cross_entropy_cute(
         if logits_multiplier not in [None, 1]:
             x = x * logits_multiplier
 
-        output = F.cross_entropy(x, labels, reduction=reduction)
+        x = F.cross_entropy(x, labels, reduction=reduction)
     else:
-        output = _CrossEntropy_Cute.apply(x, labels, reduction, logits_multiplier)
+        x = _CrossEntropy_Cute.apply(x, labels, reduction, logits_multiplier, kernel_backend)
 
-    return output
+    return x
