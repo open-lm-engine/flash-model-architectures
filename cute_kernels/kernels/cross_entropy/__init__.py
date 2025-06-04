@@ -3,9 +3,10 @@
 # **************************************************
 
 import torch
+import torch.nn.functional as F
 
+from ...kernel_backend import KernelBackend
 from ...utils import ensure_contiguous, get_num_elements_and_hidden_size
-from .torch_implementation import cross_entropy_torch
 from .triton_implementation import cross_entropy_forward_backward_triton
 
 
@@ -42,7 +43,11 @@ class _CrossEntropy_Cute(torch.autograd.Function):
 
 
 def cross_entropy_cute(
-    x: torch.Tensor, labels: torch.Tensor, reduction: str = "mean", logits_multiplier: float | None = None
+    x: torch.Tensor,
+    labels: torch.Tensor,
+    reduction: str = "mean",
+    logits_multiplier: float | None = None,
+    kernel_backend: KernelBackend = KernelBackend.triton,
 ) -> torch.Tensor:
     """compute cross entropy loss
 
@@ -57,4 +62,14 @@ def cross_entropy_cute(
         torch.Tensor: loss
     """
 
-    return _CrossEntropy_Cute.apply(x, labels, reduction, logits_multiplier)
+    if kernel_backend == KernelBackend.torch:
+        x = x.float()
+
+        if logits_multiplier not in [None, 1]:
+            x = x * logits_multiplier
+
+        output = F.cross_entropy(x, labels, reduction=reduction)
+    else:
+        output = _CrossEntropy_Cute.apply(x, labels, reduction, logits_multiplier)
+
+    return output
