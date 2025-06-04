@@ -40,7 +40,6 @@ from .kernels import (
     matrix_transpose_torch,
     pack_sequence_cute,
     pack_sequence_torch,
-    prepare_grouped_gemm_inputs_cute,
     rmsnorm_cute,
     rmsnorm_torch,
     rnn_cute,

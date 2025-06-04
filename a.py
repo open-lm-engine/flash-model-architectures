@@ -26,8 +26,6 @@ M_array = torch.tensor([M] * E, device=torch.cuda.current_device(), dtype=torch.
 N_array = torch.full_like(M_array, fill_value=N)
 K_array = torch.full_like(M_array, fill_value=K)
 
-output = prepare_grouped_gemm_inputs_cute(A=A, B=B, is_A_transposed=is_A_transposed, is_B_transposed=is_B_transposed)
-
 torch_profiler = torch.profiler.profile(
     activities=[torch.profiler.ProfilerActivity.CPU, torch.profiler.ProfilerActivity.CUDA],
     schedule=torch.profiler.schedule(wait=5, warmup=5, active=1, repeat=1),
@@ -43,7 +41,6 @@ for i in range(10):
         M_array=M_array,
         N_array=N_array,
         K_array=K_array,
-        output=output,
         is_A_transposed=is_A_transposed,
         is_B_transposed=is_B_transposed,
     )
@@ -61,7 +58,6 @@ for i in range(10):
         M_array=M_array,
         N_array=N_array,
         K_array=K_array,
-        output=output,
         is_A_transposed=is_A_transposed,
         is_B_transposed=is_B_transposed,
     )
