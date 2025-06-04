@@ -16,11 +16,9 @@ def prepare_grouped_gemm_inputs_cute(
     N = B.size(1 if is_B_transposed else 2)
 
     ptr_C = torch.empty(E, device=A.device, dtype=torch.uint64)
-
-    problem_sizes = torch.empty(3 * E, device=A.device, dtype=torch.uint32)
     output = torch.empty(E, M, N, device=A.device, dtype=torch.bfloat16)
 
-    return ptr_C, problem_sizes, output
+    return ptr_C, output
 
 
 @ensure_contiguous
@@ -32,7 +30,6 @@ def grouped_gemm_cute(
     N_array: torch.Tensor,
     K_array: torch.Tensor,
     ptr_C: torch.Tensor,
-    problem_sizes: torch.Tensor,
     output: torch.Tensor,
     alpha: float = 1,
     beta: float = 0,
@@ -56,7 +53,6 @@ def grouped_gemm_cute(
         N_array=N_array,
         K_array=K_array,
         ptr_C=ptr_C,
-        problem_sizes=problem_sizes,
         is_A_transposed=is_A_transposed,
         is_B_transposed=is_B_transposed,
         alpha=alpha,

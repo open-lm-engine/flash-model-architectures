@@ -160,7 +160,6 @@ inline void _grouped_gemm_cuda(const torch::Tensor &_A,
                                const torch::Tensor &N_array,
                                const torch::Tensor &K_array,
                                std::optional<torch::Tensor> &_ptr_C,
-                               torch::Tensor &_problem_sizes,
                                const fp32 &alpha,
                                const fp32 &beta,
                                const uint32 &E,
@@ -246,8 +245,9 @@ inline void _grouped_gemm_cuda(const torch::Tensor &_A,
     const ElementB **ptr_B = reinterpret_cast<const ElementB **>(memory.data_ptr<uint64>() + 4 * E);
     ElementD **ptr_D = reinterpret_cast<ElementD **>(memory.data_ptr<uint64>() + 5 * E);
 
+    torch::Tensor memory1 = torch::empty({3 * E}, torch::TensorOptions().dtype(torch::kUInt32).device(_A.device()));
     ProblemShape::UnderlyingProblemShape *problem_sizes =
-        reinterpret_cast<ProblemShape::UnderlyingProblemShape *>(_problem_sizes.data_ptr<uint32>());
+        reinterpret_cast<ProblemShape::UnderlyingProblemShape *>(memory1.data_ptr<uint32>());
 
     using RasterOrderOptions = typename cutlass::gemm::kernel::detail::PersistentTileSchedulerSm100GroupParams<
         typename ProblemShape::UnderlyingProblemShape>::RasterOrderOptions;
@@ -377,7 +377,6 @@ void grouped_gemm_cuda(const torch::Tensor &_A,
                        const torch::Tensor &N_array,
                        const torch::Tensor &K_array,
                        std::optional<torch::Tensor> &_ptr_C,
-                       torch::Tensor &_problem_sizes,
                        const bool &is_A_transposed,
                        const bool &is_B_transposed,
                        const fp32 &alpha,
@@ -395,18 +394,18 @@ void grouped_gemm_cuda(const torch::Tensor &_A,
     if (is_A_transposed) {
         if (is_B_transposed) {
             _grouped_gemm_cuda<true, true>(
-                _A, _B, _C, _D, M_array, N_array, K_array, _ptr_C, _problem_sizes, alpha, beta, E, benchmark);
+                _A, _B, _C, _D, M_array, N_array, K_array, _ptr_C, alpha, beta, E, benchmark);
         } else {
             _grouped_gemm_cuda<true, false>(
-                _A, _B, _C, _D, M_array, N_array, K_array, _ptr_C, _problem_sizes, alpha, beta, E, benchmark);
+                _A, _B, _C, _D, M_array, N_array, K_array, _ptr_C, alpha, beta, E, benchmark);
         }
     } else {
         if (is_B_transposed) {
             _grouped_gemm_cuda<false, true>(
-                _A, _B, _C, _D, M_array, N_array, K_array, _ptr_C, _problem_sizes, alpha, beta, E, benchmark);
+                _A, _B, _C, _D, M_array, N_array, K_array, _ptr_C, alpha, beta, E, benchmark);
         } else {
             _grouped_gemm_cuda<false, false>(
-                _A, _B, _C, _D, M_array, N_array, K_array, _ptr_C, _problem_sizes, alpha, beta, E, benchmark);
+                _A, _B, _C, _D, M_array, N_array, K_array, _ptr_C, alpha, beta, E, benchmark);
         }
     }
 }

@@ -23,7 +23,6 @@ def grouped_gemm_cuda(
     N_array: torch.Tensor,
     K_array: torch.Tensor,
     ptr_C: torch.Tensor | None,
-    problem_sizes: torch.Tensor | None,
     is_A_transposed: bool,
     is_B_transposed: bool,
     alpha: float,
