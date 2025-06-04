@@ -11,7 +11,7 @@ from .torch_implementation import Experts_Torch, MoE_Torch
 from .triton_implementation import bincount, scattered_experts
 
 
-class Experts_Triton(Experts_Torch):
+class Experts_Cute(Experts_Torch):
     def forward(
         self,
         inputs,
@@ -36,7 +36,7 @@ class Experts_Triton(Experts_Torch):
         )
 
 
-class MoE_Triton(MoE_Torch):
+class MoE_Cute(MoE_Torch):
     def __init__(
         self,
         num_experts: int,
@@ -58,7 +58,7 @@ class MoE_Triton(MoE_Torch):
 
         self.gate = nn.Linear(in_features=self.hidden_size, out_features=num_experts, bias=False)
 
-        self.c_fc = Experts_Triton(
+        self.c_fc = Experts_Cute(
             num_experts=num_experts,
             in_features=self.hidden_size,
             out_features=2 * self.intermediate_size if is_glu else self.intermediate_size,
@@ -68,7 +68,7 @@ class MoE_Triton(MoE_Torch):
 
         self.act = activation_function
 
-        self.c_proj = Experts_Triton(
+        self.c_proj = Experts_Cute(
             num_experts=num_experts,
             in_features=self.intermediate_size,
             out_features=self.hidden_size,
