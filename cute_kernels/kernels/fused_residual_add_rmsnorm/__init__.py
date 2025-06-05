@@ -3,9 +3,10 @@
 # **************************************************
 
 import torch
+import torch.nn.functional as F
 
+from ...kernel_backend import CutoTuneParameter, KernelBackend
 from ...utils import ensure_contiguous, get_num_elements_and_hidden_size
-from .torch_implementation import fused_residual_add_rmsnorm_torch
 from .triton_implementation import (
     fused_residual_add_rmsnorm_backward_triton,
     fused_residual_add_rmsnorm_forward_triton,
@@ -23,7 +24,10 @@ class _FusedResidualAddRMSNorm_Cute(torch.autograd.Function):
         eps: float | None,
         multiplier: float | None,
         memory_efficient: bool,
+        kernel_backend: KernelBackend,
     ) -> tuple[torch.Tensor]:
+        assert kernel_backend == KernelBackend.triton
+
         if weight is not None:
             assert weight.dim() == 1, "weight should be 1D"
             assert weight.size(-1) == x.size(-1), "hidden size for x and weight tensor is different"
@@ -89,6 +93,7 @@ def fused_residual_add_rmsnorm_cute(
     eps: float | None,
     multiplier: float | None = None,
     memory_efficient: bool = False,
+    kernel_backend: KernelBackend | CutoTuneParameter = KernelBackend.triton,
 ) -> tuple[torch.Tensor]:
     """fused residual add RMSNorm computation
 
@@ -104,5 +109,16 @@ def fused_residual_add_rmsnorm_cute(
     Returns:
         tuple[torch.Tensor]: output activations, updated residual stream
     """
+
+    if kernel_backend == KernelBackend.torch:
+        if multiplier not in [None, 1]:
+            x = x * multiplier
+
+        x = x + residual
+        residual = x
+
+        x = F.rms_norm(x, (x.size(-1),), weight=weight, eps=eps)
+
+        return x, residual
 
     return _FusedResidualAddRMSNorm_Cute.apply(x, residual, weight, eps, multiplier, memory_efficient)

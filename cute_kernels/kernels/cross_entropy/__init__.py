@@ -76,7 +76,5 @@ def cross_entropy_cute(
             x = x * logits_multiplier
 
         x = F.cross_entropy(x, labels, reduction=reduction)
-    else:
-        x = _CrossEntropy_Cute.apply(x, labels, reduction, logits_multiplier, kernel_backend)
 
-    return x
+    return _CrossEntropy_Cute.apply(x, labels, reduction, logits_multiplier, kernel_backend)
