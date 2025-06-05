@@ -54,7 +54,8 @@ def cross_entropy_cute(
     labels: torch.Tensor,
     reduction: str = "mean",
     logits_multiplier: float | None = None,
-    kernel_backend: KernelBackend = KernelBackend.triton,
+    *,
+    kernel_backend: KernelBackend | CutoTuneParameter = KernelBackend.triton,
 ) -> torch.Tensor:
     """compute cross entropy loss
 
@@ -64,6 +65,8 @@ def cross_entropy_cute(
         reduction (str, optional): reduction should be either sum or mean. Defaults to "mean".
         logits_multiplier (float | None, optional): logits multiplier pre-multiplies logits, None implies 1.
             Defaults to None.
+        kernel_backend (KernelBackend | CutoTuneParameter, optional): kernel backend to prioritize.
+            Defaults to CutoTuneParameter().
 
     Returns:
         torch.Tensor: loss
@@ -75,6 +78,6 @@ def cross_entropy_cute(
         if logits_multiplier not in [None, 1]:
             x = x * logits_multiplier
 
-        x = F.cross_entropy(x, labels, reduction=reduction)
+        return F.cross_entropy(x, labels, reduction=reduction)
 
     return _CrossEntropy_Cute.apply(x, labels, reduction, logits_multiplier, kernel_backend)

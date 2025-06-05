@@ -4,6 +4,7 @@
 
 import torch
 
+from ...cutotune import CutoTuneParameter
 from ...kernel_backend import KernelBackend
 from ...utils import ensure_contiguous
 from .triton_implementation import bmm_triton
@@ -18,7 +19,8 @@ def bmm_cute(
     is_B_transposed: bool = False,
     alpha: float = 1,
     beta: float = 1,
-    kernel_backend: KernelBackend = KernelBackend.triton,
+    *,
+    kernel_backend: KernelBackend | CutoTuneParameter = KernelBackend.triton,
 ) -> torch.Tensor:
     """computes `alpha` * (`A` @ `B`) + `beta` * `C`
 
@@ -30,6 +32,8 @@ def bmm_cute(
         is_B_transposed (bool, optional): whether B has shape N x K. Defaults to False.
         alpha (float, optional): alpha. Defaults to 1.
         beta (float, optional): beta. Defaults to 1.
+        kernel_backend (KernelBackend | CutoTuneParameter, optional): kernel backend to prioritize.
+            Defaults to CutoTuneParameter().
 
     Raises:
         ValueError: if unexpected `kernel_backend` is passed

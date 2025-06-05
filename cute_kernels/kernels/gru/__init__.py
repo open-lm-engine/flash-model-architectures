@@ -4,6 +4,8 @@
 
 import torch
 
+from ...cutotune import CutoTuneParameter
+from ...kernel_backend import KernelBackend
 from ...utils import ensure_contiguous
 from .torch_implementation import gru_torch
 from .triton_implementation import (
@@ -29,9 +31,11 @@ class _GRU_Cute(torch.autograd.Function):
         gradient_clipping: float | None,
         cu_seqlens: torch.Tensor | None,
         max_seqlen: torch.Tensor | int | None,
+        kernel_backend: KernelBackend | CutoTuneParameter,
     ) -> torch.Tensor:
         assert input.dim() in [3, 4]
         assert weight.dim() == 3
+        assert kernel_backend == KernelBackend.triton or isinstance(kernel_backend, CutoTuneParameter)
 
         N, H = input.size()[-2:]
         assert weight.size() == (N, H, H)
@@ -155,7 +159,7 @@ class _GRU_Cute(torch.autograd.Function):
             forget_weight_grad,
             reset_input_grad,
             reset_weight_grad,
-            *[None] * 4,
+            *[None] * 5,
         )
 
 
@@ -170,6 +174,8 @@ def gru_cute(
     gradient_clipping: float | None = None,
     cu_seqlens: torch.Tensor | None = None,
     max_seqlen: torch.Tensor | int | None = None,
+    *,
+    kernel_backend: KernelBackend | CutoTuneParameter = KernelBackend.triton,
 ) -> torch.Tensor:
     """computes multihead RNN: tanh(`input_state` @ `weight` + `input`)
 
@@ -188,15 +194,32 @@ def gru_cute(
         torch.Tensor: output tensor of shape (B, S, N, H)
     """
 
-    return _GRU_Cute.apply(
-        input,
-        weight,
-        forget_input,
-        forget_weight,
-        reset_input,
-        reset_weight,
-        input_state,
-        gradient_clipping,
-        cu_seqlens,
-        max_seqlen,
-    )
+    if kernel_backend == KernelBackend.torch:
+        input = gru_torch(
+            input=input,
+            weight=weight,
+            forget_input=forget_input,
+            forget_weight=forget_weight,
+            reset_input=reset_input,
+            reset_weight=reset_weight,
+            input_state=input_state,
+            gradient_clipping=gradient_clipping,
+            cu_seqlens=cu_seqlens,
+            max_seqlen=max_seqlen,
+        )
+    else:
+        input = _GRU_Cute.apply(
+            input,
+            weight,
+            forget_input,
+            forget_weight,
+            reset_input,
+            reset_weight,
+            input_state,
+            gradient_clipping,
+            cu_seqlens,
+            max_seqlen,
+            kernel_backend,
+        )
+
+    return input

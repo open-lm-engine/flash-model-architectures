@@ -11,7 +11,7 @@ from .cuda_implementation import continuous_count_cuda
 
 @torch.no_grad()
 def continuous_count_cute(
-    x: torch.Tensor, size: int, kernel_backend: KernelBackend = KernelBackend.cuda
+    x: torch.Tensor, size: int, *, kernel_backend: KernelBackend | CutoTuneParameter = KernelBackend.cuda
 ) -> torch.Tensor:
     """counts the number of occurances of the values [0, 1, ..., `size`) in the input tensor (`size` is excluded).
         NOTE: the user is responsible for ensuring that the values lie in the valid range, any values outside this
@@ -20,6 +20,8 @@ def continuous_count_cute(
     Args:
         x (torch.Tensor): input tensor
         size (int): values [0, 1, ..., `size`) are counted (`size` is excluded)
+        kernel_backend (KernelBackend | CutoTuneParameter, optional): kernel backend to prioritize.
+            Defaults to CutoTuneParameter().
 
     Returns:
         torch.Tensor: output tensor
