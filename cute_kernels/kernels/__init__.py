@@ -12,7 +12,7 @@ from .fused_residual_add_rmsnorm import fused_residual_add_rmsnorm_cute
 from .gemm import gemm_cute
 from .grouped_gemm import grouped_gemm_cute
 from .gru import gru_cute, gru_torch
-from .linear import linear_cute, linear_torch
+from .linear import linear_cute
 from .matrix_transpose import matrix_transpose_cute, matrix_transpose_torch
 from .moe import MoE_Cute, MoE_Torch
 from .rmsnorm import rmsnorm_cute, rmsnorm_torch

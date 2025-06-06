@@ -7,7 +7,7 @@ from typing import Callable
 import torch
 from parameterized import parameterized
 
-from cute_kernels import linear_cute, linear_torch, set_seed
+from cute_kernels import KernelBackend, linear_cute, set_seed
 
 from ..test_commons import TestCommons
 
@@ -49,7 +49,9 @@ class LinearTest(TestCommons):
             )
 
         z_kernel = function(input=input_kernel, weight=weight_kernel, bias=bias_kernel)
-        z_expected = linear_torch(input=input_expected, weight=weight_expected, bias=bias_expected)
+        z_expected = linear_cute(
+            input=input_expected, weight=weight_expected, bias=bias_expected, kernel_backend=KernelBackend.torch
+        )
 
         z_kernel.mean().backward()
         z_expected.mean().backward()
