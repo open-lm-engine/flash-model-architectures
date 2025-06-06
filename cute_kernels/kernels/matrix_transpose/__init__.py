@@ -35,7 +35,9 @@ class _MatrixTranspose_Cute(torch.autograd.Function):
         return x_grad, None
 
 
-def matrix_transpose_cute(x: torch.Tensor, *, kernel_backend: KernelBackend | CutoTuneParameter) -> torch.Tensor:
+def matrix_transpose_cute(
+    x: torch.Tensor, *, kernel_backend: KernelBackend | CutoTuneParameter = KernelBackend.triton
+) -> torch.Tensor:
     """transposes a matrix
 
     Args:
