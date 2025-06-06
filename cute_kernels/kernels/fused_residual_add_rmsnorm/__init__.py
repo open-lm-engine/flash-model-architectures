@@ -26,7 +26,7 @@ class _FusedResidualAddRMSNorm_Cute(torch.autograd.Function):
         memory_efficient: bool,
         kernel_backend: KernelBackend,
     ) -> tuple[torch.Tensor]:
-        assert kernel_backend == KernelBackend.triton
+        assert kernel_backend == KernelBackend.triton or isinstance(kernel_backend, CutoTuneParameter)
 
         if weight is not None:
             assert weight.dim() == 1, "weight should be 1D"
@@ -83,7 +83,7 @@ class _FusedResidualAddRMSNorm_Cute(torch.autograd.Function):
         if weight_grad is not None:
             weight_grad = weight_grad.type_as(weight)
 
-        return x_grad, residual_grad, weight_grad, *[None] * 3
+        return x_grad, residual_grad, weight_grad, *[None] * 4
 
 
 def fused_residual_add_rmsnorm_cute(
@@ -118,7 +118,9 @@ def fused_residual_add_rmsnorm_cute(
         residual = x
 
         x = F.rms_norm(x, (x.size(-1),), weight=weight, eps=eps)
+    else:
+        x, residual = _FusedResidualAddRMSNorm_Cute.apply(
+            x, residual, weight, eps, multiplier, memory_efficient, kernel_backend
+        )
 
-        return x, residual
-
-    return _FusedResidualAddRMSNorm_Cute.apply(x, residual, weight, eps, multiplier, memory_efficient)
+    return x, residual

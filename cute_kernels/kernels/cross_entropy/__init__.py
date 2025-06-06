@@ -28,7 +28,7 @@ class _CrossEntropy_Cute(torch.autograd.Function):
         assert (
             labels.size(0) == get_num_elements_and_hidden_size(x)[0]
         ), "x and labels have different number of elements along batch dimension"
-        assert kernel_backend in [KernelBackend.triton, CutoTuneParameter]
+        assert kernel_backend == KernelBackend.triton or isinstance(kernel_backend, CutoTuneParameter)
 
         loss = torch.tensor(0, device=x.device, dtype=torch.float32)
         x_grad = torch.empty_like(x)
@@ -78,6 +78,8 @@ def cross_entropy_cute(
         if logits_multiplier not in [None, 1]:
             x = x * logits_multiplier
 
-        return F.cross_entropy(x, labels, reduction=reduction)
+        x = F.cross_entropy(x, labels, reduction=reduction)
+    else:
+        x = _CrossEntropy_Cute.apply(x, labels, reduction, logits_multiplier, kernel_backend)
 
-    return _CrossEntropy_Cute.apply(x, labels, reduction, logits_multiplier, kernel_backend)
+    return x
