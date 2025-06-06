@@ -66,13 +66,10 @@ def bmm_cute(
             B = B.transpose(1, 2)
 
         if beta == 0:
-            assert C is None
-
             output = torch.bmm(A, B)
             if alpha != 1:
                 output = alpha * output
         else:
-            assert C is not None
             output = torch.baddbmm(C, A, B, alpha=alpha, beta=beta)
     elif kernel_backend == KernelBackend.triton:
         output = torch.empty(L, M, N, dtype=A.dtype, device=A.device)

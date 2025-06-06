@@ -56,6 +56,12 @@ def gemm_cute(
     assert B.size(1 if is_B_transposed else 0) == K
     N = B.size(0 if is_B_transposed else 1)
 
+    if beta == 0:
+        assert C is None
+    else:
+        assert C is not None
+        assert C.size() == (M, N)
+
     if kernel_backend == KernelBackend.torch:
         if is_A_transposed:
             A = A.T
@@ -64,22 +70,13 @@ def gemm_cute(
             B = B.T
 
         if beta == 0:
-            assert C is None
-
             output = A @ B
             if alpha != 1:
                 output = alpha * output
         else:
-            assert C is not None
             output = torch.addmm(C, A, B, alpha=alpha, beta=beta)
     else:
         output = torch.empty(M, N, dtype=A.dtype, device=A.device)
-
-        if beta == 0:
-            assert C is None
-        else:
-            assert C is not None
-            assert C.size() == (M, N)
 
         if kernel_backend == "cutlass_tensorcore_mma_gemm_cuda":
             cutlass_tensorcore_mma_gemm_cuda(
