@@ -13,7 +13,7 @@ from .gemm import gemm_cute
 from .grouped_gemm import grouped_gemm_cute
 from .gru import gru_cute, gru_torch
 from .linear import linear_cute
-from .matrix_transpose import matrix_transpose_cute, matrix_transpose_torch
+from .matrix_transpose import matrix_transpose_cute
 from .moe import MoE_Cute, MoE_Torch
 from .rmsnorm import rmsnorm_cute, rmsnorm_torch
 from .rnn import rnn_cute, rnn_torch

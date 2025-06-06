@@ -7,7 +7,6 @@ import torch
 from ...cutotune import CutoTuneParameter
 from ...kernel_backend import KernelBackend
 from ...utils import ensure_contiguous
-from .torch_implementation import matrix_transpose_torch
 from .triton_implementation import matrix_transpose_triton
 
 

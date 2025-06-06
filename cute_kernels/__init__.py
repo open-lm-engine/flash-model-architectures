@@ -28,7 +28,6 @@ from .kernels import (
     gru_torch,
     linear_cute,
     matrix_transpose_cute,
-    matrix_transpose_torch,
     pack_sequence_cute,
     pack_sequence_torch,
     rmsnorm_cute,
