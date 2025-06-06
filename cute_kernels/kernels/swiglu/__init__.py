@@ -3,6 +3,7 @@
 # **************************************************
 
 import torch
+import torch.nn.functional as F
 
 from ...cutotune import CutoTuneConfig, CutoTuneParameter, cutotune
 from ...kernel_backend import KernelBackend, is_cuda_kernel_backend_allowed, is_triton_kernel_backend_allowed
@@ -78,8 +79,8 @@ class _Swiglu_Cute(torch.autograd.Function):
         ctx,
         gate: torch.Tensor,
         up: torch.Tensor,
-        kernel_backend_forward: KernelBackend,
-        kernel_backend_backward: KernelBackend,
+        kernel_backend_forward: KernelBackend | CutoTuneParameter,
+        kernel_backend_backward: KernelBackend | CutoTuneParameter,
     ) -> torch.Tensor:
         assert gate.size() == up.size(), "tensors gate and up should have same shape"
         assert gate.type() == up.type(), "tensors gate and up should have same dtype"
@@ -114,7 +115,17 @@ class _Swiglu_Cute(torch.autograd.Function):
 class _SwigluPacked_Cute(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
-    def forward(ctx, x: torch.Tensor) -> torch.Tensor:
+    def forward(
+        ctx,
+        x: torch.Tensor,
+        kernel_backend_forward: KernelBackend | CutoTuneParameter,
+        kernel_backend_backward: KernelBackend | CutoTuneParameter,
+    ) -> torch.Tensor:
+        assert kernel_backend_forward == KernelBackend.triton or isinstance(kernel_backend_forward, CutoTuneParameter)
+        assert kernel_backend_backward == KernelBackend.triton or isinstance(
+            kernel_backend_backward, CutoTuneParameter
+        )
+
         ctx.save_for_backward(x)
 
         output = torch.empty(*x.size()[:-1], divide_if_divisible(x.size(-1), 2), device=x.device, dtype=x.dtype)
@@ -135,7 +146,7 @@ class _SwigluPacked_Cute(torch.autograd.Function):
 
         swiglu_backward_triton(gate=gate, up=up, output_grad=output_grad, gate_grad=gate_grad, up_grad=up_grad)
 
-        return x_grad
+        return x_grad, None, None
 
 
 def swiglu_cute(
@@ -159,17 +170,50 @@ def swiglu_cute(
         torch.Tensor: output tensor
     """
 
-    return _Swiglu_Cute.apply(gate, up, kernel_backend_forward, kernel_backend_backward)
+    if kernel_backend_forward == KernelBackend.torch:
+        assert kernel_backend_backward == KernelBackend.torch
+        dtype = gate.dtype
+
+        gate = gate.float()
+        up = up.float()
+
+        output = up * F.silu(gate)
+        output = output.to(dtype)
+    else:
+        output = _Swiglu_Cute.apply(gate, up, kernel_backend_forward, kernel_backend_backward)
+
+    return output
 
 
-def swiglu_packed_cute(x: torch.Tensor) -> torch.Tensor:
+def swiglu_packed_cute(
+    x: torch.Tensor,
+    *,
+    kernel_backend_forward: KernelBackend | CutoTuneParameter = CutoTuneParameter(),
+    kernel_backend_backward: KernelBackend | CutoTuneParameter = CutoTuneParameter(),
+) -> torch.Tensor:
     """computes swiglu activation by splitting the tensor `x` into 2 parts: gate and up activations
 
     Args:
         x (torch.Tensor): input activation
+        kernel_backend_forward (KernelBackend | CutoTuneParameter, optional): kernel backend to prioritize. Defaults
+            to CutoTuneParameter().
+        kernel_backend_backward (KernelBackend | CutoTuneParameter, optional): kernel backend to prioritize. Defaults
+            to CutoTuneParameter().
 
     Returns:
         torch.Tensor: output tensor
     """
 
-    return _SwigluPacked_Cute.apply(x)
+    if kernel_backend_forward == KernelBackend.torch:
+        up, gate = x.chunk(2, dim=-1)
+
+        output = swiglu_cute(
+            gate=gate,
+            up=up,
+            kernel_backend_forward=kernel_backend_forward,
+            kernel_backend_backward=kernel_backend_backward,
+        )
+    else:
+        output = _SwigluPacked_Cute.apply(x, kernel_backend_forward, kernel_backend_backward)
+
+    return output
