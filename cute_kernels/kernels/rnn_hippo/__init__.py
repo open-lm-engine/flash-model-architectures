@@ -15,33 +15,23 @@ class _RNN_HiPPO_Cute(torch.autograd.Function):
         ctx,
         input: torch.Tensor,
         weight: torch.Tensor,
+        weight_hippo: torch.Tensor,
+        weight_hippo_projection: torch.Tensor,
+        hippo_A: torch.Tensor,
+        hippo_B: torch.Tensor,
+        starting_timestep: int,
         input_state: torch.Tensor | None,
+        hippo_state: torch.Tensor | None,
         gradient_clipping: float | None,
         cu_seqlens: torch.Tensor | None,
         max_seqlen: torch.Tensor | int | None,
-        hippo_W: torch.Tensor | None,
-        hippo_A: torch.Tensor | None,
-        hippo_B: torch.Tensor | None,
-        starting_timestep: int | None,
     ) -> torch.Tensor:
         assert input.dim() in [3, 4]
         assert weight.dim() == 3
         assert cu_seqlens is None
         assert max_seqlen is None
-
-        if hippo_A is None:
-            assert hippo_W is None
-            assert hippo_B is None
-            assert starting_timestep is None
-        else:
-            assert hippo_W is not None
-            assert hippo_A.dim() == 2
-            assert hippo_B.dim() == 1
-            assert hippo_B is not None
-            assert starting_timestep is not None
-
-        # HiPPO indexing starts at 1
-        starting_timestep += 1
+        assert hippo_A.dim() == 2
+        assert hippo_B.dim() == 2
 
         N, H = input.size()[-2:]
         assert weight.size() == (N, H, H)
@@ -50,25 +40,53 @@ class _RNN_HiPPO_Cute(torch.autograd.Function):
             gradient_clipping = -gradient_clipping
 
         output = torch.empty_like(input)
-        kwargs = {"input": input, "weight": weight, "input_state": input_state, "output": output}
 
         rnn_hippo_forward_triton(
-            **kwargs, hippo_W=hippo_W, hippo_A=hippo_A, hippo_B=hippo_B, starting_timestep=starting_timestep
+            input=input,
+            weight=weight,
+            weight_hippo=weight_hippo,
+            weight_hippo_projection=weight_hippo_projection,
+            hippo_A=hippo_A,
+            hippo_B=hippo_B,
+            input_state=input_state,
+            hippo_state=hippo_state,
+            output=output,
+            starting_timestep=starting_timestep + 1,  # HiPPO indexing starts at 1
         )
 
-        ctx.save_for_backward(weight, output, input_state, cu_seqlens, max_seqlen)
+        ctx.save_for_backward(
+            weight,
+            weight_hippo,
+            weight_hippo_projection,
+            hippo_A,
+            hippo_B,
+            output,
+            input_state,
+            cu_seqlens,
+            max_seqlen,
+        )
         ctx.gradient_clipping = gradient_clipping
+        ctx.starting_timestep = starting_timestep
 
         return output
 
     @staticmethod
     @ensure_contiguous
     def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor]:
-        weight, output, input_state, cu_seqlens, max_seqlen = ctx.saved_tensors
+        (
+            weight,
+            weight_hippo,
+            weight_hippo_projection,
+            hippo_A,
+            hippo_B,
+            output,
+            input_state,
+            cu_seqlens,
+            max_seqlen,
+        ) = ctx.saved_tensors
+
         input_grad = torch.empty_like(output)
         weight_grad = torch.zeros_like(weight, dtype=torch.float32)
-
-        H = weight.size(-1)
 
         kwargs = {
             "weight": weight,
@@ -82,18 +100,22 @@ class _RNN_HiPPO_Cute(torch.autograd.Function):
 
         rnn_hippo_backward_triton(**kwargs)
 
-        return input_grad, weight_grad, *[None] * 8
+        return input_grad, weight_grad, *[None] * 10
 
 
 def rnn_hippo_cute(
     input: torch.Tensor,
     weight: torch.Tensor,
+    weight_hippo: torch.Tensor,
+    weight_hippo_projection: torch.Tensor,
+    hippo_A: torch.Tensor,
+    hippo_B: torch.Tensor,
+    starting_timestep: int,
     input_state: torch.Tensor | None = None,
+    hippo_state: torch.Tensor | None = None,
     gradient_clipping: float | None = None,
     cu_seqlens: torch.Tensor | None = None,
     max_seqlen: torch.Tensor | int | None = None,
-    hippo_A: torch.Tensor | None = None,
-    hippo_B: torch.Tensor | None = None,
 ) -> torch.Tensor:
     """computes multihead RNN recurrent update over the sequence length: tanh(`input_state` @ `weight` + `input`)
 
@@ -115,5 +137,16 @@ def rnn_hippo_cute(
     """
 
     return _RNN_HiPPO_Cute.apply(
-        input, weight, input_state, gradient_clipping, cu_seqlens, max_seqlen, hippo_A, hippo_B
+        input,
+        weight,
+        weight_hippo,
+        weight_hippo_projection,
+        hippo_A,
+        hippo_B,
+        input_state,
+        hippo_state,
+        gradient_clipping,
+        cu_seqlens,
+        max_seqlen,
+        starting_timestep,
     )

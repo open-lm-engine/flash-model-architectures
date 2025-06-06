@@ -139,7 +139,7 @@ def rnn_hippo_forward_triton(
     input: torch.Tensor,
     weight: torch.Tensor,
     weight_hippo: torch.Tensor,
-    weight_hippo_input: torch.Tensor,
+    weight_hippo_projection: torch.Tensor,
     hippo_A: torch.Tensor,
     hippo_B: torch.Tensor,
     input_state: torch.Tensor | None,
@@ -148,7 +148,7 @@ def rnn_hippo_forward_triton(
     starting_timestep: int | None,
 ) -> None:
     B, S, N, H = input.size()
-    P = 0 if weight_hippo_input is None else weight_hippo_input.size(0)
+    P = 0 if weight_hippo_projection is None else weight_hippo_projection.size(0)
 
     BLOCK_SIZE_H = get_next_power_of_2(max(H, P))
     BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
@@ -166,7 +166,7 @@ def rnn_hippo_forward_triton(
             h_ptr=input_state,
             h_stride_b=None if input_state is None else input_state.stride(0),
             y_ptr=output,
-            Wu_ptr=weight_hippo_input,
+            Wu_ptr=weight_hippo_projection,
             hippo_A_ptr=hippo_A,
             hippo_B_ptr=hippo_B,
             c_ptr=hippo_state,
