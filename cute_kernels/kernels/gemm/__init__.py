@@ -13,7 +13,6 @@ from .cuda_implementation import (
     naive_gemm_cuda,
     shared_memory_gemm_cuda,
 )
-from .torch_implementation import gemm_torch
 
 
 @ensure_contiguous
