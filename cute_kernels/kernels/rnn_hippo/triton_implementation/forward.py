@@ -37,9 +37,10 @@ def _activation(x, ACTIVATION_FUNCTION, relu_negative_slope):
 
 
 @triton.jit
-def _rnn_forward_update(h, W, x, ACTIVATION_FUNCTION, relu_negative_slope):
+def _rnn_forward_update(h, W, x, c, Wc, ACTIVATION_FUNCTION, relu_negative_slope):
     h = matmul(A=h, B=W, C=x, output_dtype=x.dtype)
-    h = tanh(h)
+    h = matmul(A=c, B=Wc, C=h, output_dtype=h.dtype)
+    h = _activation(h, ACTIVATION_FUNCTION=ACTIVATION_FUNCTION, relu_negative_slope=relu_negative_slope)
     return h
 
 
@@ -51,10 +52,12 @@ def rnn_forward_triton_kernel(
     x_stride_s,
     W_ptr,
     W_stride_n,
+    Wc_ptr,
+    Wc_stride_n,
     h_ptr,
     h_stride_b,
     y_ptr,
-    hippo_W_ptr,
+    Wu_ptr,
     hippo_A_ptr,
     hippo_B_ptr,
     c_ptr,
@@ -75,6 +78,7 @@ def rnn_forward_triton_kernel(
 
     mask_b = indices_b < B
     mask_h = indices_h < H
+    mask_p = indices_h < P
     mask_bh = mask_b[:, None] & mask_h[None, :]
 
     W = tl.load(
@@ -82,46 +86,48 @@ def rnn_forward_triton_kernel(
         mask=mask_h[:, None] & mask_h[None, :],
     )
 
+    Wc = tl.load(
+        Wc_ptr + pid_n * Wc_stride_n + indices_h[:, None] * H + indices_h[None, :],
+        mask=mask_p[:, None] & mask_h[None, :],
+    )
+
     if h_ptr is None:
         h = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=x_ptr.dtype.element_ty)
-        if hippo_W_ptr is not None:
-            c = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=x_ptr.dtype.element_ty)
+        c = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=x_ptr.dtype.element_ty)
     else:
         h = tl.load(h_ptr + indices_b[:, None] * h_stride_b + pid_n * H + indices_h[None, :], mask=mask_bh)
-        if hippo_W_ptr is not None:
-            c = tl.load(c_ptr + indices_b[:, None] * c_stride_b + pid_n * H + indices_h[None, :], mask=mask_bh)
+        c = tl.load(c_ptr + indices_b[:, None] * c_stride_b + pid_n * H + indices_h[None, :], mask=mask_bh)
 
     indices = indices_b[:, None] * x_stride_b + pid_n * H + indices_h[None, :]
 
-    if hippo_W_ptr is not None:
-        hippo_W = tl.load(hippo_W_ptr + indices_h[:, None], mask=mask_h[:, None])
+    Wu = tl.load(Wu_ptr + indices_h[:, None], mask=mask_h[:, None])
 
-        mask_p = indices_h < P
+    hippo_A = tl.load(
+        hippo_A_ptr + indices_h[:, None] * H + indices_h[None, :], mask=mask_p[:, None] & mask_p[None, :]
+    )
 
-        hippo_A = tl.load(
-            hippo_A_ptr + indices_h[:, None] * H + indices_h[None, :], mask=mask_p[:, None] & mask_p[None, :]
-        )
-        hippo_B = tl.load(hippo_A_ptr + indices_h[:, None] * H + indices_h[None, :], mask=mask_p[:, None])
+    hippo_B = tl.load(hippo_B_ptr + indices_h[:, None], mask=mask_p[:, None])
 
     for _ in range(S):
         h = _rnn_forward_update(
             h=h,
             W=W,
             x=tl.load(x_ptr + indices, mask=mask_bh),
+            c=c,
+            Wc=Wc,
             ACTIVATION_FUNCTION="tanh",
             relu_negative_slope=None,
         )
 
-        if hippo_W_ptr is not None:
-            A = 1 - hippo_A / starting_timestep
-            c = matmul(c, A.T, None, output_dtype=c.dtype)
+        _A = 1 - hippo_A / starting_timestep
+        c = matmul(c, _A.T, None, output_dtype=c.dtype)
 
-            f = matmul(h, hippo_W, None, output_dtype=h.dtype)
+        u = matmul(h, Wu, None, output_dtype=h.dtype)
 
-            B = hippo_B / starting_timestep
-            c = matmul(f, B.T, c, output_dtype=c.dtype)
+        _B = hippo_B / starting_timestep
+        c = matmul(u, _B.T, c, output_dtype=c.dtype)
 
-            starting_timestep += 1
+        starting_timestep += 1
 
         tl.store(y_ptr + indices, h, mask=mask_bh)
 
@@ -132,16 +138,17 @@ def rnn_forward_triton_kernel(
 def rnn_hippo_forward_triton(
     input: torch.Tensor,
     weight: torch.Tensor,
+    weight_hippo: torch.Tensor,
+    weight_hippo_input: torch.Tensor,
+    hippo_A: torch.Tensor,
+    hippo_B: torch.Tensor,
     input_state: torch.Tensor | None,
-    output: torch.Tensor,
-    hippo_W: torch.Tensor | None,
-    hippo_A: torch.Tensor | None,
-    hippo_B: torch.Tensor | None,
     hippo_state: torch.Tensor | None,
+    output: torch.Tensor,
     starting_timestep: int | None,
 ) -> None:
     B, S, N, H = input.size()
-    P = 0 if hippo_W is None else hippo_W.size(0)
+    P = 0 if weight_hippo_input is None else weight_hippo_input.size(0)
 
     BLOCK_SIZE_H = get_next_power_of_2(max(H, P))
     BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
@@ -154,10 +161,12 @@ def rnn_hippo_forward_triton(
             x_stride_s=input.stride(1),
             W_ptr=weight,
             W_stride_n=weight.stride(0),
+            Wc_ptr=weight_hippo,
+            Wc_stride_n=weight_hippo.stride(0),
             h_ptr=input_state,
             h_stride_b=None if input_state is None else input_state.stride(0),
             y_ptr=output,
-            hippo_W_ptr=hippo_W,
+            Wu_ptr=weight_hippo_input,
             hippo_A_ptr=hippo_A,
             hippo_B_ptr=hippo_B,
             c_ptr=hippo_state,
