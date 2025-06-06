@@ -22,12 +22,14 @@ class _FusedLinearCrossEntropy_Cute(torch.autograd.Function):
         labels: torch.Tensor,
         reduction: str,
         logits_multiplier: float | None,
+        kernel_backend: KernelBackend | CutoTuneParameter,
     ) -> torch.Tensor:
         assert reduction in ["sum", "mean"]
         assert x.dim() == 2, "x should be 2 dimensional"
         assert labels.dim() == 1, "labels should be 1 dimensional"
         assert x.size(0) == labels.size(0), "x and labels have different number of elements along dim 0"
         assert x.size(-1) == weight.size(-1)
+        assert kernel_backend == KernelBackend.triton or isinstance(kernel_backend, CutoTuneParameter)
 
         batch_size, hidden_size = x.size()
         V = weight.size(0)
@@ -81,7 +83,7 @@ class _FusedLinearCrossEntropy_Cute(torch.autograd.Function):
         x_grad *= output_grad
         weight_grad *= output_grad
 
-        return x_grad, weight_grad, *[None] * 5
+        return x_grad, weight_grad, *[None] * 4
 
 
 def fused_linear_cross_entropy_cute(
@@ -107,12 +109,15 @@ def fused_linear_cross_entropy_cute(
     """
 
     if kernel_backend == KernelBackend.torch:
-        return cross_entropy_cute(
+        x = F.linear(x, weight)
+        x = cross_entropy_cute(
             x=F.linear(x, weight),
             labels=labels,
             reduction=reduction,
             logits_multiplier=logits_multiplier,
             kernel_backend=kernel_backend,
         )
+    else:
+        x = _FusedLinearCrossEntropy_Cute.apply(x, weight, labels, reduction, logits_multiplier, kernel_backend)
 
-    return _FusedLinearCrossEntropy_Cute.apply(x, weight, labels, reduction, logits_multiplier)
+    return x
