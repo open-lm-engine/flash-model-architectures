@@ -25,7 +25,6 @@ from .kernels import (
     gemm_cute,
     grouped_gemm_cute,
     gru_cute,
-    gru_torch,
     linear_cute,
     matrix_transpose_cute,
     pack_sequence_cute,
