@@ -8,13 +8,7 @@ import torch
 import torch._dynamo.config
 from parameterized import parameterized
 
-from cute_kernels import (
-    KernelBackend,
-    pack_sequence_cute,
-    pack_sequence_torch,
-    unpack_sequence_cute,
-    unpack_sequence_torch,
-)
+from cute_kernels import KernelBackend, pack_sequence_cute, unpack_sequence_cute, unpack_sequence_torch
 
 from ..test_commons import TestCommons
 
@@ -53,7 +47,13 @@ class PackSequenceTest(TestCommons):
                 kernel_backend_backward=kernel_backend,
             )
 
-        z_expected = pack_sequence_torch(x_expected, cu_seqlens=cu_seqlens.to(torch.int), padding_side=padding_side)
+        z_expected = pack_sequence_cute(
+            x_expected,
+            cu_seqlens=cu_seqlens.to(torch.int),
+            padding_side=padding_side,
+            kernel_backend_forward=KernelBackend.torch,
+            kernel_backend_backward=KernelBackend.torch,
+        )
 
         z_expected.sum().backward()
         z_kernel.sum().backward()

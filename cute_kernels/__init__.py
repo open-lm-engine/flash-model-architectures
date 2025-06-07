@@ -29,7 +29,6 @@ from .kernels import (
     linear_cute,
     matrix_transpose_cute,
     pack_sequence_cute,
-    pack_sequence_torch,
     rmsnorm_cute,
     rnn_cute,
     softmax_cute,
