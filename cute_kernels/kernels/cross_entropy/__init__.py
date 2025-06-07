@@ -66,7 +66,7 @@ def cross_entropy_cute(
         logits_multiplier (float | None, optional): logits multiplier pre-multiplies logits, None implies 1.
             Defaults to None.
         kernel_backend (KernelBackend | CutoTuneParameter, optional): kernel backend to prioritize.
-            Defaults to CutoTuneParameter().
+            Defaults to KernelBackend.triton.
 
     Returns:
         torch.Tensor: loss

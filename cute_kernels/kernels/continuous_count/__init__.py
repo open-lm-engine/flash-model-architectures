@@ -21,7 +21,7 @@ def continuous_count_cute(
         x (torch.Tensor): input tensor
         size (int): values [0, 1, ..., `size`) are counted (`size` is excluded)
         kernel_backend (KernelBackend | CutoTuneParameter, optional): kernel backend to prioritize.
-            Defaults to CutoTuneParameter().
+            Defaults to KernelBackend.cuda.
 
     Returns:
         torch.Tensor: output tensor

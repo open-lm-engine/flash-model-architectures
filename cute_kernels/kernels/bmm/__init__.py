@@ -33,7 +33,7 @@ def bmm_cute(
         alpha (float, optional): alpha. Defaults to 1.
         beta (float, optional): beta. Defaults to 1.
         kernel_backend (KernelBackend | CutoTuneParameter, optional): kernel backend to prioritize.
-            Defaults to CutoTuneParameter().
+            Defaults to KernelBackend.triton.
 
     Raises:
         ValueError: if unexpected `kernel_backend` is passed
