@@ -55,7 +55,7 @@ class ScatterMoETest(TestCommons):
             )
 
         with torch.device(device):
-            moe_custom = MoE_Cute(
+            moe = MoE_Cute(
                 num_experts=num_experts,
                 num_experts_per_tok=num_experts_per_tok,
                 hidden_size=hidden_size,
@@ -66,32 +66,11 @@ class ScatterMoETest(TestCommons):
                 std=0.02,
             ).to(dtype=dtype)
 
-            moe_torch = MoE_Cute(
-                num_experts=num_experts,
-                num_experts_per_tok=num_experts_per_tok,
-                hidden_size=hidden_size,
-                intermediate_size=intermediate_size,
-                activation_function=self.get_activation_function(is_glu=is_glu),
-                is_glu=is_glu,
-                add_bias=False,
-                std=0.02,
-            ).to(dtype=dtype)
+        moe_custom = moe
+        moe_torch = moe
 
         if is_compiling:
             moe_custom = torch.compile(moe_custom, fullgraph=True)
-
-        state_dict = moe_custom.state_dict()
-
-        if is_compiling:
-            new_state_dict = {}
-            for key in state_dict:
-                new_key = key.split("_orig_mod.")[1]
-                new_state_dict[new_key] = state_dict[key]
-
-            state_dict = new_state_dict
-            del new_state_dict
-
-        moe_torch.load_state_dict(state_dict)
 
         x_torch = torch.randn(hidden_size, device=device, dtype=dtype, requires_grad=True)
         x_custom = x_torch.clone().detach().requires_grad_()
