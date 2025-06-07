@@ -38,7 +38,6 @@ from .kernels import (
     swiglu_packed_torch,
     swiglu_torch,
     unpack_sequence_cute,
-    unpack_sequence_torch,
 )
 from .math import ceil_divide, divide_if_divisible, get_powers_of_2
 from .modules import GRU, RNN
