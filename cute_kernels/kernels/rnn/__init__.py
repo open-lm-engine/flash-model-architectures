@@ -4,6 +4,8 @@
 
 import torch
 
+from ...cutotune import CutoTuneParameter
+from ...kernel_backend import KernelBackend
 from ...utils import ensure_contiguous
 from .torch_implementation import rnn_torch
 from .triton_implementation import (
@@ -114,6 +116,8 @@ def rnn_cute(
     gradient_clipping: float | None = None,
     cu_seqlens: torch.Tensor | None = None,
     max_seqlen: torch.Tensor | int | None = None,
+    *,
+    kernel_backend: KernelBackend | CutoTuneParameter = KernelBackend.triton,
 ) -> torch.Tensor:
     """computes multihead RNN recurrent update over the sequence length: tanh(`input_state` @ `weight` + `input`)
 
@@ -127,9 +131,23 @@ def rnn_cute(
             implies no clipping. Defaults to None.
         cu_seqlens (torch.Tensor | None, optional): cumulative sequence length (must contain 0 as first element). Defaults to None.
         max_seqlen (torch.Tensor | int | None, optional): max sequence length in the batch. Defaults to None.
+        kernel_backend (KernelBackend | CutoTuneParameter, optional): kernel backend to prioritize.
+            Defaults to KernelBackend.triton.
 
     Returns:
         torch.Tensor: output tensor of shape (B, S, N, H)
     """
 
-    return _RNN_Cute.apply(input, weight, input_state, gradient_clipping, cu_seqlens, max_seqlen)
+    if kernel_backend == KernelBackend.torch:
+        input = rnn_torch(
+            input=input,
+            weight=weight,
+            input_state=input_state,
+            gradient_clipping=gradient_clipping,
+            cu_seqlens=cu_seqlens,
+            max_seqlen=max_seqlen,
+        )
+    else:
+        input = _RNN_Cute.apply(input, weight, input_state, gradient_clipping, cu_seqlens, max_seqlen)
+
+    return input
