@@ -14,7 +14,7 @@ from .grouped_gemm import grouped_gemm_cute
 from .gru import gru_cute
 from .linear import linear_cute
 from .matrix_transpose import matrix_transpose_cute
-from .moe import MoE_Cute, MoE_Torch
+from .moe import MoE_Cute
 from .rmsnorm import rmsnorm_cute
 from .rnn import rnn_cute
 from .sequence_packing import pack_sequence_cute, unpack_sequence_cute

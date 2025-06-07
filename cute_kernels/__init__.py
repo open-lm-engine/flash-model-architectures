@@ -14,7 +14,6 @@ from .inductor import init_inductor
 from .kernel_backend import KernelBackend
 from .kernels import (
     MoE_Cute,
-    MoE_Torch,
     add_scalar_cute,
     add_tensor_cute,
     bmm_cute,

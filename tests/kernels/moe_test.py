@@ -5,7 +5,7 @@
 import torch
 from parameterized import parameterized
 
-from cute_kernels import MoE_Cute, MoE_Torch, set_seed
+from cute_kernels import KernelBackend, MoE_Cute, set_seed
 
 from ..test_commons import TestCommons
 
@@ -55,7 +55,7 @@ class ScatterMoETest(TestCommons):
             )
 
         with torch.device(device):
-            moe_custom = MoE_Cute(
+            moe = MoE_Cute(
                 num_experts=num_experts,
                 num_experts_per_tok=num_experts_per_tok,
                 hidden_size=hidden_size,
@@ -66,38 +66,17 @@ class ScatterMoETest(TestCommons):
                 std=0.02,
             ).to(dtype=dtype)
 
-            moe_torch = MoE_Torch(
-                num_experts=num_experts,
-                num_experts_per_tok=num_experts_per_tok,
-                hidden_size=hidden_size,
-                intermediate_size=intermediate_size,
-                activation_function=self.get_activation_function(is_glu=is_glu),
-                is_glu=is_glu,
-                add_bias=False,
-                std=0.02,
-            ).to(dtype=dtype)
+        moe_custom = moe
+        moe_torch = moe
 
         if is_compiling:
             moe_custom = torch.compile(moe_custom, fullgraph=True)
 
-        state_dict = moe_custom.state_dict()
-
-        if is_compiling:
-            new_state_dict = {}
-            for key in state_dict:
-                new_key = key.split("_orig_mod.")[1]
-                new_state_dict[new_key] = state_dict[key]
-
-            state_dict = new_state_dict
-            del new_state_dict
-
-        moe_torch.load_state_dict(state_dict)
-
         x_torch = torch.randn(hidden_size, device=device, dtype=dtype, requires_grad=True)
         x_custom = x_torch.clone().detach().requires_grad_()
 
-        y_torch = moe_torch(x_torch)[0]
-        y_custom = moe_custom(x_custom)[0]
+        y_torch = moe_torch(x_torch, kernel_backend=KernelBackend.torch)[0]
+        y_custom = moe_custom(x_custom, kernel_backend=KernelBackend.triton)[0]
 
         self.assert_equal_tensors(
             y_custom,

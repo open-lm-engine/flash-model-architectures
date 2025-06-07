@@ -11,9 +11,6 @@ from ....math import ceil_divide
 from ....utils import cute_op
 
 
-BLOCK_M = 128
-
-
 @triton.jit
 def _compute_expert_block(
     E_idx,
