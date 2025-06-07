@@ -111,7 +111,7 @@ def fused_linear_cross_entropy_cute(
     if kernel_backend == KernelBackend.torch:
         x = F.linear(x, weight)
         x = cross_entropy_cute(
-            x=F.linear(x, weight),
+            x=x,
             labels=labels,
             reduction=reduction,
             logits_multiplier=logits_multiplier,
