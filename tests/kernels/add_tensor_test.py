@@ -7,7 +7,7 @@ from typing import Callable
 import torch
 from parameterized import parameterized
 
-from cute_kernels import CutoTuneParameter, KernelBackend, add_tensor_cute, add_tensor_torch
+from cute_kernels import CutoTuneParameter, KernelBackend, add_tensor_cute
 
 from ..test_commons import TestCommons
 
@@ -34,7 +34,7 @@ class AddTensorTest(TestCommons):
         y_kernel, y_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype)
 
         z_kernel = function(x_kernel, y_kernel, kernel_backend=kernel_backend)
-        z_expected = add_tensor_torch(x_expected, y_expected)
+        z_expected = add_tensor_cute(x_expected, y_expected, kernel_backend=KernelBackend.torch)
 
         z_kernel.mean().backward()
         z_expected.mean().backward()

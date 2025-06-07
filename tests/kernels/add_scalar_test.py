@@ -7,7 +7,7 @@ from typing import Callable
 import torch
 from parameterized import parameterized
 
-from cute_kernels import CutoTuneParameter, KernelBackend, add_scalar_cute, add_scalar_torch
+from cute_kernels import CutoTuneParameter, KernelBackend, add_scalar_cute
 
 from ..test_commons import TestCommons
 
@@ -34,7 +34,7 @@ class AddScalarTest(TestCommons):
         y = 0.42
 
         z_kernel = function(x_kernel, y, kernel_backend=kernel_backend)
-        z_expected = add_scalar_torch(x_expected, y)
+        z_expected = add_scalar_cute(x_expected, y, kernel_backend=KernelBackend.torch)
 
         z_kernel.mean().backward()
         z_expected.mean().backward()

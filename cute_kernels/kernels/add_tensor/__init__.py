@@ -8,7 +8,6 @@ from ...cutotune import CutoTuneConfig, CutoTuneParameter, cutotune
 from ...kernel_backend import KernelBackend, is_cuda_kernel_backend_allowed, is_triton_kernel_backend_allowed
 from ...utils import ensure_same_strides, is_nvidia_gpu
 from .cuda_implementation import add_tensor_cuda
-from .torch_implementation import add_tensor_torch
 from .triton_implementation import add_tensor_triton
 
 
@@ -77,4 +76,9 @@ def add_tensor_cute(
         torch.Tensor: output tensor
     """
 
-    return _AddTensor_Cute.apply(x, y, kernel_backend)
+    if kernel_backend == KernelBackend.torch:
+        output = x + y
+    else:
+        output = _AddTensor_Cute.apply(x, y, kernel_backend)
+
+    return output

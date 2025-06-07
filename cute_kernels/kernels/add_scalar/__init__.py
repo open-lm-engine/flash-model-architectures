@@ -8,7 +8,6 @@ from ...cutotune import CutoTuneConfig, CutoTuneParameter, cutotune
 from ...kernel_backend import KernelBackend, is_cuda_kernel_backend_allowed, is_triton_kernel_backend_allowed
 from ...utils import is_nvidia_gpu
 from .cuda_implementation import add_scalar_cuda
-from .torch_implementation import add_scalar_torch
 from .triton_implementation import add_scalar_triton
 
 
@@ -72,4 +71,9 @@ def add_scalar_cute(
     if y == 0:
         return x
 
-    return _AddScalar_Cute.apply(x, y, kernel_backend)
+    if kernel_backend == KernelBackend.torch:
+        output = x + y
+    else:
+        output = _AddScalar_Cute.apply(x, y, kernel_backend)
+
+    return output

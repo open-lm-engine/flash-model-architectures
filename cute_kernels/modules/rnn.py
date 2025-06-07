@@ -5,7 +5,8 @@
 import torch
 import torch.nn as nn
 
-from ..kernels import rnn_cute, rnn_torch
+from ..kernel_backend import KernelBackend
+from ..kernels import rnn_cute
 from ..math import divide_if_divisible
 
 
@@ -45,13 +46,14 @@ class RNN(nn.Module):
         if input_state is not None:
             input_state = input_state.view(-1, self.num_heads, self.state_head_dim)
 
-        input = (rnn_cute if use_kernel else rnn_torch)(
+        input = rnn_cute(
             input=input,
             weight=self.state_weight,
             input_state=input_state,
             gradient_clipping=self.gradient_clipping,
             cu_seqlens=cu_seqlens,
             max_seqlen=max_seqlen,
+            kernel_backend=KernelBackend.triton if use_kernel else KernelBackend.torch,
         )
 
         if cu_seqlens is None:

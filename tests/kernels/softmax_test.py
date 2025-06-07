@@ -7,7 +7,7 @@ from typing import Callable
 import torch
 from parameterized import parameterized
 
-from cute_kernels import set_seed, softmax_cute, softmax_torch
+from cute_kernels import KernelBackend, set_seed, softmax_cute
 
 from ..test_commons import TestCommons
 from .rmsnorm_test import _get_sizes
@@ -42,7 +42,7 @@ class SoftmaxTest(TestCommons):
         x_kernel, x_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype, std=0.02)
 
         z_kernel = function(x_kernel, logits_multiplier)
-        z_expected = softmax_torch(x_expected, logits_multiplier)
+        z_expected = softmax_cute(x_expected, logits_multiplier, kernel_backend=KernelBackend.torch)
 
         z_kernel.sum().backward()
         z_expected.sum().backward()

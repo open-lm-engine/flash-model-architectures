@@ -3,16 +3,26 @@
 # **************************************************
 
 import torch
+import torch.nn.functional as F
 
-from ...utils import ensure_contiguous
-from ..gemm import gemm_cute
-from .torch_implementation import linear_torch
+from ..cutotune import CutoTuneParameter
+from ..kernel_backend import KernelBackend
+from ..utils import ensure_contiguous
+from .gemm import gemm_cute
 
 
 class _Linear_Cute(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
-    def forward(ctx, input: torch.Tensor, weight: torch.Tensor, bias: torch.Tensor | None) -> torch.Tensor:
+    def forward(
+        ctx,
+        input: torch.Tensor,
+        weight: torch.Tensor,
+        bias: torch.Tensor | None,
+        kernel_backend: KernelBackend | CutoTuneParameter,
+    ) -> torch.Tensor:
+        assert kernel_backend == KernelBackend.triton or isinstance(kernel_backend, CutoTuneParameter)
+
         ctx.save_for_backward(input, weight)
         ctx.has_bias = bias is not None
 
@@ -39,10 +49,16 @@ class _Linear_Cute(torch.autograd.Function):
 
         bias_grad = output_grad.sum(dim=0) if ctx.has_bias else None
 
-        return input_grad, weight_grad, bias_grad, *[None] * 2
+        return input_grad, weight_grad, bias_grad, None
 
 
-def linear_cute(input: torch.Tensor, weight: torch.Tensor, bias: torch.Tensor | None = None) -> torch.Tensor:
+def linear_cute(
+    input: torch.Tensor,
+    weight: torch.Tensor,
+    bias: torch.Tensor | None = None,
+    *,
+    kernel_backend: KernelBackend | CutoTuneParameter = KernelBackend.triton,
+) -> torch.Tensor:
     """linear layer computation `input` @ `weight` + `bias`
 
     Args:
@@ -54,4 +70,9 @@ def linear_cute(input: torch.Tensor, weight: torch.Tensor, bias: torch.Tensor | 
         torch.Tensor: output tensor
     """
 
-    return _Linear_Cute.apply(input, weight, bias)
+    if kernel_backend == KernelBackend.torch:
+        input = F.linear(input, weight, bias)
+    else:
+        input = _Linear_Cute.apply(input, weight, bias, kernel_backend)
+
+    return input

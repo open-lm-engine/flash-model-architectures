@@ -7,7 +7,7 @@ from typing import Callable
 import torch
 from parameterized import parameterized
 
-from cute_kernels import RNN, divide_if_divisible, rnn_cute, rnn_torch, set_seed
+from cute_kernels import RNN, KernelBackend, divide_if_divisible, rnn_cute, set_seed
 
 from ..test_commons import TestCommons
 
@@ -55,7 +55,7 @@ class RNNTest(TestCommons):
         )
 
         y_kernel = function(x_kernel, weight_kernel, input_state_kernel)
-        y_expected = rnn_torch(x_expected, weight_expected, input_state_expected)
+        y_expected = rnn_cute(x_expected, weight_expected, input_state_expected, kernel_backend=KernelBackend.torch)
 
         y_kernel.sum().backward()
         y_expected.sum().backward()
@@ -119,16 +119,22 @@ class RNNTest(TestCommons):
             device=device,
         )
 
-        y_kernel = rnn_torch(
-            x_packed_kernel, weight_kernel, input_state_kernel, cu_seqlens=cu_seqlens, max_seqlen=max_seqlen
+        y_kernel = rnn_cute(
+            x_packed_kernel,
+            weight_kernel,
+            input_state_kernel,
+            cu_seqlens=cu_seqlens,
+            max_seqlen=max_seqlen,
+            kernel_backend=KernelBackend.torch,
         )
 
         y_expected = []
         for i in range(batch_size):
-            y = rnn_torch(
+            y = rnn_cute(
                 x_packed_expected[cu_seqlens[i] : cu_seqlens[i + 1]].unsqueeze(0),
                 weight_expected,
                 input_state_expected[i].unsqueeze(0) if has_input_state else None,
+                kernel_backend=KernelBackend.torch,
             ).squeeze(0)
             y_expected.append(y)
         y_expected = torch.cat(y_expected)
@@ -189,8 +195,13 @@ class RNNTest(TestCommons):
         )
 
         y_kernel = rnn_cute(x_kernel, weight_kernel, input_state_kernel, cu_seqlens=cu_seqlens, max_seqlen=max_seqlen)
-        y_expected = rnn_torch(
-            x_expected, weight_expected, input_state_expected, cu_seqlens=cu_seqlens, max_seqlen=max_seqlen
+        y_expected = rnn_cute(
+            x_expected,
+            weight_expected,
+            input_state_expected,
+            cu_seqlens=cu_seqlens,
+            max_seqlen=max_seqlen,
+            kernel_backend=KernelBackend.torch,
         )
 
         y_kernel.sum().backward()

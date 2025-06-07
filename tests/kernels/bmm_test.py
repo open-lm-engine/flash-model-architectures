@@ -7,7 +7,7 @@ from typing import Callable
 import torch
 from parameterized import parameterized
 
-from cute_kernels import bmm_cute, bmm_torch, set_seed
+from cute_kernels import KernelBackend, bmm_cute, set_seed
 
 from ..test_commons import TestCommons
 
@@ -76,8 +76,15 @@ class BMMTest(TestCommons):
             alpha=alpha,
             beta=beta,
         )
-        output_expected = bmm_torch(
-            A=A, B=B, C=C, alpha=alpha, beta=beta, is_A_transposed=is_A_transposed, is_B_transposed=is_B_transposed
+        output_expected = bmm_cute(
+            A=A,
+            B=B,
+            C=C,
+            alpha=alpha,
+            beta=beta,
+            is_A_transposed=is_A_transposed,
+            is_B_transposed=is_B_transposed,
+            kernel_backend=KernelBackend.torch,
         )
 
         self.assert_equal_tensors(
