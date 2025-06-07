@@ -9,6 +9,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from ...kernel_backend import KernelBackend
+from .cuda_implementation import grouped_gemm_experts_cute
 from .triton_implementation import bincount, scattered_experts
 
 
@@ -31,6 +32,11 @@ class Experts_Cute(nn.Module):
         self.out_features = out_features
 
         self.reset_parameters()
+
+    def cuda_forward(
+        self, input: torch.Tensor | tuple[torch.Tensor], expert_frequency: torch.Tensor
+    ) -> torch.Tensor | list[torch.Tensor]:
+        return grouped_gemm_experts_cute(x=input, weight=self.weight, expert_frequency=expert_frequency)
 
     def triton_forward(
         self,
