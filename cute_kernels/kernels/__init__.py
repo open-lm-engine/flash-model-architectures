@@ -15,7 +15,7 @@ from .gru import gru_cute, gru_torch
 from .linear import linear_cute
 from .matrix_transpose import matrix_transpose_cute
 from .moe import MoE_Cute, MoE_Torch
-from .rmsnorm import rmsnorm_cute, rmsnorm_torch
+from .rmsnorm import rmsnorm_cute
 from .rnn import rnn_cute, rnn_torch
 from .sequence_packing import pack_sequence_cute, pack_sequence_torch, unpack_sequence_cute, unpack_sequence_torch
 from .softmax import softmax_cute, softmax_torch

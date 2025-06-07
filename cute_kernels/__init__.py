@@ -31,7 +31,6 @@ from .kernels import (
     pack_sequence_cute,
     pack_sequence_torch,
     rmsnorm_cute,
-    rmsnorm_torch,
     rnn_cute,
     rnn_torch,
     softmax_cute,
