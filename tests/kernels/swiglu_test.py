@@ -7,15 +7,7 @@ from typing import Callable
 import torch
 from parameterized import parameterized
 
-from cute_kernels import (
-    CutoTuneParameter,
-    KernelBackend,
-    ceil_divide,
-    swiglu_cute,
-    swiglu_packed_cute,
-    swiglu_packed_torch,
-    swiglu_torch,
-)
+from cute_kernels import CutoTuneParameter, KernelBackend, ceil_divide, swiglu_cute, swiglu_packed_cute
 
 from ..test_commons import TestCommons
 
@@ -39,7 +31,12 @@ class SwiGLUTest(TestCommons):
         z_kernel = function(
             x_kernel, y_kernel, kernel_backend_forward=kernel_backend, kernel_backend_backward=kernel_backend
         )
-        z_expected = swiglu_torch(x_expected, y_expected)
+        z_expected = swiglu_cute(
+            x_expected,
+            y_expected,
+            kernel_backend_forward=KernelBackend.torch,
+            kernel_backend_backward=KernelBackend.torch,
+        )
 
         z_kernel.mean().backward()
         z_expected.mean().backward()
@@ -63,7 +60,9 @@ class SwiGLUTest(TestCommons):
         x_kernel, x_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype)
 
         z_kernel = function(x_kernel)
-        z_expected = swiglu_packed_torch(x_expected)
+        z_expected = swiglu_packed_cute(
+            x_expected, kernel_backend_forward=KernelBackend.torch, kernel_backend_backward=KernelBackend.torch
+        )
 
         z_kernel.mean().backward()
         z_expected.mean().backward()

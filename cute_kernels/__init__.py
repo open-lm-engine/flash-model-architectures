@@ -33,8 +33,6 @@ from .kernels import (
     softmax_cute,
     swiglu_cute,
     swiglu_packed_cute,
-    swiglu_packed_torch,
-    swiglu_torch,
     unpack_sequence_cute,
 )
 from .math import ceil_divide, divide_if_divisible, get_powers_of_2
