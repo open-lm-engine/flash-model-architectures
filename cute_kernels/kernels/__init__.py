@@ -19,4 +19,4 @@ from .rmsnorm import rmsnorm_cute
 from .rnn import rnn_cute
 from .sequence_packing import pack_sequence_cute, unpack_sequence_cute
 from .softmax import softmax_cute
-from .swiglu import swiglu_cute, swiglu_packed_cute, swiglu_packed_torch, swiglu_torch
+from .swiglu import swiglu_cute, swiglu_packed_cute
