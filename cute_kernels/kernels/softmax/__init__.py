@@ -14,7 +14,11 @@ from .triton_implementation import softmax_backward_triton, softmax_forward_trit
 class _Softmax_Cute(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
-    def forward(ctx, x: torch.Tensor, logits_multiplier: float | None) -> torch.Tensor:
+    def forward(
+        ctx, x: torch.Tensor, logits_multiplier: float | None, kernel_backend: KernelBackend | CutoTuneParameter
+    ) -> torch.Tensor:
+        assert kernel_backend == KernelBackend.triton or isinstance(kernel_backend, CutoTuneParameter)
+
         output = torch.empty_like(x)
 
         softmax_forward_triton(x=x, output=output, logits_multiplier=logits_multiplier)
@@ -66,6 +70,6 @@ def softmax_cute(
 
         x = x.to(dtype)
     else:
-        x = _Softmax_Cute.apply(x, logits_multiplier)
+        x = _Softmax_Cute.apply(x, logits_multiplier, kernel_backend)
 
     return x
