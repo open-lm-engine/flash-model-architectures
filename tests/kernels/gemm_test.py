@@ -7,7 +7,7 @@ from typing import Callable
 import torch
 from parameterized import parameterized
 
-from cute_kernels import ceil_divide, gemm_cute, gemm_torch, set_seed
+from cute_kernels import KernelBackend, ceil_divide, gemm_cute, set_seed
 
 from ..test_commons import TestCommons
 
@@ -96,8 +96,15 @@ class GEMMTest(TestCommons):
             beta=beta,
             kernel_backend=kernel_backend,
         )
-        output_expected = gemm_torch(
-            A=A, B=B, C=C, alpha=alpha, beta=beta, is_A_transposed=is_A_transposed, is_B_transposed=is_B_transposed
+        output_expected = gemm_cute(
+            A=A,
+            B=B,
+            C=C,
+            alpha=alpha,
+            beta=beta,
+            is_A_transposed=is_A_transposed,
+            is_B_transposed=is_B_transposed,
+            kernel_backend=KernelBackend.torch,
         )
 
         self.assert_equal_tensors(

@@ -2,16 +2,18 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
+from functools import partial
+
 import torch
 from tabulate import tabulate
 
-from cute_kernels import device_synchronize, rnn_cute, rnn_torch
+from cute_kernels import KernelBackend, device_synchronize, rnn_cute
 
 
 n = 100
 
 headers = ["dtype", "torch", "kernel"]
-kernels = [rnn_torch, rnn_cute]
+kernels = [partial(rnn_cute, kernel_backend=KernelBackend.torch), rnn_cute]
 
 table = []
 

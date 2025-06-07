@@ -3,11 +3,13 @@
 # **************************************************
 
 import torch
+import torch.nn.functional as F
 
-from ...math import ceil_divide, get_next_power_of_2
-from ...utils import ensure_contiguous
-from ..cross_entropy import cross_entropy_forward_backward_triton
-from .torch_implementation import fused_linear_cross_entropy_torch
+from ..cutotune import CutoTuneParameter
+from ..kernel_backend import KernelBackend
+from ..math import ceil_divide, get_next_power_of_2
+from ..utils import ensure_contiguous
+from .cross_entropy import cross_entropy_cute, cross_entropy_forward_backward_triton
 
 
 class _FusedLinearCrossEntropy_Cute(torch.autograd.Function):
@@ -20,12 +22,14 @@ class _FusedLinearCrossEntropy_Cute(torch.autograd.Function):
         labels: torch.Tensor,
         reduction: str,
         logits_multiplier: float | None,
+        kernel_backend: KernelBackend | CutoTuneParameter,
     ) -> torch.Tensor:
         assert reduction in ["sum", "mean"]
         assert x.dim() == 2, "x should be 2 dimensional"
         assert labels.dim() == 1, "labels should be 1 dimensional"
         assert x.size(0) == labels.size(0), "x and labels have different number of elements along dim 0"
         assert x.size(-1) == weight.size(-1)
+        assert kernel_backend == KernelBackend.triton or isinstance(kernel_backend, CutoTuneParameter)
 
         batch_size, hidden_size = x.size()
         V = weight.size(0)
@@ -79,7 +83,7 @@ class _FusedLinearCrossEntropy_Cute(torch.autograd.Function):
         x_grad *= output_grad
         weight_grad *= output_grad
 
-        return x_grad, weight_grad, *[None] * 5
+        return x_grad, weight_grad, *[None] * 4
 
 
 def fused_linear_cross_entropy_cute(
@@ -88,6 +92,7 @@ def fused_linear_cross_entropy_cute(
     labels: torch.Tensor,
     reduction: str = "mean",
     logits_multiplier: float | None = None,
+    kernel_backend: KernelBackend | CutoTuneParameter = KernelBackend.triton,
 ) -> torch.Tensor:
     """compute cross entropy loss without materializing the full output logits matrix
 
@@ -103,4 +108,16 @@ def fused_linear_cross_entropy_cute(
         torch.Tensor: loss
     """
 
-    return _FusedLinearCrossEntropy_Cute.apply(x, weight, labels, reduction, logits_multiplier)
+    if kernel_backend == KernelBackend.torch:
+        x = F.linear(x, weight)
+        x = cross_entropy_cute(
+            x=x,
+            labels=labels,
+            reduction=reduction,
+            logits_multiplier=logits_multiplier,
+            kernel_backend=kernel_backend,
+        )
+    else:
+        x = _FusedLinearCrossEntropy_Cute.apply(x, weight, labels, reduction, logits_multiplier, kernel_backend)
+
+    return x

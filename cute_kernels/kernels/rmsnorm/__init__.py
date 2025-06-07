@@ -3,9 +3,11 @@
 # **************************************************
 
 import torch
+import torch.nn.functional as F
 
+from ...cutotune import CutoTuneParameter
+from ...kernel_backend import KernelBackend
 from ...utils import ensure_contiguous, get_num_elements_and_hidden_size
-from .torch_implementation import rmsnorm_torch
 from .triton_implementation import rmsnorm_backward_triton, rmsnorm_forward_triton
 
 
@@ -13,8 +15,15 @@ class _RMSNorm_Cute(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
     def forward(
-        ctx, x: torch.Tensor, weight: torch.Tensor | None, eps: float | None, memory_efficient: bool
+        ctx,
+        x: torch.Tensor,
+        weight: torch.Tensor | None,
+        eps: float | None,
+        memory_efficient: bool,
+        kernel_backend: KernelBackend | CutoTuneParameter,
     ) -> torch.Tensor:
+        assert kernel_backend == KernelBackend.triton or isinstance(kernel_backend, CutoTuneParameter)
+
         if weight is not None:
             assert weight.dim() == 1, "weight should be 1D"
             assert weight.size(-1) == x.size(-1), "hidden size for x and weight tensor is different"
@@ -55,11 +64,16 @@ class _RMSNorm_Cute(torch.autograd.Function):
         if weight_grad is not None:
             weight_grad = weight_grad.type_as(weight)
 
-        return x_grad, weight_grad, None, None
+        return x_grad, weight_grad, *[None] * 3
 
 
 def rmsnorm_cute(
-    x: torch.Tensor, weight: torch.Tensor | None, eps: float | None, memory_efficient: bool = False
+    x: torch.Tensor,
+    weight: torch.Tensor | None,
+    eps: float | None,
+    memory_efficient: bool = False,
+    *,
+    kernel_backend: KernelBackend | CutoTuneParameter = KernelBackend.triton,
 ) -> torch.Tensor:
     """RMSNorm computation
 
@@ -69,9 +83,16 @@ def rmsnorm_cute(
         eps (float | None): epsilon
         memory_efficient (bool, optional): memory efficient = False caches RMSNorm's denominator in the forward.
             Defaults to False.
+        kernel_backend (KernelBackend | CutoTuneParameter, optional): kernel backend to prioritize.
+            Defaults to KernelBackend.triton.
 
     Returns:
         torch.Tensor: output tensor
     """
 
-    return _RMSNorm_Cute.apply(x, weight, eps, memory_efficient)
+    if kernel_backend == KernelBackend.torch:
+        x = F.rms_norm(x, (x.size(-1),), weight=weight, eps=eps)
+    else:
+        x = _RMSNorm_Cute.apply(x, weight, eps, memory_efficient, kernel_backend)
+
+    return x

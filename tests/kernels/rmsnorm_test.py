@@ -7,7 +7,7 @@ from typing import Callable
 import torch
 from parameterized import parameterized
 
-from cute_kernels import rmsnorm_cute, rmsnorm_torch, set_seed
+from cute_kernels import KernelBackend, rmsnorm_cute, set_seed
 
 from ..test_commons import TestCommons
 
@@ -58,7 +58,9 @@ class RMSNormTest(TestCommons):
             weight_expected = None
 
         z_kernel = function(x=x_kernel, weight=weight_kernel, eps=_EPSILON, memory_efficient=memory_efficient)
-        z_expected = rmsnorm_torch(x=x_expected, weight=weight_expected, eps=_EPSILON)
+        z_expected = rmsnorm_cute(
+            x=x_expected, weight=weight_expected, eps=_EPSILON, kernel_backend=KernelBackend.torch
+        )
 
         z_kernel.sum().backward()
         z_expected.sum().backward()

@@ -7,7 +7,7 @@ from typing import Callable
 import torch
 from parameterized import parameterized
 
-from cute_kernels import GRU, divide_if_divisible, gru_cute, gru_torch, set_seed
+from cute_kernels import GRU, KernelBackend, divide_if_divisible, gru_cute, set_seed
 
 from ..test_commons import TestCommons
 
@@ -77,7 +77,7 @@ class GRUTest(TestCommons):
             input_state=input_state_kernel,
         )
 
-        y_expected = gru_torch(
+        y_expected = gru_cute(
             input=input_expected,
             weight=weight_expected,
             forget_input=forget_input_expected,
@@ -85,6 +85,7 @@ class GRUTest(TestCommons):
             reset_input=reset_input_expected,
             reset_weight=reset_weight_expected,
             input_state=input_state_expected,
+            kernel_backend=KernelBackend.torch,
         )
 
         y_kernel.sum().backward()
@@ -225,7 +226,7 @@ class GRUTest(TestCommons):
             device=device,
         )
 
-        y_kernel = gru_torch(
+        y_kernel = gru_cute(
             input=input_packed_kernel,
             weight=weight_kernel,
             forget_input=forget_input_packed_kernel,
@@ -235,11 +236,12 @@ class GRUTest(TestCommons):
             input_state=input_state_kernel,
             cu_seqlens=cu_seqlens,
             max_seqlen=max_seqlen,
+            kernel_backend=KernelBackend.torch,
         )
 
         y_expected = []
         for i in range(batch_size):
-            y = gru_torch(
+            y = gru_cute(
                 input=input_packed_expected[cu_seqlens[i] : cu_seqlens[i + 1]].unsqueeze(0),
                 weight=weight_expected,
                 forget_input=forget_input_packed_expected[cu_seqlens[i] : cu_seqlens[i + 1]].unsqueeze(0),
@@ -247,6 +249,7 @@ class GRUTest(TestCommons):
                 reset_input=reset_input_packed_expected[cu_seqlens[i] : cu_seqlens[i + 1]].unsqueeze(0),
                 reset_weight=reset_weight_expected,
                 input_state=input_state_expected[i].unsqueeze(0) if has_input_state else None,
+                kernel_backend=KernelBackend.torch,
             ).squeeze(0)
             y_expected.append(y)
         y_expected = torch.cat(y_expected)
@@ -359,7 +362,7 @@ class GRUTest(TestCommons):
             max_seqlen=max_seqlen,
         )
 
-        y_expected = gru_torch(
+        y_expected = gru_cute(
             input=input_expected,
             weight=weight_expected,
             forget_input=forget_input_expected,
@@ -369,6 +372,7 @@ class GRUTest(TestCommons):
             input_state=input_state_expected,
             cu_seqlens=cu_seqlens,
             max_seqlen=max_seqlen,
+            kernel_backend=KernelBackend.torch,
         )
 
         y_kernel.sum().backward()

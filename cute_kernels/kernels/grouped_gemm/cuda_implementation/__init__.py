@@ -12,7 +12,7 @@ from ....utils import cute_op
 _KERNEL_NAME = "grouped_gemm_cuda"
 
 
-@cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={})
+@cute_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"output"})
 @cpp_jit()
 def grouped_gemm_cuda(
     A: torch.Tensor,

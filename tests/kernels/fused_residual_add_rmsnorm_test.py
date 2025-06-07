@@ -7,7 +7,7 @@ from typing import Callable
 import torch
 from parameterized import parameterized
 
-from cute_kernels import fused_residual_add_rmsnorm_cute, fused_residual_add_rmsnorm_torch, set_seed
+from cute_kernels import KernelBackend, fused_residual_add_rmsnorm_cute, set_seed
 
 from ..test_commons import TestCommons
 from .rmsnorm_test import _get_sizes
@@ -66,8 +66,13 @@ class FusedResdidualAddRMSNormTest(TestCommons):
         )
         z_kernel = z_kernel * 2 + r_kernel * 3
 
-        z_expected, r_expected = fused_residual_add_rmsnorm_torch(
-            x=x_expected, residual=residual_expected, weight=weight_expected, eps=_EPSILON, multiplier=multiplier
+        z_expected, r_expected = fused_residual_add_rmsnorm_cute(
+            x=x_expected,
+            residual=residual_expected,
+            weight=weight_expected,
+            eps=_EPSILON,
+            multiplier=multiplier,
+            kernel_backend=KernelBackend.torch,
         )
         z_expected = z_expected * 2 + r_expected * 3
 
