@@ -31,7 +31,6 @@ from .kernels import (
     rmsnorm_cute,
     rnn_cute,
     softmax_cute,
-    softmax_torch,
     swiglu_cute,
     swiglu_packed_cute,
     swiglu_packed_torch,
