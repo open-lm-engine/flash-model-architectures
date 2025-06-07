@@ -6,8 +6,8 @@ import torch
 
 from ...cutotune import CutoTuneParameter
 from ...kernel_backend import KernelBackend
+from ...torch_math import sigmoid, tanh
 from ...utils import ensure_contiguous
-from .torch_implementation import gru_torch
 from .triton_implementation import (
     gru_backward_triton,
     gru_forward_triton,
@@ -195,20 +195,80 @@ def gru_cute(
     """
 
     if kernel_backend == KernelBackend.torch:
-        input = gru_torch(
-            input=input,
-            weight=weight,
-            forget_input=forget_input,
-            forget_weight=forget_weight,
-            reset_input=reset_input,
-            reset_weight=reset_weight,
-            input_state=input_state,
-            gradient_clipping=gradient_clipping,
-            cu_seqlens=cu_seqlens,
-            max_seqlen=max_seqlen,
-        )
+        if gradient_clipping is not None and gradient_clipping < 0:
+            gradient_clipping = -gradient_clipping
+
+        output = torch.empty_like(input)
+
+        weight = weight.unsqueeze(0)
+        forget_weight = forget_weight.unsqueeze(0)
+        reset_weight = reset_weight.unsqueeze(0)
+
+        input = input.unsqueeze(-2)
+        forget_input = forget_input.unsqueeze(-2)
+        reset_input = reset_input.unsqueeze(-2)
+
+        if cu_seqlens is None:
+            assert max_seqlen is None
+            B, S, N, _, H = input.size()
+
+            if input_state is None:
+                input_state = torch.zeros(B, N, H, device=input.device, dtype=input.dtype)
+
+            input_state = input_state.unsqueeze(-2)
+
+            # input -> (B, S, N, 1, H)
+            # weight -> (1, N, H, H)
+            # input_state -> (B, N, 1, H)
+
+            for s in range(S):
+                # (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
+                forget_gate = sigmoid(input_state @ forget_weight + forget_input[:, s])
+                reset_gate = sigmoid(input_state @ reset_weight + reset_input[:, s])
+
+                possible_new_state = tanh((input_state * reset_gate) @ weight + input[:, s])
+                input_state = forget_gate * input_state + (1 - forget_gate) * possible_new_state
+
+                output[:, s] = input_state.squeeze(-2)
+        else:
+            assert max_seqlen is not None
+            B = cu_seqlens.numel() - 1
+            _, N, _, H = input.size()
+
+            if input_state is None:
+                input_state = torch.zeros(B, N, H, device=input.device, dtype=input.dtype)
+            else:
+                input_state = input_state.clone()
+
+            # input -> (cu_seqlens[-1], N, 1, H)
+            # weight -> (1, N, H, H)
+            # input_state -> (B, N, H)
+
+            start = cu_seqlens[:-1]
+            end = cu_seqlens[1:]
+
+            for s in range(max_seqlen):
+                offset = start + s
+                unfinished = offset < end
+                new_state = input_state.unsqueeze(-2)
+
+                new_state = new_state[unfinished]
+                offset_unfinished = offset[unfinished]
+
+                # don't update the finished sequences
+                # (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
+                forget_gate = sigmoid(new_state @ forget_weight + forget_input[offset_unfinished])
+                reset_gate = sigmoid(new_state @ reset_weight + reset_input[offset_unfinished])
+
+                possible_new_state = tanh((new_state * reset_gate) @ weight + input[offset_unfinished])
+                new_state = forget_gate * new_state + (1 - forget_gate) * possible_new_state
+
+                new_state = new_state.squeeze(-2)
+
+                output[offset_unfinished] = new_state
+                input_state[unfinished] = new_state
     else:
-        input = _GRU_Cute.apply(
+        output = _GRU_Cute.apply(
             input,
             weight,
             forget_input,
@@ -222,4 +282,4 @@ def gru_cute(
             kernel_backend,
         )
 
-    return input
+    return output
