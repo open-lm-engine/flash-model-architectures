@@ -38,7 +38,7 @@ class _Softmax_Cute(torch.autograd.Function):
             output=output, output_grad=output_grad, x_grad=x_grad, logits_multiplier=ctx.logits_multiplier
         )
 
-        return x_grad, None
+        return x_grad, None, None
 
 
 def softmax_cute(
