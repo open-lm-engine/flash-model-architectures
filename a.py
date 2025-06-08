@@ -93,8 +93,7 @@ for is_A_transposed in [False, True]:
 
             D.append(A @ B)
 
-        D = torch.cat(D)
-        output = output.view_as(D)
+        D = torch.cat([i.view(-1) for i in D])
 
         print((output - D).abs().max())
         print()
