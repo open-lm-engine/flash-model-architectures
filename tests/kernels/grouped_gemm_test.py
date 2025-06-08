@@ -22,7 +22,7 @@ class GroupedGEMMTest(TestCommons):
             [False, True],  # is_B_transposed
             [torch.device("cuda")],  # device
             [torch.bfloat16],  # dtype
-            [grouped_gemm_cute],  # function
+            [grouped_gemm_cute, torch.compile(grouped_gemm_cute, fullgraph=True)],  # function
         )
     )
     def test_grouped_gemm(
