@@ -23,8 +23,6 @@ def grouped_gemm_cute(
     is_B_transposed: bool = False,
     benchmark: bool = False,
 ) -> torch.Tensor:
-    assert A.dim() == 2
-    assert B.dim() == 2
     assert beta == 0
     assert C is None
 
