@@ -78,8 +78,6 @@ class GroupedGEMMTest(TestCommons):
             is_B_transposed=is_B_transposed,
         )
 
-        M_offsets = M_array.cumsum(dim=-1)
-
         D = []
         for A, B in zip(As, Bs):
             if is_A_transposed:
