@@ -12,22 +12,31 @@ K = 4096
 M = 4096
 N = 512
 
+
+def get_tensors(is_A_transposed, is_B_transposed):
+    As = []
+    Bs = []
+
+    for i in range(E):
+        A = torch.randint(
+            -8, 9, (K, M) if is_A_transposed else (M, K), device=torch.cuda.current_device(), dtype=torch.bfloat16
+        )
+        As.append(A)
+
+        B = torch.randint(
+            -8, 9, (N, K) if is_B_transposed else (K, N), device=torch.cuda.current_device(), dtype=torch.bfloat16
+        )
+        Bs.append(B)
+
+    return As, Bs
+
+
 for is_A_transposed in [False, True]:
     for is_B_transposed in [False, True]:
-        A = torch.randint(
-            -8,
-            9,
-            (E, K, M) if is_A_transposed else (E, M, K),
-            device=torch.cuda.current_device(),
-            dtype=torch.bfloat16,
-        )
-        B = torch.randint(
-            -8,
-            9,
-            (E, N, K) if is_B_transposed else (E, K, N),
-            device=torch.cuda.current_device(),
-            dtype=torch.bfloat16,
-        )
+        As, Bs = get_tensors(is_A_transposed, is_B_transposed)
+
+        A = torch.cat(As)
+        B = torch.cat(Bs)
 
         M_array = torch.tensor([M] * E, device=torch.cuda.current_device(), dtype=torch.uint32)
         N_array = torch.full_like(M_array, fill_value=N)
@@ -79,17 +88,15 @@ for is_A_transposed in [False, True]:
         print(2 * M * N * K * E / t / 1e12)
 
         D = []
-        for i in range(E):
-            a = A[i]
+        for A, B in zip(As, Bs):
             if is_A_transposed:
-                a = a.T
-            b = B[i]
+                A = A.T
             if is_B_transposed:
-                b = b.T
+                B = B.T
 
-            D.append(a @ b)
+            D.append(A @ B)
 
-        D = torch.stack(D)
+        D = torch.cat(D)
         output = output.view_as(D)
 
         print((output - D).abs().max())
