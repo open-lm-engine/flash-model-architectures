@@ -13,11 +13,11 @@ M = 4096
 N = 512
 
 
-def get_tensors(is_A_transposed, is_B_transposed):
+def get_tensors(is_A_transposed, is_B_transposed, M_array, N_array, K_array):
     As = []
     Bs = []
 
-    for i in range(E):
+    for M, N, K in zip(M_array, N_array, K_array):
         A = torch.randint(
             -8, 9, (K, M) if is_A_transposed else (M, K), device=torch.cuda.current_device(), dtype=torch.bfloat16
         )
@@ -31,16 +31,17 @@ def get_tensors(is_A_transposed, is_B_transposed):
     return As, Bs
 
 
+M_array = torch.tensor([M] * E, device=torch.cuda.current_device(), dtype=torch.uint32)
+N_array = torch.full_like(M_array, fill_value=N)
+K_array = torch.full_like(M_array, fill_value=K)
+
+
 for is_A_transposed in [False, True]:
     for is_B_transposed in [False, True]:
-        As, Bs = get_tensors(is_A_transposed, is_B_transposed)
+        As, Bs = get_tensors(is_A_transposed, is_B_transposed, M_array, N_array, K_array)
 
         A = torch.cat(As)
         B = torch.cat(Bs)
-
-        M_array = torch.tensor([M] * E, device=torch.cuda.current_device(), dtype=torch.uint32)
-        N_array = torch.full_like(M_array, fill_value=N)
-        K_array = torch.full_like(M_array, fill_value=K)
 
         torch_profiler = torch.profiler.profile(
             activities=[torch.profiler.ProfilerActivity.CPU, torch.profiler.ProfilerActivity.CUDA],
