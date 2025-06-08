@@ -16,6 +16,7 @@ def grouped_gemm_cute(
     M_array: torch.Tensor,
     N_array: torch.Tensor,
     K_array: torch.Tensor,
+    output_shape: tuple[int, int],
     alpha: float = 1,
     beta: float = 0,
     is_A_transposed: bool = False,
@@ -25,11 +26,7 @@ def grouped_gemm_cute(
     assert beta == 0
     assert C is None
 
-    E = A.size(0)
-    M = A.size(2 if is_A_transposed else 1)
-    N = B.size(1 if is_B_transposed else 2)
-
-    output = torch.empty(E, M, N, device=A.device, dtype=torch.bfloat16)
+    output = torch.empty(*output_shape, device=A.device, dtype=torch.bfloat16)
 
     grouped_gemm_cuda(
         A=A,
