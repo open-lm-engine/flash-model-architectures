@@ -4,7 +4,7 @@
 
 import torch
 
-from ...grouped_gemm import grouped_gemm_cute
+from ..grouped_gemm import grouped_gemm_cute
 
 
 class _GroupedGemmExperts_Cute(torch.autograd.Function):
