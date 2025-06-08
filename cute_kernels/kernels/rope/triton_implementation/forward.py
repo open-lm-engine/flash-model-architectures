@@ -36,7 +36,7 @@ def rope_forward_triton_kernel(
     pid_h = tl.program_id(axis=1)
 
     offsets_h = pid_h * BLOCK_SIZE_H + tl.arange(0, BLOCK_SIZE_H)
-    ROPE_OFFSET = HEAD_DIM - ROPE_DIM
+    ROPE_OFFSET = tl.constexpr(HEAD_DIM - ROPE_DIM)
     offsets_rope = offsets_h - ROPE_OFFSET
     use_rope = offsets_rope >= 0
 
@@ -48,7 +48,7 @@ def rope_forward_triton_kernel(
 
     x = tl.load(x_ptr + offsets_bh, mask=mask_h)
 
-    HALF_ROPE_DIM = ROPE_DIM // 2
+    HALF_ROPE_DIM = tl.constexpr(ROPE_DIM // 2)
     is_first_half = offsets_rope < HALF_ROPE_DIM
 
     rope_partner = tl.load(x_ptr + offsets_bh + tl.where(is_first_half, HALF_ROPE_DIM, -HALF_ROPE_DIM), mask=use_rope, other=0.0)
