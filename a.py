@@ -48,7 +48,7 @@ for is_A_transposed in [False, True]:
                 M_array=M_array,
                 N_array=N_array,
                 K_array=K_array,
-                output_shape=(E, M, N),
+                output_shape=(E * M * N,),
                 is_A_transposed=is_A_transposed,
                 is_B_transposed=is_B_transposed,
             )
@@ -66,7 +66,7 @@ for is_A_transposed in [False, True]:
                 M_array=M_array,
                 N_array=N_array,
                 K_array=K_array,
-                output_shape=(E, M, N),
+                output_shape=(E * M * N,),
                 is_A_transposed=is_A_transposed,
                 is_B_transposed=is_B_transposed,
             )
@@ -90,6 +90,7 @@ for is_A_transposed in [False, True]:
             D.append(a @ b)
 
         D = torch.stack(D)
+        output.view_as(D)
 
         print((output - D).abs().max())
         print()
