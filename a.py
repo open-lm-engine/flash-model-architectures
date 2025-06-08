@@ -48,13 +48,6 @@ for is_A_transposed in [False, True]:
         A = torch.cat([i.view(-1) for i in As])
         B = torch.cat([i.view(-1) for i in Bs])
 
-        torch_profiler = torch.profiler.profile(
-            activities=[torch.profiler.ProfilerActivity.CPU, torch.profiler.ProfilerActivity.CUDA],
-            schedule=torch.profiler.schedule(wait=5, warmup=5, active=1, repeat=1),
-            on_trace_ready=torch.profiler.tensorboard_trace_handler("tmp"),
-            record_shapes=True,
-        )
-
         for i in range(10):
             output = grouped_gemm_cute(
                 A=A,
@@ -67,7 +60,6 @@ for is_A_transposed in [False, True]:
                 is_A_transposed=is_A_transposed,
                 is_B_transposed=is_B_transposed,
             )
-            # torch_profiler.step()
 
         s = torch.cuda.Event(enable_timing=True)
         e = torch.cuda.Event(enable_timing=True)
@@ -85,7 +77,6 @@ for is_A_transposed in [False, True]:
                 is_A_transposed=is_A_transposed,
                 is_B_transposed=is_B_transposed,
             )
-            # torch_profiler.step()
         e.record()
 
         torch.cuda.synchronize()
