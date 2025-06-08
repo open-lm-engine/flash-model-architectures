@@ -12,74 +12,88 @@ K = 4096
 M = 4096
 N = 512
 
-is_A_transposed = False
-is_B_transposed = False
 
-A = torch.randint(
-    -8, 9, (E, K, M) if is_A_transposed else (E, M, K), device=torch.cuda.current_device(), dtype=torch.bfloat16
-)
-B = torch.randint(
-    -8, 9, (E, N, K) if is_B_transposed else (E, K, N), device=torch.cuda.current_device(), dtype=torch.bfloat16
-)
+def get_tensors(is_A_transposed, is_B_transposed, M_array, N_array, K_array):
+    As = []
+    Bs = []
 
-M_array = torch.tensor([M] * E, device=torch.cuda.current_device(), dtype=torch.uint32)
+    for M, N, K in zip(M_array, N_array, K_array):
+        A = torch.randint(
+            -8, 9, (K, M) if is_A_transposed else (M, K), device=torch.cuda.current_device(), dtype=torch.bfloat16
+        )
+        As.append(A)
+
+        B = torch.randint(
+            -8, 9, (N, K) if is_B_transposed else (K, N), device=torch.cuda.current_device(), dtype=torch.bfloat16
+        )
+        Bs.append(B)
+
+    return As, Bs
+
+
+M_array = torch.tensor(
+    [512, 3176, 2048, 512, 3176, 2048, 512, 3176, 2048, 512, 3176, 2048, 512, 3176, 2048, 36856],
+    device=torch.cuda.current_device(),
+    dtype=torch.uint32,
+)
 N_array = torch.full_like(M_array, fill_value=N)
 K_array = torch.full_like(M_array, fill_value=K)
 
-torch_profiler = torch.profiler.profile(
-    activities=[torch.profiler.ProfilerActivity.CPU, torch.profiler.ProfilerActivity.CUDA],
-    schedule=torch.profiler.schedule(wait=5, warmup=5, active=1, repeat=1),
-    on_trace_ready=torch.profiler.tensorboard_trace_handler("tmp"),
-    record_shapes=True,
-)
 
-for i in range(10):
-    output = grouped_gemm_cute(
-        A=A,
-        B=B,
-        C=None,
-        M_array=M_array,
-        N_array=N_array,
-        K_array=K_array,
-        is_A_transposed=is_A_transposed,
-        is_B_transposed=is_B_transposed,
-    )
-    # torch_profiler.step()
+for is_A_transposed in [False, True]:
+    for is_B_transposed in [False, True]:
+        print(is_A_transposed, is_B_transposed)
+        As, Bs = get_tensors(is_A_transposed, is_B_transposed, M_array, N_array, K_array)
 
-s = torch.cuda.Event(enable_timing=True)
-e = torch.cuda.Event(enable_timing=True)
+        A = torch.cat([i.view(-1) for i in As])
+        B = torch.cat([i.view(-1) for i in Bs])
 
-s.record()
-for i in range(10):
-    output = grouped_gemm_cute(
-        A=A,
-        B=B,
-        C=None,
-        M_array=M_array,
-        N_array=N_array,
-        K_array=K_array,
-        is_A_transposed=is_A_transposed,
-        is_B_transposed=is_B_transposed,
-    )
-    # torch_profiler.step()
-e.record()
+        for i in range(10):
+            output = grouped_gemm_cute(
+                A=A,
+                B=B,
+                C=None,
+                M_array=M_array,
+                N_array=N_array,
+                K_array=K_array,
+                output_shape=(E * M * N,),
+                is_A_transposed=is_A_transposed,
+                is_B_transposed=is_B_transposed,
+            )
 
-torch.cuda.synchronize()
+        s = torch.cuda.Event(enable_timing=True)
+        e = torch.cuda.Event(enable_timing=True)
 
-t = s.elapsed_time(e) / 10 / 1e3
-print(2 * M * N * K * E / t / 1e12)
+        s.record()
+        for i in range(10):
+            output = grouped_gemm_cute(
+                A=A,
+                B=B,
+                C=None,
+                M_array=M_array,
+                N_array=N_array,
+                K_array=K_array,
+                output_shape=(E * M * N,),
+                is_A_transposed=is_A_transposed,
+                is_B_transposed=is_B_transposed,
+            )
+        e.record()
 
-D = []
-for i in range(E):
-    a = A[i]
-    if is_A_transposed:
-        a = a.T
-    b = B[i]
-    if is_B_transposed:
-        b = b.T
+        torch.cuda.synchronize()
 
-    D.append(a @ b)
+        t = s.elapsed_time(e) / 10 / 1e3
+        print(2 * M * N * K * E / t / 1e12)
 
-D = torch.stack(D)
+        D = []
+        for A, B in zip(As, Bs):
+            if is_A_transposed:
+                A = A.T
+            if is_B_transposed:
+                B = B.T
 
-print((output - D).abs().max())
+            D.append(A @ B)
+
+        D = torch.cat([i.view(-1) for i in D])
+
+        print((output - D).abs().max())
+        print()
