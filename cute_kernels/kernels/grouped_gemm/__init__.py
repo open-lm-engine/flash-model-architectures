@@ -31,28 +31,6 @@ def grouped_gemm_cute(
     if C is not None:
         assert C.dim() == 2
 
-    # if is_A_transposed:
-    #     if is_B_transposed:
-    #         # A -> [Ki x Mi]
-    #         # B -> [Ni x Ki]
-    #         # output -> [Mi x Ni]
-    #     else:
-    #         # A -> [Ki x Mi]
-    #         # B -> [Ki x Ni]
-    #         # output -> [Mi x Ni]
-    #         pass
-    # else:
-    #     if is_B_transposed:
-    #         # A -> [Mi x Ki]
-    #         # B -> [Ni x Ki]
-    #         # output -> [Mi x Ni]
-    #         pass
-    #     else:
-    #         # A -> [Mi x Ki]
-    #         # B -> [Ki x Ni]
-    #         # output -> [Mi x Ni]
-    #         pass
-
     output = torch.empty(*output_shape, device=A.device, dtype=A.dtype)
 
     grouped_gemm_cuda(
