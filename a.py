@@ -32,7 +32,7 @@ def get_tensors(is_A_transposed, is_B_transposed, M_array, N_array, K_array):
 
 
 M_array = torch.tensor(
-    [512, 3172, 2048, 512, 3172, 2048, 512, 3172, 2048, 512, 3172, 2048, 512, 3172, 2048, 36876],
+    [512, 3176, 2048, 512, 3176, 2048, 512, 3176, 2048, 512, 3176, 2048, 512, 3176, 2048, 36856],
     device=torch.cuda.current_device(),
     dtype=torch.uint32,
 )
