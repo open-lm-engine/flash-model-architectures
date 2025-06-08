@@ -41,15 +41,42 @@ class GroupedGEMMTest(TestCommons):
         N = 512
 
         M_array = torch.tensor(
-            [2048, 4096, 512, 2048, 4096, 512, 2048, 4096, 512, 2048, 4096, 512, 2048, 4096, 512, 32256],
-            device=device,
+            [512, 3176, 2048, 512, 3176, 2048, 512, 3176, 2048, 512, 3176, 2048, 512, 3176, 2048, 36856],
+            device=torch.cuda.current_device(),
             dtype=torch.uint32,
         )
         N_array = torch.full_like(M_array, fill_value=N)
         K_array = torch.full_like(M_array, fill_value=K)
 
-        A = torch.randint(-8, 9, (E * K, M) if is_A_transposed else (E * M, K), device=device, dtype=dtype)
-        B = torch.randint(-8, 9, (E * N, K) if is_B_transposed else (E * K, N), device=device, dtype=dtype)
+        def get_tensors():
+            As = []
+            Bs = []
+
+            for M, N, K in zip(M_array, N_array, K_array):
+                A = torch.randint(
+                    -8,
+                    9,
+                    (K, M) if is_A_transposed else (M, K),
+                    device=torch.cuda.current_device(),
+                    dtype=torch.bfloat16,
+                )
+                As.append(A)
+
+                B = torch.randint(
+                    -8,
+                    9,
+                    (N, K) if is_B_transposed else (K, N),
+                    device=torch.cuda.current_device(),
+                    dtype=torch.bfloat16,
+                )
+                Bs.append(B)
+
+            return As, Bs
+
+        As, Bs = get_tensors()
+
+        A = torch.cat([i.view(-1) for i in As])
+        B = torch.cat([i.view(-1) for i in Bs])
 
         output = function(
             A=A,
@@ -58,7 +85,7 @@ class GroupedGEMMTest(TestCommons):
             M_array=M_array,
             N_array=N_array,
             K_array=K_array,
-            output_shape=(E * M, N),
+            output_shape=(E * M * N,),
             is_A_transposed=is_A_transposed,
             is_B_transposed=is_B_transposed,
         )
@@ -66,27 +93,14 @@ class GroupedGEMMTest(TestCommons):
         M_offsets = M_array.cumsum(dim=-1)
 
         D = []
-        for i in range(E):
-            if i == 0:
-                start = 0
-            else:
-                start = M_offsets[i - 1]
-            end = M_offsets[i]
-
+        for A, B in zip(As, Bs):
             if is_A_transposed:
-                a = A.view(E, K, M)[i]
-                a = a.T
-            else:
-                a = A[start:end]
-
+                A = A.T
             if is_B_transposed:
-                b = B.view(E, N, K)[i]
-                b = b.T
-            else:
-                b = B.view(E, K, N)[i]
+                B = B.T
 
-            D.append(a @ b)
+            D.append(A @ B)
 
-        D = torch.cat(D)
+        D = torch.cat([i.view(-1) for i in D])
 
         assert (output - D).abs().max() == 0
