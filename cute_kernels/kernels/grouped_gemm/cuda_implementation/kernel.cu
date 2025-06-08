@@ -37,6 +37,15 @@ using RowMajor = cutlass::layout::RowMajor;
 
 #define MAX_NUM_GROUPS 1024
 
+#define CUTLASS_CHECK(status)                                                                                        \
+    {                                                                                                                \
+        cutlass::Status error = status;                                                                              \
+        if (error != cutlass::Status::kSuccess) {                                                                    \
+            std::cerr << "Got cutlass error: " << cutlassGetStatusString(error) << " at: " << __LINE__ << std::endl; \
+            exit(EXIT_FAILURE);                                                                                      \
+        }                                                                                                            \
+    }
+
 // TODO modify this kernel to use vector load/stores
 template <typename StrideA,
           typename StrideB,
@@ -315,13 +324,13 @@ inline void _grouped_gemm_cuda(const torch::Tensor &_A,
         torch::empty({int64(workspace_size)}, torch::TensorOptions().dtype(at::kByte).device(_A.device()));
 
     // Check if the problem size is supported or not
-    gemm.can_implement(arguments);
+    CUTLASS_CHECK(gemm.can_implement(arguments));
 
     // Initialize CUTLASS kernel with arguments and workspace pointer
-    gemm.initialize(arguments, workspace.data_ptr());
+    CUTLASS_CHECK(gemm.initialize(arguments, workspace.data_ptr()));
 
     // Correctness / Warmup iteration
-    gemm.run(/* stream = */ nullptr, /* cuda_adapter = */ nullptr, /* launch_with_pdl = */ false);
+    CUTLASS_CHECK(gemm.run(/* stream = */ nullptr, /* cuda_adapter = */ nullptr, /* launch_with_pdl = */ false));
 
     if (benchmark) {
         const uint32 iterations = 10;

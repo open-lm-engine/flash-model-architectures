@@ -28,9 +28,6 @@ def grouped_gemm_cute(
     assert beta == 0
     assert C is None
 
-    if C is not None:
-        assert C.dim() == 2
-
     output = torch.empty(*output_shape, device=A.device, dtype=A.dtype)
 
     grouped_gemm_cuda(
