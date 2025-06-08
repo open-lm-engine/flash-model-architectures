@@ -42,7 +42,7 @@ class GroupedGEMMTest(TestCommons):
 
         M_array = torch.tensor(
             [512, 3176, 2048, 512, 3176, 2048, 512, 3176, 2048, 512, 3176, 2048, 512, 3176, 2048, 36856],
-            device=torch.cuda.current_device(),
+            device=device,
             dtype=torch.uint32,
         )
         N_array = torch.full_like(M_array, fill_value=N)
@@ -53,22 +53,10 @@ class GroupedGEMMTest(TestCommons):
             Bs = []
 
             for M, N, K in zip(M_array, N_array, K_array):
-                A = torch.randint(
-                    -8,
-                    9,
-                    (K, M) if is_A_transposed else (M, K),
-                    device=torch.cuda.current_device(),
-                    dtype=torch.bfloat16,
-                )
+                A = torch.randint(-8, 9, (K, M) if is_A_transposed else (M, K), device=device, dtype=dtype)
                 As.append(A)
 
-                B = torch.randint(
-                    -8,
-                    9,
-                    (N, K) if is_B_transposed else (K, N),
-                    device=torch.cuda.current_device(),
-                    dtype=torch.bfloat16,
-                )
+                B = torch.randint(-8, 9, (N, K) if is_B_transposed else (K, N), device=device, dtype=dtype)
                 Bs.append(B)
 
             return As, Bs
