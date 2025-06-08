@@ -315,7 +315,7 @@ inline void _grouped_gemm_cuda(const torch::Tensor &_A,
         torch::empty({int64(workspace_size)}, torch::TensorOptions().dtype(at::kByte).device(_A.device()));
 
     // Check if the problem size is supported or not
-    gemm.can_implement(arguments);
+    TORCH_CHECK(gemm.can_implement(arguments) == cutlass::Status::kSuccess);
 
     // Initialize CUTLASS kernel with arguments and workspace pointer
     gemm.initialize(arguments, workspace.data_ptr());
