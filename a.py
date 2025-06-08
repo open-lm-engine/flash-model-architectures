@@ -90,7 +90,7 @@ for is_A_transposed in [False, True]:
             D.append(a @ b)
 
         D = torch.stack(D)
-        output.view_as(D)
+        output = output.view_as(D)
 
         print((output - D).abs().max())
         print()
