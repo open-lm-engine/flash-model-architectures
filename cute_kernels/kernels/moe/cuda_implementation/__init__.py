@@ -10,8 +10,8 @@ from ...grouped_gemm import grouped_gemm_cute
 class _GroupedGemmExperts_Cute(torch.autograd.Function):
     @staticmethod
     def forward(ctx, x: torch.Tensor, weight: torch.Tensor, expert_frequency: int) -> torch.Tensor:
-        # x -> sum(M), K
-        # weight -> E, N, K
+        # x -> sum(M) x K
+        # weight -> EN x K
         _, N, K = weight.size()
 
         N_array = torch.full_like(expert_frequency, fill_value=N)
@@ -27,13 +27,13 @@ class _GroupedGemmExperts_Cute(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, output_grad: torch.Tensor) -> torch.Tensor:
-        # x -> sum(M), K
-        # weight -> E, N, K
-        # output_grad -> sum(M), N
+        # x -> sum(M) x K
+        # weight -> EN x K
+        # output_grad -> sum(M) x N
         x, weight, expert_frequency, K_array, N_array = ctx.saved_tensors
 
-        # A -> sum(M), N
-        # B -> E, N, K
+        # A -> sum(M) x N
+        # B -> EN x K
         x_grad = grouped_gemm_cute(
             A=output_grad,
             B=weight,
@@ -45,8 +45,8 @@ class _GroupedGemmExperts_Cute(torch.autograd.Function):
             is_B_transposed=False,
         )
 
-        # A -> sum(M), N
-        # B -> sum(M), K
+        # A -> sum(M) x N
+        # B -> sum(M) x K
         weight_grad = grouped_gemm_cute(A=output_grad, B=x, C=None, is_A_transposed=True, is_B_transposed=False)
 
         return x_grad, weight_grad, None
