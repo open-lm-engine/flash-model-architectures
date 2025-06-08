@@ -16,6 +16,7 @@ def grouped_gemm_cute(
     M_array: torch.Tensor,
     N_array: torch.Tensor,
     K_array: torch.Tensor,
+    output_shape: tuple[int, int],
     alpha: float = 1,
     beta: float = 0,
     is_A_transposed: bool = False,
@@ -30,32 +31,29 @@ def grouped_gemm_cute(
     if C is not None:
         assert C.dim() == 2
 
-    E = M_array.size(0)
-    assert N_array.size(0) == E
-    assert K_array.size(0) == E
+    # if is_A_transposed:
+    #     if is_B_transposed:
+    #         # A -> [Ki x Mi]
+    #         # B -> [Ni x Ki]
+    #         # output -> [Mi x Ni]
+    #     else:
+    #         # A -> [Ki x Mi]
+    #         # B -> [Ki x Ni]
+    #         # output -> [Mi x Ni]
+    #         pass
+    # else:
+    #     if is_B_transposed:
+    #         # A -> [Mi x Ki]
+    #         # B -> [Ni x Ki]
+    #         # output -> [Mi x Ni]
+    #         pass
+    #     else:
+    #         # A -> [Mi x Ki]
+    #         # B -> [Ki x Ni]
+    #         # output -> [Mi x Ni]
+    #         pass
 
-    if is_A_transposed:
-        if is_B_transposed:
-            # A -> K x sum(M)
-            # B -> (E x N) x K
-            # C -> sum(M) x N
-            output = torch.empty(A.size(1), B.size(0) // E, device=A.device, dtype=A.dtype)
-        else:
-            # A -> K x sum(M)
-            # B -> (E x K) x N
-            # C -> sum(M) x N
-            output = torch.empty(A.size(1), B.size(1), device=A.device, dtype=A.dtype)
-    else:
-        if is_B_transposed:
-            # A -> sum(M) x K
-            # B -> (E x N) x K
-            # C -> sum(M) x N
-            output = torch.empty(A.size(0), B.size(0) // E, device=A.device, dtype=A.dtype)
-        else:
-            # A -> sum(M) x K
-            # B -> (E x K) x N
-            # C -> sum(M) x N
-            output = torch.empty(A.size(0), B.size(1), device=A.device, dtype=A.dtype)
+    output = torch.empty(*output_shape, device=A.device, dtype=A.dtype)
 
     grouped_gemm_cuda(
         A=A,
