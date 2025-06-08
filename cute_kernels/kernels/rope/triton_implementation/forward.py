@@ -4,7 +4,7 @@ import triton.language as tl
 
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_powers_of_2
-from ....utils import cute_op, get_num_elements_and_hidden_size
+from ....utils import cute_op
 
 
 def _get_autotune_configs() -> list[triton.Config]:
