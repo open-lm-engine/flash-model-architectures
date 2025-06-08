@@ -31,17 +31,22 @@ def get_tensors(is_A_transposed, is_B_transposed, M_array, N_array, K_array):
     return As, Bs
 
 
-M_array = torch.tensor([M] * E, device=torch.cuda.current_device(), dtype=torch.uint32)
+M_array = torch.tensor(
+    [512, 3172, 2048, 512, 3172, 2048, 512, 3172, 2048, 512, 3172, 2048, 512, 3172, 2048, 36876],
+    device=torch.cuda.current_device(),
+    dtype=torch.uint32,
+)
 N_array = torch.full_like(M_array, fill_value=N)
 K_array = torch.full_like(M_array, fill_value=K)
 
 
 for is_A_transposed in [False, True]:
     for is_B_transposed in [False, True]:
+        print(is_A_transposed, is_B_transposed)
         As, Bs = get_tensors(is_A_transposed, is_B_transposed, M_array, N_array, K_array)
 
-        A = torch.cat(As)
-        B = torch.cat(Bs)
+        A = torch.cat([i.view(-1) for i in As])
+        B = torch.cat([i.view(-1) for i in Bs])
 
         torch_profiler = torch.profiler.profile(
             activities=[torch.profiler.ProfilerActivity.CPU, torch.profiler.ProfilerActivity.CUDA],
