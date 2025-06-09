@@ -136,7 +136,7 @@ class _CutoTune:
 
         return result
 
-    @torch.compiler.set_stance("force_eager")
+    @torch.compiler.allow_in_graph
     @torch.inference_mode()
     def _cutotune(self, *args, **kwargs) -> tuple[CutoTuneConfig, float, list[tuple[CutoTuneConfig, float]]]:
         best_config = None
