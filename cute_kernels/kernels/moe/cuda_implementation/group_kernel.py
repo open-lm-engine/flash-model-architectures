@@ -55,7 +55,7 @@ class _GroupWithPadding(torch.autograd.Function):
                     num_warps=NUM_WARPS,
                 )
 
-            expert_padding_frequency.cumsum_(-1)
+            expert_padding_frequency = expert_padding_frequency.cumsum(-1)
 
         return output
 
