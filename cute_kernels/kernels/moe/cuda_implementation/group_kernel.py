@@ -50,6 +50,7 @@ class _GroupWithPadding(torch.autograd.Function):
                     x_ptr=expert_frequency,
                     y_ptr=expert_padding_frequency,
                     pad_to_multiple_of=pad_to_multiple_of,
+                    N=E,
                     BLOCK_SIZE=BLOCK_SIZE,
                     num_warps=NUM_WARPS,
                 )
