@@ -211,28 +211,33 @@ class MoE_Cute(nn.Module):
             hidden_states = zeros.index_add(0, fan_in_index, hidden_states)
 
             # hidden_states -> (total_q, hidden_size)
-        elif kernel_backend == KernelBackend.triton:
+        else:
             sorted_expert_idxs, sorted_scattered_idxs = selected_experts.flatten().sort()
             expert_offsets = bincount(sorted_expert_idxs, self.num_experts).cumsum(-1)
 
-            hidden_states = self.c_fc.triton_forward(
-                hidden_states,
-                self.top_k,
-                sorted_expert_idxs,
-                sorted_scattered_idxs,
-                expert_offsets,
-                grouped_out=True,
-            )
-            hidden_states = self.act(hidden_states)
-            hidden_states = self.c_proj.triton_forward(
-                hidden_states,
-                1,
-                sorted_expert_idxs,
-                sorted_scattered_idxs,
-                expert_offsets,
-                grouped_in=True,
-                gates=router_weights,
-            )
+            if kernel_backend == KernelBackend.cuda:
+                pass
+            elif kernel_backend == KernelBackend.triton:
+                hidden_states = self.c_fc.triton_forward(
+                    hidden_states,
+                    self.top_k,
+                    sorted_expert_idxs,
+                    sorted_scattered_idxs,
+                    expert_offsets,
+                    grouped_out=True,
+                )
+                hidden_states = self.act(hidden_states)
+                hidden_states = self.c_proj.triton_forward(
+                    hidden_states,
+                    1,
+                    sorted_expert_idxs,
+                    sorted_scattered_idxs,
+                    expert_offsets,
+                    grouped_in=True,
+                    gates=router_weights,
+                )
+            else:
+                raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
         return hidden_states
 
