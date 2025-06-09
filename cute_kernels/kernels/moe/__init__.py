@@ -216,7 +216,8 @@ class MoE_Cute(nn.Module):
             sorted_expert_idxs, sorted_scattered_idxs = selected_experts.flatten().sort()
 
             if kernel_backend == KernelBackend.cuda:
-                expert_frequency = continuous_count_cute(sorted_expert_idxs, self.num_experts)
+                with torch.no_grad():
+                    expert_frequency = continuous_count_cute(sorted_expert_idxs, self.num_experts)
 
                 hidden_states = group_with_padding(
                     x=hidden_states,
@@ -225,7 +226,8 @@ class MoE_Cute(nn.Module):
                     pad_to_multiple_of=8,
                 )
             elif kernel_backend == KernelBackend.triton:
-                expert_offsets = bincount(sorted_expert_idxs, self.num_experts).cumsum(-1)
+                with torch.no_grad():
+                    expert_offsets = bincount(sorted_expert_idxs, self.num_experts).cumsum(-1)
 
                 hidden_states = self.c_fc.triton_forward(
                     hidden_states,
