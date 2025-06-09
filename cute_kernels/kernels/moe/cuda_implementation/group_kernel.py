@@ -41,7 +41,7 @@ class _GroupWithPadding(torch.autograd.Function):
             output = torch.empty(T + pad_to_multiple_of * E, H, device=x.device, dtype=x.dtype)
             expert_padding_frequency = torch.empty_like(expert_frequency)
 
-            with torch.cuda.current_device(expert_frequency.device):
+            with torch.cuda.device(expert_frequency.device):
                 padded_expert_frequency_triton_kernel(
                     x_ptr=expert_frequency,
                     y_ptr=expert_padding_frequency,
