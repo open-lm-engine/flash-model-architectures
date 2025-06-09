@@ -17,27 +17,40 @@ def group_with_padding_triton_kernel(
     expert_padding_frequency_ptr,
     scattered_idxs_ptr,
     y_ptr,
-    B,
+    T,
     H,
     K,
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
     BLOCK_ID = tl.program_id(axis=0)
+    B = T * K
 
     indices_b = BLOCK_ID * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
     mask_b = indices_b < B
 
+    scattered_idxs = tl.load(scattered_idxs_ptr + indices_b, mask=mask_b)
+
     if expert_padding_frequency_ptr is not None:
         expert_padding_frequency = tl.load(expert_padding_frequency_ptr + indices_b, mask=mask_b)
 
-    scattered_idxs = tl.load(
-        scattered_idxs_ptr + indices_b,
-    )
+    NUM_BLOCKS_H = tl.cdiv(H, BLOCK_SIZE_H)
 
-    for h in range(tl.cdiv(H, BLOCK_SIZE_H)):
+    x_ptrs = x_ptr + (scattered_idxs // K)[:, None] * H
+    y_ptrs = y_ptr + indices_b[:, None] * H
+
+    for h in range(NUM_BLOCKS_H):
         indices_h = h * BLOCK_SIZE_H + tl.arange(0, BLOCK_SIZE_H)
-        mask_h = indices_h < H
+
+        if h < NUM_BLOCKS_H - 1:
+            x = tl.load(x_ptrs + indices_h[:, None], mask=mask_b[:, None])
+            tl.store(y_ptrs + indices_h[:, None], x, mask=mask_b[:, None])
+        else:
+            mask_h = indices_h < H
+            mask_bh = mask_b[:, None] & mask_h[None, :]
+
+            x = tl.load(x_ptrs + indices_h[:, None], mask=mask_bh)
+            tl.store(y_ptrs + indices_h[:, None], x, mask=mask_bh)
 
 
 class _GroupWithPadding(torch.autograd.Function):
@@ -55,19 +68,20 @@ class _GroupWithPadding(torch.autograd.Function):
 
         T, H = x.size()
         E = expert_frequency.size(0)
+        K = topk
 
         if pad_to_multiple_of == 1:
-            output = torch.empty_like(x)
+            output = torch.empty(T * K, H, device=x.device, dtype=x.dtype)
             expert_padding_frequency = None
         else:
             # we pad to max possible shape to make tensor shape independent of data
-            output = torch.empty(T + pad_to_multiple_of * E, H, device=x.device, dtype=x.dtype)
+            output = torch.zeros(T * K + pad_to_multiple_of * E, H, device=x.device, dtype=x.dtype)
             expert_padding_frequency = torch.empty_like(expert_frequency)
 
-            BLOCK_SIZE = 4096
-            NUM_WARPS = 32
-
             with torch.cuda.device(expert_frequency.device):
+                BLOCK_SIZE = 4096
+                NUM_WARPS = 32
+
                 padded_expert_frequency_triton_kernel[ceil_divide(E, BLOCK_SIZE),](
                     x_ptr=expert_frequency,
                     y_ptr=expert_padding_frequency,
@@ -79,17 +93,17 @@ class _GroupWithPadding(torch.autograd.Function):
 
             expert_padding_frequency = expert_padding_frequency.cumsum(-1)
 
-        BLOCK_SIZE_B = 1
-        BLOCK_SIZE_H = 4096
-        NUM_WARPS = 32
-
         with torch.cuda.device(x.device):
-            group_with_padding_triton_kernel[ceil_divide(T * topk, BLOCK_SIZE_B),](
+            BLOCK_SIZE_B = 1
+            BLOCK_SIZE_H = 4096
+            NUM_WARPS = 32
+
+            group_with_padding_triton_kernel[ceil_divide(T * K, BLOCK_SIZE_B),](
                 x_ptr=x,
                 expert_padding_frequency_ptr=expert_padding_frequency,
                 scattered_idxs_ptr=scattered_idxs,
                 y_ptr=output,
-                B=T,
+                T=T,
                 H=H,
                 K=topk,
                 BLOCK_SIZE_B=BLOCK_SIZE_B,
