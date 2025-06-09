@@ -11,7 +11,7 @@ import torch.nn.functional as F
 from ...kernel_backend import KernelBackend
 from ..continuous_count import continuous_count_cute
 from .cuda_implementation import group_with_padding, grouped_gemm_experts_cute
-from .triton_implementation import bincount, scattered_experts
+from .triton_implementation import scattered_experts
 
 
 class Experts_Cute(nn.Module):
@@ -214,10 +214,12 @@ class MoE_Cute(nn.Module):
             # hidden_states -> (total_q, hidden_size)
         else:
             sorted_expert_idxs, sorted_scattered_idxs = selected_experts.flatten().sort()
+            expert_frequency = continuous_count_cute(
+                sorted_expert_idxs, self.num_experts, kernel_backend=KernelBackend.cuda
+            )
+            expert_offsets = expert_frequency.cumsum(-1)
 
             if kernel_backend == KernelBackend.cuda:
-                expert_frequency = continuous_count_cute(sorted_expert_idxs, self.num_experts)
-
                 hidden_states = group_with_padding(
                     x=hidden_states,
                     expert_frequency=expert_frequency,
@@ -225,8 +227,6 @@ class MoE_Cute(nn.Module):
                     pad_to_multiple_of=8,
                 )
             elif kernel_backend == KernelBackend.triton:
-                expert_offsets = bincount(sorted_expert_idxs, self.num_experts).cumsum(-1)
-
                 hidden_states = self.c_fc.triton_forward(
                     hidden_states,
                     self.top_k,
@@ -258,7 +258,9 @@ class MoE_Cute(nn.Module):
         selected_experts = selected_experts.flatten()
         # selected_experts -> (total_q * top_k)
 
-        expert_frequency = selected_experts.bincount(minlength=self.num_experts)
+        expert_frequency = continuous_count_cute(
+            x=selected_experts, size=self.num_experts, kernel_backend=KernelBackend.torch
+        )
         # expert_frequency -> (num_experts)
 
         index_sorted_experts = selected_experts.argsort()

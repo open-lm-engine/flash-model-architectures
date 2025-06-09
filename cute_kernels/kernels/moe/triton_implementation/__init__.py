@@ -6,7 +6,6 @@ import torch
 
 from ....math import ceil_divide
 from ....utils import cute_op
-from .bincount_op import bincount
 from .group_backward_kernel import group_bwd_W
 from .group_kernel import group
 from .scatter_kernel import scatter2scatter
