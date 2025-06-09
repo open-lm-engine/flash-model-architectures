@@ -19,7 +19,7 @@ def padded_expert_frequency_triton_kernel(x_ptr, y_ptr, pad_to_multiple_of, N, B
 
     x = tl.load(x_ptr + indices, mask=mask)
 
-    y = pad_to_multiple_of - (x % pad_to_multiple_of)
+    y = pad_to_multiple_of - (x % pad_to_multiple_of.to(tl.uint32))
     tl.store(y_ptr + indices, y, mask=mask)
 
 
