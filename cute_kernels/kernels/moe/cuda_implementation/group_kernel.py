@@ -115,6 +115,10 @@ class _GroupWithPadding(torch.autograd.Function):
 
 
 def group_with_padding(
-    x: torch.Tensor, expert_frequency: torch.Tensor, scattered_idxs: torch.Tensor, pad_to_multiple_of: int = 1
+    x: torch.Tensor,
+    expert_frequency: torch.Tensor,
+    scattered_idxs: torch.Tensor,
+    topk: int,
+    pad_to_multiple_of: int = 1,
 ) -> torch.Tensor:
-    return _GroupWithPadding.apply(x, expert_frequency, scattered_idxs, pad_to_multiple_of)
+    return _GroupWithPadding.apply(x, expert_frequency, scattered_idxs, topk, pad_to_multiple_of)

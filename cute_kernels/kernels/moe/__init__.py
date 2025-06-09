@@ -224,6 +224,7 @@ class MoE_Cute(nn.Module):
                     x=hidden_states,
                     expert_frequency=expert_frequency,
                     scattered_idxs=sorted_scattered_idxs,
+                    topk=self.top_k,
                     pad_to_multiple_of=8,
                 )
             elif kernel_backend == KernelBackend.triton:
