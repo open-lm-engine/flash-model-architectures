@@ -43,14 +43,14 @@ def group_with_padding_triton_kernel(
         indices_h = h * BLOCK_SIZE_H + tl.arange(0, BLOCK_SIZE_H)
 
         if h < NUM_BLOCKS_H - 1:
-            x = tl.load(x_ptrs + indices_h[:, None], mask=mask_b[:, None])
-            tl.store(y_ptrs + indices_h[:, None], x, mask=mask_b[:, None])
+            x = tl.load(x_ptrs + indices_h[None, :], mask=mask_b[:, None])
+            tl.store(y_ptrs + indices_h[None, :], x, mask=mask_b[:, None])
         else:
             mask_h = indices_h < H
             mask_bh = mask_b[:, None] & mask_h[None, :]
 
-            x = tl.load(x_ptrs + indices_h[:, None], mask=mask_bh)
-            tl.store(y_ptrs + indices_h[:, None], x, mask=mask_bh)
+            x = tl.load(x_ptrs + indices_h[None, :], mask=mask_bh)
+            tl.store(y_ptrs + indices_h[None, :], x, mask=mask_bh)
 
 
 class _GroupWithPadding(torch.autograd.Function):
