@@ -23,6 +23,7 @@ class ScatterMoETest(TestCommons):
             [2048],  # hidden_size
             [8192],  # intermediate_size
             [True, False],  # is_glu
+            [KernelBackend.cuda, KernelBackend.triton],  # kernel_backend
             [True, False],  # is_compiling
         )
         + TestCommons.make_args_matrix(
@@ -33,6 +34,7 @@ class ScatterMoETest(TestCommons):
             [576],  # hidden_size
             [256],  # intermediate_size
             [True, False],  # is_glu
+            [KernelBackend.cuda, KernelBackend.triton],  # kernel_backend
             [True, False],  # is_compiling
         )
     )
@@ -45,6 +47,7 @@ class ScatterMoETest(TestCommons):
         hidden_size: int,
         intermediate_size: int,
         is_glu: bool,
+        kernel_backend: KernelBackend,
         is_compiling: bool,
     ) -> None:
         set_seed(_SEED)
@@ -76,7 +79,7 @@ class ScatterMoETest(TestCommons):
         x_custom = x_torch.clone().detach().requires_grad_()
 
         y_torch = moe_torch(x_torch, kernel_backend=KernelBackend.torch)[0]
-        y_custom = moe_custom(x_custom, kernel_backend=KernelBackend.triton)[0]
+        y_custom = moe_custom(x_custom, kernel_backend=kernel_backend)[0]
 
         self.assert_equal_tensors(
             y_custom,
