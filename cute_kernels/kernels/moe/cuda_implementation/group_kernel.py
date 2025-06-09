@@ -8,26 +8,48 @@ import triton.language as tl
 
 from ....math import ceil_divide
 from ....utils import ensure_contiguous
+from .padded_expert_frequency_kernel import padded_expert_frequency_triton_kernel
 
 
 @triton.jit
-def padded_expert_frequency_triton_kernel(x_ptr, y_ptr, pad_to_multiple_of, N, BLOCK_SIZE: tl.constexpr):
+def group_with_padding_triton_kernel(
+    x_ptr,
+    expert_padding_frequency_ptr,
+    scattered_idxs_ptr,
+    y_ptr,
+    B,
+    H,
+    K,
+    BLOCK_SIZE_B: tl.constexpr,
+    BLOCK_SIZE_H: tl.constexpr,
+):
     BLOCK_ID = tl.program_id(axis=0)
 
-    indices = BLOCK_ID * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
-    mask = indices < N
+    indices_b = BLOCK_ID * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
+    mask_b = indices_b < B
 
-    x = tl.load(x_ptr + indices, mask=mask)
+    if expert_padding_frequency_ptr is not None:
+        expert_padding_frequency = tl.load(expert_padding_frequency_ptr + indices_b, mask=mask_b)
 
-    y = pad_to_multiple_of - (x % pad_to_multiple_of.to(tl.uint32))
-    tl.store(y_ptr + indices, y, mask=mask)
+    scattered_idxs = tl.load(
+        scattered_idxs_ptr + indices_b,
+    )
+
+    for h in range(tl.cdiv(H, BLOCK_SIZE_H)):
+        indices_h = h * BLOCK_SIZE_H + tl.arange(0, BLOCK_SIZE_H)
+        mask_h = indices_h < H
 
 
 class _GroupWithPadding(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
     def forward(
-        ctx, x: torch.Tensor, expert_frequency: torch.Tensor, scattered_idxs: torch.Tensor, pad_to_multiple_of: int
+        ctx,
+        x: torch.Tensor,
+        expert_frequency: torch.Tensor,
+        scattered_idxs: torch.Tensor,
+        topk: int,
+        pad_to_multiple_of: int,
     ) -> torch.Tensor:
         assert x.dim() == 2
 
@@ -56,6 +78,24 @@ class _GroupWithPadding(torch.autograd.Function):
                 )
 
             expert_padding_frequency = expert_padding_frequency.cumsum(-1)
+
+        BLOCK_SIZE_B = 1
+        BLOCK_SIZE_H = 4096
+        NUM_WARPS = 32
+
+        with torch.cuda.device(x.device):
+            group_with_padding_triton_kernel[ceil_divide(T * topk, BLOCK_SIZE_B),](
+                x_ptr=x,
+                expert_padding_frequency_ptr=expert_padding_frequency,
+                scattered_idxs_ptr=scattered_idxs,
+                y_ptr=output,
+                B=T,
+                H=H,
+                K=topk,
+                BLOCK_SIZE_B=BLOCK_SIZE_B,
+                BLOCK_SIZE_H=BLOCK_SIZE_H,
+                num_warps=NUM_WARPS,
+            )
 
         return output
 
