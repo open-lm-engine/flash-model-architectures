@@ -29,6 +29,7 @@ class _GroupWithPadding(torch.autograd.Function):
         ctx, x: torch.Tensor, expert_frequency: torch.Tensor, scattered_idxs: torch.Tensor, pad_to_multiple_of: int
     ) -> torch.Tensor:
         assert x.dim() == 2
+
         T, H = x.size()
         E = expert_frequency.size(0)
 
