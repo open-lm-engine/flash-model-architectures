@@ -9,7 +9,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from ...kernel_backend import KernelBackend
-from .cuda_implementation import grouped_gemm_experts_cute
+from ..continuous_count import continuous_count_cute
+from .cuda_implementation import group_with_padding, grouped_gemm_experts_cute
 from .triton_implementation import bincount, scattered_experts
 
 
@@ -213,11 +214,19 @@ class MoE_Cute(nn.Module):
             # hidden_states -> (total_q, hidden_size)
         else:
             sorted_expert_idxs, sorted_scattered_idxs = selected_experts.flatten().sort()
-            expert_offsets = bincount(sorted_expert_idxs, self.num_experts).cumsum(-1)
 
             if kernel_backend == KernelBackend.cuda:
-                pass
+                expert_frequency = continuous_count_cute(sorted_expert_idxs, self.num_experts)
+
+                hidden_states = group_with_padding(
+                    x=hidden_states,
+                    expert_frequency=expert_frequency,
+                    scattered_idxs=sorted_scattered_idxs,
+                    pad_to_multiple_of=8,
+                )
             elif kernel_backend == KernelBackend.triton:
+                expert_offsets = bincount(sorted_expert_idxs, self.num_experts).cumsum(-1)
+
                 hidden_states = self.c_fc.triton_forward(
                     hidden_states,
                     self.top_k,

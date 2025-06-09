@@ -5,6 +5,7 @@
 import torch
 
 from ...grouped_gemm import grouped_gemm_cute
+from .group_kernel import group_with_padding
 
 
 class _GroupedGemmExperts_Cute(torch.autograd.Function):
