@@ -6,6 +6,7 @@ import torch
 import triton
 import triton.language as tl
 
+from ....math import ceil_divide
 from ....utils import ensure_contiguous
 
 
@@ -41,13 +42,16 @@ class _GroupWithPadding(torch.autograd.Function):
             output = torch.empty(T + pad_to_multiple_of * E, H, device=x.device, dtype=x.dtype)
             expert_padding_frequency = torch.empty_like(expert_frequency)
 
+            BLOCK_SIZE = 4096
+            NUM_WARPS = 32
+
             with torch.cuda.device(expert_frequency.device):
-                padded_expert_frequency_triton_kernel(
+                padded_expert_frequency_triton_kernel[ceil_divide(E, BLOCK_SIZE),](
                     x_ptr=expert_frequency,
                     y_ptr=expert_padding_frequency,
                     pad_to_multiple_of=pad_to_multiple_of,
-                    BLOCK_SIZE=4096,
-                    num_warps=32,
+                    BLOCK_SIZE=BLOCK_SIZE,
+                    num_warps=NUM_WARPS,
                 )
 
             expert_padding_frequency.cumsum_(-1)
