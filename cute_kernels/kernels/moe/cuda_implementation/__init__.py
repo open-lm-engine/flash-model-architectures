@@ -68,7 +68,9 @@ class _GroupedGemmExperts_Cute(torch.autograd.Function):
         return x_grad, weight_grad, None
 
 
-def _get_expert_padding_offset(expert_frequency: torch.Tensor, E: int, pad_to_multiple_of: int) -> torch.Tensor:
+def _get_expert_padding_offset(
+    expert_frequency: torch.Tensor, E: int, pad_to_multiple_of: int
+) -> tuple[torch.Tensor, torch.Tensor]:
     expert_padding_frequency = torch.empty_like(expert_frequency)
 
     with torch.cuda.device(expert_frequency.device):
@@ -95,7 +97,7 @@ def _get_expert_padding_offset(expert_frequency: torch.Tensor, E: int, pad_to_mu
         ]
     )
 
-    return expert_padding_offset
+    return padded_expert_frequency, expert_padding_offset
 
 
 class _GroupWithPadding(torch.autograd.Function):
@@ -128,7 +130,7 @@ class _GroupWithPadding(torch.autograd.Function):
                 (ceil_divide(T * K, pad_to_multiple_of) + E) * pad_to_multiple_of, H, device=x.device, dtype=x.dtype
             )
 
-            expert_padding_offset = _get_expert_padding_offset(
+            padded_expert_frequency, expert_padding_offset = _get_expert_padding_offset(
                 expert_frequency=expert_frequency, E=E, pad_to_multiple_of=pad_to_multiple_of
             )
 
