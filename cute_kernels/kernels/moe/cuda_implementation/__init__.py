@@ -113,7 +113,7 @@ def _group(
     assert x.dim() == 2
 
     T, H = x.size()
-    E = expert_frequency.size(0)
+    E = (expert_frequency if padded_expert_frequency is None else padded_expert_frequency).size(0)
     K = top_k
 
     assert H % 8 == 0
