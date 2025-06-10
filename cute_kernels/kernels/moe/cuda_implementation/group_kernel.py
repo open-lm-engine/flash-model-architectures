@@ -84,7 +84,7 @@ class _GroupWithPadding(torch.autograd.Function):
         else:
             # we pad to max possible shape to make tensor shape independent of data
             output = torch.zeros(
-                ceil_divide(T * K, pad_to_multiple_of) * pad_to_multiple_of + E * pad_to_multiple_of,
+                (ceil_divide(T * K, pad_to_multiple_of) + E) * pad_to_multiple_of,
                 ceil_divide(H, pad_to_multiple_of) * pad_to_multiple_of,
                 device=x.device,
                 dtype=x.dtype,
