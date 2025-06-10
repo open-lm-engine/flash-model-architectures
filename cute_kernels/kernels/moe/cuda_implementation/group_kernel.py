@@ -77,18 +77,19 @@ class _GroupWithPadding(torch.autograd.Function):
         E = expert_frequency.size(0)
         K = topk
 
-        output_shape = (
-            ceil_divide(T * K, pad_to_multiple_of) * pad_to_multiple_of + E * pad_to_multiple_of,
-            ceil_divide(H, pad_to_multiple_of) * pad_to_multiple_of,
-        )
-
         if pad_to_multiple_of == 1:
-            output = torch.empty(*output_shape, device=x.device, dtype=x.dtype)
+            output = torch.empty(T * K, H, device=x.device, dtype=x.dtype)
             expert_padding_offset = None
             padded_expert_frequency = expert_frequency
         else:
             # we pad to max possible shape to make tensor shape independent of data
-            output = torch.zeros(*output_shape, device=x.device, dtype=x.dtype)
+            output = torch.zeros(
+                ceil_divide(T * K, pad_to_multiple_of) * pad_to_multiple_of + E * pad_to_multiple_of,
+                ceil_divide(H, pad_to_multiple_of) * pad_to_multiple_of,
+                device=x.device,
+                dtype=x.dtype,
+            )
+
             expert_padding_frequency = torch.empty_like(expert_frequency)
 
             with torch.cuda.device(expert_frequency.device):
