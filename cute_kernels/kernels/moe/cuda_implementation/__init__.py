@@ -68,6 +68,36 @@ class _GroupedGemmExperts_Cute(torch.autograd.Function):
         return x_grad, weight_grad, None
 
 
+def _get_expert_padding_offset(expert_frequency: torch.Tensor, E: int, pad_to_multiple_of: int) -> torch.Tensor:
+    expert_padding_frequency = torch.empty_like(expert_frequency)
+
+    with torch.cuda.device(expert_frequency.device):
+        BLOCK_SIZE = 4096
+        NUM_WARPS = 32
+
+        padded_expert_frequency_triton_kernel[ceil_divide(E, BLOCK_SIZE),](
+            x_ptr=expert_frequency,
+            y_ptr=expert_padding_frequency,
+            pad_to_multiple_of=pad_to_multiple_of,
+            N=E,
+            BLOCK_SIZE=BLOCK_SIZE,
+            num_warps=NUM_WARPS,
+        )
+
+    padded_expert_frequency = expert_frequency.to(torch.int32) + expert_padding_frequency.to(torch.int32)
+    padded_expert_frequency = padded_expert_frequency.to(torch.uint32)
+
+    expert_padding_offset = expert_padding_frequency.cumsum(-1)
+    expert_padding_offset = torch.cat(
+        [
+            torch.tensor([0], device=expert_padding_offset.device, dtype=expert_padding_offset.dtype),
+            expert_padding_offset,
+        ]
+    )
+
+    return expert_padding_offset
+
+
 class _GroupWithPadding(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
@@ -98,30 +128,8 @@ class _GroupWithPadding(torch.autograd.Function):
                 (ceil_divide(T * K, pad_to_multiple_of) + E) * pad_to_multiple_of, H, device=x.device, dtype=x.dtype
             )
 
-            expert_padding_frequency = torch.empty_like(expert_frequency)
-
-            with torch.cuda.device(expert_frequency.device):
-                BLOCK_SIZE = 4096
-                NUM_WARPS = 32
-
-                padded_expert_frequency_triton_kernel[ceil_divide(E, BLOCK_SIZE),](
-                    x_ptr=expert_frequency,
-                    y_ptr=expert_padding_frequency,
-                    pad_to_multiple_of=pad_to_multiple_of,
-                    N=E,
-                    BLOCK_SIZE=BLOCK_SIZE,
-                    num_warps=NUM_WARPS,
-                )
-
-            padded_expert_frequency = expert_frequency.to(torch.int32) + expert_padding_frequency.to(torch.int32)
-            padded_expert_frequency = padded_expert_frequency.to(torch.uint32)
-
-            expert_padding_offset = expert_padding_frequency.cumsum(-1)
-            expert_padding_offset = torch.cat(
-                [
-                    torch.tensor([0], device=expert_padding_offset.device, dtype=expert_padding_offset.dtype),
-                    expert_padding_offset,
-                ]
+            expert_padding_offset = _get_expert_padding_offset(
+                expert_frequency=expert_frequency, E=E, pad_to_multiple_of=pad_to_multiple_of
             )
 
         with torch.cuda.device(x.device):
