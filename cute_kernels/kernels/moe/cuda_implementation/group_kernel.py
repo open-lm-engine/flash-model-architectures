@@ -41,7 +41,7 @@ def group_with_padding_triton_kernel(
         sorted_idxs = tl.load(sorted_idxs_ptr + indices_b, mask=mask_b)
         expert_padding_offset = tl.load(expert_padding_offset_ptr + sorted_idxs)
 
-        y_ptrs += expert_padding_offset
+        y_ptrs += expert_padding_offset * H
 
     for h in range(NUM_BLOCKS_H):
         indices_h = h * BLOCK_SIZE_H + tl.arange(0, BLOCK_SIZE_H)
@@ -77,7 +77,7 @@ class _GroupWithPadding(torch.autograd.Function):
 
         if pad_to_multiple_of == 1:
             output = torch.empty(T * K, H, device=x.device, dtype=x.dtype)
-            expert_padding_frequency = None
+            expert_padding_offset = None
         else:
             # we pad to max possible shape to make tensor shape independent of data
             output = torch.zeros(T * K + pad_to_multiple_of * E, H, device=x.device, dtype=x.dtype)
@@ -97,6 +97,12 @@ class _GroupWithPadding(torch.autograd.Function):
                 )
 
             expert_padding_offset = expert_padding_frequency.cumsum(-1)
+            expert_padding_offset = torch.cat(
+                [
+                    torch.tensor([0], device=expert_padding_offset.device, dtype=expert_padding_offset.dtype),
+                    expert_padding_offset,
+                ]
+            )
 
         with torch.cuda.device(x.device):
             BLOCK_SIZE_B = 1
