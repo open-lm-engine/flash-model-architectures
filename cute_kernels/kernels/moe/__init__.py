@@ -226,7 +226,7 @@ class MoE_Cute(nn.Module):
                     expert_frequency=expert_frequency,
                     sorted_idxs=sorted_expert_idxs,
                     scattered_idxs=sorted_scattered_idxs,
-                    topk=self.top_k,
+                    top_k=self.top_k,
                     pad_to_multiple_of=8,
                 )
 
@@ -239,7 +239,7 @@ class MoE_Cute(nn.Module):
                     expert_padding_offset=expert_padding_offset,
                     sorted_idxs=sorted_expert_idxs,
                     scattered_idxs=sorted_scattered_idxs,
-                    topk=self.top_k,
+                    top_k=self.top_k,
                     num_tokens=T,
                 )
 
