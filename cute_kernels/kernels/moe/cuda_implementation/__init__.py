@@ -100,73 +100,6 @@ def _get_expert_padding_offset(
     return padded_expert_frequency, expert_padding_offset
 
 
-def _group(
-    x: torch.Tensor,
-    expert_frequency: torch.Tensor,
-    padded_expert_frequency: torch.Tensor | None,
-    expert_padding_offset: torch.Tensor | None,
-    sorted_idxs: torch.Tensor,
-    scattered_idxs: torch.Tensor,
-    top_k: int,
-    pad_to_multiple_of: int,
-    output_shape: tuple[int] | None = None,
-) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    assert x.dim() == 2
-
-    T, H = x.size()
-
-    if expert_padding_offset is None:
-        E = (expert_frequency if padded_expert_frequency is None else padded_expert_frequency).size(0)
-    else:
-        E = expert_padding_offset.size(0) - 1
-
-    K = top_k
-
-    assert H % 8 == 0
-
-    if pad_to_multiple_of == 1:
-        if output_shape is None:
-            output_shape = (T * K, H)
-
-        output = torch.empty(*output_shape, device=x.device, dtype=x.dtype)
-        padded_expert_frequency = expert_frequency
-        expert_padding_offset = None
-    else:
-        # we pad to max possible shape to make tensor shape independent of data
-        if output_shape is None:
-            output_shape = ((ceil_divide(T * K, pad_to_multiple_of) + E) * pad_to_multiple_of, H)
-
-        output = torch.zeros(*output_shape, device=x.device, dtype=x.dtype)
-
-        if expert_padding_offset is None:
-            assert padded_expert_frequency is None
-
-            padded_expert_frequency, expert_padding_offset = _get_expert_padding_offset(
-                expert_frequency=expert_frequency, E=E, pad_to_multiple_of=pad_to_multiple_of
-            )
-
-    with torch.cuda.device(x.device):
-        BLOCK_SIZE_B = 1
-        BLOCK_SIZE_H = 4096
-        NUM_WARPS = 32
-
-        group_with_padding_triton_kernel[ceil_divide(T * K, BLOCK_SIZE_B),](
-            x_ptr=x,
-            expert_padding_offset_ptr=expert_padding_offset,
-            sorted_idxs_ptr=sorted_idxs,
-            scattered_idxs_ptr=scattered_idxs,
-            y_ptr=output,
-            T=T,
-            H=H,
-            K=top_k,
-            BLOCK_SIZE_B=BLOCK_SIZE_B,
-            BLOCK_SIZE_H=BLOCK_SIZE_H,
-            num_warps=NUM_WARPS,
-        )
-
-    return output, padded_expert_frequency, expert_padding_offset
-
-
 class _GroupWithPadding(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
@@ -276,17 +209,32 @@ class _UngroupWithPadding(torch.autograd.Function):
     def backward(ctx, output_grad: torch.Tensor) -> torch.Tensor:
         expert_padding_offset, sorted_idxs, scattered_idxs = ctx.saved_tensors
 
-        x_grad, _, _ = _group(
-            x=output_grad,
-            expert_frequency=None,
-            padded_expert_frequency=None,
-            expert_padding_offset=expert_padding_offset,
-            sorted_idxs=sorted_idxs,
-            scattered_idxs=scattered_idxs,
-            top_k=ctx.K,
-            pad_to_multiple_of=ctx.pad_to_multiple_of,
-            output_shape=ctx.x_shape,
+        pad_to_multiple_of = ctx.pad_to_multiple_of
+        T, H = output_grad.size()
+        K = ctx.K
+
+        x_grad = (torch.empty if pad_to_multiple_of == 1 else torch.zeros)(
+            *ctx.x_shape, device=output_grad.device, dtype=output_grad.dtype
         )
+
+        with torch.cuda.device(x_grad.device):
+            BLOCK_SIZE_B = 1
+            BLOCK_SIZE_H = 4096
+            NUM_WARPS = 32
+
+            group_with_padding_triton_kernel[ceil_divide(T * K, BLOCK_SIZE_B),](
+                x_ptr=output_grad,
+                expert_padding_offset_ptr=expert_padding_offset,
+                sorted_idxs_ptr=sorted_idxs,
+                scattered_idxs_ptr=scattered_idxs,
+                y_ptr=x_grad,
+                T=T,
+                H=H,
+                K=K,
+                BLOCK_SIZE_B=BLOCK_SIZE_B,
+                BLOCK_SIZE_H=BLOCK_SIZE_H,
+                num_warps=NUM_WARPS,
+            )
 
         return x_grad, *[None] * 6
 
