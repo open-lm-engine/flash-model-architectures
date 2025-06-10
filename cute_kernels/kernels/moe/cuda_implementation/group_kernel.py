@@ -70,7 +70,7 @@ class _GroupWithPadding(torch.autograd.Function):
         scattered_idxs: torch.Tensor,
         topk: int,
         pad_to_multiple_of: int,
-    ) -> torch.Tensor:
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         assert x.dim() == 2
 
         T, H = x.size()
@@ -83,6 +83,7 @@ class _GroupWithPadding(torch.autograd.Function):
             )
 
             expert_padding_offset = None
+            padded_expert_frequency = expert_frequency
         else:
             # we pad to max possible shape to make tensor shape independent of data
             output = torch.zeros(
@@ -93,6 +94,7 @@ class _GroupWithPadding(torch.autograd.Function):
             )
 
             expert_padding_frequency = torch.empty_like(expert_frequency)
+            padded_expert_frequency = expert_frequency + expert_padding_frequency
 
             with torch.cuda.device(expert_frequency.device):
                 BLOCK_SIZE = 4096
@@ -136,7 +138,7 @@ class _GroupWithPadding(torch.autograd.Function):
                 num_warps=NUM_WARPS,
             )
 
-        return output
+        return output, padded_expert_frequency
 
 
 def group_with_padding(

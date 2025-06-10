@@ -220,7 +220,7 @@ class MoE_Cute(nn.Module):
             expert_offsets = expert_frequency.cumsum(-1)
 
             if kernel_backend == KernelBackend.cuda:
-                hidden_states = group_with_padding(
+                hidden_states, padded_expert_frequency = group_with_padding(
                     x=hidden_states,
                     expert_frequency=expert_frequency,
                     sorted_idxs=sorted_expert_idxs,
