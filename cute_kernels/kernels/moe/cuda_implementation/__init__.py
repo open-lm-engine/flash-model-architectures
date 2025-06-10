@@ -14,6 +14,7 @@ from .ungroup_kernel import ungroup_with_padding_triton_kernel
 
 class _GroupedGemmExperts_Cute(torch.autograd.Function):
     @staticmethod
+    @ensure_contiguous
     def forward(ctx, x: torch.Tensor, weight: torch.Tensor, expert_frequency: int) -> torch.Tensor:
         # x -> sum(M) x K
         # weight -> EN x K
@@ -42,6 +43,7 @@ class _GroupedGemmExperts_Cute(torch.autograd.Function):
         return output
 
     @staticmethod
+    @ensure_contiguous
     def backward(ctx, output_grad: torch.Tensor) -> torch.Tensor:
         # x -> sum(M) x K
         # weight -> EN x K
