@@ -242,8 +242,10 @@ class MoE_Cute(nn.Module):
                     scattered_idxs=sorted_scattered_idxs,
                     topk=self.top_k,
                     num_tokens=T,
-                    pad_to_multiple_of=8,
                 )
+
+                hidden_states = hidden_states.view(T, self.top_k, -1)
+                hidden_states = torch.bmm(router_weights.unsqueeze(1), hidden_states)
             elif kernel_backend == KernelBackend.triton:
                 hidden_states = self.c_fc.triton_forward(
                     hidden_states,

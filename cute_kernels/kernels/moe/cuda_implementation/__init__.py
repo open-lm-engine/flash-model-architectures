@@ -157,7 +157,6 @@ class _UngroupWithPadding(torch.autograd.Function):
         scattered_idxs: torch.Tensor,
         topk: int,
         num_tokens: int,
-        pad_to_multiple_of: int,
     ) -> torch.Tensor:
         assert x.dim() == 2
 
@@ -167,14 +166,7 @@ class _UngroupWithPadding(torch.autograd.Function):
         K = topk
 
         assert H % 8 == 0
-
-        if pad_to_multiple_of == 1:
-            output = torch.empty(T * K, H, device=x.device, dtype=x.dtype)
-        else:
-            # we pad to max possible shape to make tensor shape independent of data
-            output = torch.zeros(
-                (ceil_divide(T * K, pad_to_multiple_of) + E) * pad_to_multiple_of, H, device=x.device, dtype=x.dtype
-            )
+        output = torch.empty(T * K, H, device=x.device, dtype=x.dtype)
 
         with torch.cuda.device(x.device):
             BLOCK_SIZE_B = 1
@@ -220,8 +212,5 @@ def ungroup_with_padding(
     scattered_idxs: torch.Tensor,
     topk: int,
     num_tokens: int,
-    pad_to_multiple_of: int = 1,
 ) -> torch.Tensor:
-    return _UngroupWithPadding.apply(
-        x, expert_padding_offset, sorted_idxs, scattered_idxs, topk, num_tokens, pad_to_multiple_of
-    )
+    return _UngroupWithPadding.apply(x, expert_padding_offset, sorted_idxs, scattered_idxs, topk, num_tokens)
