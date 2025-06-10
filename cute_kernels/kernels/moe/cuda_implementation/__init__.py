@@ -18,6 +18,9 @@ class _GroupedGemmExperts_Cute(torch.autograd.Function):
         N_array = torch.full_like(expert_frequency, fill_value=N)
         K_array = torch.full_like(expert_frequency, fill_value=K)
 
+        assert N % 8 == 0
+        assert K % 8 == 0
+
         output = grouped_gemm_cute(
             A=x,
             B=weight,

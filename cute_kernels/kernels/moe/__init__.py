@@ -37,8 +37,6 @@ class Experts_Cute(nn.Module):
     def cuda_forward(
         self, input: torch.Tensor | tuple[torch.Tensor], expert_frequency: torch.Tensor
     ) -> torch.Tensor | list[torch.Tensor]:
-        assert self.weight.size(1) % 8 == 0
-        assert self.weight.size(2) % 8 == 0
         return grouped_gemm_experts_cute(x=input, weight=self.weight, expert_frequency=expert_frequency)
 
     def triton_forward(

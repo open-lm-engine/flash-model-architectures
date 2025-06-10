@@ -14,12 +14,10 @@ from .padded_expert_frequency_kernel import padded_expert_frequency_triton_kerne
 @triton.jit
 def group_with_padding_triton_kernel(
     x_ptr,
-    x_stride_s,
     expert_padding_offset_ptr,
     sorted_idxs_ptr,
     scattered_idxs_ptr,
     y_ptr,
-    y_stride_s,
     T,
     H,
     K,
@@ -36,14 +34,14 @@ def group_with_padding_triton_kernel(
 
     NUM_BLOCKS_H = tl.cdiv(H, BLOCK_SIZE_H)
 
-    x_ptrs = x_ptr + (scattered_idxs // K)[:, None] * x_stride_s
-    y_ptrs = y_ptr + indices_b[:, None] * y_stride_s
+    x_ptrs = x_ptr + (scattered_idxs // K)[:, None] * H
+    y_ptrs = y_ptr + indices_b[:, None] * H
 
     if expert_padding_offset_ptr is not None:
         sorted_idxs = tl.load(sorted_idxs_ptr + indices_b, mask=mask_b)
         expert_padding_offset = tl.load(expert_padding_offset_ptr + sorted_idxs)
 
-        y_ptrs += expert_padding_offset * y_stride_s
+        y_ptrs += expert_padding_offset * H
 
     for h in range(NUM_BLOCKS_H):
         indices_h = h * BLOCK_SIZE_H + tl.arange(0, BLOCK_SIZE_H)
@@ -77,6 +75,8 @@ class _GroupWithPadding(torch.autograd.Function):
         E = expert_frequency.size(0)
         K = topk
 
+        assert H % 8 == 0
+
         if pad_to_multiple_of == 1:
             output = torch.empty(T * K, H, device=x.device, dtype=x.dtype)
             expert_padding_offset = None
@@ -84,10 +84,7 @@ class _GroupWithPadding(torch.autograd.Function):
         else:
             # we pad to max possible shape to make tensor shape independent of data
             output = torch.zeros(
-                (ceil_divide(T * K, pad_to_multiple_of) + E) * pad_to_multiple_of,
-                ceil_divide(H, pad_to_multiple_of) * pad_to_multiple_of,
-                device=x.device,
-                dtype=x.dtype,
+                (ceil_divide(T * K, pad_to_multiple_of) + E) * pad_to_multiple_of, H, device=x.device, dtype=x.dtype
             )
 
             expert_padding_frequency = torch.empty_like(expert_frequency)
@@ -123,12 +120,10 @@ class _GroupWithPadding(torch.autograd.Function):
 
             group_with_padding_triton_kernel[ceil_divide(T * K, BLOCK_SIZE_B),](
                 x_ptr=x,
-                x_stride_s=x.stride(0),
                 expert_padding_offset_ptr=expert_padding_offset,
                 sorted_idxs_ptr=sorted_idxs,
                 scattered_idxs_ptr=scattered_idxs,
                 y_ptr=output,
-                y_stride_s=output.stride(0),
                 T=T,
                 H=H,
                 K=topk,
