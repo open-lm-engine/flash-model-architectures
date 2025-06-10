@@ -241,6 +241,7 @@ class MoE_Cute(nn.Module):
                     scattered_idxs=sorted_scattered_idxs,
                     top_k=self.top_k,
                     num_tokens=T,
+                    pad_to_multiple_of=8,
                 )
 
                 hidden_states = hidden_states.view(T, self.top_k, -1)

@@ -120,8 +120,8 @@ def _group(
 
     if pad_to_multiple_of == 1:
         output = torch.empty(T * K, H, device=x.device, dtype=x.dtype)
-        expert_padding_offset = None
         padded_expert_frequency = expert_frequency
+        expert_padding_offset = None
     else:
         # we pad to max possible shape to make tensor shape independent of data
         output = torch.zeros(
@@ -134,8 +134,6 @@ def _group(
             padded_expert_frequency, expert_padding_offset = _get_expert_padding_offset(
                 expert_frequency=expert_frequency, E=E, pad_to_multiple_of=pad_to_multiple_of
             )
-        else:
-            assert padded_expert_frequency is not None
 
     with torch.cuda.device(x.device):
         BLOCK_SIZE_B = 1
@@ -194,6 +192,7 @@ class _UngroupWithPadding(torch.autograd.Function):
         scattered_idxs: torch.Tensor,
         top_k: int,
         num_tokens: int,
+        pad_to_multiple_of: int,
     ) -> torch.Tensor:
         assert x.dim() == 2
 
@@ -225,8 +224,28 @@ class _UngroupWithPadding(torch.autograd.Function):
 
         ctx.save_for_backward(expert_padding_offset, sorted_idxs, scattered_idxs)
         ctx.x_shape = x.size()
+        ctx.K = K
+        ctx.pad_to_multiple_of = pad_to_multiple_of
 
         return output
+
+    @staticmethod
+    @ensure_contiguous
+    def backward(ctx, output_grad: torch.Tensor) -> torch.Tensor:
+        expert_padding_offset, sorted_idxs, scattered_idxs = ctx.saved_tensors
+
+        x_grad, _, _ = _group(
+            x=output_grad,
+            expert_frequency=None,
+            padded_expert_frequency=None,
+            expert_padding_offset=expert_padding_offset,
+            sorted_idxs=sorted_idxs,
+            scattered_idxs=scattered_idxs,
+            top_k=ctx.K,
+            pad_to_multiple_of=ctx.pad_to_multiple_of,
+        )
+
+        return x_grad, *[None] * 6
 
 
 def grouped_gemm_experts_cute(x: torch.Tensor, weight: torch.Tensor, expert_frequency: torch.Tensor) -> torch.Tensor:
@@ -251,5 +270,8 @@ def ungroup_with_padding(
     scattered_idxs: torch.Tensor,
     top_k: int,
     num_tokens: int,
+    pad_to_multiple_of: int,
 ) -> torch.Tensor:
-    return _UngroupWithPadding.apply(x, expert_padding_offset, sorted_idxs, scattered_idxs, top_k, num_tokens)
+    return _UngroupWithPadding.apply(
+        x, expert_padding_offset, sorted_idxs, scattered_idxs, top_k, num_tokens, pad_to_multiple_of
+    )
