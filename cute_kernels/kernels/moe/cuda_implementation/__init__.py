@@ -179,16 +179,48 @@ class _GroupWithPadding(torch.autograd.Function):
         top_k: int,
         pad_to_multiple_of: int,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor | None]:
-        return _group(
-            x=x,
-            expert_frequency=expert_frequency,
-            padded_expert_frequency=None,
-            expert_padding_offset=None,
-            sorted_idxs=sorted_idxs,
-            scattered_idxs=scattered_idxs,
-            top_k=top_k,
-            pad_to_multiple_of=pad_to_multiple_of,
-        )
+        assert x.dim() == 2
+
+        T, H = x.size()
+        E = expert_frequency.size(0)
+        K = top_k
+
+        assert H % 8 == 0
+
+        if pad_to_multiple_of == 1:
+            output = torch.empty(T * K, H, device=x.device, dtype=x.dtype)
+            padded_expert_frequency = expert_frequency
+            expert_padding_offset = None
+        else:
+            # we pad to max possible shape to make tensor shape independent of data
+            output = torch.zeros(
+                (ceil_divide(T * K, pad_to_multiple_of) + E) * pad_to_multiple_of, H, device=x.device, dtype=x.dtype
+            )
+
+            padded_expert_frequency, expert_padding_offset = _get_expert_padding_offset(
+                expert_frequency=expert_frequency, E=E, pad_to_multiple_of=pad_to_multiple_of
+            )
+
+        with torch.cuda.device(x.device):
+            BLOCK_SIZE_B = 1
+            BLOCK_SIZE_H = 4096
+            NUM_WARPS = 32
+
+            group_with_padding_triton_kernel[ceil_divide(T * K, BLOCK_SIZE_B),](
+                x_ptr=x,
+                expert_padding_offset_ptr=expert_padding_offset,
+                sorted_idxs_ptr=sorted_idxs,
+                scattered_idxs_ptr=scattered_idxs,
+                y_ptr=output,
+                T=T,
+                H=H,
+                K=top_k,
+                BLOCK_SIZE_B=BLOCK_SIZE_B,
+                BLOCK_SIZE_H=BLOCK_SIZE_H,
+                num_warps=NUM_WARPS,
+            )
+
+        return output, padded_expert_frequency, expert_padding_offset
 
 
 class _UngroupWithPadding(torch.autograd.Function):
