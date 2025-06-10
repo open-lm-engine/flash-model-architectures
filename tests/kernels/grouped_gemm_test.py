@@ -46,7 +46,7 @@ class GroupedGEMMTest(TestCommons):
             dtype=torch.uint32,
         )
         N_array = torch.full_like(M_array, fill_value=N)
-        K_array = torch.full_like(M_array, fill_value=K)
+        K_array = torch.full_lizke(M_array, fill_value=K)
 
         def get_tensors():
             As = []

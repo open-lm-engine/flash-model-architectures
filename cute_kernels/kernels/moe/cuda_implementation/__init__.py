@@ -19,7 +19,15 @@ class _GroupedGemmExperts_Cute(torch.autograd.Function):
         K_array = torch.full_like(expert_frequency, fill_value=K)
 
         output = grouped_gemm_cute(
-            A=x, B=weight, C=None, M_array=expert_frequency, N_array=N_array, K_array=K_array, is_B_transposed=True
+            A=x,
+            B=weight,
+            C=None,
+            M_array=expert_frequency,
+            N_array=N_array,
+            K_array=K_array,
+            output_shape=(x.size(0), N),
+            is_A_transposed=False,
+            is_B_transposed=True,
         )
 
         ctx.save_for_backward(x, weight, expert_frequency, K_array, N_array)
