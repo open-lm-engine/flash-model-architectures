@@ -7,7 +7,7 @@ import triton.language as tl
 
 
 @triton.jit
-def group_with_padding_triton_kernel(
+def ungroup_with_padding_triton_kernel(
     x_ptr,
     expert_padding_offset_ptr,
     sorted_idxs_ptr,
@@ -27,14 +27,14 @@ def group_with_padding_triton_kernel(
 
     scattered_idxs = tl.load(scattered_idxs_ptr + indices_b, mask=mask_b)
 
-    x_ptrs = x_ptr + (scattered_idxs // K)[:, None] * H
-    y_ptrs = y_ptr + indices_b[:, None] * H
+    x_ptrs = x_ptr + indices_b[:, None] * H
+    y_ptrs = y_ptr + scattered_idxs[:, None] * H
 
     if expert_padding_offset_ptr is not None:
         sorted_idxs = tl.load(sorted_idxs_ptr + indices_b, mask=mask_b)
         expert_padding_offset = tl.load(expert_padding_offset_ptr + sorted_idxs)
 
-        y_ptrs += expert_padding_offset * H
+        x_ptrs += expert_padding_offset * H
 
     NUM_BLOCKS_H = tl.cdiv(H, BLOCK_SIZE_H)
     for h in range(NUM_BLOCKS_H):

@@ -9,6 +9,7 @@ from ....utils import ensure_contiguous
 from ...grouped_gemm import grouped_gemm_cute
 from .group_kernel import group_with_padding_triton_kernel
 from .padded_expert_frequency_kernel import padded_expert_frequency_triton_kernel
+from .ungroup_kernel import ungroup_with_padding_triton_kernel
 
 
 class _GroupedGemmExperts_Cute(torch.autograd.Function):
@@ -78,7 +79,7 @@ class _GroupWithPadding(torch.autograd.Function):
         scattered_idxs: torch.Tensor,
         topk: int,
         pad_to_multiple_of: int,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor | None]:
         assert x.dim() == 2
 
         T, H = x.size()
@@ -142,7 +143,59 @@ class _GroupWithPadding(torch.autograd.Function):
                 num_warps=NUM_WARPS,
             )
 
-        return output, padded_expert_frequency
+        return output, padded_expert_frequency, expert_padding_offset
+
+
+class _UngroupWithPadding(torch.autograd.Function):
+    @staticmethod
+    @ensure_contiguous
+    def forward(
+        ctx,
+        x: torch.Tensor,
+        expert_padding_offset: torch.Tensor,
+        sorted_idxs: torch.Tensor,
+        scattered_idxs: torch.Tensor,
+        topk: int,
+        pad_to_multiple_of: int,
+        num_tokens: int,
+    ) -> torch.Tensor:
+        assert x.dim() == 2
+
+        T = num_tokens
+        H = x.size(-1)
+        E = expert_padding_offset.size(0) - 1
+        K = topk
+
+        assert H % 8 == 0
+
+        if pad_to_multiple_of == 1:
+            output = torch.empty(T * K, H, device=x.device, dtype=x.dtype)
+        else:
+            # we pad to max possible shape to make tensor shape independent of data
+            output = torch.zeros(
+                (ceil_divide(T * K, pad_to_multiple_of) + E) * pad_to_multiple_of, H, device=x.device, dtype=x.dtype
+            )
+
+        with torch.cuda.device(x.device):
+            BLOCK_SIZE_B = 1
+            BLOCK_SIZE_H = 4096
+            NUM_WARPS = 32
+
+            ungroup_with_padding_triton_kernel[ceil_divide(T * K, BLOCK_SIZE_B),](
+                x_ptr=x,
+                expert_padding_offset_ptr=expert_padding_offset,
+                sorted_idxs_ptr=sorted_idxs,
+                scattered_idxs_ptr=scattered_idxs,
+                y_ptr=output,
+                T=T,
+                H=H,
+                K=topk,
+                BLOCK_SIZE_B=BLOCK_SIZE_B,
+                BLOCK_SIZE_H=BLOCK_SIZE_H,
+                num_warps=NUM_WARPS,
+            )
+
+        return output
 
 
 def grouped_gemm_experts_cute(x: torch.Tensor, weight: torch.Tensor, expert_frequency: torch.Tensor) -> torch.Tensor:
