@@ -223,6 +223,7 @@ class MoE_Cute(nn.Module):
                 hidden_states = group_with_padding(
                     x=hidden_states,
                     expert_frequency=expert_frequency,
+                    sorted_idxs=sorted_expert_idxs,
                     scattered_idxs=sorted_scattered_idxs,
                     topk=self.top_k,
                     pad_to_multiple_of=8,

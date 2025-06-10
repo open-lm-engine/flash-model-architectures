@@ -14,7 +14,8 @@ from .padded_expert_frequency_kernel import padded_expert_frequency_triton_kerne
 @triton.jit
 def group_with_padding_triton_kernel(
     x_ptr,
-    expert_padding_frequency_ptr,
+    expert_padding_offset_ptr,
+    sorted_idxs_ptr,
     scattered_idxs_ptr,
     y_ptr,
     T,
@@ -31,13 +32,16 @@ def group_with_padding_triton_kernel(
 
     scattered_idxs = tl.load(scattered_idxs_ptr + indices_b, mask=mask_b)
 
-    if expert_padding_frequency_ptr is not None:
-        expert_padding_frequency = tl.load(expert_padding_frequency_ptr + indices_b, mask=mask_b)
-
     NUM_BLOCKS_H = tl.cdiv(H, BLOCK_SIZE_H)
 
     x_ptrs = x_ptr + (scattered_idxs // K)[:, None] * H
     y_ptrs = y_ptr + indices_b[:, None] * H
+
+    if expert_padding_offset_ptr is not None:
+        sorted_idxs = tl.load(sorted_idxs_ptr + indices_b, mask=mask_b)
+        expert_padding_offset = tl.load(expert_padding_offset_ptr + sorted_idxs)
+
+        y_ptrs += expert_padding_offset
 
     for h in range(NUM_BLOCKS_H):
         indices_h = h * BLOCK_SIZE_H + tl.arange(0, BLOCK_SIZE_H)
@@ -60,6 +64,7 @@ class _GroupWithPadding(torch.autograd.Function):
         ctx,
         x: torch.Tensor,
         expert_frequency: torch.Tensor,
+        sorted_idxs: torch.Tensor,
         scattered_idxs: torch.Tensor,
         topk: int,
         pad_to_multiple_of: int,
@@ -91,7 +96,7 @@ class _GroupWithPadding(torch.autograd.Function):
                     num_warps=NUM_WARPS,
                 )
 
-            expert_padding_frequency = expert_padding_frequency.cumsum(-1)
+            expert_padding_offset = expert_padding_frequency.cumsum(-1)
 
         with torch.cuda.device(x.device):
             BLOCK_SIZE_B = 1
@@ -100,7 +105,8 @@ class _GroupWithPadding(torch.autograd.Function):
 
             group_with_padding_triton_kernel[ceil_divide(T * K, BLOCK_SIZE_B),](
                 x_ptr=x,
-                expert_padding_frequency_ptr=expert_padding_frequency,
+                expert_padding_offset_ptr=expert_padding_offset,
+                sorted_idxs_ptr=sorted_idxs,
                 scattered_idxs_ptr=scattered_idxs,
                 y_ptr=output,
                 T=T,
@@ -117,8 +123,9 @@ class _GroupWithPadding(torch.autograd.Function):
 def group_with_padding(
     x: torch.Tensor,
     expert_frequency: torch.Tensor,
+    sorted_idxs: torch.Tensor,
     scattered_idxs: torch.Tensor,
     topk: int,
     pad_to_multiple_of: int = 1,
 ) -> torch.Tensor:
-    return _GroupWithPadding.apply(x, expert_frequency, scattered_idxs, topk, pad_to_multiple_of)
+    return _GroupWithPadding.apply(x, expert_frequency, sorted_idxs, scattered_idxs, topk, pad_to_multiple_of)
