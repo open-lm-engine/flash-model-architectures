@@ -100,6 +100,65 @@ def _get_expert_padding_offset(
     return padded_expert_frequency, expert_padding_offset
 
 
+def _group(
+    x: torch.Tensor,
+    expert_frequency: torch.Tensor,
+    padded_expert_frequency: torch.Tensor | None,
+    expert_padding_offset: torch.Tensor | None,
+    sorted_idxs: torch.Tensor,
+    scattered_idxs: torch.Tensor,
+    top_k: int,
+    pad_to_multiple_of: int,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    assert x.dim() == 2
+
+    T, H = x.size()
+    E = expert_frequency.size(0)
+    K = top_k
+
+    assert H % 8 == 0
+
+    if pad_to_multiple_of == 1:
+        output = torch.empty(T * K, H, device=x.device, dtype=x.dtype)
+        expert_padding_offset = None
+        padded_expert_frequency = expert_frequency
+    else:
+        # we pad to max possible shape to make tensor shape independent of data
+        output = torch.zeros(
+            (ceil_divide(T * K, pad_to_multiple_of) + E) * pad_to_multiple_of, H, device=x.device, dtype=x.dtype
+        )
+
+        if expert_padding_offset is None:
+            assert padded_expert_frequency is None
+
+            padded_expert_frequency, expert_padding_offset = _get_expert_padding_offset(
+                expert_frequency=expert_frequency, E=E, pad_to_multiple_of=pad_to_multiple_of
+            )
+        else:
+            assert padded_expert_frequency is not None
+
+    with torch.cuda.device(x.device):
+        BLOCK_SIZE_B = 1
+        BLOCK_SIZE_H = 4096
+        NUM_WARPS = 32
+
+        group_with_padding_triton_kernel[ceil_divide(T * K, BLOCK_SIZE_B),](
+            x_ptr=x,
+            expert_padding_offset_ptr=expert_padding_offset,
+            sorted_idxs_ptr=sorted_idxs,
+            scattered_idxs_ptr=scattered_idxs,
+            y_ptr=output,
+            T=T,
+            H=H,
+            K=top_k,
+            BLOCK_SIZE_B=BLOCK_SIZE_B,
+            BLOCK_SIZE_H=BLOCK_SIZE_H,
+            num_warps=NUM_WARPS,
+        )
+
+    return output, padded_expert_frequency, expert_padding_offset
+
+
 class _GroupWithPadding(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
@@ -109,51 +168,19 @@ class _GroupWithPadding(torch.autograd.Function):
         expert_frequency: torch.Tensor,
         sorted_idxs: torch.Tensor,
         scattered_idxs: torch.Tensor,
-        topk: int,
+        top_k: int,
         pad_to_multiple_of: int,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor | None]:
-        assert x.dim() == 2
-
-        T, H = x.size()
-        E = expert_frequency.size(0)
-        K = topk
-
-        assert H % 8 == 0
-
-        if pad_to_multiple_of == 1:
-            output = torch.empty(T * K, H, device=x.device, dtype=x.dtype)
-            expert_padding_offset = None
-            padded_expert_frequency = expert_frequency
-        else:
-            # we pad to max possible shape to make tensor shape independent of data
-            output = torch.zeros(
-                (ceil_divide(T * K, pad_to_multiple_of) + E) * pad_to_multiple_of, H, device=x.device, dtype=x.dtype
-            )
-
-            padded_expert_frequency, expert_padding_offset = _get_expert_padding_offset(
-                expert_frequency=expert_frequency, E=E, pad_to_multiple_of=pad_to_multiple_of
-            )
-
-        with torch.cuda.device(x.device):
-            BLOCK_SIZE_B = 1
-            BLOCK_SIZE_H = 4096
-            NUM_WARPS = 32
-
-            group_with_padding_triton_kernel[ceil_divide(T * K, BLOCK_SIZE_B),](
-                x_ptr=x,
-                expert_padding_offset_ptr=expert_padding_offset,
-                sorted_idxs_ptr=sorted_idxs,
-                scattered_idxs_ptr=scattered_idxs,
-                y_ptr=output,
-                T=T,
-                H=H,
-                K=topk,
-                BLOCK_SIZE_B=BLOCK_SIZE_B,
-                BLOCK_SIZE_H=BLOCK_SIZE_H,
-                num_warps=NUM_WARPS,
-            )
-
-        return output, padded_expert_frequency, expert_padding_offset
+        return _group(
+            x=x,
+            expert_frequency=expert_frequency,
+            padded_expert_frequency=None,
+            expert_padding_offset=None,
+            sorted_idxs=sorted_idxs,
+            scattered_idxs=scattered_idxs,
+            top_k=top_k,
+            pad_to_multiple_of=pad_to_multiple_of,
+        )
 
 
 class _UngroupWithPadding(torch.autograd.Function):
@@ -165,14 +192,14 @@ class _UngroupWithPadding(torch.autograd.Function):
         expert_padding_offset: torch.Tensor,
         sorted_idxs: torch.Tensor,
         scattered_idxs: torch.Tensor,
-        topk: int,
+        top_k: int,
         num_tokens: int,
     ) -> torch.Tensor:
         assert x.dim() == 2
 
         T = num_tokens
         H = x.size(-1)
-        K = topk
+        K = top_k
 
         assert H % 8 == 0
         output = torch.empty(T * K, H, device=x.device, dtype=x.dtype)
@@ -190,7 +217,7 @@ class _UngroupWithPadding(torch.autograd.Function):
                 y_ptr=output,
                 T=T,
                 H=H,
-                K=topk,
+                K=top_k,
                 BLOCK_SIZE_B=BLOCK_SIZE_B,
                 BLOCK_SIZE_H=BLOCK_SIZE_H,
                 num_warps=NUM_WARPS,
@@ -211,10 +238,10 @@ def group_with_padding(
     expert_frequency: torch.Tensor,
     sorted_idxs: torch.Tensor,
     scattered_idxs: torch.Tensor,
-    topk: int,
+    top_k: int,
     pad_to_multiple_of: int = 1,
 ) -> torch.Tensor:
-    return _GroupWithPadding.apply(x, expert_frequency, sorted_idxs, scattered_idxs, topk, pad_to_multiple_of)
+    return _GroupWithPadding.apply(x, expert_frequency, sorted_idxs, scattered_idxs, top_k, pad_to_multiple_of)
 
 
 def ungroup_with_padding(
@@ -222,7 +249,7 @@ def ungroup_with_padding(
     expert_padding_offset: torch.Tensor,
     sorted_idxs: torch.Tensor,
     scattered_idxs: torch.Tensor,
-    topk: int,
+    top_k: int,
     num_tokens: int,
 ) -> torch.Tensor:
-    return _UngroupWithPadding.apply(x, expert_padding_offset, sorted_idxs, scattered_idxs, topk, num_tokens)
+    return _UngroupWithPadding.apply(x, expert_padding_offset, sorted_idxs, scattered_idxs, top_k, num_tokens)
