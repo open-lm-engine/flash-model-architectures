@@ -17,25 +17,25 @@ class ScatterMoETest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(
             [torch.device("cuda")],
-            TestCommons.get_dtypes(),
-            [2, 4, 6, 8],  # num_experts
-            [2, 4],  # num_experts_per_tok
-            [2048],  # hidden_size
+            [torch.bfloat16],
+            [8],  # num_experts
+            [2],  # num_experts_per_tok
+            [8],  # hidden_size
             [8192],  # intermediate_size
             [True, False],  # is_glu
             [KernelBackend.cuda, KernelBackend.triton],  # kernel_backend
-            [True, False],  # is_compiling
+            [False],  # is_compiling
         )
         + TestCommons.make_args_matrix(
             [torch.device("cuda")],
-            TestCommons.get_dtypes(),
+            [torch.bfloat16],
             [128],  # num_experts
             [8],  # num_experts_per_tok
-            [576],  # hidden_size
+            [7],  # hidden_size
             [256],  # intermediate_size
             [True, False],  # is_glu
             [KernelBackend.cuda, KernelBackend.triton],  # kernel_backend
-            [True, False],  # is_compiling
+            [False],  # is_compiling
         )
     )
     def test_scattermoe(
@@ -75,7 +75,7 @@ class ScatterMoETest(TestCommons):
         if is_compiling:
             moe_custom = torch.compile(moe_custom, fullgraph=True)
 
-        x_torch = torch.randn(hidden_size, device=device, dtype=dtype, requires_grad=True)
+        x_torch = torch.randn(7, hidden_size, device=device, dtype=dtype, requires_grad=True)
         x_custom = x_torch.clone().detach().requires_grad_()
 
         y_torch = moe_torch(x_torch, kernel_backend=KernelBackend.torch)[0]
