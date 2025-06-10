@@ -9,7 +9,6 @@ import triton.language as tl
 from ....math import ceil_divide
 from ....utils import ensure_contiguous
 from ...grouped_gemm import grouped_gemm_cute
-from .group_kernel import group_with_padding
 from .padded_expert_frequency_kernel import padded_expert_frequency_triton_kernel
 
 
