@@ -156,8 +156,8 @@ class _UngroupWithPadding(torch.autograd.Function):
         sorted_idxs: torch.Tensor,
         scattered_idxs: torch.Tensor,
         topk: int,
-        pad_to_multiple_of: int,
         num_tokens: int,
+        pad_to_multiple_of: int,
     ) -> torch.Tensor:
         assert x.dim() == 2
 
@@ -211,3 +211,17 @@ def group_with_padding(
     pad_to_multiple_of: int = 1,
 ) -> torch.Tensor:
     return _GroupWithPadding.apply(x, expert_frequency, sorted_idxs, scattered_idxs, topk, pad_to_multiple_of)
+
+
+def ungroup_with_padding(
+    x: torch.Tensor,
+    expert_padding_offset: torch.Tensor,
+    sorted_idxs: torch.Tensor,
+    scattered_idxs: torch.Tensor,
+    topk: int,
+    num_tokens: int,
+    pad_to_multiple_of: int = 1,
+) -> torch.Tensor:
+    return _GroupWithPadding.apply(
+        x, expert_padding_offset, sorted_idxs, scattered_idxs, topk, num_tokens, pad_to_multiple_of
+    )
