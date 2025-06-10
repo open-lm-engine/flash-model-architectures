@@ -57,6 +57,7 @@ class _GroupedGemmExperts_Cute(torch.autograd.Function):
             M_array=expert_frequency,
             N_array=K_array,
             K_array=N_array,
+            output_shape=x.size(),
             is_A_transposed=False,
             is_B_transposed=False,
         )
