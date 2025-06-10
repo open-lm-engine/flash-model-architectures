@@ -228,6 +228,8 @@ class MoE_Cute(nn.Module):
                     topk=self.top_k,
                     pad_to_multiple_of=8,
                 )
+
+                hidden_states = self.c_fc.cuda_forward(input=hidden_states, expert_frequency=padded_expert_frequency)
             elif kernel_backend == KernelBackend.triton:
                 hidden_states = self.c_fc.triton_forward(
                     hidden_states,
