@@ -64,7 +64,17 @@ class _GroupedGemmExperts_Cute(torch.autograd.Function):
 
         # A -> sum(M) x N
         # B -> sum(M) x K
-        weight_grad = grouped_gemm_cute(A=output_grad, B=x, C=None, is_A_transposed=True, is_B_transposed=False)
+        weight_grad = grouped_gemm_cute(
+            A=output_grad,
+            B=x,
+            C=None,
+            M_array=N_array,
+            N_array=K_array,
+            K_array=expert_frequency,
+            output_shape=weight.size(),
+            is_A_transposed=True,
+            is_B_transposed=False,
+        )
 
         return x_grad, weight_grad, None
 
