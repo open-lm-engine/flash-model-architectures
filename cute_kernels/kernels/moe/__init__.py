@@ -10,7 +10,7 @@ import torch.nn.functional as F
 
 from ...kernel_backend import KernelBackend
 from ..continuous_count import continuous_count_cute
-from .cuda_implementation import group_with_padding, grouped_gemm_experts_cute
+from .cuda_implementation import group_with_padding, grouped_gemm_experts_cute, ungroup_with_padding
 from .triton_implementation import scattered_experts
 
 
@@ -220,7 +220,9 @@ class MoE_Cute(nn.Module):
             expert_offsets = expert_frequency.cumsum(-1)
 
             if kernel_backend == KernelBackend.cuda:
-                hidden_states, padded_expert_frequency = group_with_padding(
+                T = hidden_states.size(0)
+
+                hidden_states, padded_expert_frequency, expert_padding_offset = group_with_padding(
                     x=hidden_states,
                     expert_frequency=expert_frequency,
                     sorted_idxs=sorted_expert_idxs,
@@ -232,6 +234,16 @@ class MoE_Cute(nn.Module):
                 hidden_states = self.c_fc.cuda_forward(input=hidden_states, expert_frequency=padded_expert_frequency)
                 hidden_states = self.act(hidden_states)
                 hidden_states = self.c_proj.cuda_forward(input=hidden_states, expert_frequency=padded_expert_frequency)
+
+                hidden_states = ungroup_with_padding(
+                    x=hidden_states,
+                    expert_padding_offset=expert_padding_offset,
+                    sorted_idxs=sorted_expert_idxs,
+                    scattered_idxs=sorted_scattered_idxs,
+                    topk=self.top_k,
+                    num_tokens=T,
+                    pad_to_multiple_of=8,
+                )
             elif kernel_backend == KernelBackend.triton:
                 hidden_states = self.c_fc.triton_forward(
                     hidden_states,
