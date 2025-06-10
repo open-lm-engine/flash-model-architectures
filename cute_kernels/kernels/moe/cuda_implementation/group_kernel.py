@@ -94,8 +94,6 @@ class _GroupWithPadding(torch.autograd.Function):
             )
 
             expert_padding_frequency = torch.empty_like(expert_frequency)
-            padded_expert_frequency = expert_frequency.to(torch.int32) + expert_padding_frequency.to(torch.int32)
-            padded_expert_frequency = padded_expert_frequency.to(torch.uint32)
 
             with torch.cuda.device(expert_frequency.device):
                 BLOCK_SIZE = 4096
@@ -109,6 +107,9 @@ class _GroupWithPadding(torch.autograd.Function):
                     BLOCK_SIZE=BLOCK_SIZE,
                     num_warps=NUM_WARPS,
                 )
+
+            padded_expert_frequency = expert_frequency.to(torch.int32) + expert_padding_frequency.to(torch.int32)
+            padded_expert_frequency = padded_expert_frequency.to(torch.uint32)
 
             expert_padding_offset = expert_padding_frequency.cumsum(-1)
             expert_padding_offset = torch.cat(
