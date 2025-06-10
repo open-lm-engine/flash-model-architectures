@@ -62,4 +62,4 @@ class _GroupedGemmExperts_Cute(torch.autograd.Function):
 
 
 def grouped_gemm_experts_cute(x: torch.Tensor, weight: torch.Tensor, expert_frequency: torch.Tensor) -> torch.Tensor:
-    return _GroupedGemmExperts_Cute(x, weight, expert_frequency)
+    return _GroupedGemmExperts_Cute.apply(x, weight, expert_frequency)
