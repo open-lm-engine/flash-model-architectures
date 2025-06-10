@@ -79,7 +79,7 @@ class _GroupedGemmExperts_Cute(torch.autograd.Function):
         return x_grad, weight_grad, None
 
 
-@torch.no_grad
+@torch.no_grad()
 def _get_expert_padding_offset(
     expert_frequency: torch.Tensor, E: int, pad_to_multiple_of: int
 ) -> tuple[torch.Tensor, torch.Tensor]:
