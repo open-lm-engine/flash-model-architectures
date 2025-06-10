@@ -198,7 +198,9 @@ class _UngroupWithPadding(torch.autograd.Function):
             )
 
         ctx.save_for_backward(expert_padding_offset, sorted_idxs, scattered_idxs)
+
         ctx.x_shape = x.size()
+        ctx.T = T
         ctx.K = K
         ctx.pad_to_multiple_of = pad_to_multiple_of
 
@@ -210,7 +212,8 @@ class _UngroupWithPadding(torch.autograd.Function):
         expert_padding_offset, sorted_idxs, scattered_idxs = ctx.saved_tensors
 
         pad_to_multiple_of = ctx.pad_to_multiple_of
-        T, H = output_grad.size()
+        H = output_grad.size(-1)
+        T = ctx.T
         K = ctx.K
 
         x_grad = (torch.empty if pad_to_multiple_of == 1 else torch.zeros)(
