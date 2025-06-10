@@ -162,7 +162,6 @@ class _UngroupWithPadding(torch.autograd.Function):
 
         T = num_tokens
         H = x.size(-1)
-        E = expert_padding_offset.size(0) - 1
         K = topk
 
         assert H % 8 == 0
@@ -186,6 +185,9 @@ class _UngroupWithPadding(torch.autograd.Function):
                 BLOCK_SIZE_H=BLOCK_SIZE_H,
                 num_warps=NUM_WARPS,
             )
+
+        ctx.save_for_backward(expert_padding_offset, sorted_idxs, scattered_idxs)
+        ctx.x_shape = x.size()
 
         return output
 

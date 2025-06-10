@@ -217,7 +217,6 @@ class MoE_Cute(nn.Module):
             expert_frequency = continuous_count_cute(
                 sorted_expert_idxs, self.num_experts, kernel_backend=KernelBackend.cuda
             )
-            expert_offsets = expert_frequency.cumsum(-1)
 
             if kernel_backend == KernelBackend.cuda:
                 T = hidden_states.size(0)
@@ -247,6 +246,8 @@ class MoE_Cute(nn.Module):
                 hidden_states = hidden_states.view(T, self.top_k, -1)
                 hidden_states = torch.bmm(router_weights.unsqueeze(1), hidden_states)
             elif kernel_backend == KernelBackend.triton:
+                expert_offsets = expert_frequency.cumsum(-1)
+
                 hidden_states = self.c_fc.triton_forward(
                     hidden_states,
                     self.top_k,
