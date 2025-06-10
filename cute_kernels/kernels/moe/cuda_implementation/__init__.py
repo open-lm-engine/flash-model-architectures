@@ -109,6 +109,7 @@ def _group(
     scattered_idxs: torch.Tensor,
     top_k: int,
     pad_to_multiple_of: int,
+    output_shape: tuple[int] | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     assert x.dim() == 2
 
@@ -124,14 +125,18 @@ def _group(
     assert H % 8 == 0
 
     if pad_to_multiple_of == 1:
-        output = torch.empty(T * K, H, device=x.device, dtype=x.dtype)
+        if output_shape is None:
+            output_shape = (T * K, H)
+
+        output = torch.empty(*output_shape, device=x.device, dtype=x.dtype)
         padded_expert_frequency = expert_frequency
         expert_padding_offset = None
     else:
         # we pad to max possible shape to make tensor shape independent of data
-        output = torch.zeros(
-            (ceil_divide(T * K, pad_to_multiple_of) + E) * pad_to_multiple_of, H, device=x.device, dtype=x.dtype
-        )
+        if output_shape is None:
+            output_shape = ((ceil_divide(T * K, pad_to_multiple_of) + E) * pad_to_multiple_of, H)
+
+        output = torch.zeros(*output_shape, device=x.device, dtype=x.dtype)
 
         if expert_padding_offset is None:
             assert padded_expert_frequency is None
@@ -248,6 +253,7 @@ class _UngroupWithPadding(torch.autograd.Function):
             scattered_idxs=scattered_idxs,
             top_k=ctx.K,
             pad_to_multiple_of=ctx.pad_to_multiple_of,
+            output_shape=ctx.x_shape,
         )
 
         return x_grad, *[None] * 6
