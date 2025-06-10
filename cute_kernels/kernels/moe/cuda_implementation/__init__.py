@@ -222,6 +222,6 @@ def ungroup_with_padding(
     num_tokens: int,
     pad_to_multiple_of: int = 1,
 ) -> torch.Tensor:
-    return _GroupWithPadding.apply(
+    return _UngroupWithPadding.apply(
         x, expert_padding_offset, sorted_idxs, scattered_idxs, topk, num_tokens, pad_to_multiple_of
     )
