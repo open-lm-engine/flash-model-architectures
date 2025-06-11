@@ -168,7 +168,42 @@ class _GroupWithPadding(torch.autograd.Function):
                 num_warps=NUM_WARPS,
             )
 
+        ctx.save_for_backward(expert_padding_offset, sorted_idxs, scattered_idxs)
+        ctx.T = T
+        ctx.K = K
+
         return output, padded_expert_frequency, expert_padding_offset
+
+    @staticmethod
+    @ensure_contiguous
+    def backward(ctx, output_grad: torch.Tensor, _: torch.Tensor, __: torch.Tensor) -> tuple[torch.Tensor | None]:
+        expert_padding_offset, sorted_idxs, scattered_idxs = ctx.saved_tensors
+        T = ctx.T
+        H = output_grad.size(-1)
+        K = ctx.K
+
+        x_grad = torch.empty(T, H, device=output_grad.device, dtype=output_grad.dtype)
+
+        with torch.cuda.device(output_grad.device):
+            BLOCK_SIZE_B = 1
+            BLOCK_SIZE_H = 4096
+            NUM_WARPS = 32
+
+            ungroup_with_padding_triton_kernel[ceil_divide(T * K, BLOCK_SIZE_B),](
+                x_ptr=output_grad,
+                expert_padding_offset_ptr=expert_padding_offset,
+                sorted_idxs_ptr=sorted_idxs,
+                scattered_idxs_ptr=scattered_idxs,
+                y_ptr=x_grad,
+                T=T,
+                H=H,
+                K=K,
+                BLOCK_SIZE_B=BLOCK_SIZE_B,
+                BLOCK_SIZE_H=BLOCK_SIZE_H,
+                num_warps=NUM_WARPS,
+            )
+
+        return x_grad, *[None] * 5
 
 
 class _UngroupWithPadding(torch.autograd.Function):
@@ -213,7 +248,6 @@ class _UngroupWithPadding(torch.autograd.Function):
             )
 
         ctx.save_for_backward(expert_padding_offset, sorted_idxs, scattered_idxs)
-
         ctx.x_shape = x.size()
         ctx.T = T
         ctx.K = K
@@ -225,7 +259,6 @@ class _UngroupWithPadding(torch.autograd.Function):
     @ensure_contiguous
     def backward(ctx, output_grad: torch.Tensor) -> torch.Tensor:
         expert_padding_offset, sorted_idxs, scattered_idxs = ctx.saved_tensors
-
         pad_to_multiple_of = ctx.pad_to_multiple_of
         H = output_grad.size(-1)
         T = ctx.T
