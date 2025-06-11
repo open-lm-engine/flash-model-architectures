@@ -169,7 +169,7 @@ class _GroupWithPadding(torch.autograd.Function):
         H = output_grad.size(-1)
         K = ctx.K
 
-        x_grad = torch.empty(T, H, device=output_grad.device, dtype=torch.float32)
+        x_grad = torch.empty(T, K, H, device=output_grad.device, dtype=output_grad.dtype)
 
         ungroup_with_padding_triton(
             x=output_grad,
@@ -180,10 +180,10 @@ class _GroupWithPadding(torch.autograd.Function):
             T=T,
             H=H,
             K=K,
-            DO_ATOMIC_ADD=True,
+            DO_ATOMIC_ADD=False,
         )
 
-        x_grad = x_grad.type_as(output_grad)
+        x_grad = x_grad.sum(dim=1)
 
         return x_grad, *[None] * 5
 
