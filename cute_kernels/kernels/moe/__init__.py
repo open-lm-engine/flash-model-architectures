@@ -9,8 +9,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from ...kernel_backend import KernelBackend
-from .cuda_implementation import grouped_gemm_experts_cute
-from .triton_implementation import bincount, scattered_experts
+from ..continuous_count import continuous_count_cute
+from .cuda_implementation import group_with_padding, grouped_gemm_experts_cute, ungroup_with_padding
+from .triton_implementation import scattered_experts
 
 
 class Experts_Cute(nn.Module):
@@ -211,28 +212,63 @@ class MoE_Cute(nn.Module):
             hidden_states = zeros.index_add(0, fan_in_index, hidden_states)
 
             # hidden_states -> (total_q, hidden_size)
-        elif kernel_backend == KernelBackend.triton:
+        else:
             sorted_expert_idxs, sorted_scattered_idxs = selected_experts.flatten().sort()
-            expert_offsets = bincount(sorted_expert_idxs, self.num_experts).cumsum(-1)
+            expert_frequency = continuous_count_cute(
+                sorted_expert_idxs, self.num_experts, kernel_backend=KernelBackend.cuda
+            )
 
-            hidden_states = self.c_fc.triton_forward(
-                hidden_states,
-                self.top_k,
-                sorted_expert_idxs,
-                sorted_scattered_idxs,
-                expert_offsets,
-                grouped_out=True,
-            )
-            hidden_states = self.act(hidden_states)
-            hidden_states = self.c_proj.triton_forward(
-                hidden_states,
-                1,
-                sorted_expert_idxs,
-                sorted_scattered_idxs,
-                expert_offsets,
-                grouped_in=True,
-                gates=router_weights,
-            )
+            if kernel_backend == KernelBackend.cuda:
+                T = hidden_states.size(0)
+
+                hidden_states, padded_expert_frequency, expert_padding_offset = group_with_padding(
+                    x=hidden_states,
+                    expert_frequency=expert_frequency,
+                    sorted_idxs=sorted_expert_idxs,
+                    scattered_idxs=sorted_scattered_idxs,
+                    top_k=self.top_k,
+                    pad_to_multiple_of=8,
+                )
+
+                hidden_states = self.c_fc.cuda_forward(input=hidden_states, expert_frequency=padded_expert_frequency)
+                hidden_states = self.act(hidden_states)
+                hidden_states = self.c_proj.cuda_forward(input=hidden_states, expert_frequency=padded_expert_frequency)
+
+                hidden_states = ungroup_with_padding(
+                    x=hidden_states,
+                    expert_padding_offset=expert_padding_offset,
+                    sorted_idxs=sorted_expert_idxs,
+                    scattered_idxs=sorted_scattered_idxs,
+                    top_k=self.top_k,
+                    num_tokens=T,
+                    pad_to_multiple_of=8,
+                )
+
+                hidden_states = hidden_states.view(T, self.top_k, -1)
+                hidden_states = torch.bmm(router_weights.unsqueeze(1), hidden_states)
+            elif kernel_backend == KernelBackend.triton:
+                expert_offsets = expert_frequency.cumsum(-1)
+
+                hidden_states = self.c_fc.triton_forward(
+                    hidden_states,
+                    self.top_k,
+                    sorted_expert_idxs,
+                    sorted_scattered_idxs,
+                    expert_offsets,
+                    grouped_out=True,
+                )
+                hidden_states = self.act(hidden_states)
+                hidden_states = self.c_proj.triton_forward(
+                    hidden_states,
+                    1,
+                    sorted_expert_idxs,
+                    sorted_scattered_idxs,
+                    expert_offsets,
+                    grouped_in=True,
+                    gates=router_weights,
+                )
+            else:
+                raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
         return hidden_states
 
@@ -244,7 +280,9 @@ class MoE_Cute(nn.Module):
         selected_experts = selected_experts.flatten()
         # selected_experts -> (total_q * top_k)
 
-        expert_frequency = selected_experts.bincount(minlength=self.num_experts)
+        expert_frequency = continuous_count_cute(
+            x=selected_experts, size=self.num_experts, kernel_backend=KernelBackend.torch
+        )
         # expert_frequency -> (num_experts)
 
         index_sorted_experts = selected_experts.argsort()
