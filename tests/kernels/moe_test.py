@@ -23,6 +23,7 @@ class ScatterMoETest(TestCommons):
             [2048],  # hidden_size
             [8192],  # intermediate_size
             [True, False],  # is_glu
+            [KernelBackend.triton],  # kernel_backend
             [True, False],  # is_compiling
         )
         + TestCommons.make_args_matrix(
@@ -33,6 +34,7 @@ class ScatterMoETest(TestCommons):
             [576],  # hidden_size
             [256],  # intermediate_size
             [True, False],  # is_glu
+            [KernelBackend.triton],  # kernel_backend
             [True, False],  # is_compiling
         )
         + TestCommons.make_args_matrix(
@@ -43,7 +45,7 @@ class ScatterMoETest(TestCommons):
             [2048],  # hidden_size
             [8192],  # intermediate_size
             [True, False],  # is_glu
-            [KernelBackend.cuda, KernelBackend.triton],  # kernel_backend
+            [KernelBackend.cuda],  # kernel_backend
             [False],  # is_compiling
         )
         + TestCommons.make_args_matrix(
@@ -54,7 +56,7 @@ class ScatterMoETest(TestCommons):
             [576],  # hidden_size
             [256],  # intermediate_size
             [True, False],  # is_glu
-            [KernelBackend.cuda, KernelBackend.triton],  # kernel_backend
+            [KernelBackend.cuda],  # kernel_backend
             [False],  # is_compiling
         )
     )
