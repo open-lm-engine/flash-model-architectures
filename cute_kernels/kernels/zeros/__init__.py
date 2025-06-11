@@ -5,6 +5,7 @@
 import torch
 
 from ...kernel_backend import KernelBackend
+from .triton_implementation import fill_triton
 
 
 @torch.no_grad()
@@ -19,5 +20,6 @@ def zeros_cute(
         x = torch.zeros(*shape, dtype=dtype, device=device)
     elif kernel_backend == KernelBackend.triton:
         x = torch.empty(*shape, dtype=dtype, device=device)
+        fill_triton(x=x, fill_value=0)
 
     return x
