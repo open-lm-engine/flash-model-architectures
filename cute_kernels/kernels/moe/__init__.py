@@ -93,6 +93,9 @@ class Experts_Cute(nn.Module):
         if hasattr(self, "bias") and self.bias is not None:
             self.bias.zero_()
 
+        self.N_array.fill_(self.out_features)
+        self.K_array.fill_(self.in_features)
+
 
 class MoE_Cute(nn.Module):
     def __init__(
