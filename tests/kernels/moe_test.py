@@ -20,7 +20,7 @@ class ScatterMoETest(TestCommons):
             [torch.bfloat16],
             [8],  # num_experts
             [2],  # num_experts_per_tok
-            [8],  # hidden_size
+            [2048],  # hidden_size
             [8192],  # intermediate_size
             [True, False],  # is_glu
             [KernelBackend.cuda, KernelBackend.triton],  # kernel_backend
@@ -31,7 +31,7 @@ class ScatterMoETest(TestCommons):
             [torch.bfloat16],
             [128],  # num_experts
             [8],  # num_experts_per_tok
-            [7],  # hidden_size
+            [576],  # hidden_size
             [256],  # intermediate_size
             [True, False],  # is_glu
             [KernelBackend.cuda, KernelBackend.triton],  # kernel_backend
