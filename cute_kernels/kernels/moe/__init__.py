@@ -65,21 +65,14 @@ class Experts_Cute(nn.Module):
         return hidden_states
 
     def torch_forward(
-        self,
-        input: torch.Tensor | tuple[torch.Tensor],
-        expert_frequency: torch.Tensor,
-        return_list: bool,
+        self, input: torch.Tensor | tuple[torch.Tensor], expert_frequency: torch.Tensor
     ) -> torch.Tensor | list[torch.Tensor]:
-        if isinstance(input, torch.Tensor):
-            input = input.split(expert_frequency.tolist(), dim=0)
-
+        input = input.split(expert_frequency.tolist(), dim=0)
         input = [
             F.linear(input[i], self.weight[i], None if self.bias is None else self.bias[i])
             for i in range(self.num_experts)
         ]
-
-        if not return_list:
-            input = torch.cat(input)
+        input = torch.cat(input, dim=0)
 
         return input
 
@@ -238,37 +231,24 @@ class MoE_Cute(nn.Module):
                 gates=router_weights,
             )
         elif kernel_backend == KernelBackend.torch:
-            # hidden_states -> (total_q, hidden_size)
-            # router_weights -> (total_q, top_k)
-            # selected_experts -> (total_q, top_k)
-
             # sort and group input tokens according to expert assignment
-            fan_in_index = sorted_scattered_idxs // self.top_k  # [num_tokens * top_k]
+            fan_in_index = sorted_scattered_idxs // self.top_k
 
             # gather the gate values for grouped input tokens
-            router_weights = router_weights.flatten()  # [num_tokens * top_k]
-            batch_gates = router_weights[sorted_scattered_idxs]  # [num_tokens * top_k]
-
-            # fan_in_index -> (total_q * top_k)
-            # batch_gates -> (total_q * top_k)
-            # expert_frequency -> (num_experts)
+            router_weights = router_weights.flatten()
+            batch_gates = router_weights[sorted_scattered_idxs]
 
             hidden_states = hidden_states[fan_in_index]
 
             # hidden_states -> (total_q * top_k, hidden_size)
 
-            hidden_states = self.c_fc.torch_forward(hidden_states, expert_frequency, return_list=True)
-            # hidden_states -> num_experts x (?, hidden_size)
-            hidden_states = [self.act(i) for i in hidden_states]
-            # hidden_states -> num_experts x (?, intermediate_size)
-            hidden_states = self.c_proj.torch_forward(hidden_states, expert_frequency, return_list=False)
-            # hidden_states -> (total_q * top_k, hidden_size)
+            hidden_states = self.c_fc.torch_forward(hidden_states, expert_frequency)
+            hidden_states = self.act(hidden_states)
+            hidden_states = self.c_proj.torch_forward(hidden_states, expert_frequency)
 
             hidden_states = hidden_states * batch_gates.unsqueeze(-1)
             zeros = torch.zeros((T, self.hidden_size), dtype=hidden_states.dtype, device=hidden_states.device)
             hidden_states = zeros.index_add(0, fan_in_index, hidden_states)
-
-            # hidden_states -> (total_q, hidden_size)
         else:
             raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
