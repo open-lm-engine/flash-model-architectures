@@ -39,40 +39,44 @@ class Experts_Cute(nn.Module):
     ) -> torch.Tensor | list[torch.Tensor]:
         return grouped_gemm_experts_cute(x=input, weight=self.weight, expert_frequency=expert_frequency)
 
-    def triton_forward(
+    def forward(
         self,
-        hidden_states: torch.Tensor,
-        k: int,
-        sorted_expert_idxs: torch.Tensor,
-        sorted_scattered_idxs: torch.Tensor,
-        expert_offsets: torch.Tensor,
+        input: torch.Tensor,
+        kernel_backend: KernelBackend,
+        num_experts_per_token: int | None = None,
+        expert_frequency: torch.Tensor | None = None,
+        sorted_expert_idxs: torch.Tensor | None = None,
+        sorted_scattered_idxs: torch.Tensor | None = None,
+        expert_offsets: torch.Tensor | None = None,
         gates: torch.Tensor | None = None,
         grouped_in: bool = False,
         grouped_out: bool = False,
     ) -> torch.Tensor:
-        hidden_states = scattered_experts(
-            inputs=hidden_states,
-            expert_weights=self.weight.permute(0, 2, 1),
-            k=k,
-            sorted_expert_idxs=sorted_expert_idxs,
-            sorted_scattered_idxs=sorted_scattered_idxs,
-            expert_offsets=expert_offsets,
-            gates=gates,
-            grouped_in=grouped_in,
-            grouped_out=grouped_out,
-        )
-
-        return hidden_states
-
-    def torch_forward(
-        self, input: torch.Tensor | tuple[torch.Tensor], expert_frequency: torch.Tensor
-    ) -> torch.Tensor | list[torch.Tensor]:
-        input = input.split(expert_frequency.tolist(), dim=0)
-        input = [
-            F.linear(input[i], self.weight[i], None if self.bias is None else self.bias[i])
-            for i in range(self.num_experts)
-        ]
-        input = torch.cat(input, dim=0)
+        if kernel_backend == KernelBackend.cuda:
+            assert self.bias is None
+            input = grouped_gemm_experts_cute(x=input, weight=self.weight, expert_frequency=expert_frequency)
+        elif kernel_backend == KernelBackend.triton:
+            assert self.bias is None
+            input = scattered_experts(
+                inputs=input,
+                expert_weights=self.weight.permute(0, 2, 1),
+                k=num_experts_per_token,
+                sorted_expert_idxs=sorted_expert_idxs,
+                sorted_scattered_idxs=sorted_scattered_idxs,
+                expert_offsets=expert_offsets,
+                gates=gates,
+                grouped_in=grouped_in,
+                grouped_out=grouped_out,
+            )
+        elif kernel_backend == KernelBackend.torch:
+            input = input.split(expert_frequency.tolist(), dim=0)
+            input = [
+                F.linear(input[i], self.weight[i], None if self.bias is None else self.bias[i])
+                for i in range(self.num_experts)
+            ]
+            input = torch.cat(input, dim=0)
+        else:
+            raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
         return input
 
@@ -212,21 +216,23 @@ class MoE_Cute(nn.Module):
             with torch.no_grad():
                 expert_offsets = expert_frequency.cumsum(-1)
 
-            hidden_states = self.c_fc.triton_forward(
-                hidden_states,
-                self.top_k,
-                sorted_expert_idxs,
-                sorted_scattered_idxs,
-                expert_offsets,
+            hidden_states = self.c_fc(
+                input=hidden_states,
+                kernel_backend=kernel_backend,
+                num_experts_per_token=self.top_k,
+                sorted_expert_idxs=sorted_expert_idxs,
+                sorted_scattered_idxs=sorted_scattered_idxs,
+                expert_offsets=expert_offsets,
                 grouped_out=True,
             )
             hidden_states = self.act(hidden_states)
             hidden_states = self.c_proj.triton_forward(
-                hidden_states,
-                1,
-                sorted_expert_idxs,
-                sorted_scattered_idxs,
-                expert_offsets,
+                input=hidden_states,
+                kernel_backend=kernel_backend,
+                num_experts_per_token=1,
+                sorted_expert_idxs=sorted_expert_idxs,
+                sorted_scattered_idxs=sorted_scattered_idxs,
+                expert_offsets=expert_offsets,
                 grouped_in=True,
                 gates=router_weights,
             )
@@ -240,11 +246,13 @@ class MoE_Cute(nn.Module):
 
             hidden_states = hidden_states[fan_in_index]
 
-            # hidden_states -> (total_q * top_k, hidden_size)
-
-            hidden_states = self.c_fc.torch_forward(hidden_states, expert_frequency)
+            hidden_states = self.c_fc(
+                input=hidden_states, kernel_backend=kernel_backend, expert_frequency=expert_frequency
+            )
             hidden_states = self.act(hidden_states)
-            hidden_states = self.c_proj.torch_forward(hidden_states, expert_frequency)
+            hidden_states = self.c_proj(
+                input=hidden_states, kernel_backend=kernel_backend, expert_frequency=expert_frequency
+            )
 
             hidden_states = hidden_states * batch_gates.unsqueeze(-1)
             zeros = torch.zeros((T, self.hidden_size), dtype=hidden_states.dtype, device=hidden_states.device)
