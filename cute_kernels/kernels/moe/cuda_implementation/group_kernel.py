@@ -6,7 +6,9 @@ import torch
 import triton
 import triton.language as tl
 
+from ....constants import LIBRARY_NAME
 from ....math import ceil_divide
+from ....utils import cute_op
 
 
 @triton.jit
@@ -59,6 +61,7 @@ def group_with_padding_triton_kernel(
             tl.store(y_ptrs + indices_h[None, :], x, mask=mask_bh)
 
 
+@cute_op(f"{LIBRARY_NAME}::group_with_padding_triton", mutates_args={"output"})
 def group_with_padding_triton(
     x: torch.Tensor,
     expert_padding_offset: torch.Tensor,
