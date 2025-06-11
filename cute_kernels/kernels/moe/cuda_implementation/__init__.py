@@ -7,7 +7,6 @@ import torch
 from ....math import ceil_divide
 from ....utils import ensure_contiguous
 from ...grouped_gemm import grouped_gemm_cute
-from ...zeros import zeros_cute
 from .group_kernel import group_with_padding_triton
 from .padded_expert_frequency_kernel import padded_expert_frequency_triton
 from .ungroup_kernel import ungroup_with_padding_triton
@@ -136,8 +135,8 @@ class _GroupWithPadding(torch.autograd.Function):
             expert_padding_offset = None
         else:
             # we pad to max possible shape to make tensor shape independent of data
-            output = zeros_cute(
-                ((ceil_divide(T * K, pad_to_multiple_of) + E) * pad_to_multiple_of, H), device=x.device, dtype=x.dtype
+            output = torch.zeros(
+                (ceil_divide(T * K, pad_to_multiple_of) + E) * pad_to_multiple_of, H, device=x.device, dtype=x.dtype
             )
 
             padded_expert_frequency, expert_padding_offset = _get_expert_padding_offset(
@@ -170,7 +169,7 @@ class _GroupWithPadding(torch.autograd.Function):
         H = output_grad.size(-1)
         K = ctx.K
 
-        x_grad = zeros_cute((T, H), device=output_grad.device, dtype=torch.float32)
+        x_grad = torch.zeros(T, H, device=output_grad.device, dtype=torch.float32)
 
         ungroup_with_padding_triton(
             x=output_grad,
@@ -240,8 +239,8 @@ class _UngroupWithPadding(torch.autograd.Function):
         T = ctx.T
         K = ctx.K
 
-        x_grad = (torch.empty if pad_to_multiple_of == 1 else zeros_cute)(
-            ctx.x_shape, device=output_grad.device, dtype=output_grad.dtype
+        x_grad = (torch.empty if pad_to_multiple_of == 1 else torch.zeros)(
+            *ctx.x_shape, device=output_grad.device, dtype=output_grad.dtype
         )
 
         group_with_padding_triton(
