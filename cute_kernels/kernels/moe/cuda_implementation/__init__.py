@@ -9,7 +9,7 @@ from ....utils import ensure_contiguous
 from ...grouped_gemm import grouped_gemm_cute
 from .group_kernel import group_with_padding_triton_kernel
 from .padded_expert_frequency_kernel import padded_expert_frequency_triton
-from .ungroup_kernel import ungroup_with_padding_triton_kernel
+from .ungroup_kernel import ungroup_with_padding_triton
 
 
 class _GroupedGemmExperts_Cute(torch.autograd.Function):
@@ -175,24 +175,16 @@ class _GroupWithPadding(torch.autograd.Function):
 
         x_grad = torch.empty(T * K, H, device=output_grad.device, dtype=output_grad.dtype)
 
-        with torch.cuda.device(output_grad.device):
-            BLOCK_SIZE_B = 1
-            BLOCK_SIZE_H = 4096
-            NUM_WARPS = 32
-
-            ungroup_with_padding_triton_kernel[ceil_divide(T * K, BLOCK_SIZE_B),](
-                x_ptr=output_grad,
-                expert_padding_offset_ptr=expert_padding_offset,
-                sorted_idxs_ptr=sorted_idxs,
-                scattered_idxs_ptr=scattered_idxs,
-                y_ptr=x_grad,
-                T=T,
-                H=H,
-                K=K,
-                BLOCK_SIZE_B=BLOCK_SIZE_B,
-                BLOCK_SIZE_H=BLOCK_SIZE_H,
-                num_warps=NUM_WARPS,
-            )
+        ungroup_with_padding_triton(
+            x=output_grad,
+            expert_padding_offset=expert_padding_offset,
+            sorted_idxs=sorted_idxs,
+            scattered_idxs=scattered_idxs,
+            output=x_grad,
+            T=T,
+            H=H,
+            K=K,
+        )
 
         x_grad = x_grad.view(T, K, H)
         x_grad = x_grad.sum(dim=1)
@@ -222,24 +214,16 @@ class _UngroupWithPadding(torch.autograd.Function):
         assert H % 8 == 0
         output = torch.empty(T * K, H, device=x.device, dtype=x.dtype)
 
-        with torch.cuda.device(x.device):
-            BLOCK_SIZE_B = 1
-            BLOCK_SIZE_H = 4096
-            NUM_WARPS = 32
-
-            ungroup_with_padding_triton_kernel[ceil_divide(T * K, BLOCK_SIZE_B),](
-                x_ptr=x,
-                expert_padding_offset_ptr=expert_padding_offset,
-                sorted_idxs_ptr=sorted_idxs,
-                scattered_idxs_ptr=scattered_idxs,
-                y_ptr=output,
-                T=T,
-                H=H,
-                K=top_k,
-                BLOCK_SIZE_B=BLOCK_SIZE_B,
-                BLOCK_SIZE_H=BLOCK_SIZE_H,
-                num_warps=NUM_WARPS,
-            )
+        ungroup_with_padding_triton(
+            x=x,
+            expert_padding_offset=expert_padding_offset,
+            sorted_idxs=sorted_idxs,
+            scattered_idxs=scattered_idxs,
+            output=output,
+            T=T,
+            H=H,
+            K=K,
+        )
 
         ctx.save_for_backward(expert_padding_offset, sorted_idxs, scattered_idxs)
         ctx.x_shape = x.size()

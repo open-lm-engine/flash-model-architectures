@@ -24,7 +24,7 @@ def padded_expert_frequency_triton_kernel(x_ptr, y_ptr, pad_to_multiple_of, N, B
     tl.store(y_ptr + indices, y, mask=mask)
 
 
-@cute_op(f"{LIBRARY_NAME}::padded_expert_frequency", mutates_args={"output"})
+@cute_op(f"{LIBRARY_NAME}::padded_expert_frequency_triton", mutates_args={"output"})
 def padded_expert_frequency_triton(
     expert_frequency: torch.Tensor, output: torch.Tensor, pad_to_multiple_of: int
 ) -> None:
