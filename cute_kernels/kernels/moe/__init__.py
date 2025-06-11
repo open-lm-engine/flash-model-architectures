@@ -181,10 +181,11 @@ class MoE_Cute(nn.Module):
         selected_experts: torch.Tensor,
         kernel_backend: KernelBackend,
     ) -> torch.Tensor:
-        sorted_expert_idxs, sorted_scattered_idxs = selected_experts.flatten().sort()
-        expert_frequency = continuous_count_cute(
-            sorted_expert_idxs, self.num_experts, kernel_backend=KernelBackend.cuda
-        )
+        with torch.no_grad():
+            sorted_expert_idxs, sorted_scattered_idxs = selected_experts.flatten().sort()
+            expert_frequency = continuous_count_cute(
+                sorted_expert_idxs, self.num_experts, kernel_backend=KernelBackend.cuda
+            )
 
         T = hidden_states.size(0)
 
@@ -215,7 +216,8 @@ class MoE_Cute(nn.Module):
             hidden_states = hidden_states.view(T, self.top_k, -1)
             hidden_states = torch.bmm(router_weights.unsqueeze(1), hidden_states)
         elif kernel_backend == KernelBackend.triton:
-            expert_offsets = expert_frequency.cumsum(-1)
+            with torch.no_grad():
+                expert_offsets = expert_frequency.cumsum(-1)
 
             hidden_states = self.c_fc.triton_forward(
                 hidden_states,
