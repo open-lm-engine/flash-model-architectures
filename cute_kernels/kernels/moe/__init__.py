@@ -188,7 +188,54 @@ class MoE_Cute(nn.Module):
 
         T = hidden_states.size(0)
 
-        if kernel_backend == KernelBackend.torch:
+        if kernel_backend == KernelBackend.cuda:
+            hidden_states, padded_expert_frequency, expert_padding_offset = group_with_padding(
+                x=hidden_states,
+                expert_frequency=expert_frequency,
+                sorted_idxs=sorted_expert_idxs,
+                scattered_idxs=sorted_scattered_idxs,
+                top_k=self.top_k,
+                pad_to_multiple_of=8,
+            )
+
+            hidden_states = self.c_fc.cuda_forward(input=hidden_states, expert_frequency=padded_expert_frequency)
+            hidden_states = self.act(hidden_states)
+            hidden_states = self.c_proj.cuda_forward(input=hidden_states, expert_frequency=padded_expert_frequency)
+
+            hidden_states = ungroup_with_padding(
+                x=hidden_states,
+                expert_padding_offset=expert_padding_offset,
+                sorted_idxs=sorted_expert_idxs,
+                scattered_idxs=sorted_scattered_idxs,
+                top_k=self.top_k,
+                num_tokens=T,
+                pad_to_multiple_of=8,
+            )
+
+            hidden_states = hidden_states.view(T, self.top_k, -1)
+            hidden_states = torch.bmm(router_weights.unsqueeze(1), hidden_states)
+        elif kernel_backend == KernelBackend.triton:
+            expert_offsets = expert_frequency.cumsum(-1)
+
+            hidden_states = self.c_fc.triton_forward(
+                hidden_states,
+                self.top_k,
+                sorted_expert_idxs,
+                sorted_scattered_idxs,
+                expert_offsets,
+                grouped_out=True,
+            )
+            hidden_states = self.act(hidden_states)
+            hidden_states = self.c_proj.triton_forward(
+                hidden_states,
+                1,
+                sorted_expert_idxs,
+                sorted_scattered_idxs,
+                expert_offsets,
+                grouped_in=True,
+                gates=router_weights,
+            )
+        elif kernel_backend == KernelBackend.torch:
             # hidden_states -> (total_q, hidden_size)
             # router_weights -> (total_q, top_k)
             # selected_experts -> (total_q, top_k)
@@ -221,55 +268,7 @@ class MoE_Cute(nn.Module):
 
             # hidden_states -> (total_q, hidden_size)
         else:
-            if kernel_backend == KernelBackend.cuda:
-                hidden_states, padded_expert_frequency, expert_padding_offset = group_with_padding(
-                    x=hidden_states,
-                    expert_frequency=expert_frequency,
-                    sorted_idxs=sorted_expert_idxs,
-                    scattered_idxs=sorted_scattered_idxs,
-                    top_k=self.top_k,
-                    pad_to_multiple_of=8,
-                )
-
-                hidden_states = self.c_fc.cuda_forward(input=hidden_states, expert_frequency=padded_expert_frequency)
-                hidden_states = self.act(hidden_states)
-                hidden_states = self.c_proj.cuda_forward(input=hidden_states, expert_frequency=padded_expert_frequency)
-
-                hidden_states = ungroup_with_padding(
-                    x=hidden_states,
-                    expert_padding_offset=expert_padding_offset,
-                    sorted_idxs=sorted_expert_idxs,
-                    scattered_idxs=sorted_scattered_idxs,
-                    top_k=self.top_k,
-                    num_tokens=T,
-                    pad_to_multiple_of=8,
-                )
-
-                hidden_states = hidden_states.view(T, self.top_k, -1)
-                hidden_states = torch.bmm(router_weights.unsqueeze(1), hidden_states)
-            elif kernel_backend == KernelBackend.triton:
-                expert_offsets = expert_frequency.cumsum(-1)
-
-                hidden_states = self.c_fc.triton_forward(
-                    hidden_states,
-                    self.top_k,
-                    sorted_expert_idxs,
-                    sorted_scattered_idxs,
-                    expert_offsets,
-                    grouped_out=True,
-                )
-                hidden_states = self.act(hidden_states)
-                hidden_states = self.c_proj.triton_forward(
-                    hidden_states,
-                    1,
-                    sorted_expert_idxs,
-                    sorted_scattered_idxs,
-                    expert_offsets,
-                    grouped_in=True,
-                    gates=router_weights,
-                )
-            else:
-                raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
+            raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
         return hidden_states
 
