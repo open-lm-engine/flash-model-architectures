@@ -181,16 +181,24 @@ class MoE_Cute(nn.Module):
         selected_experts: torch.Tensor,
         kernel_backend: KernelBackend,
     ) -> torch.Tensor:
-        if kernel_backend == KernelBackend.torch:
-            total_q = hidden_states.shape[0]
+        sorted_expert_idxs, sorted_scattered_idxs = selected_experts.flatten().sort()
+        expert_frequency = continuous_count_cute(
+            sorted_expert_idxs, self.num_experts, kernel_backend=KernelBackend.cuda
+        )
 
+        T = hidden_states.size(0)
+
+        if kernel_backend == KernelBackend.torch:
             # hidden_states -> (total_q, hidden_size)
             # router_weights -> (total_q, top_k)
             # selected_experts -> (total_q, top_k)
 
-            fan_in_index, batch_gates, expert_frequency = self._compute_expert_assignment(
-                router_weights, selected_experts
-            )
+            # sort and group input tokens according to expert assignment
+            fan_in_index = sorted_scattered_idxs // self.top_k  # [num_tokens * top_k]
+
+            # gather the gate values for grouped input tokens
+            router_weights = router_weights.flatten()  # [num_tokens * top_k]
+            batch_gates = router_weights[sorted_scattered_idxs]  # [num_tokens * top_k]
 
             # fan_in_index -> (total_q * top_k)
             # batch_gates -> (total_q * top_k)
@@ -208,19 +216,12 @@ class MoE_Cute(nn.Module):
             # hidden_states -> (total_q * top_k, hidden_size)
 
             hidden_states = hidden_states * batch_gates.unsqueeze(-1)
-            zeros = torch.zeros((total_q, self.hidden_size), dtype=hidden_states.dtype, device=hidden_states.device)
+            zeros = torch.zeros((T, self.hidden_size), dtype=hidden_states.dtype, device=hidden_states.device)
             hidden_states = zeros.index_add(0, fan_in_index, hidden_states)
 
             # hidden_states -> (total_q, hidden_size)
         else:
-            sorted_expert_idxs, sorted_scattered_idxs = selected_experts.flatten().sort()
-            expert_frequency = continuous_count_cute(
-                sorted_expert_idxs, self.num_experts, kernel_backend=KernelBackend.cuda
-            )
-
             if kernel_backend == KernelBackend.cuda:
-                T = hidden_states.size(0)
-
                 hidden_states, padded_expert_frequency, expert_padding_offset = group_with_padding(
                     x=hidden_states,
                     expert_frequency=expert_frequency,
@@ -271,32 +272,6 @@ class MoE_Cute(nn.Module):
                 raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
         return hidden_states
-
-    def _compute_expert_assignment(
-        self, router_weights: torch.Tensor, selected_experts: torch.Tensor
-    ) -> tuple[torch.Tensor]:
-        # router_weights -> (total_q, top_k)
-        # selected_experts -> (total_q, top_k)
-        selected_experts = selected_experts.flatten()
-        # selected_experts -> (total_q * top_k)
-
-        expert_frequency = continuous_count_cute(
-            x=selected_experts, size=self.num_experts, kernel_backend=KernelBackend.torch
-        )
-        # expert_frequency -> (num_experts)
-
-        index_sorted_experts = selected_experts.argsort()
-        # index_sorted_experts -> (total_q * top_k)
-        fan_in_index = index_sorted_experts // self.top_k
-        # fan_in_index -> (total_q * top_k)
-
-        # gather the gate values for grouped input tokens
-        router_weights = router_weights.flatten()
-        # router_weights -> (total_q * top_k)
-        batch_gates = router_weights[index_sorted_experts]
-        # batch_gates -> (total_q * top_k)
-
-        return fan_in_index, batch_gates, expert_frequency
 
     def _get_topk(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         if self.top_k == 1:
