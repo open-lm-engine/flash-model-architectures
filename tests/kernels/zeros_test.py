@@ -31,4 +31,4 @@ class ZerosTest(TestCommons):
         function: Callable,
     ) -> None:
         x = zeros_cute(shape=size, dtype=dtype, device=device, kernel_backend=kernel_backend)
-        assert not x.is_nonzero()
+        assert (not x.is_nonzero()).all()
