@@ -226,7 +226,7 @@ class MoE_Cute(nn.Module):
                 grouped_out=True,
             )
             hidden_states = self.act(hidden_states)
-            hidden_states = self.c_proj.triton_forward(
+            hidden_states = self.c_proj(
                 input=hidden_states,
                 kernel_backend=kernel_backend,
                 num_experts_per_token=1,
