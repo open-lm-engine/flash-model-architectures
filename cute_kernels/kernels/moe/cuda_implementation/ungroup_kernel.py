@@ -9,8 +9,10 @@ import triton.language as tl
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide
 from ....utils import cute_op
+from .group_kernel import _get_autotune_configs
 
 
+@triton.autotune(configs=_get_autotune_configs(), key=["H"])
 @triton.jit
 def ungroup_with_padding_triton_kernel(
     x_ptr,
