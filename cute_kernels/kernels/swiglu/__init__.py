@@ -5,70 +5,11 @@
 import torch
 import torch.nn.functional as F
 
-from ...cutotune import CutoTuneConfig, CutoTuneParameter, cutotune
-from ...kernel_backend import KernelBackend, is_cuda_kernel_backend_allowed, is_triton_kernel_backend_allowed
+from ...kernel_backend import KernelBackend
 from ...math import divide_if_divisible
-from ...utils import ensure_contiguous, is_nvidia_gpu
+from ...utils import ensure_contiguous
 from .cuda_implementation import swiglu_backward_cuda, swiglu_forward_cuda
 from .triton_implementation import swiglu_backward_triton, swiglu_forward_triton
-
-
-@cutotune(
-    configs=[
-        CutoTuneConfig(
-            {"kernel_backend": KernelBackend.cuda},
-            condition=lambda **kwargs: is_cuda_kernel_backend_allowed(kwargs["kernel_backend"]) and is_nvidia_gpu(),
-        ),
-        CutoTuneConfig(
-            {"kernel_backend": KernelBackend.triton},
-            condition=lambda **kwargs: is_triton_kernel_backend_allowed(kwargs["kernel_backend"]),
-        ),
-    ],
-    triggers={"gate.dtype"},
-)
-def _forward(gate: torch.Tensor, up: torch.Tensor, output: torch.Tensor, kernel_backend: torch.Tensor) -> None:
-    if kernel_backend == KernelBackend.cuda:
-        swiglu_forward_cuda(gate=gate, up=up, output=output, BLOCK_SIZE=CutoTuneParameter())
-    elif kernel_backend == KernelBackend.triton:
-        swiglu_forward_triton(gate=gate, up=up, output=output)
-    else:
-        raise ValueError("unexpected kernel_backend")
-
-
-@cutotune(
-    configs=[
-        CutoTuneConfig(
-            {"kernel_backend": KernelBackend.cuda},
-            condition=lambda **kwargs: is_cuda_kernel_backend_allowed(kwargs["kernel_backend"]) and is_nvidia_gpu(),
-        ),
-        CutoTuneConfig(
-            {"kernel_backend": KernelBackend.triton},
-            condition=lambda **kwargs: is_triton_kernel_backend_allowed(kwargs["kernel_backend"]),
-        ),
-    ],
-    triggers={"gate.dtype"},
-)
-def _backward(
-    gate: torch.Tensor,
-    up: torch.Tensor,
-    output_grad: torch.Tensor,
-    gate_grad: torch.Tensor,
-    up_grad: torch.Tensor,
-    kernel_backend: torch.Tensor,
-) -> None:
-    if kernel_backend == KernelBackend.cuda:
-        swiglu_backward_cuda(
-            gate=gate,
-            up=up,
-            output_grad=output_grad,
-            gate_grad=gate_grad,
-            up_grad=up_grad,
-            BLOCK_SIZE=CutoTuneParameter(),
-        )
-    elif kernel_backend == KernelBackend.triton:
-        swiglu_backward_triton(gate=gate, up=up, output_grad=output_grad, gate_grad=gate_grad, up_grad=up_grad)
-    else:
-        raise ValueError("unexpected kernel_backend")
 
 
 class _Swiglu_Cute(torch.autograd.Function):
@@ -78,17 +19,23 @@ class _Swiglu_Cute(torch.autograd.Function):
         ctx,
         gate: torch.Tensor,
         up: torch.Tensor,
-        kernel_backend_forward: KernelBackend | CutoTuneParameter,
-        kernel_backend_backward: KernelBackend | CutoTuneParameter,
+        kernel_backend_forward: KernelBackend,
+        kernel_backend_backward: KernelBackend,
     ) -> torch.Tensor:
         assert gate.size() == up.size(), "tensors gate and up should have same shape"
         assert gate.type() == up.type(), "tensors gate and up should have same dtype"
 
+        output = torch.empty_like(gate)
+
+        if kernel_backend_forward == KernelBackend.cuda:
+            swiglu_forward_cuda(gate=gate, up=up, output=output, BLOCK_SIZE=1024)
+        elif kernel_backend_forward == KernelBackend.triton:
+            swiglu_forward_triton(gate=gate, up=up, output=output)
+        else:
+            raise ValueError(f"unexpected kernel_backend ({kernel_backend_forward})")
+
         ctx.save_for_backward(gate, up)
         ctx.kernel_backend_backward = kernel_backend_backward
-
-        output = torch.empty_like(gate)
-        _forward(gate=gate, up=up, output=output, kernel_backend=kernel_backend_forward)
 
         return output
 
@@ -98,15 +45,16 @@ class _Swiglu_Cute(torch.autograd.Function):
         gate, up = ctx.saved_tensors
         gate_grad = torch.empty_like(gate)
         up_grad = torch.empty_like(up)
+        kernel_backend_backward = ctx.kernel_backend_backward
 
-        _backward(
-            gate=gate,
-            up=up,
-            output_grad=output_grad,
-            gate_grad=gate_grad,
-            up_grad=up_grad,
-            kernel_backend=ctx.kernel_backend_backward,
-        )
+        if kernel_backend_backward == KernelBackend.cuda:
+            swiglu_backward_cuda(
+                gate=gate, up=up, output_grad=output_grad, gate_grad=gate_grad, up_grad=up_grad, BLOCK_SIZE=1024
+            )
+        elif kernel_backend_backward == KernelBackend.triton:
+            swiglu_backward_triton(gate=gate, up=up, output_grad=output_grad, gate_grad=gate_grad, up_grad=up_grad)
+        else:
+            raise ValueError("unexpected kernel_backend")
 
         return gate_grad, up_grad, None, None
 
@@ -117,13 +65,11 @@ class _SwigluPacked_Cute(torch.autograd.Function):
     def forward(
         ctx,
         x: torch.Tensor,
-        kernel_backend_forward: KernelBackend | CutoTuneParameter,
-        kernel_backend_backward: KernelBackend | CutoTuneParameter,
+        kernel_backend_forward: KernelBackend = KernelBackend.cuda,
+        kernel_backend_backward: KernelBackend = KernelBackend.cuda,
     ) -> torch.Tensor:
-        assert kernel_backend_forward == KernelBackend.triton or isinstance(kernel_backend_forward, CutoTuneParameter)
-        assert kernel_backend_backward == KernelBackend.triton or isinstance(
-            kernel_backend_backward, CutoTuneParameter
-        )
+        assert kernel_backend_forward == KernelBackend.triton
+        assert kernel_backend_backward == KernelBackend.triton
 
         ctx.save_for_backward(x)
 
@@ -152,18 +98,18 @@ def swiglu_cute(
     gate: torch.Tensor,
     up: torch.Tensor,
     *,
-    kernel_backend_forward: KernelBackend | CutoTuneParameter = CutoTuneParameter(),
-    kernel_backend_backward: KernelBackend | CutoTuneParameter = CutoTuneParameter(),
+    kernel_backend_forward: KernelBackend = KernelBackend.cuda,
+    kernel_backend_backward: KernelBackend = KernelBackend.cuda,
 ) -> torch.Tensor:
     """computes swiglu activation as `up` * `gate` * sigmoid(`gate`)
 
     Args:
         gate (torch.Tensor): `gate` activation tensor
         up (torch.Tensor): `up` activation tensor
-        kernel_backend_forward (KernelBackend | CutoTuneParameter, optional): kernel backend to prioritize. Defaults
-            to CutoTuneParameter().
-        kernel_backend_backward (KernelBackend | CutoTuneParameter, optional): kernel backend to prioritize. Defaults
-            to CutoTuneParameter().
+        kernel_backend_forward (KernelBackend, optional): kernel backend to prioritize. Defaults
+            to KernelBackend.cuda.
+        kernel_backend_backward (KernelBackend, optional): kernel backend to prioritize. Defaults
+            to KernelBackend.cuda.
 
     Returns:
         torch.Tensor: output tensor
@@ -187,17 +133,17 @@ def swiglu_cute(
 def swiglu_packed_cute(
     x: torch.Tensor,
     *,
-    kernel_backend_forward: KernelBackend | CutoTuneParameter = CutoTuneParameter(),
-    kernel_backend_backward: KernelBackend | CutoTuneParameter = CutoTuneParameter(),
+    kernel_backend_forward: KernelBackend = KernelBackend.triton,
+    kernel_backend_backward: KernelBackend = KernelBackend.triton,
 ) -> torch.Tensor:
     """computes swiglu activation by splitting the tensor `x` into 2 parts: gate and up activations
 
     Args:
         x (torch.Tensor): input activation
-        kernel_backend_forward (KernelBackend | CutoTuneParameter, optional): kernel backend to prioritize. Defaults
-            to CutoTuneParameter().
-        kernel_backend_backward (KernelBackend | CutoTuneParameter, optional): kernel backend to prioritize. Defaults
-            to CutoTuneParameter().
+        kernel_backend_forward (KernelBackend, optional): kernel backend to prioritize. Defaults
+            to KernelBackend.triton.
+        kernel_backend_backward (KernelBackend, optional): kernel backend to prioritize. Defaults
+            to KernelBackend.triton.
 
     Returns:
         torch.Tensor: output tensor
