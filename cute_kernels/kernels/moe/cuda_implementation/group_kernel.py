@@ -86,12 +86,10 @@ def group_with_padding_triton(
     K: int,
     NEEDS_DUPLICATION: bool,
 ) -> None:
-    BLOCK_SIZE_B = 1
-    BLOCK_SIZE_H = 4096
-    NUM_WARPS = 32
+    GRID = lambda meta: (ceil_divide(T * K, meta["BLOCK_SIZE_B"]),)
 
     with torch.device(x.device):
-        group_with_padding_triton_kernel[ceil_divide(T * K, BLOCK_SIZE_B),](
+        group_with_padding_triton_kernel[GRID](
             x_ptr=x,
             expert_padding_offset_ptr=expert_padding_offset,
             sorted_idxs_ptr=sorted_idxs,
@@ -101,7 +99,4 @@ def group_with_padding_triton(
             H=H,
             K=K,
             NEEDS_DUPLICATION=NEEDS_DUPLICATION,
-            BLOCK_SIZE_B=BLOCK_SIZE_B,
-            BLOCK_SIZE_H=BLOCK_SIZE_H,
-            num_warps=NUM_WARPS,
         )
