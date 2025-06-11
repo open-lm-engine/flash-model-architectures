@@ -34,52 +34,44 @@ class Experts_Cute(nn.Module):
 
         self.reset_parameters()
 
-    def cuda_forward(
-        self, input: torch.Tensor | tuple[torch.Tensor], expert_frequency: torch.Tensor
-    ) -> torch.Tensor | list[torch.Tensor]:
-        return grouped_gemm_experts_cute(x=input, weight=self.weight, expert_frequency=expert_frequency)
-
-    def triton_forward(
+    def forward(
         self,
-        hidden_states: torch.Tensor,
-        k: int,
-        sorted_expert_idxs: torch.Tensor,
-        sorted_scattered_idxs: torch.Tensor,
-        expert_offsets: torch.Tensor,
+        input: torch.Tensor,
+        kernel_backend: KernelBackend,
+        num_experts_per_token: int | None = None,
+        expert_frequency: torch.Tensor | None = None,
+        sorted_expert_idxs: torch.Tensor | None = None,
+        sorted_scattered_idxs: torch.Tensor | None = None,
+        expert_offsets: torch.Tensor | None = None,
         gates: torch.Tensor | None = None,
         grouped_in: bool = False,
         grouped_out: bool = False,
     ) -> torch.Tensor:
-        hidden_states = scattered_experts(
-            inputs=hidden_states,
-            expert_weights=self.weight.permute(0, 2, 1),
-            k=k,
-            sorted_expert_idxs=sorted_expert_idxs,
-            sorted_scattered_idxs=sorted_scattered_idxs,
-            expert_offsets=expert_offsets,
-            gates=gates,
-            grouped_in=grouped_in,
-            grouped_out=grouped_out,
-        )
-
-        return hidden_states
-
-    def torch_forward(
-        self,
-        input: torch.Tensor | tuple[torch.Tensor],
-        expert_frequency: torch.Tensor,
-        return_list: bool,
-    ) -> torch.Tensor | list[torch.Tensor]:
-        if isinstance(input, torch.Tensor):
+        if kernel_backend == KernelBackend.cuda:
+            assert self.bias is None
+            input = grouped_gemm_experts_cute(x=input, weight=self.weight, expert_frequency=expert_frequency)
+        elif kernel_backend == KernelBackend.triton:
+            assert self.bias is None
+            input = scattered_experts(
+                inputs=input,
+                expert_weights=self.weight.permute(0, 2, 1),
+                k=num_experts_per_token,
+                sorted_expert_idxs=sorted_expert_idxs,
+                sorted_scattered_idxs=sorted_scattered_idxs,
+                expert_offsets=expert_offsets,
+                gates=gates,
+                grouped_in=grouped_in,
+                grouped_out=grouped_out,
+            )
+        elif kernel_backend == KernelBackend.torch:
             input = input.split(expert_frequency.tolist(), dim=0)
-
-        input = [
-            F.linear(input[i], self.weight[i], None if self.bias is None else self.bias[i])
-            for i in range(self.num_experts)
-        ]
-
-        if not return_list:
-            input = torch.cat(input)
+            input = [
+                F.linear(input[i], self.weight[i], None if self.bias is None else self.bias[i])
+                for i in range(self.num_experts)
+            ]
+            input = torch.cat(input, dim=0)
+        else:
+            raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
         return input
 
@@ -181,122 +173,93 @@ class MoE_Cute(nn.Module):
         selected_experts: torch.Tensor,
         kernel_backend: KernelBackend,
     ) -> torch.Tensor:
-        if kernel_backend == KernelBackend.torch:
-            total_q = hidden_states.shape[0]
-
-            # hidden_states -> (total_q, hidden_size)
-            # router_weights -> (total_q, top_k)
-            # selected_experts -> (total_q, top_k)
-
-            fan_in_index, batch_gates, expert_frequency = self._compute_expert_assignment(
-                router_weights, selected_experts
-            )
-
-            # fan_in_index -> (total_q * top_k)
-            # batch_gates -> (total_q * top_k)
-            # expert_frequency -> (num_experts)
-
-            hidden_states = hidden_states[fan_in_index]
-
-            # hidden_states -> (total_q * top_k, hidden_size)
-
-            hidden_states = self.c_fc.torch_forward(hidden_states, expert_frequency, return_list=True)
-            # hidden_states -> num_experts x (?, hidden_size)
-            hidden_states = [self.act(i) for i in hidden_states]
-            # hidden_states -> num_experts x (?, intermediate_size)
-            hidden_states = self.c_proj.torch_forward(hidden_states, expert_frequency, return_list=False)
-            # hidden_states -> (total_q * top_k, hidden_size)
-
-            hidden_states = hidden_states * batch_gates.unsqueeze(-1)
-            zeros = torch.zeros((total_q, self.hidden_size), dtype=hidden_states.dtype, device=hidden_states.device)
-            hidden_states = zeros.index_add(0, fan_in_index, hidden_states)
-
-            # hidden_states -> (total_q, hidden_size)
-        else:
+        with torch.no_grad():
             sorted_expert_idxs, sorted_scattered_idxs = selected_experts.flatten().sort()
             expert_frequency = continuous_count_cute(
                 sorted_expert_idxs, self.num_experts, kernel_backend=KernelBackend.cuda
             )
 
-            if kernel_backend == KernelBackend.cuda:
-                T = hidden_states.size(0)
+        T = hidden_states.size(0)
 
-                hidden_states, padded_expert_frequency, expert_padding_offset = group_with_padding(
-                    x=hidden_states,
-                    expert_frequency=expert_frequency,
-                    sorted_idxs=sorted_expert_idxs,
-                    scattered_idxs=sorted_scattered_idxs,
-                    top_k=self.top_k,
-                    pad_to_multiple_of=8,
-                )
+        if kernel_backend == KernelBackend.cuda:
+            hidden_states, padded_expert_frequency, expert_padding_offset = group_with_padding(
+                x=hidden_states,
+                expert_frequency=expert_frequency,
+                sorted_idxs=sorted_expert_idxs,
+                scattered_idxs=sorted_scattered_idxs,
+                top_k=self.top_k,
+                pad_to_multiple_of=8,
+            )
 
-                hidden_states = self.c_fc.cuda_forward(input=hidden_states, expert_frequency=padded_expert_frequency)
-                hidden_states = self.act(hidden_states)
-                hidden_states = self.c_proj.cuda_forward(input=hidden_states, expert_frequency=padded_expert_frequency)
+            hidden_states = self.c_fc(
+                input=hidden_states, kernel_backend=kernel_backend, expert_frequency=padded_expert_frequency
+            )
+            hidden_states = self.act(hidden_states)
+            hidden_states = self.c_proj(
+                input=hidden_states, kernel_backend=kernel_backend, expert_frequency=padded_expert_frequency
+            )
 
-                hidden_states = ungroup_with_padding(
-                    x=hidden_states,
-                    expert_padding_offset=expert_padding_offset,
-                    sorted_idxs=sorted_expert_idxs,
-                    scattered_idxs=sorted_scattered_idxs,
-                    top_k=self.top_k,
-                    num_tokens=T,
-                    pad_to_multiple_of=8,
-                )
+            hidden_states = ungroup_with_padding(
+                x=hidden_states,
+                expert_padding_offset=expert_padding_offset,
+                sorted_idxs=sorted_expert_idxs,
+                scattered_idxs=sorted_scattered_idxs,
+                top_k=self.top_k,
+                num_tokens=T,
+                pad_to_multiple_of=8,
+            )
 
-                hidden_states = hidden_states.view(T, self.top_k, -1)
-                hidden_states = torch.bmm(router_weights.unsqueeze(1), hidden_states)
-            elif kernel_backend == KernelBackend.triton:
+            hidden_states = hidden_states.view(T, self.top_k, -1)
+            hidden_states = torch.bmm(router_weights.unsqueeze(1), hidden_states)
+        elif kernel_backend == KernelBackend.triton:
+            with torch.no_grad():
                 expert_offsets = expert_frequency.cumsum(-1)
 
-                hidden_states = self.c_fc.triton_forward(
-                    hidden_states,
-                    self.top_k,
-                    sorted_expert_idxs,
-                    sorted_scattered_idxs,
-                    expert_offsets,
-                    grouped_out=True,
-                )
-                hidden_states = self.act(hidden_states)
-                hidden_states = self.c_proj.triton_forward(
-                    hidden_states,
-                    1,
-                    sorted_expert_idxs,
-                    sorted_scattered_idxs,
-                    expert_offsets,
-                    grouped_in=True,
-                    gates=router_weights,
-                )
-            else:
-                raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
+            hidden_states = self.c_fc(
+                input=hidden_states,
+                kernel_backend=kernel_backend,
+                num_experts_per_token=self.top_k,
+                sorted_expert_idxs=sorted_expert_idxs,
+                sorted_scattered_idxs=sorted_scattered_idxs,
+                expert_offsets=expert_offsets,
+                grouped_out=True,
+            )
+            hidden_states = self.act(hidden_states)
+            hidden_states = self.c_proj(
+                input=hidden_states,
+                kernel_backend=kernel_backend,
+                num_experts_per_token=1,
+                sorted_expert_idxs=sorted_expert_idxs,
+                sorted_scattered_idxs=sorted_scattered_idxs,
+                expert_offsets=expert_offsets,
+                grouped_in=True,
+                gates=router_weights,
+            )
+        elif kernel_backend == KernelBackend.torch:
+            # sort and group input tokens according to expert assignment
+            fan_in_index = sorted_scattered_idxs // self.top_k
+
+            # gather the gate values for grouped input tokens
+            router_weights = router_weights.flatten()
+            batch_gates = router_weights[sorted_scattered_idxs]
+
+            hidden_states = hidden_states[fan_in_index]
+
+            hidden_states = self.c_fc(
+                input=hidden_states, kernel_backend=kernel_backend, expert_frequency=expert_frequency
+            )
+            hidden_states = self.act(hidden_states)
+            hidden_states = self.c_proj(
+                input=hidden_states, kernel_backend=kernel_backend, expert_frequency=expert_frequency
+            )
+
+            hidden_states = hidden_states * batch_gates.unsqueeze(-1)
+            zeros = torch.zeros((T, self.hidden_size), dtype=hidden_states.dtype, device=hidden_states.device)
+            hidden_states = zeros.index_add(0, fan_in_index, hidden_states)
+        else:
+            raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
         return hidden_states
-
-    def _compute_expert_assignment(
-        self, router_weights: torch.Tensor, selected_experts: torch.Tensor
-    ) -> tuple[torch.Tensor]:
-        # router_weights -> (total_q, top_k)
-        # selected_experts -> (total_q, top_k)
-        selected_experts = selected_experts.flatten()
-        # selected_experts -> (total_q * top_k)
-
-        expert_frequency = continuous_count_cute(
-            x=selected_experts, size=self.num_experts, kernel_backend=KernelBackend.torch
-        )
-        # expert_frequency -> (num_experts)
-
-        index_sorted_experts = selected_experts.argsort()
-        # index_sorted_experts -> (total_q * top_k)
-        fan_in_index = index_sorted_experts // self.top_k
-        # fan_in_index -> (total_q * top_k)
-
-        # gather the gate values for grouped input tokens
-        router_weights = router_weights.flatten()
-        # router_weights -> (total_q * top_k)
-        batch_gates = router_weights[index_sorted_experts]
-        # batch_gates -> (total_q * top_k)
-
-        return fan_in_index, batch_gates, expert_frequency
 
     def _get_topk(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         if self.top_k == 1:
