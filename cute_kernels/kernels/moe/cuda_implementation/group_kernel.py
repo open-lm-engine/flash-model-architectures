@@ -2,8 +2,11 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
+import torch
 import triton
 import triton.language as tl
+
+from ....math import ceil_divide
 
 
 @triton.jit
@@ -54,3 +57,35 @@ def group_with_padding_triton_kernel(
 
             x = tl.load(x_ptrs + indices_h[None, :], mask=mask_bh)
             tl.store(y_ptrs + indices_h[None, :], x, mask=mask_bh)
+
+
+def group_with_padding_triton(
+    x: torch.Tensor,
+    expert_padding_offset: torch.Tensor,
+    sorted_idxs: torch.Tensor,
+    scattered_idxs: torch.Tensor,
+    output: torch.Tensor,
+    T: int,
+    H: int,
+    K: int,
+    NEEDS_DUPLICATION: bool,
+) -> None:
+    BLOCK_SIZE_B = 1
+    BLOCK_SIZE_H = 4096
+    NUM_WARPS = 32
+
+    with torch.device(x.device):
+        group_with_padding_triton_kernel[ceil_divide(T * K, BLOCK_SIZE_B),](
+            x_ptr=x,
+            expert_padding_offset_ptr=expert_padding_offset,
+            sorted_idxs_ptr=sorted_idxs,
+            scattered_idxs_ptr=scattered_idxs,
+            y_ptr=output,
+            T=T,
+            H=H,
+            K=K,
+            NEEDS_DUPLICATION=NEEDS_DUPLICATION,
+            BLOCK_SIZE_B=BLOCK_SIZE_B,
+            BLOCK_SIZE_H=BLOCK_SIZE_H,
+            num_warps=NUM_WARPS,
+        )

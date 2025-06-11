@@ -7,7 +7,7 @@ import torch
 from ....math import ceil_divide
 from ....utils import ensure_contiguous
 from ...grouped_gemm import grouped_gemm_cute
-from .group_kernel import group_with_padding_triton_kernel
+from .group_kernel import group_with_padding_triton
 from .padded_expert_frequency_kernel import padded_expert_frequency_triton
 from .ungroup_kernel import ungroup_with_padding_triton
 
@@ -139,25 +139,17 @@ class _GroupWithPadding(torch.autograd.Function):
                 expert_frequency=expert_frequency, E=E, pad_to_multiple_of=pad_to_multiple_of
             )
 
-        with torch.cuda.device(x.device):
-            BLOCK_SIZE_B = 1
-            BLOCK_SIZE_H = 4096
-            NUM_WARPS = 32
-
-            group_with_padding_triton_kernel[ceil_divide(T * K, BLOCK_SIZE_B),](
-                x_ptr=x,
-                expert_padding_offset_ptr=expert_padding_offset,
-                sorted_idxs_ptr=sorted_idxs,
-                scattered_idxs_ptr=scattered_idxs,
-                y_ptr=output,
-                T=T,
-                H=H,
-                K=top_k,
-                NEEDS_DUPLICATION=True,
-                BLOCK_SIZE_B=BLOCK_SIZE_B,
-                BLOCK_SIZE_H=BLOCK_SIZE_H,
-                num_warps=NUM_WARPS,
-            )
+        group_with_padding_triton(
+            x=x,
+            expert_padding_offset=expert_padding_offset,
+            sorted_idxs=sorted_idxs,
+            scattered_idxs=scattered_idxs,
+            output=output,
+            T=T,
+            H=H,
+            K=K,
+            NEEDS_DUPLICATION=True,
+        )
 
         ctx.save_for_backward(expert_padding_offset, sorted_idxs, scattered_idxs)
         ctx.T = T
@@ -246,25 +238,17 @@ class _UngroupWithPadding(torch.autograd.Function):
             *ctx.x_shape, device=output_grad.device, dtype=output_grad.dtype
         )
 
-        with torch.cuda.device(x_grad.device):
-            BLOCK_SIZE_B = 1
-            BLOCK_SIZE_H = 4096
-            NUM_WARPS = 32
-
-            group_with_padding_triton_kernel[ceil_divide(T * K, BLOCK_SIZE_B),](
-                x_ptr=output_grad,
-                expert_padding_offset_ptr=expert_padding_offset,
-                sorted_idxs_ptr=sorted_idxs,
-                scattered_idxs_ptr=scattered_idxs,
-                y_ptr=x_grad,
-                T=T,
-                H=H,
-                K=K,
-                NEEDS_DUPLICATION=False,
-                BLOCK_SIZE_B=BLOCK_SIZE_B,
-                BLOCK_SIZE_H=BLOCK_SIZE_H,
-                num_warps=NUM_WARPS,
-            )
+        group_with_padding_triton(
+            x=output_grad,
+            expert_padding_offset=expert_padding_offset,
+            sorted_idxs=sorted_idxs,
+            scattered_idxs=scattered_idxs,
+            output=x_grad,
+            T=T,
+            H=H,
+            K=K,
+            NEEDS_DUPLICATION=False,
+        )
 
         return x_grad, *[None] * 6
 
