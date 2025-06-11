@@ -21,5 +21,7 @@ def zeros_cute(
     elif kernel_backend == KernelBackend.triton:
         x = torch.empty(*shape, dtype=dtype, device=device)
         fill_triton(x=x, fill_value=0)
+    else:
+        raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
     return x

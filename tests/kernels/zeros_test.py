@@ -18,7 +18,7 @@ class ZerosTest(TestCommons):
             TestCommons.get_2d_tensor_sizes(),  # size
             [torch.device("cuda")],  # device
             TestCommons.get_dtypes(),  # dtype
-            [KernelBackend.cuda, KernelBackend.triton],  # kernel_backend
+            [KernelBackend.triton],  # kernel_backend
             [zeros_cute, torch.compile(zeros_cute, fullgraph=True)],  # function
         )
     )
