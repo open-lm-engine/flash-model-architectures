@@ -16,7 +16,6 @@ def ungroup_with_padding_triton_kernel(
     T,
     H,
     K,
-    DO_ATOMIC_ADD: tl.constexpr,
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
@@ -43,18 +42,10 @@ def ungroup_with_padding_triton_kernel(
 
         if h < NUM_BLOCKS_H - 1:
             x = tl.load(x_ptrs + indices_h[None, :], mask=mask_b[:, None])
-
-            if DO_ATOMIC_ADD:
-                tl.atomic_add(y_ptrs + indices_h[None, :], x, mask=mask_b[:, None])
-            else:
-                tl.store(y_ptrs + indices_h[None, :], x, mask=mask_b[:, None])
+            tl.store(y_ptrs + indices_h[None, :], x, mask=mask_b[:, None])
         else:
             mask_h = indices_h < H
             mask_bh = mask_b[:, None] & mask_h[None, :]
 
             x = tl.load(x_ptrs + indices_h[None, :], mask=mask_bh)
-
-            if DO_ATOMIC_ADD:
-                tl.atomic_add(y_ptrs + indices_h[None, :], x, mask=mask_bh)
-            else:
-                tl.store(y_ptrs + indices_h[None, :], x, mask=mask_bh)
+            tl.store(y_ptrs + indices_h[None, :], x, mask=mask_bh)

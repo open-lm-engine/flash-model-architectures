@@ -182,7 +182,7 @@ class _GroupWithPadding(torch.autograd.Function):
         H = output_grad.size(-1)
         K = ctx.K
 
-        x_grad = torch.empty(T, H, device=output_grad.device, dtype=output_grad.dtype)
+        x_grad = torch.empty(T * K, H, device=output_grad.device, dtype=output_grad.dtype)
 
         with torch.cuda.device(output_grad.device):
             BLOCK_SIZE_B = 1
@@ -198,11 +198,13 @@ class _GroupWithPadding(torch.autograd.Function):
                 T=T,
                 H=H,
                 K=K,
-                DO_ATOMIC_ADD=True,
                 BLOCK_SIZE_B=BLOCK_SIZE_B,
                 BLOCK_SIZE_H=BLOCK_SIZE_H,
                 num_warps=NUM_WARPS,
             )
+
+        x_grad = x_grad.view(T, K, H)
+        x_grad = x_grad.sum(dim=1)
 
         return x_grad, *[None] * 5
 
@@ -243,7 +245,6 @@ class _UngroupWithPadding(torch.autograd.Function):
                 T=T,
                 H=H,
                 K=top_k,
-                DO_ATOMIC_ADD=False,
                 BLOCK_SIZE_B=BLOCK_SIZE_B,
                 BLOCK_SIZE_H=BLOCK_SIZE_H,
                 num_warps=NUM_WARPS,
