@@ -5,7 +5,6 @@
 import torch
 
 from ...constants import LIBRARY_NAME
-from ...cutotune import CutoTuneParameter
 from ...kernel_backend import KernelBackend
 from ...utils import cute_op
 from .cuda_implementation import continuous_count_cuda
@@ -22,7 +21,7 @@ def bincount(x: torch.Tensor, minlength: int) -> torch.Tensor:
 
 @torch.no_grad()
 def continuous_count_cute(
-    x: torch.Tensor, size: int, *, kernel_backend: KernelBackend | CutoTuneParameter = KernelBackend.cuda
+    x: torch.Tensor, size: int, *, kernel_backend: KernelBackend = KernelBackend.cuda
 ) -> torch.Tensor:
     """counts the number of occurances of the values [0, 1, ..., `size`) in the input tensor (`size` is excluded).
         NOTE: the user is responsible for ensuring that the values lie in the valid range, any values outside this
@@ -31,7 +30,7 @@ def continuous_count_cute(
     Args:
         x (torch.Tensor): input tensor
         size (int): values [0, 1, ..., `size`) are counted (`size` is excluded)
-        kernel_backend (KernelBackend | CutoTuneParameter, optional): kernel backend to prioritize.
+        kernel_backend (KernelBackend, optional): kernel backend to prioritize.
             Defaults to KernelBackend.cuda.
 
     Returns:
@@ -48,7 +47,6 @@ def continuous_count_cute(
         output = bincount(x=x, minlength=size).to(torch.uint32)
     elif kernel_backend == KernelBackend.cuda:
         output = torch.empty(size, dtype=torch.uint32, device=x.device)
-
         continuous_count_cuda(x=x, output=output, C=size, THREAD_BLOCK_CLUSTER_SIZE=1, BLOCK_SIZE=1024)
     else:
         raise ValueError(f"unexpected kernel_backend ({kernel_backend})")

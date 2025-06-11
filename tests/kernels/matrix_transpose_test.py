@@ -7,7 +7,7 @@ from typing import Callable
 import torch
 from parameterized import parameterized
 
-from cute_kernels import CutoTuneParameter, KernelBackend, matrix_transpose_cute
+from cute_kernels import KernelBackend, matrix_transpose_cute
 
 from ..test_commons import TestCommons
 
