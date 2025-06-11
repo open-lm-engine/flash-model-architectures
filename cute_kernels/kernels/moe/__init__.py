@@ -34,11 +34,6 @@ class Experts_Cute(nn.Module):
 
         self.reset_parameters()
 
-    def cuda_forward(
-        self, input: torch.Tensor | tuple[torch.Tensor], expert_frequency: torch.Tensor
-    ) -> torch.Tensor | list[torch.Tensor]:
-        return grouped_gemm_experts_cute(x=input, weight=self.weight, expert_frequency=expert_frequency)
-
     def forward(
         self,
         input: torch.Tensor,
@@ -196,9 +191,9 @@ class MoE_Cute(nn.Module):
                 pad_to_multiple_of=8,
             )
 
-            hidden_states = self.c_fc.cuda_forward(input=hidden_states, expert_frequency=padded_expert_frequency)
+            hidden_states = self.c_fc(input=hidden_states, expert_frequency=padded_expert_frequency)
             hidden_states = self.act(hidden_states)
-            hidden_states = self.c_proj.cuda_forward(input=hidden_states, expert_frequency=padded_expert_frequency)
+            hidden_states = self.c_proj(input=hidden_states, expert_frequency=padded_expert_frequency)
 
             hidden_states = ungroup_with_padding(
                 x=hidden_states,
