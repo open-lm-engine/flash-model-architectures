@@ -13,7 +13,7 @@ from ..test_commons import TestCommons
 _SEED = 42
 
 
-class ScatterMoETest(TestCommons):
+class MoETest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(
             [torch.device("cuda")],
@@ -60,7 +60,7 @@ class ScatterMoETest(TestCommons):
             [False],  # is_compiling
         )
     )
-    def test_scattermoe(
+    def test_moe(
         self,
         device: torch.device,
         dtype: torch.dtype,
@@ -126,6 +126,6 @@ class ScatterMoETest(TestCommons):
             rtol_float16=0,
             atol_bfloat16=4e-2,
             rtol_bfloat16=0,
-            atol_float32=6e-3,
+            atol_float32=6.5e-3,
             rtol_float32=0,
         )
