@@ -8,7 +8,7 @@ from ....math import ceil_divide
 from ....utils import ensure_contiguous
 from ...grouped_gemm import grouped_gemm_cute
 from .group_kernel import group_with_padding_triton_kernel
-from .padded_expert_frequency_kernel import padded_expert_frequency_triton_kernel
+from .padded_expert_frequency_kernel import padded_expert_frequency_triton
 from .ungroup_kernel import ungroup_with_padding_triton_kernel
 
 
@@ -87,18 +87,9 @@ def _get_expert_padding_offset(
 ) -> tuple[torch.Tensor, torch.Tensor]:
     expert_padding_frequency = torch.empty_like(expert_frequency)
 
-    with torch.cuda.device(expert_frequency.device):
-        BLOCK_SIZE = 4096
-        NUM_WARPS = 32
-
-        padded_expert_frequency_triton_kernel[ceil_divide(E, BLOCK_SIZE),](
-            x_ptr=expert_frequency,
-            y_ptr=expert_padding_frequency,
-            pad_to_multiple_of=pad_to_multiple_of,
-            N=E,
-            BLOCK_SIZE=BLOCK_SIZE,
-            num_warps=NUM_WARPS,
-        )
+    padded_expert_frequency_triton(
+        expert_frequency=expert_frequency, output=expert_padding_frequency, pad_to_multiple_of=pad_to_multiple_of
+    )
 
     padded_expert_frequency = expert_frequency.to(torch.int32) + expert_padding_frequency.to(torch.int32)
     padded_expert_frequency = padded_expert_frequency.to(torch.uint32)
