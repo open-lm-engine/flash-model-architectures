@@ -107,25 +107,51 @@ class MoETest(TestCommons):
             y_custom,
             y_torch,
             False,
+            atol_float32=6e-3,
+            rtol_float32=0,
             atol_float16=4e-3,
             rtol_float16=0,
             atol_bfloat16=2.35e-2,
             rtol_bfloat16=0,
-            atol_float32=6e-3,
-            rtol_float32=0,
         )
 
         y_torch.sum().backward()
+        weight_torch_grads = []
+        for weight_name, weight in moe.named_parameters():
+            if "gate" in weight_name:
+                continue
+            weight_torch_grads.append(weight.grad)
+
+        moe.zero_grad()
+
         y_custom.sum().backward()
+        weight_custom_grads = []
+        for weight_name, weight in moe.named_parameters():
+            if "gate" in weight_name:
+                continue
+            weight_custom_grads.append(weight.grad)
 
         self.assert_equal_tensors(
             x_custom.grad,
             x_torch.grad,
             False,
+            atol_float32=6.5e-3,
+            rtol_float32=0,
             atol_float16=4e-3,
             rtol_float16=0,
             atol_bfloat16=4e-2,
             rtol_bfloat16=0,
-            atol_float32=6.5e-3,
-            rtol_float32=0,
         )
+
+        for weight_torch_grad, weight_custom_grad in zip(weight_torch_grads, weight_custom_grads):
+            self.assert_equal_tensors(
+                weight_custom_grad,
+                weight_torch_grad,
+                False,
+                atol_float32=3e-2,
+                rtol_float32=0,
+                atol_float16=4e-3,
+                rtol_float16=0,
+                atol_bfloat16=4e-2,
+                rtol_bfloat16=0,
+            )
