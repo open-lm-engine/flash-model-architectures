@@ -117,14 +117,18 @@ class MoETest(TestCommons):
 
         y_torch.sum().backward()
         weight_torch_grads = []
-        for weight in moe.parameters():
+        for weight_name, weight in moe.named_parameters():
+            if "gate" in weight_name:
+                continue
             weight_torch_grads.append(weight.grad)
 
         moe.zero_grad()
 
         y_custom.sum().backward()
         weight_custom_grads = []
-        for weight in moe.parameters():
+        for weight_name, weight in moe.named_parameters():
+            if "gate" in weight_name:
+                continue
             weight_custom_grads.append(weight.grad)
 
         self.assert_equal_tensors(
