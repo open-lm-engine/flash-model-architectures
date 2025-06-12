@@ -25,7 +25,6 @@ def group_with_padding_backward_triton_kernel(
     T,
     H,
     K,
-    NEEDS_DUPLICATION: tl.constexpr,
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
@@ -37,11 +36,7 @@ def group_with_padding_backward_triton_kernel(
 
     scattered_idxs = tl.load(scattered_idxs_ptr + indices_b, mask=mask_b)
 
-    if NEEDS_DUPLICATION:
-        x_ptrs = x_ptr + (scattered_idxs // K)[:, None] * H
-    else:
-        x_ptrs = x_ptr + scattered_idxs[:, None] * H
-
+    x_ptrs = x_ptr + scattered_idxs[:, None] * H
     y_ptrs = y_ptr + indices_b[:, None] * H
 
     if expert_padding_offset_ptr is not None:
@@ -65,19 +60,18 @@ def group_with_padding_backward_triton_kernel(
             tl.store(y_ptrs + indices_h[None, :], x, mask=mask_bh)
 
 
-@cute_op(f"{LIBRARY_NAME}::group_with_padding_backward_triton", mutates_args={"output"})
+@cute_op(f"{LIBRARY_NAME}::group_with_padding_backward_triton", mutates_args={"router_weights_grad", "output"})
 def group_with_padding_backward_triton(
     x: torch.Tensor,
     expert_padding_offset: torch.Tensor,
     sorted_idxs: torch.Tensor,
     scattered_idxs: torch.Tensor,
-    router_weights: torch.Tensor | None,
-    router_weights_grad: torch.Tensor | None,
+    router_weights: torch.Tensor,
+    router_weights_grad: torch.Tensor,
     output: torch.Tensor,
     T: int,
     H: int,
     K: int,
-    NEEDS_DUPLICATION: bool,
 ) -> None:
     GRID = lambda meta: (ceil_divide(T * K, meta["BLOCK_SIZE_B"]),)
 
@@ -93,5 +87,4 @@ def group_with_padding_backward_triton(
             T=T,
             H=H,
             K=K,
-            NEEDS_DUPLICATION=NEEDS_DUPLICATION,
         )

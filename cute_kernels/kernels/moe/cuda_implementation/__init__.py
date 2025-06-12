@@ -259,7 +259,6 @@ class _UngroupWithPadding(torch.autograd.Function):
             T=T,
             H=H,
             K=K,
-            NEEDS_DUPLICATION=False,
         )
 
         return x_grad, *[None] * 3, router_weights_grad, *[None] * 3
