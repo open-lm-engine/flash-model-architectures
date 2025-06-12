@@ -116,7 +116,16 @@ class MoETest(TestCommons):
         )
 
         y_torch.sum().backward()
+        weight_torch_grads = []
+        for weight in moe.parameters():
+            weight_torch_grads.append(weight.grad)
+
+        moe.zero_grad()
+
         y_custom.sum().backward()
+        weight_custom_grads = []
+        for weight in moe.parameters():
+            weight_custom_grads.append(weight.grad)
 
         self.assert_equal_tensors(
             x_custom.grad,
@@ -129,3 +138,16 @@ class MoETest(TestCommons):
             atol_float32=6.5e-3,
             rtol_float32=0,
         )
+
+        for weight_torch, weight_custom in zip(weight_torch_grads, weight_custom_grads):
+            self.assert_equal_tensors(
+                x_custom.grad,
+                x_torch.grad,
+                False,
+                atol_float16=4e-3,
+                rtol_float16=0,
+                atol_bfloat16=4e-2,
+                rtol_bfloat16=0,
+                atol_float32=6.5e-3,
+                rtol_float32=0,
+            )
