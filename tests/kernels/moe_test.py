@@ -148,7 +148,7 @@ class MoETest(TestCommons):
                 weight_custom_grad,
                 weight_torch_grad,
                 False,
-                atol_float32=7e-2,
+                atol_float32=6.5e-3,
                 rtol_float32=0,
                 atol_float16=4e-3,
                 rtol_float16=0,
