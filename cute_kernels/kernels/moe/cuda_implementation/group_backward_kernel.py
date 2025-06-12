@@ -36,13 +36,11 @@ def group_with_padding_backward_triton_kernel(
 
     scattered_idxs = tl.load(scattered_idxs_ptr + indices_b, mask=mask_b)
 
-    dy_ptrs = dy_ptr + scattered_idxs[:, None] * H
-    dx_ptrs = dx_ptr + indices_b[:, None] * H
-
     sorted_idxs = tl.load(sorted_idxs_ptr + indices_b, mask=mask_b)
     expert_padding_offset = tl.load(expert_padding_offset_ptr + sorted_idxs)
 
-    dx_ptrs += expert_padding_offset[:, None] * H
+    dy_ptrs = dy_ptr + scattered_idxs[:, None] * H
+    dx_ptrs = dx_ptr + (indices_b + expert_padding_offset)[:, None] * H
 
     NUM_BLOCKS_H = tl.cdiv(H, BLOCK_SIZE_H)
     for h in range(NUM_BLOCKS_H):
