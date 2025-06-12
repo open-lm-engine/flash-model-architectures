@@ -19,6 +19,7 @@ def ungroup_with_padding_triton_kernel(
     expert_padding_offset_ptr,
     sorted_idxs_ptr,
     scattered_idxs_ptr,
+    router_weights_ptr,
     y_ptr,
     T,
     H,
@@ -37,6 +38,11 @@ def ungroup_with_padding_triton_kernel(
 
     x_ptrs = x_ptr + indices_b[:, None] * H
 
+    if router_weights_ptr is None:
+        router_weights = 1
+    else:
+        router_weights = tl.load(router_weights_ptr + scattered_idxs[:, None], mask=mask_b[:, None])
+
     if DO_ATOMIC_ADD:
         y_ptrs = y_ptr + (scattered_idxs // K)[:, None] * H
     else:
@@ -54,6 +60,7 @@ def ungroup_with_padding_triton_kernel(
 
         if h < NUM_BLOCKS_H - 1:
             x = tl.load(x_ptrs + indices_h[None, :], mask=mask_b[:, None])
+            x *= router_weights
 
             if DO_ATOMIC_ADD:
                 tl.atomic_add(y_ptrs + indices_h[None, :], x, mask=mask_b[:, None])
@@ -64,6 +71,7 @@ def ungroup_with_padding_triton_kernel(
             mask_bh = mask_b[:, None] & mask_h[None, :]
 
             x = tl.load(x_ptrs + indices_h[None, :], mask=mask_bh)
+            x *= router_weights
 
             if DO_ATOMIC_ADD:
                 tl.atomic_add(y_ptrs + indices_h[None, :], x, mask=mask_bh)
@@ -77,6 +85,7 @@ def ungroup_with_padding_triton(
     expert_padding_offset: torch.Tensor,
     sorted_idxs: torch.Tensor,
     scattered_idxs: torch.Tensor,
+    router_weights: torch.Tensor | None,
     output: torch.Tensor,
     T: int,
     H: int,
@@ -91,6 +100,7 @@ def ungroup_with_padding_triton(
             expert_padding_offset_ptr=expert_padding_offset,
             sorted_idxs_ptr=sorted_idxs,
             scattered_idxs_ptr=scattered_idxs,
+            router_weights_ptr=router_weights,
             y_ptr=output,
             T=T,
             H=H,

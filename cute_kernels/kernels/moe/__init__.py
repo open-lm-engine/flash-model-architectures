@@ -214,13 +214,11 @@ class MoE_Cute(nn.Module):
                 expert_padding_offset=expert_padding_offset,
                 sorted_idxs=sorted_expert_idxs,
                 scattered_idxs=sorted_scattered_idxs,
+                router_weights=router_weights,
                 top_k=self.top_k,
                 num_tokens=T,
                 pad_to_multiple_of=8,
             )
-
-            hidden_states = hidden_states.view(T, self.top_k, -1)
-            hidden_states = torch.bmm(router_weights.unsqueeze(1), hidden_states)
         elif kernel_backend == KernelBackend.triton:
             with torch.no_grad():
                 expert_offsets = expert_frequency.cumsum(-1)

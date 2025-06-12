@@ -176,6 +176,7 @@ class _GroupWithPadding(torch.autograd.Function):
             expert_padding_offset=expert_padding_offset,
             sorted_idxs=sorted_idxs,
             scattered_idxs=scattered_idxs,
+            router_weights=None,
             output=x_grad,
             T=T,
             H=H,
@@ -197,6 +198,7 @@ class _UngroupWithPadding(torch.autograd.Function):
         expert_padding_offset: torch.Tensor,
         sorted_idxs: torch.Tensor,
         scattered_idxs: torch.Tensor,
+        router_weights: torch.Tensor,
         top_k: int,
         num_tokens: int,
         pad_to_multiple_of: int,
@@ -208,19 +210,22 @@ class _UngroupWithPadding(torch.autograd.Function):
         K = top_k
 
         assert H % 8 == 0
-        output = torch.empty(T * K, H, device=x.device, dtype=x.dtype)
+        output = torch.zeros(T, H, device=x.device, dtype=torch.float32)
 
         ungroup_with_padding_triton(
             x=x,
             expert_padding_offset=expert_padding_offset,
             sorted_idxs=sorted_idxs,
             scattered_idxs=scattered_idxs,
+            router_weights=router_weights,
             output=output,
             T=T,
             H=H,
             K=K,
-            DO_ATOMIC_ADD=False,
+            DO_ATOMIC_ADD=True,
         )
+
+        output = output.type_as(x)
 
         ctx.save_for_backward(expert_padding_offset, sorted_idxs, scattered_idxs)
         ctx.x_shape = x.size()
@@ -255,7 +260,7 @@ class _UngroupWithPadding(torch.autograd.Function):
             NEEDS_DUPLICATION=False,
         )
 
-        return x_grad, *[None] * 6
+        return x_grad, *[None] * 7
 
 
 def grouped_gemm_experts_cute(
@@ -280,10 +285,11 @@ def ungroup_with_padding(
     expert_padding_offset: torch.Tensor,
     sorted_idxs: torch.Tensor,
     scattered_idxs: torch.Tensor,
+    router_weights: torch.Tensor,
     top_k: int,
     num_tokens: int,
     pad_to_multiple_of: int,
 ) -> torch.Tensor:
     return _UngroupWithPadding.apply(
-        x, expert_padding_offset, sorted_idxs, scattered_idxs, top_k, num_tokens, pad_to_multiple_of
+        x, expert_padding_offset, sorted_idxs, scattered_idxs, router_weights, top_k, num_tokens, pad_to_multiple_of
     )
