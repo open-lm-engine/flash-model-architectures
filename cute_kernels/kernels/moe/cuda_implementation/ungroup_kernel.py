@@ -41,7 +41,7 @@ def ungroup_with_padding_triton_kernel(
     if router_weights_ptr is None:
         router_weights = 1
     else:
-        router_weights = tl.load(router_weights_ptr + indices_b[:, None], mask=mask_b[:, None])
+        router_weights = tl.load(router_weights_ptr + scattered_idxs[:, None], mask=mask_b[:, None])
 
     if DO_ATOMIC_ADD:
         y_ptrs = y_ptr + (scattered_idxs // K)[:, None] * H
