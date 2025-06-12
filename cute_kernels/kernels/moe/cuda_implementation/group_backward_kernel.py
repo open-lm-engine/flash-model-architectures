@@ -80,7 +80,7 @@ def group_with_padding_backward_triton(
             scattered_idxs_ptr=scattered_idxs,
             router_weights_ptr=router_weights,
             router_weights_grad_ptr=router_weights_grad,
-            ddy_ptr=x_grad,
+            dx_ptr=x_grad,
             T=T,
             H=H,
             K=K,
