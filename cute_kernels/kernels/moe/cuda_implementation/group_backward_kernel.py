@@ -60,7 +60,7 @@ def group_with_padding_backward_triton_kernel(
             tl.store(dx_ptrs + indices_h[None, :], x, mask=mask_bh)
 
 
-@cute_op(f"{LIBRARY_NAME}::group_with_padding_backward_triton", mutates_args={"router_weights_grad", "output"})
+@cute_op(f"{LIBRARY_NAME}::group_with_padding_backward_triton", mutates_args={"router_weights_grad", "x_grad"})
 def group_with_padding_backward_triton(
     output_grad: torch.Tensor,
     expert_padding_offset: torch.Tensor,
