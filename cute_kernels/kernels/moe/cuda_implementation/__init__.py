@@ -246,6 +246,8 @@ class _UngroupWithPadding(torch.autograd.Function):
             *ctx.x_shape, device=output_grad.device, dtype=output_grad.dtype
         )
 
+        router_weights_grad = torch.zeros_like(router_weights)
+
         group_with_padding_triton(
             x=output_grad,
             expert_padding_offset=expert_padding_offset,
@@ -258,7 +260,7 @@ class _UngroupWithPadding(torch.autograd.Function):
             NEEDS_DUPLICATION=False,
         )
 
-        return x_grad, *[None] * 7
+        return x_grad, *[None] * 3, router_weights_grad, *[None] * 3
 
 
 def grouped_gemm_experts_cute(
