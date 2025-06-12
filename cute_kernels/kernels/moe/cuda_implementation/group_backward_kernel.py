@@ -9,18 +9,7 @@ import triton.language as tl
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_powers_of_2
 from ....utils import cute_op
-
-
-def _get_autotune_configs() -> list[triton.Config]:
-    configs = []
-    for BLOCK_SIZE_B in get_powers_of_2(16, 128):
-        for BLOCK_SIZE_H in get_powers_of_2(16, 128):
-            for num_warps in get_powers_of_2(4, 8):
-                configs.append(
-                    triton.Config({"BLOCK_SIZE_B": BLOCK_SIZE_B, "BLOCK_SIZE_H": BLOCK_SIZE_H}, num_warps=num_warps)
-                )
-
-    return configs
+from .group_kernel import _get_autotune_configs
 
 
 @triton.autotune(configs=_get_autotune_configs(), key=["H"])
