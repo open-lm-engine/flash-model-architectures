@@ -30,13 +30,10 @@ def group_with_padding_triton_kernel(
     expert_padding_offset_ptr,
     sorted_idxs_ptr,
     scattered_idxs_ptr,
-    router_weights_ptr,
-    router_weights_grad_ptr,
     y_ptr,
     T,
     H,
     K,
-    NEEDS_DUPLICATION: tl.constexpr,
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
@@ -48,11 +45,7 @@ def group_with_padding_triton_kernel(
 
     scattered_idxs = tl.load(scattered_idxs_ptr + indices_b, mask=mask_b)
 
-    if NEEDS_DUPLICATION:
-        x_ptrs = x_ptr + (scattered_idxs // K)[:, None] * H
-    else:
-        x_ptrs = x_ptr + scattered_idxs[:, None] * H
-
+    x_ptrs = x_ptr + (scattered_idxs // K)[:, None] * H
     y_ptrs = y_ptr + indices_b[:, None] * H
 
     if expert_padding_offset_ptr is not None:
@@ -82,13 +75,10 @@ def group_with_padding_triton(
     expert_padding_offset: torch.Tensor,
     sorted_idxs: torch.Tensor,
     scattered_idxs: torch.Tensor,
-    router_weights: torch.Tensor | None,
-    router_weights_grad: torch.Tensor | None,
     output: torch.Tensor,
     T: int,
     H: int,
     K: int,
-    NEEDS_DUPLICATION: bool,
 ) -> None:
     GRID = lambda meta: (ceil_divide(T * K, meta["BLOCK_SIZE_B"]),)
 
@@ -98,11 +88,8 @@ def group_with_padding_triton(
             expert_padding_offset_ptr=expert_padding_offset,
             sorted_idxs_ptr=sorted_idxs,
             scattered_idxs_ptr=scattered_idxs,
-            router_weights_ptr=router_weights,
-            router_weights_grad_ptr=router_weights_grad,
             y_ptr=output,
             T=T,
             H=H,
             K=K,
-            NEEDS_DUPLICATION=NEEDS_DUPLICATION,
         )

@@ -149,13 +149,10 @@ class _GroupWithPadding(torch.autograd.Function):
             expert_padding_offset=expert_padding_offset,
             sorted_idxs=sorted_idxs,
             scattered_idxs=scattered_idxs,
-            router_weights=None,
-            router_weights_grad=None,
             output=output,
             T=T,
             H=H,
             K=K,
-            NEEDS_DUPLICATION=True,
         )
 
         ctx.save_for_backward(expert_padding_offset, sorted_idxs, scattered_idxs)
