@@ -249,13 +249,13 @@ class _UngroupWithPadding(torch.autograd.Function):
         router_weights_grad = torch.zeros_like(router_weights)
 
         group_with_padding_backward_triton(
-            x=output_grad,
+            output_grad=output_grad,
             expert_padding_offset=expert_padding_offset,
             sorted_idxs=sorted_idxs,
             scattered_idxs=scattered_idxs,
             router_weights=router_weights,
             router_weights_grad=router_weights_grad,
-            output=x_grad,
+            x_grad=x_grad,
             T=T,
             H=H,
             K=K,
