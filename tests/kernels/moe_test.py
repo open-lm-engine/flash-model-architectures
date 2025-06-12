@@ -139,10 +139,10 @@ class MoETest(TestCommons):
             rtol_float32=0,
         )
 
-        for weight_torch, weight_custom in zip(weight_torch_grads, weight_custom_grads):
+        for weight_torch_grad, weight_custom_grad in zip(weight_torch_grads, weight_custom_grads):
             self.assert_equal_tensors(
-                x_custom.grad,
-                x_torch.grad,
+                weight_custom_grad,
+                weight_torch_grad,
                 False,
                 atol_float16=4e-3,
                 rtol_float16=0,
