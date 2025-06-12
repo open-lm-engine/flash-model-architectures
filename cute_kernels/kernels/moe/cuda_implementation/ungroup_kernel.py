@@ -24,7 +24,6 @@ def ungroup_with_padding_triton_kernel(
     T,
     H,
     K,
-    DO_ATOMIC_ADD: tl.constexpr,
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
@@ -37,16 +36,12 @@ def ungroup_with_padding_triton_kernel(
     scattered_idxs = tl.load(scattered_idxs_ptr + indices_b, mask=mask_b)
 
     x_ptrs = x_ptr + indices_b[:, None] * H
+    y_ptrs = y_ptr + (scattered_idxs // K)[:, None] * H
 
     if router_weights_ptr is None:
         router_weights = 1
     else:
         router_weights = tl.load(router_weights_ptr + scattered_idxs[:, None], mask=mask_b[:, None])
-
-    if DO_ATOMIC_ADD:
-        y_ptrs = y_ptr + (scattered_idxs // K)[:, None] * H
-    else:
-        y_ptrs = y_ptr + scattered_idxs[:, None] * H
 
     if expert_padding_offset_ptr is not None:
         sorted_idxs = tl.load(sorted_idxs_ptr + indices_b, mask=mask_b)
@@ -62,10 +57,7 @@ def ungroup_with_padding_triton_kernel(
             x = tl.load(x_ptrs + indices_h[None, :], mask=mask_b[:, None])
             x *= router_weights
 
-            if DO_ATOMIC_ADD:
-                tl.atomic_add(y_ptrs + indices_h[None, :], x, mask=mask_b[:, None])
-            else:
-                tl.store(y_ptrs + indices_h[None, :], x, mask=mask_b[:, None])
+            tl.atomic_add(y_ptrs + indices_h[None, :], x, mask=mask_b[:, None])
         else:
             mask_h = indices_h < H
             mask_bh = mask_b[:, None] & mask_h[None, :]
@@ -73,10 +65,7 @@ def ungroup_with_padding_triton_kernel(
             x = tl.load(x_ptrs + indices_h[None, :], mask=mask_bh)
             x *= router_weights
 
-            if DO_ATOMIC_ADD:
-                tl.atomic_add(y_ptrs + indices_h[None, :], x, mask=mask_bh)
-            else:
-                tl.store(y_ptrs + indices_h[None, :], x, mask=mask_bh)
+            tl.atomic_add(y_ptrs + indices_h[None, :], x, mask=mask_bh)
 
 
 @cute_op(f"{LIBRARY_NAME}::ungroup_with_padding_triton", mutates_args={"output"})
@@ -90,7 +79,6 @@ def ungroup_with_padding_triton(
     T: int,
     H: int,
     K: int,
-    DO_ATOMIC_ADD: bool,
 ) -> None:
     GRID = lambda meta: (ceil_divide(T * K, meta["BLOCK_SIZE_B"]),)
 
@@ -105,5 +93,4 @@ def ungroup_with_padding_triton(
             T=T,
             H=H,
             K=K,
-            DO_ATOMIC_ADD=DO_ATOMIC_ADD,
         )
