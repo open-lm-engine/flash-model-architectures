@@ -3,6 +3,7 @@
 # **************************************************
 
 import torch
+from group_backward_kernel import group_with_padding_backward_triton
 
 from ....math import ceil_divide
 from ....utils import ensure_contiguous
@@ -250,7 +251,7 @@ class _UngroupWithPadding(torch.autograd.Function):
 
         router_weights_grad = torch.zeros_like(router_weights)
 
-        group_with_padding_triton(
+        group_with_padding_backward_triton(
             x=output_grad,
             expert_padding_offset=expert_padding_offset,
             sorted_idxs=sorted_idxs,
