@@ -30,5 +30,5 @@ class ZerosTest(TestCommons):
         kernel_backend: KernelBackend,
         function: Callable,
     ) -> None:
-        x = zeros_cute(shape=size, dtype=dtype, device=device, kernel_backend=kernel_backend)
+        x = function(shape=size, dtype=dtype, device=device, kernel_backend=kernel_backend)
         assert (x == 0).all()
