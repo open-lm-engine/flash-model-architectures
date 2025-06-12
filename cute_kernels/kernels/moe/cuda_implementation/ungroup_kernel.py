@@ -38,9 +38,7 @@ def ungroup_with_padding_triton_kernel(
     x_ptrs = x_ptr + indices_b[:, None] * H
     y_ptrs = y_ptr + (scattered_idxs // K)[:, None] * H
 
-    if router_weights_ptr is None:
-        router_weights = 1
-    else:
+    if router_weights_ptr is not None:
         router_weights = tl.load(router_weights_ptr + scattered_idxs[:, None], mask=mask_b[:, None])
 
     if expert_padding_offset_ptr is not None:
@@ -55,7 +53,8 @@ def ungroup_with_padding_triton_kernel(
 
         if h < NUM_BLOCKS_H - 1:
             x = tl.load(x_ptrs + indices_h[None, :], mask=mask_b[:, None])
-            x *= router_weights
+            if router_weights_ptr is not None:
+                x *= router_weights
 
             tl.atomic_add(y_ptrs + indices_h[None, :], x, mask=mask_b[:, None])
         else:
@@ -63,7 +62,8 @@ def ungroup_with_padding_triton_kernel(
             mask_bh = mask_b[:, None] & mask_h[None, :]
 
             x = tl.load(x_ptrs + indices_h[None, :], mask=mask_bh)
-            x *= router_weights
+            if router_weights_ptr is not None:
+                x *= router_weights
 
             tl.atomic_add(y_ptrs + indices_h[None, :], x, mask=mask_bh)
 
