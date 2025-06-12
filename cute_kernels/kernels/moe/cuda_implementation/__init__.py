@@ -227,7 +227,7 @@ class _UngroupWithPadding(torch.autograd.Function):
 
         output = output.type_as(x)
 
-        ctx.save_for_backward(expert_padding_offset, sorted_idxs, scattered_idxs)
+        ctx.save_for_backward(expert_padding_offset, sorted_idxs, scattered_idxs, router_weights)
         ctx.x_shape = x.size()
         ctx.T = T
         ctx.K = K
@@ -238,7 +238,7 @@ class _UngroupWithPadding(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
     def backward(ctx, output_grad: torch.Tensor) -> torch.Tensor:
-        expert_padding_offset, sorted_idxs, scattered_idxs = ctx.saved_tensors
+        expert_padding_offset, sorted_idxs, scattered_idxs, router_weights = ctx.saved_tensors
         pad_to_multiple_of = ctx.pad_to_multiple_of
         H = output_grad.size(-1)
         T = ctx.T
