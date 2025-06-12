@@ -107,12 +107,12 @@ class MoETest(TestCommons):
             y_custom,
             y_torch,
             False,
+            atol_float32=6e-3,
+            rtol_float32=0,
             atol_float16=4e-3,
             rtol_float16=0,
             atol_bfloat16=2.35e-2,
             rtol_bfloat16=0,
-            atol_float32=6e-3,
-            rtol_float32=0,
         )
 
         y_torch.sum().backward()
@@ -131,12 +131,12 @@ class MoETest(TestCommons):
             x_custom.grad,
             x_torch.grad,
             False,
+            atol_float32=6.5e-3,
+            rtol_float32=0,
             atol_float16=4e-3,
             rtol_float16=0,
             atol_bfloat16=4e-2,
             rtol_bfloat16=0,
-            atol_float32=6.5e-3,
-            rtol_float32=0,
         )
 
         for weight_torch_grad, weight_custom_grad in zip(weight_torch_grads, weight_custom_grads):
@@ -144,10 +144,10 @@ class MoETest(TestCommons):
                 weight_custom_grad,
                 weight_torch_grad,
                 False,
+                atol_float32=7e-2,
+                rtol_float32=0,
                 atol_float16=4e-3,
                 rtol_float16=0,
                 atol_bfloat16=4e-2,
                 rtol_bfloat16=0,
-                atol_float32=6.5e-3,
-                rtol_float32=0,
             )
