@@ -6,8 +6,8 @@ import torch
 import torch.nn as nn
 
 from ..kernel_backend import KernelBackend
-from ..kernels import rnn_cute
 from ..math import divide_if_divisible
+from ..ops import rnn_cute
 
 
 class RNN(nn.Module):

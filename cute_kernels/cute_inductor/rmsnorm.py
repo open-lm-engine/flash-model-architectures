@@ -6,7 +6,7 @@ import torch
 from torch.fx import Node
 from torch.fx.graph_module import GraphModule
 
-from ..kernels import rmsnorm_cute
+from ..ops import rmsnorm_cute
 from .constants import CALL_FUNCTION
 
 

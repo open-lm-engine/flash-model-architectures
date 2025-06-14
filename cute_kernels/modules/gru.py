@@ -6,8 +6,8 @@ import torch
 import torch.nn as nn
 
 from ..kernel_backend import KernelBackend
-from ..kernels import gru_cute
 from ..math import divide_if_divisible
+from ..ops import gru_cute
 
 
 class GRU(nn.Module):

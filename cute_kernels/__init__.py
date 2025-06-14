@@ -12,7 +12,9 @@ from .cutotune import (
 )
 from .inductor import init_inductor
 from .kernel_backend import KernelBackend
-from .kernels import (
+from .math import ceil_divide, divide_if_divisible, get_powers_of_2
+from .modules import GRU, RNN
+from .ops import (
     MoE_Cute,
     add_scalar_cute,
     add_tensor_cute,
@@ -35,7 +37,5 @@ from .kernels import (
     unpack_sequence_cute,
     zeros_cute,
 )
-from .math import ceil_divide, divide_if_divisible, get_powers_of_2
-from .modules import GRU, RNN
 from .tensor import CuteTensor
 from .utils import device_synchronize, get_ptx_from_triton_kernel, get_triton_num_warps, set_seed
