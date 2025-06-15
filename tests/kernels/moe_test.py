@@ -116,10 +116,10 @@ class MoETest(TestCommons):
         )
 
         y_torch.sum().backward()
-        weight_torch_grads = self.collect_gradients_from_module_and_zero_grads(moe_torch)
+        weight_torch_grads = self.collect_gradients_from_module_and_zero_grads(moe)
 
         y_custom.sum().backward()
-        weight_custom_grads = self.collect_gradients_from_module_and_zero_grads(moe_custom)
+        weight_custom_grads = self.collect_gradients_from_module_and_zero_grads(moe)
 
         self.assert_equal_tensors(
             x_custom.grad,
