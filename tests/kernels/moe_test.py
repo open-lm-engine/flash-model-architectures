@@ -133,7 +133,7 @@ class MoETest(TestCommons):
             rtol_bfloat16=0,
         )
 
-        for weight_name, weight_custom_grad in weight_torch_grads:
+        for weight_name in weight_torch_grads:
             if "gate" in weight_name:
                 continue
 
