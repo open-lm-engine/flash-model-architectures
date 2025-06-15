@@ -43,7 +43,6 @@ class RNNTest(TestCommons):
             batch_size=batch_size,
             sequence_length=sequence_length,
             total_tokens=None,
-            num_heads=num_heads,
             state_size=state_size,
             has_input_state=has_input_state,
             dtype=dtype,
@@ -304,20 +303,13 @@ class RNNTest(TestCommons):
         batch_size: int,
         sequence_length: int | None,
         total_tokens: int | None,
-        num_heads: int,
         state_size: int,
         has_input_state: bool,
         dtype: torch.dtype,
         device: torch.device,
     ) -> tuple[torch.Tensor | None]:
-        head_dim = divide_if_divisible(state_size, num_heads)
-
         x_kernel, x_torch = self.get_random_duplicated_tensors(
-            (
-                (batch_size, sequence_length, num_heads, head_dim)
-                if total_tokens is None
-                else (total_tokens, num_heads, head_dim)
-            ),
+            ((batch_size, sequence_length, state_size) if total_tokens is None else (total_tokens, state_size)),
             device=device,
             dtype=dtype,
             std=0.01,
@@ -327,7 +319,7 @@ class RNNTest(TestCommons):
         input_state_torch = None
         if has_input_state:
             input_state_kernel, input_state_torch = self.get_random_duplicated_tensors(
-                (batch_size, num_heads, head_dim), device=device, dtype=dtype, std=0.01
+                (batch_size, state_size), device=device, dtype=dtype, std=0.01
             )
 
         return x_kernel, x_torch, input_state_kernel, input_state_torch
