@@ -50,9 +50,15 @@ class RNNTest(TestCommons):
             device=device,
         )
 
-        rnn = RNN(
-            input_size=state_size, state_size=state_size, output_size=state_size, num_heads=num_heads, add_bias=False
-        )
+        with torch.device(device):
+            rnn = RNN(
+                input_size=state_size,
+                state_size=state_size,
+                output_size=state_size,
+                num_heads=num_heads,
+                add_bias=False,
+                gradient_clipping=None,
+            )
 
         rnn_torch = rnn
         rnn_kernel = rnn
