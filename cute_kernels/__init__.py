@@ -13,9 +13,8 @@ from .cutotune import (
 from .inductor import init_inductor
 from .kernel_backend import KernelBackend
 from .math import ceil_divide, divide_if_divisible, get_powers_of_2
-from .modules import GRU, RNN
+from .modules import GRU, RNN, MoE
 from .ops import (
-    MoE_Cute,
     add_scalar_cute,
     add_tensor_cute,
     bmm_cute,
@@ -25,12 +24,10 @@ from .ops import (
     fused_residual_add_rmsnorm_cute,
     gemm_cute,
     grouped_gemm_cute,
-    gru_cute,
     linear_cute,
     matrix_transpose_cute,
     pack_sequence_cute,
     rmsnorm_cute,
-    rnn_cute,
     softmax_cute,
     swiglu_cute,
     swiglu_packed_cute,

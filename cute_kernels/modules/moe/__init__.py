@@ -14,7 +14,7 @@ from .cuda_implementation import group_with_padding, grouped_gemm_experts_cute, 
 from .triton_implementation import scattered_experts
 
 
-class Experts_Cute(nn.Module):
+class Experts(nn.Module):
     def __init__(
         self, num_experts: int, in_features: int, out_features: int, add_bias: bool = True, std: float | None = None
     ) -> None:
@@ -87,7 +87,7 @@ class Experts_Cute(nn.Module):
             self.bias.zero_()
 
 
-class MoE_Cute(nn.Module):
+class MoE(nn.Module):
     def __init__(
         self,
         num_experts: int,
@@ -109,7 +109,7 @@ class MoE_Cute(nn.Module):
 
         self.gate = nn.Linear(in_features=self.hidden_size, out_features=num_experts, bias=False)
 
-        self.c_fc = Experts_Cute(
+        self.c_fc = Experts(
             num_experts=num_experts,
             in_features=self.hidden_size,
             out_features=2 * self.intermediate_size if is_glu else self.intermediate_size,
@@ -119,7 +119,7 @@ class MoE_Cute(nn.Module):
 
         self.act = activation_function
 
-        self.c_proj = Experts_Cute(
+        self.c_proj = Experts(
             num_experts=num_experts,
             in_features=self.intermediate_size,
             out_features=self.hidden_size,
