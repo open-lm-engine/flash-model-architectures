@@ -2,12 +2,10 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
-from typing import Callable
-
 import torch
 from parameterized import parameterized
 
-from cute_kernels import RNN, KernelBackend, divide_if_divisible, rnn_cute, set_seed
+from cute_kernels import RNN, KernelBackend, divide_if_divisible, set_seed
 
 from ..test_commons import TestCommons
 
@@ -25,7 +23,7 @@ class RNNTest(TestCommons):
             [256],  # state_size
             [4, 256],  # num_heads
             [False, True],  # has_input_state
-            [rnn_cute, torch.compile(rnn_cute, fullgraph=True)],  # function
+            [False, True],  # function
         )
     )
     def test_rnn(
@@ -37,7 +35,7 @@ class RNNTest(TestCommons):
         state_size: int,
         num_heads: int,
         has_input_state: bool,
-        function: Callable,
+        is_compiling: bool,
     ) -> None:
         set_seed(_SEED)
 
@@ -54,10 +52,19 @@ class RNNTest(TestCommons):
             )
         )
 
-        y_kernel = function(x_kernel, weight_kernel, input_state_kernel)
-        y_expected = rnn_cute(x_expected, weight_expected, input_state_expected, kernel_backend=KernelBackend.torch)
+        rnn_custom = RNN(
+            input_size=state_size, state_size=state_size, output_size=state_size, num_heads=num_heads, add_bias=False
+        )
 
+        rnn_torch = rnn_custom
+
+        if is_compiling:
+            rnn_custom = torch.compile(rnn_custom, fullgraph=True)
+
+        y_kernel = rnn_custom(input=x_kernel, input_state=input_state_kernel, kernel_backend=KernelBackend.triton)
         y_kernel.sum().backward()
+
+        y_expected = rnn_torch(input=x_expected, input_state=input_state_expected, kernel_backend=KernelBackend.torch)
         y_expected.sum().backward()
 
         self.assert_equal_tensors(
