@@ -39,17 +39,15 @@ class RNNTest(TestCommons):
     ) -> None:
         set_seed(_SEED)
 
-        x_kernel, x_torch, weight_kernel, weight_torch, input_state_kernel, input_state_torch = (
-            self._get_packed_tensor_inputs(
-                batch_size=batch_size,
-                sequence_length=sequence_length,
-                total_tokens=None,
-                num_heads=num_heads,
-                state_size=state_size,
-                has_input_state=has_input_state,
-                dtype=dtype,
-                device=device,
-            )
+        x_kernel, x_torch, input_state_kernel, input_state_torch = self._get_packed_tensor_inputs(
+            batch_size=batch_size,
+            sequence_length=sequence_length,
+            total_tokens=None,
+            num_heads=num_heads,
+            state_size=state_size,
+            has_input_state=has_input_state,
+            dtype=dtype,
+            device=device,
         )
 
         rnn = RNN(
@@ -319,10 +317,6 @@ class RNNTest(TestCommons):
             std=0.01,
         )
 
-        weight_kernel, weight_torch = self.get_random_duplicated_tensors(
-            (num_heads, head_dim, head_dim), device=device, dtype=dtype, std=0.01
-        )
-
         input_state_kernel = None
         input_state_torch = None
         if has_input_state:
@@ -330,4 +324,4 @@ class RNNTest(TestCommons):
                 (batch_size, num_heads, head_dim), device=device, dtype=dtype, std=0.01
             )
 
-        return x_kernel, x_torch, weight_kernel, weight_torch, input_state_kernel, input_state_torch
+        return x_kernel, x_torch, input_state_kernel, input_state_torch
