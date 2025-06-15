@@ -91,20 +91,20 @@ class MoETest(TestCommons):
                 std=0.02,
             ).to(dtype=dtype)
 
-        moe_custom = moe
+        moe_kernel = moe
         moe_torch = moe
 
         if is_compiling:
-            moe_custom = torch.compile(moe_custom, fullgraph=True)
+            moe_kernel = torch.compile(moe_kernel, fullgraph=True)
 
         x_torch = torch.randn(7, hidden_size, device=device, dtype=dtype, requires_grad=True)
-        x_custom = x_torch.clone().detach().requires_grad_()
+        x_kernel = x_torch.clone().detach().requires_grad_()
 
         y_torch = moe_torch(x_torch, kernel_backend=KernelBackend.torch)[0]
-        y_custom = moe_custom(x_custom, kernel_backend=kernel_backend)[0]
+        y_kernel = moe_kernel(x_kernel, kernel_backend=kernel_backend)[0]
 
         self.assert_equal_tensors(
-            y_custom,
+            y_kernel,
             y_torch,
             False,
             atol_float32=6e-3,
@@ -118,11 +118,11 @@ class MoETest(TestCommons):
         y_torch.sum().backward()
         weight_torch_grads = self.collect_gradients_from_module_and_zero_grads(moe)
 
-        y_custom.sum().backward()
-        weight_custom_grads = self.collect_gradients_from_module_and_zero_grads(moe)
+        y_kernel.sum().backward()
+        weight_kernel_grads = self.collect_gradients_from_module_and_zero_grads(moe)
 
         self.assert_equal_tensors(
-            x_custom.grad,
+            x_kernel.grad,
             x_torch.grad,
             False,
             atol_float32=6.5e-3,
@@ -138,7 +138,7 @@ class MoETest(TestCommons):
                 continue
 
             self.assert_equal_tensors(
-                weight_custom_grads[weight_name],
+                weight_kernel_grads[weight_name],
                 weight_torch_grads[weight_name],
                 False,
                 atol_float32=3e-2,
