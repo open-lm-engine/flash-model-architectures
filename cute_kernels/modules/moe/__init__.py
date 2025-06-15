@@ -9,7 +9,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from ...kernel_backend import KernelBackend
-from ..continuous_count import continuous_count_cute
+from ...ops import continuous_count_cute
 from .cuda_implementation import group_with_padding, grouped_gemm_experts_cute, ungroup_with_padding
 from .triton_implementation import scattered_experts
 
