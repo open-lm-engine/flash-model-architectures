@@ -5,7 +5,7 @@
 import torch
 from parameterized import parameterized
 
-from cute_kernels import KernelBackend, MoE_Cute, set_seed
+from cute_kernels import KernelBackend, MoE, set_seed
 
 from ..test_commons import TestCommons
 
@@ -80,7 +80,7 @@ class MoETest(TestCommons):
             )
 
         with torch.device(device):
-            moe = MoE_Cute(
+            moe = MoE(
                 num_experts=num_experts,
                 num_experts_per_tok=num_experts_per_tok,
                 hidden_size=hidden_size,
