@@ -9,13 +9,13 @@ from parameterized import parameterized
 
 from cute_kernels import GRU, KernelBackend, divide_if_divisible, set_seed
 
-from ..test_commons import TestCommons
+from .rnn_test import RNNTest
 
 
 _SEED = 42
 
 
-class GRUTest(TestCommons):
+class GRUTest(RNNTest):
     @parameterized.expand(
         TestCommons.make_args_matrix(
             [torch.device("cuda")],
@@ -25,7 +25,7 @@ class GRUTest(TestCommons):
             [256],  # state_size
             [4, 256],  # num_heads
             [False, True],  # has_input_state
-            [gru_cute, torch.compile(gru_cute, fullgraph=True)],  # function
+            [False, True],  # is_compiling
         )
     )
     def test_gru(
@@ -37,30 +37,14 @@ class GRUTest(TestCommons):
         state_size: int,
         num_heads: int,
         has_input_state: bool,
-        function: Callable,
+        is_compiling: bool,
     ) -> None:
         set_seed(_SEED)
 
-        (
-            input_kernel,
-            input_expected,
-            weight_kernel,
-            weight_expected,
-            forget_input_kernel,
-            forget_input_expected,
-            forget_weight_kernel,
-            forget_weight_expected,
-            reset_input_kernel,
-            reset_input_expected,
-            reset_weight_kernel,
-            reset_weight_expected,
-            input_state_kernel,
-            input_state_expected,
-        ) = self._get_packed_tensor_inputs(
+        input_kernel, input_expected, input_state_kernel, input_state_expected = self._get_packed_tensor_inputs(
             batch_size=batch_size,
             sequence_length=sequence_length,
             total_tokens=None,
-            num_heads=num_heads,
             state_size=state_size,
             has_input_state=has_input_state,
             dtype=dtype,
@@ -462,88 +446,4 @@ class GRUTest(TestCommons):
             rtol_float32=0,
             atol_float16=3.9e-6,
             rtol_float16=0,
-        )
-
-    def _get_packed_tensor_inputs(
-        self,
-        batch_size: int,
-        sequence_length: int | None,
-        total_tokens: int | None,
-        num_heads: int,
-        state_size: int,
-        has_input_state: bool,
-        dtype: torch.dtype,
-        device: torch.device,
-    ) -> tuple[torch.Tensor | None]:
-        head_dim = divide_if_divisible(state_size, num_heads)
-
-        input_kernel, input_expected = self.get_random_duplicated_tensors(
-            (
-                (batch_size, sequence_length, num_heads, head_dim)
-                if total_tokens is None
-                else (total_tokens, num_heads, head_dim)
-            ),
-            device=device,
-            dtype=dtype,
-            std=0.01,
-        )
-
-        weight_kernel, weight_expected = self.get_random_duplicated_tensors(
-            (num_heads, head_dim, head_dim), device=device, dtype=dtype, std=0.01
-        )
-
-        # forget
-        forget_input_kernel, forget_input_expected = self.get_random_duplicated_tensors(
-            (
-                (batch_size, sequence_length, num_heads, head_dim)
-                if total_tokens is None
-                else (total_tokens, num_heads, head_dim)
-            ),
-            device=device,
-            dtype=dtype,
-            std=0.01,
-        )
-
-        forget_weight_kernel, forget_weight_expected = self.get_random_duplicated_tensors(
-            (num_heads, head_dim, head_dim), device=device, dtype=dtype, std=0.01
-        )
-
-        # reset
-        reset_input_kernel, reset_input_expected = self.get_random_duplicated_tensors(
-            (
-                (batch_size, sequence_length, num_heads, head_dim)
-                if total_tokens is None
-                else (total_tokens, num_heads, head_dim)
-            ),
-            device=device,
-            dtype=dtype,
-            std=0.01,
-        )
-
-        reset_weight_kernel, reset_weight_expected = self.get_random_duplicated_tensors(
-            (num_heads, head_dim, head_dim), device=device, dtype=dtype, std=0.01
-        )
-
-        input_state_kernel = None
-        input_state_expected = None
-        if has_input_state:
-            input_state_kernel, input_state_expected = self.get_random_duplicated_tensors(
-                (batch_size, num_heads, head_dim), device=device, dtype=dtype, std=0.01
-            )
-
-        return (
-            input_kernel,
-            input_expected,
-            weight_kernel,
-            weight_expected,
-            forget_input_kernel,
-            forget_input_expected,
-            forget_weight_kernel,
-            forget_weight_expected,
-            reset_input_kernel,
-            reset_input_expected,
-            reset_weight_kernel,
-            reset_weight_expected,
-            input_state_kernel,
-            input_state_expected,
         )
