@@ -3,6 +3,7 @@
 # **************************************************
 
 import torch
+import torch.nn as nn
 from parameterized import parameterized
 
 from cute_kernels import RNN, KernelBackend, divide_if_divisible, set_seed
@@ -58,6 +59,9 @@ class RNNTest(TestCommons):
                 add_bias=False,
                 gradient_clipping=None,
             )
+
+            for param in rnn.parameters():
+                nn.init.normal_(param, std=0.01)
 
         rnn_torch = rnn
         rnn_kernel = rnn
