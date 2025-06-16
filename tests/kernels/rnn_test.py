@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 from parameterized import parameterized
 
-from cute_kernels import RNN, KernelBackend, divide_if_divisible, set_seed
+from cute_kernels import RNN, KernelBackend, set_seed
 
 from ..test_commons import TestCommons
 
@@ -58,7 +58,7 @@ class RNNTest(TestCommons):
                 num_heads=num_heads,
                 add_bias=False,
                 gradient_clipping=None,
-            )
+            ).to(dtype)
 
             for param in rnn.parameters():
                 nn.init.normal_(param, std=0.01)
