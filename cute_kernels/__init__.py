@@ -12,8 +12,9 @@ from .cutotune import (
 )
 from .inductor import init_inductor
 from .kernel_backend import KernelBackend
-from .kernels import (
-    MoE_Cute,
+from .math import ceil_divide, divide_if_divisible, get_powers_of_2
+from .modules import GRU, RNN, MoE
+from .ops import (
     add_scalar_cute,
     add_tensor_cute,
     bmm_cute,
@@ -23,19 +24,14 @@ from .kernels import (
     fused_residual_add_rmsnorm_cute,
     gemm_cute,
     grouped_gemm_cute,
-    gru_cute,
-    linear_cute,
     matrix_transpose_cute,
     pack_sequence_cute,
     rmsnorm_cute,
-    rnn_cute,
     softmax_cute,
     swiglu_cute,
     swiglu_packed_cute,
     unpack_sequence_cute,
     zeros_cute,
 )
-from .math import ceil_divide, divide_if_divisible, get_powers_of_2
-from .modules import GRU, RNN
 from .tensor import CuteTensor
 from .utils import device_synchronize, get_ptx_from_triton_kernel, get_triton_num_warps, set_seed

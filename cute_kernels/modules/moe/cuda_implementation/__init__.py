@@ -5,8 +5,8 @@
 import torch
 
 from ....math import ceil_divide
+from ....ops import grouped_gemm_cute
 from ....utils import ensure_contiguous
-from ...grouped_gemm import grouped_gemm_cute
 from .group_kernel import group_with_padding_triton
 from .padded_expert_frequency_kernel import padded_expert_frequency_triton
 from .ungroup_kernel import ungroup_with_padding_triton
