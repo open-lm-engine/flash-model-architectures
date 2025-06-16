@@ -40,8 +40,7 @@ class GRUTest(TestCommons):
     ) -> None:
         set_seed(_SEED)
 
-        input_kernel, input_expected, input_state_kernel, input_state_expected = RNNTest._get_packed_tensor_inputs(
-            self,
+        input_kernel, input_expected, input_state_kernel, input_state_expected = self._get_packed_tensor_inputs(
             batch_size=batch_size,
             sequence_length=sequence_length,
             total_tokens=None,
@@ -447,3 +446,29 @@ class GRUTest(TestCommons):
             atol_float16=3.9e-6,
             rtol_float16=0,
         )
+
+    def _get_packed_tensor_inputs(
+        self,
+        batch_size: int,
+        sequence_length: int | None,
+        total_tokens: int | None,
+        state_size: int,
+        has_input_state: bool,
+        dtype: torch.dtype,
+        device: torch.device,
+    ) -> tuple[torch.Tensor | None]:
+        x_kernel, x_torch = self.get_random_duplicated_tensors(
+            ((batch_size, sequence_length, state_size) if total_tokens is None else (total_tokens, state_size)),
+            device=device,
+            dtype=dtype,
+            std=0.01,
+        )
+
+        input_state_kernel = None
+        input_state_torch = None
+        if has_input_state:
+            input_state_kernel, input_state_torch = self.get_random_duplicated_tensors(
+                (batch_size, state_size), device=device, dtype=dtype, std=0.01
+            )
+
+        return x_kernel, x_torch, input_state_kernel, input_state_torch
