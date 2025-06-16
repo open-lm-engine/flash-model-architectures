@@ -16,7 +16,7 @@ _SEED = 42
 
 class GRUTest(RNNTest):
     @parameterized.expand(
-        GRUTest.make_args_matrix(
+        TestCommons.make_args_matrix(
             [torch.device("cuda")],
             TestCommons.get_dtypes(),
             [4],  # batch_size
