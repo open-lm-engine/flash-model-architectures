@@ -24,7 +24,7 @@ class RNNTest(TestCommons):
             [256],  # state_size
             [4, 256],  # num_heads
             [False, True],  # has_input_state
-            [False, True],  # function
+            [False, True],  # is_compiling
         )
     )
     def test_rnn(
