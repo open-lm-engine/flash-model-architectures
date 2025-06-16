@@ -60,8 +60,7 @@ class RNNTest(TestCommons):
                 gradient_clipping=None,
             ).to(dtype)
 
-            for param in rnn.parameters():
-                nn.init.normal_(param, std=0.01)
+            nn.init.normal_(rnn.state_weight, std=0.01)
 
         rnn_torch = rnn
         rnn_kernel = rnn
