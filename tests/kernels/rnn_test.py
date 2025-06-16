@@ -172,8 +172,8 @@ class RNNTest(TestCommons):
                 input=x_packed_torch[cu_seqlens[i] : cu_seqlens[i + 1]].unsqueeze(0),
                 input_state=input_state_torch[i].unsqueeze(0) if has_input_state else None,
                 kernel_backend=KernelBackend.torch,
-            ).squeeze(0)
-            y_torch.append(y)
+            )
+            y_torch.append(y.squeeze(0))
         y_torch = torch.cat(y_torch)
 
         y_torch.sum().backward()
