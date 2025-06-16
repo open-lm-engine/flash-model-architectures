@@ -78,7 +78,7 @@ class _Linear_Cute(torch.autograd.Function):
 
         bias_grad = output_grad.sum(dim=0) if ctx.has_bias else None
 
-        return input_grad, weight_grad, bias_grad, None
+        return input_grad, weight_grad, bias_grad, None, None
 
 
 def linear_cute(
