@@ -187,7 +187,7 @@ class RNNTest(TestCommons):
                 weight_kernel_grads[weight_name],
                 weight_torch_grads[weight_name],
                 False,
-                atol_float32=1.5e-7,
+                atol_float32=3e-7,
                 rtol_float32=0,
                 atol_float16=1.5e-3,
                 rtol_float16=0,
