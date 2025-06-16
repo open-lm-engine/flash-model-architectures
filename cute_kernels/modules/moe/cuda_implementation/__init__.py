@@ -15,13 +15,12 @@ from .ungroup_kernel import ungroup_with_padding_triton
 class _GroupedGemmExperts_Cute(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
-    def forward(ctx, x: torch.Tensor, weight: torch.Tensor, expert_frequency: int) -> torch.Tensor:
+    def forward(
+        ctx, x: torch.Tensor, weight: torch.Tensor, M_array: torch.Tensor, N_array: torch.Tensor, K_array: torch.Tensor
+    ) -> torch.Tensor:
         # x -> sum(M) x K
         # weight -> EN x K
         _, N, K = weight.size()
-
-        N_array = torch.full_like(expert_frequency, fill_value=N)
-        K_array = torch.full_like(expert_frequency, fill_value=K)
 
         assert N % 8 == 0
         assert K % 8 == 0
@@ -30,7 +29,7 @@ class _GroupedGemmExperts_Cute(torch.autograd.Function):
             A=x,
             B=weight,
             C=None,
-            M_array=expert_frequency,
+            M_array=M_array,
             N_array=N_array,
             K_array=K_array,
             output_shape=(x.size(0), N),
@@ -38,7 +37,7 @@ class _GroupedGemmExperts_Cute(torch.autograd.Function):
             is_B_transposed=True,
         )
 
-        ctx.save_for_backward(x, weight, expert_frequency, K_array, N_array)
+        ctx.save_for_backward(x, weight, M_array, K_array, N_array)
 
         return output
 
@@ -48,7 +47,7 @@ class _GroupedGemmExperts_Cute(torch.autograd.Function):
         # x -> sum(M) x K
         # weight -> EN x K
         # output_grad -> sum(M) x N
-        x, weight, expert_frequency, K_array, N_array = ctx.saved_tensors
+        x, weight, M_array, K_array, N_array = ctx.saved_tensors
 
         # A -> sum(M) x N
         # B -> EN x K
@@ -56,7 +55,7 @@ class _GroupedGemmExperts_Cute(torch.autograd.Function):
             A=output_grad,
             B=weight,
             C=None,
-            M_array=expert_frequency,
+            M_array=M_array,
             N_array=K_array,
             K_array=N_array,
             output_shape=x.size(),
@@ -72,7 +71,7 @@ class _GroupedGemmExperts_Cute(torch.autograd.Function):
             C=None,
             M_array=N_array,
             N_array=K_array,
-            K_array=expert_frequency,
+            K_array=M_array,
             output_shape=weight.size(),
             is_A_transposed=True,
             is_B_transposed=False,
@@ -253,8 +252,10 @@ class _UngroupWithPadding(torch.autograd.Function):
         return x_grad, *[None] * 6
 
 
-def grouped_gemm_experts_cute(x: torch.Tensor, weight: torch.Tensor, expert_frequency: torch.Tensor) -> torch.Tensor:
-    return _GroupedGemmExperts_Cute.apply(x, weight, expert_frequency)
+def grouped_gemm_experts_cute(
+    x: torch.Tensor, weight: torch.Tensor, M_array: torch.Tensor, N_array: torch.Tensor, K_array: torch.Tensor
+) -> torch.Tensor:
+    return _GroupedGemmExperts_Cute.apply(x, weight, M_array, N_array, K_array)
 
 
 def group_with_padding(

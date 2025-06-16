@@ -32,6 +32,9 @@ class Experts(nn.Module):
         self.in_features = in_features
         self.out_features = out_features
 
+        self.register_buffer("N_array", torch.empty((num_experts,), dtype=torch.uint32))
+        self.register_buffer("K_array", torch.empty((num_experts,), dtype=torch.uint32))
+
         self.reset_parameters()
 
     def forward(
@@ -49,9 +52,13 @@ class Experts(nn.Module):
     ) -> torch.Tensor:
         if kernel_backend == KernelBackend.cuda:
             assert self.bias is None
-            input = grouped_gemm_experts_cute(x=input, weight=self.weight, expert_frequency=expert_frequency)
+
+            input = grouped_gemm_experts_cute(
+                x=input, weight=self.weight, M_array=expert_frequency, N_array=self.N_array, K_array=self.K_array
+            )
         elif kernel_backend == KernelBackend.triton:
             assert self.bias is None
+
             input = scattered_experts(
                 inputs=input,
                 expert_weights=self.weight.permute(0, 2, 1),
@@ -85,6 +92,9 @@ class Experts(nn.Module):
         nn.init.normal_(self.weight, mean=0, std=self.std)
         if hasattr(self, "bias") and self.bias is not None:
             self.bias.zero_()
+
+        self.N_array.fill_(self.out_features)
+        self.K_array.fill_(self.in_features)
 
 
 class MoE(nn.Module):
