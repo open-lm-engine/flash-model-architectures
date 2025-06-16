@@ -24,7 +24,6 @@ from .ops import (
     fused_residual_add_rmsnorm_cute,
     gemm_cute,
     grouped_gemm_cute,
-    linear_cute,
     matrix_transpose_cute,
     pack_sequence_cute,
     rmsnorm_cute,
