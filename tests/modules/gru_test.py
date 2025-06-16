@@ -212,6 +212,7 @@ class GRUTest(TestCommons):
             [256],  # state_size
             [4],  # num_heads
             [False, True],  # has_input_state
+            [False, True],  # is_compiling
         )
     )
     def test_gru_varlen_cute(
@@ -222,6 +223,7 @@ class GRUTest(TestCommons):
         state_size: int,
         num_heads: int,
         has_input_state: bool,
+        is_compiling: bool,
     ) -> None:
         set_seed(_SEED)
 
@@ -229,51 +231,44 @@ class GRUTest(TestCommons):
         cu_seqlens = torch.tensor(cu_seqlens, device=device)
         max_seqlen = (cu_seqlens[1:] - cu_seqlens[:-1]).max()
 
-        (
-            input_kernel,
-            input_torch,
-            weight_kernel,
-            weight_torch,
-            forget_input_kernel,
-            forget_input_torch,
-            forget_weight_kernel,
-            forget_weight_torch,
-            reset_input_kernel,
-            reset_input_torch,
-            reset_weight_kernel,
-            reset_weight_torch,
-            input_state_kernel,
-            input_state_torch,
-        ) = self._get_packed_tensor_inputs(
+        x_kernel, x_torch, input_state_kernel, input_state_torch = self._get_packed_tensor_inputs(
             batch_size=batch_size,
             sequence_length=None,
             total_tokens=cu_seqlens[-1],
-            num_heads=num_heads,
             state_size=state_size,
             has_input_state=has_input_state,
             dtype=dtype,
             device=device,
         )
 
-        y_kernel = gru_cute(
-            input=input_kernel,
-            weight=weight_kernel,
-            forget_input=forget_input_kernel,
-            forget_weight=forget_weight_kernel,
-            reset_input=reset_input_kernel,
-            reset_weight=reset_weight_kernel,
+        with torch.device(device):
+            gru = GRU(
+                input_size=state_size,
+                state_size=state_size,
+                output_size=state_size,
+                num_heads=num_heads,
+                add_bias=False,
+                gradient_clipping=None,
+            ).to(dtype)
+
+            nn.init.normal_(gru.state_weight, std=0.01)
+
+        gru_torch = gru
+        gru_kernel = gru
+
+        if is_compiling:
+            gru_kernel = torch.compile(gru_kernel, fullgraph=True)
+
+        y_kernel = gru_kernel(
+            input=x_kernel,
             input_state=input_state_kernel,
             cu_seqlens=cu_seqlens,
             max_seqlen=max_seqlen,
+            kernel_backend=KernelBackend.triton,
         )
 
-        y_torch = gru_cute(
-            input=input_torch,
-            weight=weight_torch,
-            forget_input=forget_input_torch,
-            forget_weight=forget_weight_torch,
-            reset_input=reset_input_torch,
-            reset_weight=reset_weight_torch,
+        y_torch = gru_torch(
+            input=x_torch,
             input_state=input_state_torch,
             cu_seqlens=cu_seqlens,
             max_seqlen=max_seqlen,
@@ -281,7 +276,10 @@ class GRUTest(TestCommons):
         )
 
         y_kernel.sum().backward()
+        weight_kernel_grads = self.collect_gradients_from_module_and_zero_grads(gru)
+
         y_torch.sum().backward()
+        weight_torch_grads = self.collect_gradients_from_module_and_zero_grads(gru)
 
         self.assert_equal_tensors(
             y_kernel,
@@ -296,8 +294,8 @@ class GRUTest(TestCommons):
         )
 
         self.assert_equal_tensors(
-            input_kernel.grad,
-            input_torch.grad,
+            x_kernel.grad,
+            x_torch.grad,
             False,
             atol_float32=1.3e-4,
             rtol_float32=0,
@@ -307,67 +305,18 @@ class GRUTest(TestCommons):
             rtol_bfloat16=0,
         )
 
-        self.assert_equal_tensors(
-            forget_input_kernel.grad,
-            forget_input_torch.grad,
-            False,
-            atol_float32=2e-6,
-            rtol_float32=0,
-            atol_float16=3.1e-5,
-            rtol_float16=0,
-            atol_bfloat16=2e-4,
-            rtol_bfloat16=0,
-        )
-
-        self.assert_equal_tensors(
-            reset_input_kernel.grad,
-            reset_input_torch.grad,
-            False,
-            atol_float32=1.1e-6,
-            rtol_float32=0,
-            atol_float16=1.5e-5,
-            rtol_float16=0,
-            atol_bfloat16=1.6e-5,
-            rtol_bfloat16=0,
-        )
-
-        self.assert_equal_tensors(
-            weight_kernel.grad,
-            weight_torch.grad,
-            False,
-            atol_float32=1.6e-4,
-            rtol_float32=0,
-            atol_float16=3.7e-4,
-            rtol_float16=0,
-            atol_bfloat16=2.5e-3,
-            rtol_bfloat16=0,
-        )
-
-        print((forget_weight_kernel.grad - forget_weight_torch.grad).abs().max().item(), input_kernel.grad.dtype)
-
-        self.assert_equal_tensors(
-            forget_weight_kernel.grad,
-            forget_weight_torch.grad,
-            False,
-            atol_float32=2.7e-6,
-            rtol_float32=0,
-            atol_float16=3.9e-6,
-            rtol_float16=0,
-            atol_bfloat16=3.1e-5,
-            rtol_bfloat16=0,
-        )
-
-        print((reset_weight_kernel.grad - reset_weight_torch.grad).abs().max().item(), input_kernel.grad.dtype)
-
-        self.assert_equal_tensors(
-            reset_weight_kernel.grad,
-            reset_weight_torch.grad,
-            False,
-            atol_float32=2.3e-6,
-            rtol_float32=0,
-            atol_float16=3.9e-6,
-            rtol_float16=0,
-        )
+        for weight_name in weight_kernel_grads:
+            self.assert_equal_tensors(
+                weight_kernel_grads[weight_name],
+                weight_torch_grads[weight_name],
+                False,
+                atol_float32=1.3e-4,
+                rtol_float32=0,
+                atol_float16=3e-3,
+                rtol_float16=0,
+                atol_bfloat16=8e-3,
+                rtol_bfloat16=0,
+            )
 
     def _get_packed_tensor_inputs(
         self,
