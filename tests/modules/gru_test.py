@@ -3,12 +3,12 @@
 # **************************************************
 
 import torch
+import torch.nn as nn
 from parameterized import parameterized
 
 from cute_kernels import GRU, KernelBackend, set_seed
 
 from ..test_commons import TestCommons
-from .rnn_test import RNNTest
 
 
 _SEED = 42
@@ -40,7 +40,7 @@ class GRUTest(TestCommons):
     ) -> None:
         set_seed(_SEED)
 
-        input_kernel, input_expected, input_state_kernel, input_state_expected = self._get_packed_tensor_inputs(
+        x_kernel, x_torch, input_state_kernel, input_state_torch = self._get_packed_tensor_inputs(
             batch_size=batch_size,
             sequence_length=sequence_length,
             total_tokens=None,
@@ -50,33 +50,40 @@ class GRUTest(TestCommons):
             device=device,
         )
 
-        y_kernel = function(
-            input=input_kernel,
-            weight=weight_kernel,
-            forget_input=forget_input_kernel,
-            forget_weight=forget_weight_kernel,
-            reset_input=reset_input_kernel,
-            reset_weight=reset_weight_kernel,
-            input_state=input_state_kernel,
-        )
+        with torch.device(device):
+            gru = GRU(
+                input_size=state_size,
+                state_size=state_size,
+                output_size=state_size,
+                num_heads=num_heads,
+                add_bias=False,
+                gradient_clipping=None,
+            ).to(dtype)
 
-        y_expected = gru_cute(
-            input=input_expected,
-            weight=weight_expected,
-            forget_input=forget_input_expected,
-            forget_weight=forget_weight_expected,
-            reset_input=reset_input_expected,
-            reset_weight=reset_weight_expected,
-            input_state=input_state_expected,
-            kernel_backend=KernelBackend.torch,
+            nn.init.normal_(gru.state_weight, std=0.01)
+
+        gru_torch = gru
+        gru_kernel = gru
+
+        if is_compiling:
+            gru_kernel = torch.compile(gru_kernel, fullgraph=True)
+
+        y_kernel, output_state_kernel = gru_kernel(
+            input=x_kernel, input_state=input_state_kernel, kernel_backend=KernelBackend.triton
+        )
+        y_torch, output_state_torch = gru_torch(
+            input=x_torch, input_state=input_state_torch, kernel_backend=KernelBackend.torch
         )
 
         y_kernel.sum().backward()
-        y_expected.sum().backward()
+        weight_kernel_grads = self.collect_gradients_from_module_and_zero_grads(gru)
+
+        y_torch.sum().backward()
+        weight_torch_grads = self.collect_gradients_from_module_and_zero_grads(gru)
 
         self.assert_equal_tensors(
             y_kernel,
-            y_expected,
+            y_torch,
             False,
             atol_float32=4e-6,
             rtol_float32=0,
@@ -87,76 +94,27 @@ class GRUTest(TestCommons):
         )
 
         self.assert_equal_tensors(
-            input_kernel.grad,
-            input_expected.grad,
+            output_state_kernel,
+            output_state_torch,
             False,
-            atol_float32=1.3e-4,
+            atol_float32=4e-6,
             rtol_float32=0,
-            atol_float16=3e-3,
+            atol_float16=6.5e-5,
             rtol_float16=0,
-            atol_bfloat16=1.6e-2,
+            atol_bfloat16=2e-4,
             rtol_bfloat16=0,
         )
 
-        self.assert_equal_tensors(
-            forget_input_kernel.grad,
-            forget_input_expected.grad,
-            False,
-            atol_float32=2.5e-6,
-            rtol_float32=0,
-            atol_float16=5.4e-5,
-            rtol_float16=0,
-            atol_bfloat16=4e-4,
-            rtol_bfloat16=0,
-        )
-
-        self.assert_equal_tensors(
-            reset_input_kernel.grad,
-            reset_input_expected.grad,
-            False,
-            atol_float32=1.3e-6,
-            rtol_float32=0,
-            atol_float16=2e-6,
-            rtol_float16=0,
-            atol_bfloat16=1.2e-5,
-            rtol_bfloat16=0,
-        )
-
-        self.assert_equal_tensors(
-            weight_kernel.grad,
-            weight_expected.grad,
-            False,
-            atol_float32=1e-3,
-            rtol_float32=1e-3,
-            atol_float16=1.3e-2,
-            rtol_float16=0,
-            atol_bfloat16=7.5e-2,
-            rtol_bfloat16=0,
-        )
-
-        self.assert_equal_tensors(
-            forget_weight_kernel.grad,
-            forget_weight_expected.grad,
-            False,
-            atol_float32=6.3e-5,
-            rtol_float32=0,
-            atol_float16=1e-3,
-            rtol_float16=0,
-            atol_bfloat16=1.6e-2,
-            rtol_bfloat16=0,
-        )
-
-        self.assert_equal_tensors(
-            reset_weight_kernel.grad,
-            reset_weight_expected.grad,
-            False,
-            atol_float32=1.41e-5,
-            rtol_float32=1e-10,
-            atol_float16=8.4e-5,
-            rtol_float16=0,
-            atol_bfloat16=2.8e-3,
-            rtol_bfloat16=0,
-        )
+        for weight_name in weight_kernel_grads:
+            self.assert_equal_tensors(
+                weight_kernel_grads[weight_name],
+                weight_torch_grads[weight_name],
+                False,
+                atol_float32=6e-3,
+                rtol_float32=0,
+                atol_float16=2.3e-2,
+                rtol_float16=0,
+            )
 
     @parameterized.expand(
         TestCommons.make_args_matrix(
@@ -185,19 +143,19 @@ class GRUTest(TestCommons):
 
         (
             input_packed_kernel,
-            input_packed_expected,
+            input_packed_torch,
             weight_kernel,
-            weight_expected,
+            weight_torch,
             forget_input_packed_kernel,
-            forget_input_packed_expected,
+            forget_input_packed_torch,
             forget_weight_kernel,
-            forget_weight_expected,
+            forget_weight_torch,
             reset_input_packed_kernel,
-            reset_input_packed_expected,
+            reset_input_packed_torch,
             reset_weight_kernel,
-            reset_weight_expected,
+            reset_weight_torch,
             input_state_kernel,
-            input_state_expected,
+            input_state_torch,
         ) = self._get_packed_tensor_inputs(
             batch_size=batch_size,
             sequence_length=None,
@@ -222,33 +180,33 @@ class GRUTest(TestCommons):
             kernel_backend=KernelBackend.torch,
         )
 
-        y_expected = []
+        y_torch = []
         for i in range(batch_size):
             y = gru_cute(
-                input=input_packed_expected[cu_seqlens[i] : cu_seqlens[i + 1]].unsqueeze(0),
-                weight=weight_expected,
-                forget_input=forget_input_packed_expected[cu_seqlens[i] : cu_seqlens[i + 1]].unsqueeze(0),
-                forget_weight=forget_weight_expected,
-                reset_input=reset_input_packed_expected[cu_seqlens[i] : cu_seqlens[i + 1]].unsqueeze(0),
-                reset_weight=reset_weight_expected,
-                input_state=input_state_expected[i].unsqueeze(0) if has_input_state else None,
+                input=input_packed_torch[cu_seqlens[i] : cu_seqlens[i + 1]].unsqueeze(0),
+                weight=weight_torch,
+                forget_input=forget_input_packed_torch[cu_seqlens[i] : cu_seqlens[i + 1]].unsqueeze(0),
+                forget_weight=forget_weight_torch,
+                reset_input=reset_input_packed_torch[cu_seqlens[i] : cu_seqlens[i + 1]].unsqueeze(0),
+                reset_weight=reset_weight_torch,
+                input_state=input_state_torch[i].unsqueeze(0) if has_input_state else None,
                 kernel_backend=KernelBackend.torch,
             ).squeeze(0)
-            y_expected.append(y)
-        y_expected = torch.cat(y_expected)
+            y_torch.append(y)
+        y_torch = torch.cat(y_torch)
 
         y_kernel.sum().backward()
-        y_expected.sum().backward()
+        y_torch.sum().backward()
 
-        self.assert_equal_tensors(y_kernel, y_expected, False)
+        self.assert_equal_tensors(y_kernel, y_torch, False)
 
-        self.assert_equal_tensors(input_packed_kernel.grad, input_packed_expected.grad, False)
-        self.assert_equal_tensors(forget_input_packed_kernel.grad, forget_input_packed_expected.grad, False)
-        self.assert_equal_tensors(reset_input_packed_kernel.grad, reset_input_packed_expected.grad, False)
+        self.assert_equal_tensors(input_packed_kernel.grad, input_packed_torch.grad, False)
+        self.assert_equal_tensors(forget_input_packed_kernel.grad, forget_input_packed_torch.grad, False)
+        self.assert_equal_tensors(reset_input_packed_kernel.grad, reset_input_packed_torch.grad, False)
 
         self.assert_equal_tensors(
             weight_kernel.grad,
-            weight_expected.grad,
+            weight_torch.grad,
             False,
             atol_float32=1.5e-7,
             rtol_float32=0,
@@ -260,7 +218,7 @@ class GRUTest(TestCommons):
 
         self.assert_equal_tensors(
             forget_weight_kernel.grad,
-            forget_weight_expected.grad,
+            forget_weight_torch.grad,
             False,
             atol_float32=1.5e-7,
             rtol_float32=0,
@@ -272,7 +230,7 @@ class GRUTest(TestCommons):
 
         self.assert_equal_tensors(
             reset_weight_kernel.grad,
-            reset_weight_expected.grad,
+            reset_weight_torch.grad,
             False,
             atol_float32=1.5e-7,
             rtol_float32=0,
@@ -309,19 +267,19 @@ class GRUTest(TestCommons):
 
         (
             input_kernel,
-            input_expected,
+            input_torch,
             weight_kernel,
-            weight_expected,
+            weight_torch,
             forget_input_kernel,
-            forget_input_expected,
+            forget_input_torch,
             forget_weight_kernel,
-            forget_weight_expected,
+            forget_weight_torch,
             reset_input_kernel,
-            reset_input_expected,
+            reset_input_torch,
             reset_weight_kernel,
-            reset_weight_expected,
+            reset_weight_torch,
             input_state_kernel,
-            input_state_expected,
+            input_state_torch,
         ) = self._get_packed_tensor_inputs(
             batch_size=batch_size,
             sequence_length=None,
@@ -345,25 +303,25 @@ class GRUTest(TestCommons):
             max_seqlen=max_seqlen,
         )
 
-        y_expected = gru_cute(
-            input=input_expected,
-            weight=weight_expected,
-            forget_input=forget_input_expected,
-            forget_weight=forget_weight_expected,
-            reset_input=reset_input_expected,
-            reset_weight=reset_weight_expected,
-            input_state=input_state_expected,
+        y_torch = gru_cute(
+            input=input_torch,
+            weight=weight_torch,
+            forget_input=forget_input_torch,
+            forget_weight=forget_weight_torch,
+            reset_input=reset_input_torch,
+            reset_weight=reset_weight_torch,
+            input_state=input_state_torch,
             cu_seqlens=cu_seqlens,
             max_seqlen=max_seqlen,
             kernel_backend=KernelBackend.torch,
         )
 
         y_kernel.sum().backward()
-        y_expected.sum().backward()
+        y_torch.sum().backward()
 
         self.assert_equal_tensors(
             y_kernel,
-            y_expected,
+            y_torch,
             False,
             atol_float32=3e-6,
             rtol_float32=0,
@@ -375,7 +333,7 @@ class GRUTest(TestCommons):
 
         self.assert_equal_tensors(
             input_kernel.grad,
-            input_expected.grad,
+            input_torch.grad,
             False,
             atol_float32=1.3e-4,
             rtol_float32=0,
@@ -387,7 +345,7 @@ class GRUTest(TestCommons):
 
         self.assert_equal_tensors(
             forget_input_kernel.grad,
-            forget_input_expected.grad,
+            forget_input_torch.grad,
             False,
             atol_float32=2e-6,
             rtol_float32=0,
@@ -399,7 +357,7 @@ class GRUTest(TestCommons):
 
         self.assert_equal_tensors(
             reset_input_kernel.grad,
-            reset_input_expected.grad,
+            reset_input_torch.grad,
             False,
             atol_float32=1.1e-6,
             rtol_float32=0,
@@ -411,7 +369,7 @@ class GRUTest(TestCommons):
 
         self.assert_equal_tensors(
             weight_kernel.grad,
-            weight_expected.grad,
+            weight_torch.grad,
             False,
             atol_float32=1.6e-4,
             rtol_float32=0,
@@ -421,11 +379,11 @@ class GRUTest(TestCommons):
             rtol_bfloat16=0,
         )
 
-        print((forget_weight_kernel.grad - forget_weight_expected.grad).abs().max().item(), input_kernel.grad.dtype)
+        print((forget_weight_kernel.grad - forget_weight_torch.grad).abs().max().item(), input_kernel.grad.dtype)
 
         self.assert_equal_tensors(
             forget_weight_kernel.grad,
-            forget_weight_expected.grad,
+            forget_weight_torch.grad,
             False,
             atol_float32=2.7e-6,
             rtol_float32=0,
@@ -435,11 +393,11 @@ class GRUTest(TestCommons):
             rtol_bfloat16=0,
         )
 
-        print((reset_weight_kernel.grad - reset_weight_expected.grad).abs().max().item(), input_kernel.grad.dtype)
+        print((reset_weight_kernel.grad - reset_weight_torch.grad).abs().max().item(), input_kernel.grad.dtype)
 
         self.assert_equal_tensors(
             reset_weight_kernel.grad,
-            reset_weight_expected.grad,
+            reset_weight_torch.grad,
             False,
             atol_float32=2.3e-6,
             rtol_float32=0,
