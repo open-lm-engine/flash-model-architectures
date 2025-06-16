@@ -2,13 +2,12 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
-from typing import Callable
-
 import torch
 from parameterized import parameterized
 
-from cute_kernels import GRU, KernelBackend, divide_if_divisible, set_seed
+from cute_kernels import GRU, KernelBackend, set_seed
 
+from ..test_commons import TestCommons
 from .rnn_test import RNNTest
 
 
@@ -17,7 +16,7 @@ _SEED = 42
 
 class GRUTest(RNNTest):
     @parameterized.expand(
-        TestCommons.make_args_matrix(
+        GRUTest.make_args_matrix(
             [torch.device("cuda")],
             TestCommons.get_dtypes(),
             [4],  # batch_size
