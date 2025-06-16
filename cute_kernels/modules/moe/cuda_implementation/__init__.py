@@ -164,7 +164,7 @@ class _GroupWithPadding(torch.autograd.Function):
         H = output_grad.size(-1)
         K = ctx.K
 
-        x_grad = torch.empty(T * K, H, device=output_grad.device, dtype=output_grad.dtype)
+        x_grad = torch.zeros(T, H, device=output_grad.device, dtype=output_grad.dtype)
 
         ungroup_with_padding_triton(
             x=output_grad,
@@ -175,10 +175,8 @@ class _GroupWithPadding(torch.autograd.Function):
             T=T,
             H=H,
             K=K,
+            ATOMIC_ADD=True,
         )
-
-        x_grad = x_grad.view(T, K, H)
-        x_grad = x_grad.sum(dim=1)
 
         return x_grad, *[None] * 5
 
@@ -203,7 +201,7 @@ class _UngroupWithPadding(torch.autograd.Function):
         K = top_k
 
         assert H % 8 == 0
-        output = torch.empty(T * K, H, device=x.device, dtype=x.dtype)
+        output = torch.empty(T, K, H, device=x.device, dtype=x.dtype)
 
         ungroup_with_padding_triton(
             x=x,
@@ -214,12 +212,11 @@ class _UngroupWithPadding(torch.autograd.Function):
             T=T,
             H=H,
             K=K,
+            ATOMIC_ADD=False,
         )
 
         ctx.save_for_backward(expert_padding_offset, sorted_idxs, scattered_idxs)
         ctx.x_shape = x.size()
-        ctx.T = T
-        ctx.K = K
         ctx.pad_to_multiple_of = pad_to_multiple_of
 
         return output
@@ -229,9 +226,7 @@ class _UngroupWithPadding(torch.autograd.Function):
     def backward(ctx, output_grad: torch.Tensor) -> torch.Tensor:
         expert_padding_offset, sorted_idxs, scattered_idxs = ctx.saved_tensors
         pad_to_multiple_of = ctx.pad_to_multiple_of
-        H = output_grad.size(-1)
-        T = ctx.T
-        K = ctx.K
+        T, K, H = output_grad.size()
 
         x_grad = (torch.empty if pad_to_multiple_of == 1 else torch.zeros)(
             *ctx.x_shape, device=output_grad.device, dtype=output_grad.dtype

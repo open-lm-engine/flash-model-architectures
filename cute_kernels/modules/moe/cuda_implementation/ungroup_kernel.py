@@ -23,6 +23,7 @@ def ungroup_with_padding_triton_kernel(
     T,
     H,
     K,
+    ATOMIC_ADD: tl.constexpr,
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
@@ -35,7 +36,11 @@ def ungroup_with_padding_triton_kernel(
     scattered_idxs = tl.load(scattered_idxs_ptr + indices_b, mask=mask_b)
 
     x_ptrs = x_ptr + indices_b[:, None] * H
-    y_ptrs = y_ptr + scattered_idxs[:, None] * H
+
+    if ATOMIC_ADD:
+        y_ptrs = y_ptr + (scattered_idxs // K)[:, None] * H
+    else:
+        y_ptrs = y_ptr + scattered_idxs[:, None] * H
 
     if expert_padding_offset_ptr is not None:
         sorted_idxs = tl.load(sorted_idxs_ptr + indices_b, mask=mask_b)
@@ -49,13 +54,21 @@ def ungroup_with_padding_triton_kernel(
 
         if h < NUM_BLOCKS_H - 1:
             x = tl.load(x_ptrs + indices_h[None, :], mask=mask_b[:, None])
-            tl.store(y_ptrs + indices_h[None, :], x, mask=mask_b[:, None])
+
+            if ATOMIC_ADD:
+                tl.atomic_add(y_ptrs + indices_h[None, :], x, mask=mask_b[:, None])
+            else:
+                tl.store(y_ptrs + indices_h[None, :], x, mask=mask_b[:, None])
         else:
             mask_h = indices_h < H
             mask_bh = mask_b[:, None] & mask_h[None, :]
 
             x = tl.load(x_ptrs + indices_h[None, :], mask=mask_bh)
-            tl.store(y_ptrs + indices_h[None, :], x, mask=mask_bh)
+
+            if ATOMIC_ADD:
+                tl.atomic_add(y_ptrs + indices_h[None, :], x, mask=mask_bh)
+            else:
+                tl.store(y_ptrs + indices_h[None, :], x, mask=mask_bh)
 
 
 @cute_op(f"{LIBRARY_NAME}::ungroup_with_padding_triton", mutates_args={"output"})
@@ -68,6 +81,7 @@ def ungroup_with_padding_triton(
     T: int,
     H: int,
     K: int,
+    ATOMIC_ADD: bool,
 ) -> None:
     GRID = lambda meta: (ceil_divide(T * K, meta["BLOCK_SIZE_B"]),)
 
@@ -81,4 +95,5 @@ def ungroup_with_padding_triton(
             T=T,
             H=H,
             K=K,
+            ATOMIC_ADD=ATOMIC_ADD,
         )
