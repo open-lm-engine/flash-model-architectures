@@ -48,9 +48,20 @@ class LinearTest(TestCommons):
                 size[0], device=device, dtype=dtype, std=0.02
             )
 
-        z_kernel = function(input=input_kernel, weight=weight_kernel, bias=bias_kernel)
+        z_kernel = function(
+            input=input_kernel,
+            weight=weight_kernel,
+            bias=bias_kernel,
+            kernel_backend_forward=KernelBackend.triton,
+            kernel_backend_backward=KernelBackend.triton,
+        )
+
         z_expected = linear_cute(
-            input=input_expected, weight=weight_expected, bias=bias_expected, kernel_backend=KernelBackend.torch
+            input=input_expected,
+            weight=weight_expected,
+            bias=bias_expected,
+            kernel_backend_forward=KernelBackend.torch,
+            kernel_backend_backward=KernelBackend.torch,
         )
 
         z_kernel.mean().backward()
