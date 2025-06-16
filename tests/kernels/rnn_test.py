@@ -133,60 +133,67 @@ class RNNTest(TestCommons):
         cu_seqlens = torch.tensor(cu_seqlens, device=device)
         max_seqlen = (cu_seqlens[1:] - cu_seqlens[:-1]).max()
 
-        (
-            x_packed_kernel,
-            x_packed_torch,
-            weight_kernel,
-            weight_torch,
-            input_state_kernel,
-            input_state_torch,
-        ) = self._get_packed_tensor_inputs(
+        x_packed_kernel, x_packed_torch, input_state_kernel, input_state_torch = self._get_packed_tensor_inputs(
             batch_size=batch_size,
             sequence_length=None,
             total_tokens=cu_seqlens[-1],
-            num_heads=num_heads,
             state_size=state_size,
             has_input_state=has_input_state,
             dtype=dtype,
             device=device,
         )
 
-        y_kernel = rnn_cute(
-            x_packed_kernel,
-            weight_kernel,
-            input_state_kernel,
+        with torch.device(device):
+            rnn = RNN(
+                input_size=state_size,
+                state_size=state_size,
+                output_size=state_size,
+                num_heads=num_heads,
+                add_bias=False,
+                gradient_clipping=None,
+            ).to(dtype)
+
+            nn.init.normal_(rnn.state_weight, std=0.01)
+
+        y_kernel, _ = rnn(
+            input=x_packed_kernel,
+            input_state=input_state_kernel,
             cu_seqlens=cu_seqlens,
             max_seqlen=max_seqlen,
             kernel_backend=KernelBackend.torch,
         )
 
+        y_kernel.sum().backward()
+        weight_kernel_grads = self.collect_gradients_from_module_and_zero_grads(rnn)
+
         y_torch = []
         for i in range(batch_size):
-            y = rnn_cute(
-                x_packed_torch[cu_seqlens[i] : cu_seqlens[i + 1]].unsqueeze(0),
-                weight_torch,
-                input_state_torch[i].unsqueeze(0) if has_input_state else None,
+            y, _ = rnn(
+                input=x_packed_torch[cu_seqlens[i] : cu_seqlens[i + 1]].unsqueeze(0),
+                input_state=input_state_torch[i].unsqueeze(0) if has_input_state else None,
                 kernel_backend=KernelBackend.torch,
             ).squeeze(0)
             y_torch.append(y)
         y_torch = torch.cat(y_torch)
 
-        y_kernel.sum().backward()
         y_torch.sum().backward()
+        weight_torch_grads = self.collect_gradients_from_module_and_zero_grads(rnn)
 
         self.assert_equal_tensors(y_kernel, y_torch, False)
         self.assert_equal_tensors(x_packed_kernel.grad, x_packed_torch.grad, False)
-        self.assert_equal_tensors(
-            weight_kernel.grad,
-            weight_torch.grad,
-            False,
-            atol_float32=1.5e-7,
-            rtol_float32=0,
-            atol_float16=1.5e-3,
-            rtol_float16=0,
-            atol_bfloat16=6e-3,
-            rtol_bfloat16=0,
-        )
+
+        for weight_name in weight_kernel_grads:
+            self.assert_equal_tensors(
+                weight_kernel_grads[weight_name],
+                weight_torch_grads[weight_name],
+                False,
+                atol_float32=1.5e-7,
+                rtol_float32=0,
+                atol_float16=1.5e-3,
+                rtol_float16=0,
+                atol_bfloat16=6e-3,
+                rtol_bfloat16=0,
+            )
 
     @parameterized.expand(
         TestCommons.make_args_matrix(
