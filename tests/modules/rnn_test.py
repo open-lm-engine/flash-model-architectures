@@ -250,7 +250,7 @@ class RNNTest(TestCommons):
         if is_compiling:
             rnn_kernel = torch.compile(rnn_kernel, fullgraph=True)
 
-        y_kernel = rnn_kernel(
+        y_kernel, _ = rnn_kernel(
             input=x_kernel,
             input_state=input_state_kernel,
             cu_seqlens=cu_seqlens,
@@ -258,7 +258,7 @@ class RNNTest(TestCommons):
             kernel_backend=KernelBackend.triton,
         )
 
-        y_torch = rnn_torch(
+        y_torch, _ = rnn_torch(
             input=x_torch,
             input_state=input_state_torch,
             cu_seqlens=cu_seqlens,
