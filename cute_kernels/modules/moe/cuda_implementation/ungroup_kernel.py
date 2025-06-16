@@ -9,8 +9,10 @@ import triton.language as tl
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide
 from ....utils import cute_op
+from .group_kernel import _get_autotune_configs
 
 
+@triton.autotune(configs=_get_autotune_configs(), key=["H"], reset_to_zero=["y_ptr"])
 @triton.jit
 def ungroup_with_padding_triton_kernel(
     x_ptr,
@@ -39,7 +41,7 @@ def ungroup_with_padding_triton_kernel(
         sorted_idxs = tl.load(sorted_idxs_ptr + indices_b, mask=mask_b)
         expert_padding_offset = tl.load(expert_padding_offset_ptr + sorted_idxs)
 
-        x_ptrs += expert_padding_offset * H
+        x_ptrs += expert_padding_offset[:, None] * H
 
     NUM_BLOCKS_H = tl.cdiv(H, BLOCK_SIZE_H)
     for h in range(NUM_BLOCKS_H):
@@ -67,12 +69,10 @@ def ungroup_with_padding_triton(
     H: int,
     K: int,
 ) -> None:
-    BLOCK_SIZE_B = 1
-    BLOCK_SIZE_H = 4096
-    NUM_WARPS = 32
+    GRID = lambda meta: (ceil_divide(T * K, meta["BLOCK_SIZE_B"]),)
 
     with torch.device(x.device):
-        ungroup_with_padding_triton_kernel[ceil_divide(T * K, BLOCK_SIZE_B),](
+        ungroup_with_padding_triton_kernel[GRID](
             x_ptr=x,
             expert_padding_offset_ptr=expert_padding_offset,
             sorted_idxs_ptr=sorted_idxs,
@@ -81,7 +81,4 @@ def ungroup_with_padding_triton(
             T=T,
             H=H,
             K=K,
-            BLOCK_SIZE_B=BLOCK_SIZE_B,
-            BLOCK_SIZE_H=BLOCK_SIZE_H,
-            num_warps=NUM_WARPS,
         )
