@@ -259,7 +259,7 @@ class GRUTest(TestCommons):
         if is_compiling:
             gru_kernel = torch.compile(gru_kernel, fullgraph=True)
 
-        y_kernel = gru_kernel(
+        y_kernel, _ = gru_kernel(
             input=x_kernel,
             input_state=input_state_kernel,
             cu_seqlens=cu_seqlens,
@@ -267,7 +267,7 @@ class GRUTest(TestCommons):
             kernel_backend=KernelBackend.triton,
         )
 
-        y_torch = gru_torch(
+        y_torch, _ = gru_torch(
             input=x_torch,
             input_state=input_state_torch,
             cu_seqlens=cu_seqlens,
