@@ -317,7 +317,7 @@ class GRU(nn.Module):
         input_state: torch.Tensor | None = None,
         cu_seqlens: torch.Tensor | None = None,
         max_seqlen: int | None = None,
-        use_kernel: bool = True,
+        kernel_backend: KernelBackend = KernelBackend.triton,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         input = self.input_projection(input)
         input, forget_gate, reset_gate = input.chunk(3, dim=-1)
@@ -340,7 +340,7 @@ class GRU(nn.Module):
             gradient_clipping=self.gradient_clipping,
             cu_seqlens=cu_seqlens,
             max_seqlen=max_seqlen,
-            kernel_backend=KernelBackend.triton if use_kernel else KernelBackend.torch,
+            kernel_backend=kernel_backend,
         )
 
         del forget_gate, reset_gate
