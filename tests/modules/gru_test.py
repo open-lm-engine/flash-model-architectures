@@ -114,6 +114,8 @@ class GRUTest(TestCommons):
                 rtol_float32=0,
                 atol_float16=2.3e-2,
                 rtol_float16=0,
+                atol_bfloat16=3e-2,
+                rtol_bfloat16=0,
             )
 
     @parameterized.expand(
