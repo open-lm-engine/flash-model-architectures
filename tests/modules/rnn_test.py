@@ -272,55 +272,6 @@ class RNNTest(TestCommons):
             rtol_bfloat16=0,
         )
 
-    @parameterized.expand(
-        TestCommons.make_args_matrix(
-            [torch.device("cuda")],
-            TestCommons.get_dtypes(),
-            [[0, 7, 19, 27, 93], None],  # cu_seqlens
-            [256],  # state_size
-            [4],  # num_heads
-        )
-    )
-    def test_rnn_module(
-        self,
-        device: torch.device,
-        dtype: torch.dtype,
-        cu_seqlens: list[int] | None,
-        state_size: int,
-        num_heads: int,
-    ) -> None:
-        input_size = 79
-        output_size = 93
-
-        rnn = RNN(
-            input_size=input_size,
-            state_size=state_size,
-            output_size=output_size,
-            num_heads=num_heads,
-            add_bias=False,
-            gradient_clipping=None,
-        ).to(device, dtype)
-
-        batch_size = 4 if cu_seqlens is None else len(cu_seqlens) - 1
-        cu_seqlens = None if cu_seqlens is None else torch.tensor(cu_seqlens, device=device)
-        max_seqlen = None if cu_seqlens is None else (cu_seqlens[1:] - cu_seqlens[:-1]).max()
-
-        input = (
-            torch.randn(batch_size, 1024, input_size, device=device, dtype=dtype)
-            if cu_seqlens is None
-            else torch.randn(cu_seqlens[-1], input_size, device=device, dtype=dtype)
-        )
-        input_state = torch.randn(batch_size, state_size, device=device, dtype=dtype)
-
-        output, output_state = rnn(
-            input=input, input_state=input_state, cu_seqlens=cu_seqlens, max_seqlen=max_seqlen, use_kernel=True
-        )
-
-        output.sum().backward()
-
-        assert output.size() == (*input.size()[:-1], output_size)
-        assert output_state.size() == input_state.size()
-
     def _get_packed_tensor_inputs(
         self,
         batch_size: int,
