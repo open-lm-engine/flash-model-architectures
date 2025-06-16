@@ -130,7 +130,7 @@ def gemm_cute(
                 BLOCK_SIZE_M=BLOCK_SIZE_M,
                 BLOCK_SIZE_N=BLOCK_SIZE_N,
             )
-        elif kernel_backend == "triton":
+        elif kernel_backend == KernelBackend.triton:
             bmm_triton(
                 A=A.unsqueeze(0),
                 B=B.unsqueeze(0),
