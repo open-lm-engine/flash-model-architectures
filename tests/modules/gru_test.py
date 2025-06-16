@@ -14,7 +14,7 @@ from .rnn_test import RNNTest
 _SEED = 42
 
 
-class GRUTest(RNNTest):
+class GRUTest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(
             [torch.device("cuda")],
@@ -40,7 +40,8 @@ class GRUTest(RNNTest):
     ) -> None:
         set_seed(_SEED)
 
-        input_kernel, input_expected, input_state_kernel, input_state_expected = self._get_packed_tensor_inputs(
+        input_kernel, input_expected, input_state_kernel, input_state_expected = RNNTest._get_packed_tensor_inputs(
+            self,
             batch_size=batch_size,
             sequence_length=sequence_length,
             total_tokens=None,
