@@ -17,12 +17,7 @@ class _GroupedGemmExperts_Cute(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
     def forward(
-        ctx,
-        x: torch.Tensor,
-        weight: torch.Tensor,
-        M_array: torch.Tensor,
-        N_array: torch.Tensor,
-        K_array: torch.Tensor,
+        ctx, x: torch.Tensor, weight: torch.Tensor, M_array: torch.Tensor, N_array: torch.Tensor, K_array: torch.Tensor
     ) -> torch.Tensor:
         # x -> sum(M) x K
         # weight -> EN x K
@@ -43,7 +38,7 @@ class _GroupedGemmExperts_Cute(torch.autograd.Function):
             is_B_transposed=True,
         )
 
-        ctx.save_for_backward(x, weight, M_array, N_array, K_array)
+        ctx.save_for_backward(x, weight, M_array, K_array, N_array)
 
         return output
 
@@ -53,7 +48,7 @@ class _GroupedGemmExperts_Cute(torch.autograd.Function):
         # x -> sum(M) x K
         # weight -> EN x K
         # output_grad -> sum(M) x N
-        x, weight, M_array, N_array, K_array = ctx.saved_tensors
+        x, weight, M_array, K_array, N_array = ctx.saved_tensors
 
         # A -> sum(M) x N
         # B -> EN x K

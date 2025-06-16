@@ -32,8 +32,8 @@ class Experts(nn.Module):
         self.in_features = in_features
         self.out_features = out_features
 
-        self.register_buffer("N_array", torch.full((num_experts,), fill_value=out_features, dtype=torch.uint32))
-        self.register_buffer("K_array", torch.full((num_experts,), fill_value=in_features, dtype=torch.uint32))
+        self.register_buffer("N_array", torch.empty((num_experts,), dtype=torch.uint32))
+        self.register_buffer("K_array", torch.empty((num_experts,), dtype=torch.uint32))
 
         self.reset_parameters()
 
