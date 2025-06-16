@@ -41,7 +41,7 @@ def ungroup_with_padding_triton_kernel(
         sorted_idxs = tl.load(sorted_idxs_ptr + indices_b, mask=mask_b)
         expert_padding_offset = tl.load(expert_padding_offset_ptr + sorted_idxs)
 
-        x_ptrs += expert_padding_offset * H
+        x_ptrs += expert_padding_offset[:, None] * H
 
     NUM_BLOCKS_H = tl.cdiv(H, BLOCK_SIZE_H)
     for h in range(NUM_BLOCKS_H):
