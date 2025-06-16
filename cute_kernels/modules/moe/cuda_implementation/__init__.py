@@ -77,7 +77,7 @@ class _GroupedGemmExperts_Cute(torch.autograd.Function):
             is_B_transposed=False,
         )
 
-        return x_grad, weight_grad, None
+        return x_grad, weight_grad, *[None] * 3
 
 
 @torch.no_grad()
