@@ -151,7 +151,7 @@ void continuous_count_cuda(const torch::Tensor &x,
                             launch_config.numAttrs = 2;
 
                             cudaLaunchKernelEx(&launch_config,
-                                               continuous_count_cuda_kernel<scalar_t, true>,
+                                               continuous_count_cuda_kernel<scalar_t>,
                                                x.data_ptr<scalar_t>(),
                                                output.data_ptr<uint32>(),
                                                N,
