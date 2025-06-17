@@ -123,9 +123,6 @@ void continuous_count_cuda(const torch::Tensor &x,
     const uint32 num_SMs = ck::get_num_SMs();
     const uint32 max_num_blocks = ck::get_max_thread_blocks(num_SMs, THREAD_BLOCK_CLUSTER_SIZE);
 
-    std::vector<ck::ChunkedArray<uint32>> output_chunks =
-        ck::chunk_array<uint32>(output.data_ptr<uint32>(), total_elements);
-
     DISPATCH_INT_KERNEL(x.scalar_type(), "continuous_count_cuda_kernel", scalar_t, ([&] {
                             cudaFuncSetAttribute(continuous_count_cuda_kernel<scalar_t, true>,
                                                  cudaFuncAttributeMaxDynamicSharedMemorySize,

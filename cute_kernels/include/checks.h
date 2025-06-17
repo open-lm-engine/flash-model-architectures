@@ -12,4 +12,4 @@
     CHECK_CUDA_DEVICE(x);               \
     CHECK_CONTIGUOUS(x)
 
-#define CHECK_WITHIN_UINT32(x) TORCH_CHECK(x >= 0 && x <= uint64(std::numeric_limits<uint32>::max()))
+#define CHECK_WITHIN_UINT32(x) TORCH_CHECK(x <= uint64(std::numeric_limits<uint32>::max()))
