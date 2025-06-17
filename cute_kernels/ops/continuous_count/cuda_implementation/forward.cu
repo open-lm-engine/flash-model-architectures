@@ -124,10 +124,7 @@ void continuous_count_cuda(const torch::Tensor &x,
     const uint32 max_num_blocks = ck::get_max_thread_blocks(num_SMs, THREAD_BLOCK_CLUSTER_SIZE);
 
     DISPATCH_INT_KERNEL(x.scalar_type(), "continuous_count_cuda_kernel", scalar_t, ([&] {
-                            cudaFuncSetAttribute(continuous_count_cuda_kernel<scalar_t, true>,
-                                                 cudaFuncAttributeMaxDynamicSharedMemorySize,
-                                                 MAX_ALLOWED_C * sizeof(uint32));
-                            cudaFuncSetAttribute(continuous_count_cuda_kernel<scalar_t, false>,
+                            cudaFuncSetAttribute(continuous_count_cuda_kernel<scalar_t>,
                                                  cudaFuncAttributeMaxDynamicSharedMemorySize,
                                                  MAX_ALLOWED_C * sizeof(uint32));
 
