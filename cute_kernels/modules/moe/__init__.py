@@ -14,6 +14,7 @@ from .cuda_implementation import (
     get_expert_padding_offset,
     group_with_padding,
     grouped_gemm_experts_cute,
+    grouped_gemm_experts_new_cute,
     ungroup_with_padding,
 )
 from .triton_implementation import scattered_experts
@@ -58,9 +59,14 @@ class Experts(nn.Module):
         if kernel_backend == KernelBackend.cuda:
             assert self.bias is None
 
-            input = grouped_gemm_experts_cute(
-                x=input, weight=self.weight, M_array=expert_frequency, N_array=self.N_array, K_array=self.K_array
-            )
+            if grouped_in:
+                input = grouped_gemm_experts_cute(
+                    x=input, weight=self.weight, M_array=expert_frequency, N_array=self.N_array, K_array=self.K_array
+                )
+            else:
+                input = grouped_gemm_experts_new_cute(
+                    x=input, weight=self.weight, M_array=expert_frequency, N_array=self.N_array, K_array=self.K_array
+                )
         elif kernel_backend == KernelBackend.triton:
             assert self.bias is None
 
