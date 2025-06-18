@@ -256,13 +256,13 @@ def grouped_gemm_experts_cute(
 
 def group_with_padding(
     x: torch.Tensor,
-    expert_frequency: torch.Tensor,
+    expert_padding_offset: torch.Tensor,
     sorted_idxs: torch.Tensor,
     scattered_idxs: torch.Tensor,
     top_k: int,
     pad_to_multiple_of: int = 1,
 ) -> torch.Tensor:
-    return _GroupWithPadding.apply(x, expert_frequency, sorted_idxs, scattered_idxs, top_k, pad_to_multiple_of)
+    return _GroupWithPadding.apply(x, expert_padding_offset, sorted_idxs, scattered_idxs, top_k, pad_to_multiple_of)
 
 
 def ungroup_with_padding(
