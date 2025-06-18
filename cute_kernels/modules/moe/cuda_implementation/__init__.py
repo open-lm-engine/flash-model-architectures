@@ -224,9 +224,8 @@ class _GroupedGemmExperts_Cute(torch.autograd.Function):
 
         ctx.save_for_backward(x, weight, M_array, K_array, N_array, expert_padding_offset, sorted_idxs, scattered_idxs)
 
-        ctx.top_k = top_k
         ctx.T = T
-        ctx.top_k = top_k
+        ctx.K = top_k
         ctx.pad_to_multiple_of = pad_to_multiple_of
         ctx.grouped_in = grouped_in
 
@@ -274,7 +273,7 @@ class _GroupedGemmExperts_Cute(torch.autograd.Function):
             sorted_idxs=sorted_idxs,
             scattered_idxs=scattered_idxs,
             T=ctx.T,
-            K=ctx.top_k,
+            K=ctx.K,
         )
 
         return x_grad, weight_grad, *[None] * 9
