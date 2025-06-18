@@ -9,7 +9,7 @@
 
 #include "include/cute_kernels.h"
 
-#define MAX_ALLOWED_C 16384
+#define MAX_ALLOWED_E 16384
 
 namespace cg = cooperative_groups;
 namespace ck = cute_kernels;
@@ -20,28 +20,28 @@ using int64 = ck::int64;
 using uint32 = ck::uint32;
 using uint64 = ck::uint64;
 
-inline __device__ void _looped_atomic_add(uint32 *source, uint32 *destination, const uint32 &C) {
+inline __device__ void _looped_atomic_add(uint32 *source, uint32 *destination, const uint32 &E) {
     uint32 index = threadIdx.x;
-    while (index < C) {
+    while (index < E) {
         atomicAdd(&destination[index], source[index]);
         index += blockDim.x;
     }
 }
 
 inline __device__ void _initialize_global_output(uint32 *output,
-                                                 const uint32 &C,
+                                                 const uint32 &E,
                                                  const uint32 &global_thread_id,
                                                  const uint32 &total_threads) {
-    const uint32 C4 = C >> 2;
+    const uint32 E4 = E >> 2;
 
     uint32 init_value[] = {0, 0, 0, 0};
 
-    for (uint32 i = global_thread_id; i < C4; i += total_threads) {
+    for (uint32 i = global_thread_id; i < E4; i += total_threads) {
         ck_mem::store_128_bits<uint32>(init_value, output, i);
     }
 
-    const uint32 index = (C4 << 2) + global_thread_id;
-    if (index < C) {
+    const uint32 index = (E4 << 2) + global_thread_id;
+    if (index < E) {
         output[index] = 0;
     }
 }
@@ -70,11 +70,11 @@ inline __device__ void _update_local_count(const scalar_t *x,
 }
 
 template <typename scalar_t>
-inline __device__ uint32 *_get_shared_memory(const uint32 &local_thread_id, const uint32 &C) {
+inline __device__ uint32 *_get_shared_memory(const uint32 &local_thread_id, const uint32 &E) {
     extern __shared__ uint32 shared_memory[];
 
     uint32 index = local_thread_id;
-    while (index < C) {
+    while (index < E) {
         shared_memory[index] = 0;
         index += blockDim.x;
     }
@@ -83,14 +83,14 @@ inline __device__ uint32 *_get_shared_memory(const uint32 &local_thread_id, cons
 }
 
 template <typename scalar_t>
-__global__ void continuous_count_cuda_kernel(const scalar_t *x, uint32 *output, const uint64 N, const uint32 C) {
+__global__ void continuous_count_cuda_kernel(const scalar_t *x, uint32 *output, const uint64 N, const uint32 E) {
     const uint32 global_thread_id = blockIdx.x * blockDim.x + threadIdx.x;
 
-    uint32 *shared_memory = _get_shared_memory<scalar_t>(threadIdx.x, C);
+    uint32 *shared_memory = _get_shared_memory<scalar_t>(threadIdx.x, E);
 
     const uint32 grid_size = gridDim.x * blockDim.x;
 
-    _initialize_global_output(output, C, global_thread_id, grid_size);
+    _initialize_global_output(output, E, global_thread_id, grid_size);
     cg::this_grid().sync();
 
     _update_local_count<scalar_t>(x, shared_memory, N, global_thread_id, grid_size);
@@ -101,20 +101,20 @@ __global__ void continuous_count_cuda_kernel(const scalar_t *x, uint32 *output, 
     __syncthreads();
 
     if (!is_first_cluster_block) {
-        _looped_atomic_add(shared_memory, cluster.map_shared_rank(shared_memory, 0), C);
+        _looped_atomic_add(shared_memory, cluster.map_shared_rank(shared_memory, 0), E);
     }
 
     cluster.sync();
 
     // write the output to the global memory
     if (is_first_cluster_block) {
-        _looped_atomic_add(shared_memory, output, C);
+        _looped_atomic_add(shared_memory, output, E);
     }
 }
 
 void continuous_count_cuda(const torch::Tensor &x,
                            torch::Tensor &output,
-                           const uint32 &C,
+                           const uint32 &E,
                            const uint32 &THREAD_BLOCK_CLUSTER_SIZE,
                            const uint32 &BLOCK_SIZE) {
     CHECK_CUDA_TENSOR(x);
@@ -122,7 +122,7 @@ void continuous_count_cuda(const torch::Tensor &x,
 
     CHECK_VALID_THREAD_BLOCK(BLOCK_SIZE);
 
-    TORCH_CHECK(C <= MAX_ALLOWED_C);
+    TORCH_CHECK(E <= MAX_ALLOWED_E);
 
     const uint64 N = x.numel();
     CHECK_WITHIN_UINT32(N);
@@ -133,7 +133,7 @@ void continuous_count_cuda(const torch::Tensor &x,
     DISPATCH_INT_KERNEL(x.scalar_type(), "continuous_count_cuda_kernel", scalar_t, ([&] {
                             cudaFuncSetAttribute(continuous_count_cuda_kernel<scalar_t>,
                                                  cudaFuncAttributeMaxDynamicSharedMemorySize,
-                                                 MAX_ALLOWED_C * sizeof(uint32));
+                                                 MAX_ALLOWED_E * sizeof(uint32));
 
                             auto [NUM_BLOCKS, cluster_size] =
                                 ck::get_num_blocks(N, BLOCK_SIZE, max_num_blocks, THREAD_BLOCK_CLUSTER_SIZE);
@@ -142,7 +142,7 @@ void continuous_count_cuda(const torch::Tensor &x,
                             cudaLaunchConfig_t launch_config = {0};
                             launch_config.blockDim = BLOCK_SIZE;
                             launch_config.gridDim = NUM_BLOCKS;
-                            launch_config.dynamicSmemBytes = C * sizeof(uint32);
+                            launch_config.dynamicSmemBytes = E * sizeof(uint32);
 
                             cudaLaunchAttribute attributes[2];
 
@@ -162,6 +162,6 @@ void continuous_count_cuda(const torch::Tensor &x,
                                                x.data_ptr<scalar_t>(),
                                                output.data_ptr<uint32>(),
                                                N,
-                                               C);
+                                               E);
                         }));
 }
