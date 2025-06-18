@@ -300,61 +300,6 @@ class _GroupedGemmExperts_Cute(torch.autograd.Function):
         return x_grad, weight_grad, *[None] * 9
 
 
-class _GroupWithPadding(torch.autograd.Function):
-    @staticmethod
-    @ensure_contiguous
-    def forward(
-        ctx,
-        x: torch.Tensor,
-        expert_padding_offset: torch.Tensor,
-        sorted_idxs: torch.Tensor,
-        scattered_idxs: torch.Tensor,
-        top_k: int,
-        pad_to_multiple_of: int,
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor | None]:
-        output = _group_and_pad(
-            x=x,
-            expert_padding_offset=expert_padding_offset,
-            sorted_idxs=sorted_idxs,
-            scattered_idxs=scattered_idxs,
-            top_k=top_k,
-            pad_to_multiple_of=pad_to_multiple_of,
-        )
-
-        ctx.save_for_backward(expert_padding_offset, sorted_idxs, scattered_idxs)
-        ctx.T = x.size(0)
-        ctx.K = top_k
-
-        return output
-
-    @staticmethod
-    @ensure_contiguous
-    def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
-        expert_padding_offset, sorted_idxs, scattered_idxs = ctx.saved_tensors
-
-        x_grad = _ungroup_and_unpad(
-            x=output_grad,
-            expert_padding_offset=expert_padding_offset,
-            sorted_idxs=sorted_idxs,
-            scattered_idxs=scattered_idxs,
-            T=ctx.T,
-            K=ctx.K,
-        )
-
-        return x_grad, *[None] * 5
-
-
-def group_with_padding(
-    x: torch.Tensor,
-    expert_padding_offset: torch.Tensor,
-    sorted_idxs: torch.Tensor,
-    scattered_idxs: torch.Tensor,
-    top_k: int,
-    pad_to_multiple_of: int = 1,
-) -> torch.Tensor:
-    return _GroupWithPadding.apply(x, expert_padding_offset, sorted_idxs, scattered_idxs, top_k, pad_to_multiple_of)
-
-
 class _UngroupWithPadding(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
