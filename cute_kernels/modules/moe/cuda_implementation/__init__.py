@@ -76,31 +76,31 @@ def _group_and_pad(
 
 
 def _ungroup_and_unpad(
-    output_grad: torch.Tensor,
+    x: torch.Tensor,
     expert_padding_offset: torch.Tensor,
     sorted_idxs: torch.Tensor,
     scattered_idxs: torch.Tensor,
     T: int,
     K: int,
 ) -> torch.Tensor:
-    H = output_grad.size(-1)
-    x_grad = torch.zeros(T, H, device=output_grad.device, dtype=torch.float32)
+    H = x.size(-1)
+    output = torch.zeros(T, H, device=x.device, dtype=torch.float32)
 
     ungroup_with_padding_triton(
-        x=output_grad,
+        x=x,
         expert_padding_offset=expert_padding_offset,
         sorted_idxs=sorted_idxs,
         scattered_idxs=scattered_idxs,
-        output=x_grad,
+        output=output,
         T=T,
         H=H,
         K=K,
         ATOMIC_ADD=True,
     )
 
-    x_grad = x_grad.type_as(output_grad)
+    output = output.type_as(x)
 
-    return x_grad
+    return output
 
 
 class _GroupedGemmExpertsNew_Cute(torch.autograd.Function):
@@ -282,7 +282,7 @@ class _GroupWithPadding(torch.autograd.Function):
         expert_padding_offset, sorted_idxs, scattered_idxs = ctx.saved_tensors
 
         x_grad = _ungroup_and_unpad(
-            output_grad=output_grad,
+            x=output_grad,
             expert_padding_offset=expert_padding_offset,
             sorted_idxs=sorted_idxs,
             scattered_idxs=scattered_idxs,
