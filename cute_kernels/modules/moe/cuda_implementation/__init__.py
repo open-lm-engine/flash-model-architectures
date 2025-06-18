@@ -157,6 +157,7 @@ class _GroupedGemmExperts_Cute(torch.autograd.Function):
         ctx.top_k = top_k
         ctx.pad_to_multiple_of = pad_to_multiple_of
         ctx.grouped_in = grouped_in
+        ctx.x_grouped_shape = x_grouped.size()
 
         return output
 
@@ -171,6 +172,20 @@ class _GroupedGemmExperts_Cute(torch.autograd.Function):
         top_k = ctx.top_k
         grouped_in = ctx.grouped_in
 
+        # A -> sum(M) x N
+        # B -> EN x K
+        x_grad_grouped = grouped_gemm_cute(
+            A=output_grad,
+            B=weight,
+            C=None,
+            M_array=M_array,
+            N_array=K_array,
+            K_array=N_array,
+            output_shape=ctx.x_grouped_shape,
+            is_A_transposed=False,
+            is_B_transposed=False,
+        )
+
         if grouped_in:
             x_grouped = x
         else:
@@ -182,20 +197,6 @@ class _GroupedGemmExperts_Cute(torch.autograd.Function):
                 top_k=top_k,
                 pad_to_multiple_of=ctx.pad_to_multiple_of,
             )
-
-        # A -> sum(M) x N
-        # B -> EN x K
-        x_grad_grouped = grouped_gemm_cute(
-            A=output_grad,
-            B=weight,
-            C=None,
-            M_array=M_array,
-            N_array=K_array,
-            K_array=N_array,
-            output_shape=x_grouped.size(),
-            is_A_transposed=False,
-            is_B_transposed=False,
-        )
 
         # A -> sum(M) x N
         # B -> sum(M) x K
