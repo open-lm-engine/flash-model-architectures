@@ -201,31 +201,36 @@ class _GroupedGemmExperts_Cute(torch.autograd.Function):
         assert N % 8 == 0
         assert weight.size(2) % 8 == 0
 
-        x = _group_and_pad(
-            x=x,
-            expert_padding_offset=expert_padding_offset,
-            sorted_idxs=sorted_idxs,
-            scattered_idxs=scattered_idxs,
-            top_k=top_k,
-            pad_to_multiple_of=pad_to_multiple_of,
-        )
+        if grouped_in:
+            x_grouped = x
+        else:
+            x_grouped = _group_and_pad(
+                x=x,
+                expert_padding_offset=expert_padding_offset,
+                sorted_idxs=sorted_idxs,
+                scattered_idxs=scattered_idxs,
+                top_k=top_k,
+                pad_to_multiple_of=pad_to_multiple_of,
+            )
 
         output = grouped_gemm_cute(
-            A=x,
+            A=x_grouped,
             B=weight,
             C=None,
             M_array=M_array,
             N_array=N_array,
             K_array=K_array,
-            output_shape=(x.size(0), N),
+            output_shape=(x_grouped.size(0), N),
             is_A_transposed=False,
             is_B_transposed=True,
         )
 
-        ctx.save_for_backward(x, weight, M_array, K_array, N_array, expert_padding_offset, sorted_idxs, scattered_idxs)
+        ctx.save_for_backward(
+            x_grouped, weight, M_array, K_array, N_array, expert_padding_offset, sorted_idxs, scattered_idxs
+        )
 
         ctx.T = T
-        ctx.K = top_k
+        ctx.top_k = top_k
         ctx.pad_to_multiple_of = pad_to_multiple_of
         ctx.grouped_in = grouped_in
 
@@ -237,18 +242,22 @@ class _GroupedGemmExperts_Cute(torch.autograd.Function):
         # x -> sum(M) x K
         # weight -> EN x K
         # output_grad -> sum(M) x N
-        x, weight, M_array, K_array, N_array, expert_padding_offset, sorted_idxs, scattered_idxs = ctx.saved_tensors
+        x_grouped, weight, M_array, K_array, N_array, expert_padding_offset, sorted_idxs, scattered_idxs = (
+            ctx.saved_tensors
+        )
+
+        grouped_in = ctx.grouped_in
 
         # A -> sum(M) x N
         # B -> EN x K
-        x_grad = grouped_gemm_cute(
+        x_grad_grouped = grouped_gemm_cute(
             A=output_grad,
             B=weight,
             C=None,
             M_array=M_array,
             N_array=K_array,
             K_array=N_array,
-            output_shape=x.size(),
+            output_shape=x_grouped.size(),
             is_A_transposed=False,
             is_B_transposed=False,
         )
@@ -257,7 +266,7 @@ class _GroupedGemmExperts_Cute(torch.autograd.Function):
         # B -> sum(M) x K
         weight_grad = grouped_gemm_cute(
             A=output_grad,
-            B=x,
+            B=x_grouped,
             C=None,
             M_array=N_array,
             N_array=K_array,
@@ -267,14 +276,17 @@ class _GroupedGemmExperts_Cute(torch.autograd.Function):
             is_B_transposed=False,
         )
 
-        x_grad = _ungroup_and_unpad(
-            x=x_grad,
-            expert_padding_offset=expert_padding_offset,
-            sorted_idxs=sorted_idxs,
-            scattered_idxs=scattered_idxs,
-            T=ctx.T,
-            K=ctx.K,
-        )
+        if grouped_in:
+            x_grad = x_grad_grouped
+        else:
+            x_grad = _ungroup_and_unpad(
+                x=x_grad_grouped,
+                expert_padding_offset=expert_padding_offset,
+                sorted_idxs=sorted_idxs,
+                scattered_idxs=scattered_idxs,
+                T=ctx.T,
+                K=ctx.top_k,
+            )
 
         return x_grad, weight_grad, *[None] * 9
 
