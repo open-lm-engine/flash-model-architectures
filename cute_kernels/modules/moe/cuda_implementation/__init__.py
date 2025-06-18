@@ -103,79 +103,6 @@ def _ungroup_and_unpad(
     return output
 
 
-class _GroupedGemmExpertsNew_Cute(torch.autograd.Function):
-    @staticmethod
-    @ensure_contiguous
-    def forward(
-        ctx,
-        x: torch.Tensor,
-        weight: torch.Tensor,
-        M_array: torch.Tensor,
-        N_array: torch.Tensor,
-        K_array: torch.Tensor,
-    ) -> torch.Tensor:
-        # x -> sum(M) x K
-        # weight -> EN x K
-        _, N, K = weight.size()
-
-        assert N % 8 == 0
-        assert K % 8 == 0
-
-        output = grouped_gemm_cute(
-            A=x,
-            B=weight,
-            C=None,
-            M_array=M_array,
-            N_array=N_array,
-            K_array=K_array,
-            output_shape=(x.size(0), N),
-            is_A_transposed=False,
-            is_B_transposed=True,
-        )
-
-        ctx.save_for_backward(x, weight, M_array, K_array, N_array)
-
-        return output
-
-    @staticmethod
-    @ensure_contiguous
-    def backward(ctx, output_grad: torch.Tensor) -> torch.Tensor:
-        # x -> sum(M) x K
-        # weight -> EN x K
-        # output_grad -> sum(M) x N
-        x, weight, M_array, K_array, N_array = ctx.saved_tensors
-
-        # A -> sum(M) x N
-        # B -> EN x K
-        x_grad = grouped_gemm_cute(
-            A=output_grad,
-            B=weight,
-            C=None,
-            M_array=M_array,
-            N_array=K_array,
-            K_array=N_array,
-            output_shape=x.size(),
-            is_A_transposed=False,
-            is_B_transposed=False,
-        )
-
-        # A -> sum(M) x N
-        # B -> sum(M) x K
-        weight_grad = grouped_gemm_cute(
-            A=output_grad,
-            B=x,
-            C=None,
-            M_array=N_array,
-            N_array=K_array,
-            K_array=M_array,
-            output_shape=weight.size(),
-            is_A_transposed=True,
-            is_B_transposed=False,
-        )
-
-        return x_grad, weight_grad, *[None] * 5
-
-
 class _GroupedGemmExperts_Cute(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
@@ -392,12 +319,6 @@ def grouped_gemm_experts_cute(
         pad_to_multiple_of,
         grouped_in,
     )
-
-
-def grouped_gemm_experts_new_cute(
-    x: torch.Tensor, weight: torch.Tensor, M_array: torch.Tensor, N_array: torch.Tensor, K_array: torch.Tensor
-) -> torch.Tensor:
-    return _GroupedGemmExpertsNew_Cute.apply(x, weight, M_array, N_array, K_array)
 
 
 def ungroup_with_padding(
