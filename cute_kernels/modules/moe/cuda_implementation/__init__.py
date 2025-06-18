@@ -12,11 +12,42 @@ from .padded_expert_frequency_kernel import padded_expert_frequency_triton
 from .ungroup_kernel import ungroup_with_padding_triton
 
 
+@torch.no_grad()
+def _get_expert_padding_offset(
+    expert_frequency: torch.Tensor, E: int, pad_to_multiple_of: int
+) -> tuple[torch.Tensor, torch.Tensor]:
+    expert_padding_frequency = torch.empty_like(expert_frequency)
+
+    padded_expert_frequency_triton(
+        expert_frequency=expert_frequency, output=expert_padding_frequency, pad_to_multiple_of=pad_to_multiple_of
+    )
+
+    padded_expert_frequency = expert_frequency.to(torch.int32) + expert_padding_frequency.to(torch.int32)
+    padded_expert_frequency = padded_expert_frequency.to(torch.uint32)
+
+    expert_padding_offset = expert_padding_frequency.cumsum(-1)
+    expert_padding_offset = torch.cat(
+        [
+            torch.tensor([0], device=expert_padding_offset.device, dtype=expert_padding_offset.dtype),
+            expert_padding_offset,
+        ]
+    )
+
+    return padded_expert_frequency, expert_padding_offset
+
+
 class _GroupedGemmExperts_Cute(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
     def forward(
-        ctx, x: torch.Tensor, weight: torch.Tensor, M_array: torch.Tensor, N_array: torch.Tensor, K_array: torch.Tensor
+        ctx,
+        x: torch.Tensor,
+        weight: torch.Tensor,
+        M_array: torch.Tensor,
+        N_array: torch.Tensor,
+        K_array: torch.Tensor,
+        grouped_in: bool,
+        grouped_out: bool,
     ) -> torch.Tensor:
         # x -> sum(M) x K
         # weight -> EN x K
@@ -77,31 +108,7 @@ class _GroupedGemmExperts_Cute(torch.autograd.Function):
             is_B_transposed=False,
         )
 
-        return x_grad, weight_grad, *[None] * 3
-
-
-@torch.no_grad()
-def _get_expert_padding_offset(
-    expert_frequency: torch.Tensor, E: int, pad_to_multiple_of: int
-) -> tuple[torch.Tensor, torch.Tensor]:
-    expert_padding_frequency = torch.empty_like(expert_frequency)
-
-    padded_expert_frequency_triton(
-        expert_frequency=expert_frequency, output=expert_padding_frequency, pad_to_multiple_of=pad_to_multiple_of
-    )
-
-    padded_expert_frequency = expert_frequency.to(torch.int32) + expert_padding_frequency.to(torch.int32)
-    padded_expert_frequency = padded_expert_frequency.to(torch.uint32)
-
-    expert_padding_offset = expert_padding_frequency.cumsum(-1)
-    expert_padding_offset = torch.cat(
-        [
-            torch.tensor([0], device=expert_padding_offset.device, dtype=expert_padding_offset.dtype),
-            expert_padding_offset,
-        ]
-    )
-
-    return padded_expert_frequency, expert_padding_offset
+        return x_grad, weight_grad, *[None] * 5
 
 
 class _GroupWithPadding(torch.autograd.Function):
