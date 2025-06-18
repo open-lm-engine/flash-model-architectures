@@ -10,7 +10,12 @@ import torch.nn.functional as F
 
 from ...kernel_backend import KernelBackend
 from ...ops import continuous_count_cute
-from .cuda_implementation import group_with_padding, grouped_gemm_experts_cute, ungroup_with_padding
+from .cuda_implementation import (
+    get_expert_padding_offset,
+    group_with_padding,
+    grouped_gemm_experts_cute,
+    ungroup_with_padding,
+)
 from .triton_implementation import scattered_experts
 
 
@@ -192,7 +197,11 @@ class MoE(nn.Module):
         T = hidden_states.size(0)
 
         if kernel_backend == KernelBackend.cuda:
-            hidden_states, padded_expert_frequency, expert_padding_offset = group_with_padding(
+            padded_expert_frequency, expert_padding_offset = get_expert_padding_offset(
+                expert_frequency=expert_frequency, E=self.num_experts, pad_to_multiple_of=8
+            )
+
+            hidden_states = group_with_padding(
                 x=hidden_states,
                 expert_frequency=expert_frequency,
                 sorted_idxs=sorted_expert_idxs,

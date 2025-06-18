@@ -13,7 +13,7 @@ from .ungroup_kernel import ungroup_with_padding_triton
 
 
 @torch.no_grad()
-def _get_expert_padding_offset(
+def get_expert_padding_offset(
     expert_frequency: torch.Tensor, E: int, pad_to_multiple_of: int
 ) -> tuple[torch.Tensor, torch.Tensor]:
     expert_padding_frequency = torch.empty_like(expert_frequency)
@@ -46,8 +46,6 @@ class _GroupedGemmExperts_Cute(torch.autograd.Function):
         M_array: torch.Tensor,
         N_array: torch.Tensor,
         K_array: torch.Tensor,
-        grouped_in: bool,
-        grouped_out: bool,
     ) -> torch.Tensor:
         # x -> sum(M) x K
         # weight -> EN x K
@@ -117,7 +115,7 @@ class _GroupWithPadding(torch.autograd.Function):
     def forward(
         ctx,
         x: torch.Tensor,
-        expert_frequency: torch.Tensor,
+        expert_padding_offset: torch.Tensor,
         sorted_idxs: torch.Tensor,
         scattered_idxs: torch.Tensor,
         top_k: int,
@@ -126,23 +124,17 @@ class _GroupWithPadding(torch.autograd.Function):
         assert x.dim() == 2
 
         T, H = x.size()
-        E = expert_frequency.size(0)
+        E = expert_padding_offset.size(0)
         K = top_k
 
         assert H % 8 == 0
 
         if pad_to_multiple_of == 1:
             output = torch.empty(T * K, H, device=x.device, dtype=x.dtype)
-            padded_expert_frequency = expert_frequency
-            expert_padding_offset = None
         else:
             # we pad to max possible shape to make tensor shape independent of data
             output = torch.zeros(
                 (ceil_divide(T * K, pad_to_multiple_of) + E) * pad_to_multiple_of, H, device=x.device, dtype=x.dtype
-            )
-
-            padded_expert_frequency, expert_padding_offset = _get_expert_padding_offset(
-                expert_frequency=expert_frequency, E=E, pad_to_multiple_of=pad_to_multiple_of
             )
 
         group_with_padding_triton(
@@ -161,11 +153,11 @@ class _GroupWithPadding(torch.autograd.Function):
         ctx.T = T
         ctx.K = K
 
-        return output, padded_expert_frequency, expert_padding_offset
+        return output
 
     @staticmethod
     @ensure_contiguous
-    def backward(ctx, output_grad: torch.Tensor, _: torch.Tensor, __: torch.Tensor) -> tuple[torch.Tensor | None]:
+    def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
         expert_padding_offset, sorted_idxs, scattered_idxs = ctx.saved_tensors
         T = ctx.T
         H = output_grad.size(-1)
