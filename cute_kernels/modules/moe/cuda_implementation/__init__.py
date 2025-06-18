@@ -28,7 +28,7 @@ def get_expert_padding_offset(
     expert_padding_offset = expert_padding_frequency.cumsum(-1)
     expert_padding_offset = torch.cat(
         [
-            torch.tensor([0], device=expert_padding_offset.device, dtype=expert_padding_offset.dtype),
+            torch.zeros((1,), device=expert_padding_offset.device, dtype=expert_padding_offset.dtype),
             expert_padding_offset,
         ]
     )
