@@ -12,7 +12,6 @@ from ...kernel_backend import KernelBackend
 from ...ops import continuous_count_cute
 from .cuda_implementation import (
     get_expert_padding_offset,
-    group_with_padding,
     grouped_gemm_experts_cute,
     grouped_gemm_experts_new_cute,
     ungroup_with_padding,
