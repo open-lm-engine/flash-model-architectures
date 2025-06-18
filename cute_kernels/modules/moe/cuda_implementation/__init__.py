@@ -44,13 +44,9 @@ def _group_and_pad(
     top_k: int,
     pad_to_multiple_of: int,
 ) -> torch.Tensor:
-    assert x.dim() == 2
-
     T, H = x.size()
     E = expert_padding_offset.size(0)
     K = top_k
-
-    assert H % 8 == 0
 
     if pad_to_multiple_of == 1:
         output = torch.empty(T * K, H, device=x.device, dtype=x.dtype)
@@ -120,11 +116,14 @@ class _GroupedGemmExperts_Cute(torch.autograd.Function):
         pad_to_multiple_of: int,
         grouped_in: bool,
     ) -> torch.Tensor:
+        assert x.dim() == 2
+
         # x -> sum(M) x K
         # weight -> EN x K
-        T = x.size(0)
+        T, H = x.size()
         N = weight.size(1)
 
+        assert H % 8 == 0
         assert N % 8 == 0
         assert weight.size(2) % 8 == 0
 
