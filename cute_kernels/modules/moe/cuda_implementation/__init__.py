@@ -36,6 +36,45 @@ def get_expert_padding_offset(
     return padded_expert_frequency, expert_padding_offset
 
 
+def _group_and_pad(
+    x: torch.Tensor,
+    expert_padding_offset: torch.Tensor,
+    sorted_idxs: torch.Tensor,
+    scattered_idxs: torch.Tensor,
+    top_k: int,
+    pad_to_multiple_of: int,
+) -> torch.Tensor:
+    assert x.dim() == 2
+
+    T, H = x.size()
+    E = expert_padding_offset.size(0)
+    K = top_k
+
+    assert H % 8 == 0
+
+    if pad_to_multiple_of == 1:
+        output = torch.empty(T * K, H, device=x.device, dtype=x.dtype)
+    else:
+        # we pad to max possible shape to make tensor shape independent of data
+        output = torch.zeros(
+            (ceil_divide(T * K, pad_to_multiple_of) + E) * pad_to_multiple_of, H, device=x.device, dtype=x.dtype
+        )
+
+    group_with_padding_triton(
+        x=x,
+        expert_padding_offset=expert_padding_offset,
+        sorted_idxs=sorted_idxs,
+        scattered_idxs=scattered_idxs,
+        output=output,
+        T=T,
+        H=H,
+        K=K,
+        NEEDS_DUPLICATION=True,
+    )
+
+    return output
+
+
 class _GroupedGemmExperts_Cute(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
@@ -121,32 +160,13 @@ class _GroupWithPadding(torch.autograd.Function):
         top_k: int,
         pad_to_multiple_of: int,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor | None]:
-        assert x.dim() == 2
-
-        T, H = x.size()
-        E = expert_padding_offset.size(0)
-        K = top_k
-
-        assert H % 8 == 0
-
-        if pad_to_multiple_of == 1:
-            output = torch.empty(T * K, H, device=x.device, dtype=x.dtype)
-        else:
-            # we pad to max possible shape to make tensor shape independent of data
-            output = torch.zeros(
-                (ceil_divide(T * K, pad_to_multiple_of) + E) * pad_to_multiple_of, H, device=x.device, dtype=x.dtype
-            )
-
-        group_with_padding_triton(
+        output = _group_and_pad(
             x=x,
             expert_padding_offset=expert_padding_offset,
             sorted_idxs=sorted_idxs,
             scattered_idxs=scattered_idxs,
-            output=output,
-            T=T,
-            H=H,
-            K=K,
-            NEEDS_DUPLICATION=True,
+            top_k=top_k,
+            pad_to_multiple_of=pad_to_multiple_of,
         )
 
         ctx.save_for_backward(expert_padding_offset, sorted_idxs, scattered_idxs)
@@ -180,6 +200,17 @@ class _GroupWithPadding(torch.autograd.Function):
         x_grad = x_grad.type_as(output_grad)
 
         return x_grad, *[None] * 5
+
+
+def group_with_padding(
+    x: torch.Tensor,
+    expert_padding_offset: torch.Tensor,
+    sorted_idxs: torch.Tensor,
+    scattered_idxs: torch.Tensor,
+    top_k: int,
+    pad_to_multiple_of: int = 1,
+) -> torch.Tensor:
+    return _GroupWithPadding.apply(x, expert_padding_offset, sorted_idxs, scattered_idxs, top_k, pad_to_multiple_of)
 
 
 class _UngroupWithPadding(torch.autograd.Function):
@@ -252,17 +283,6 @@ def grouped_gemm_experts_cute(
     x: torch.Tensor, weight: torch.Tensor, M_array: torch.Tensor, N_array: torch.Tensor, K_array: torch.Tensor
 ) -> torch.Tensor:
     return _GroupedGemmExperts_Cute.apply(x, weight, M_array, N_array, K_array)
-
-
-def group_with_padding(
-    x: torch.Tensor,
-    expert_padding_offset: torch.Tensor,
-    sorted_idxs: torch.Tensor,
-    scattered_idxs: torch.Tensor,
-    top_k: int,
-    pad_to_multiple_of: int = 1,
-) -> torch.Tensor:
-    return _GroupWithPadding.apply(x, expert_padding_offset, sorted_idxs, scattered_idxs, top_k, pad_to_multiple_of)
 
 
 def ungroup_with_padding(
