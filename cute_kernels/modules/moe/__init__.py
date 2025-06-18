@@ -65,6 +65,7 @@ class Experts(nn.Module):
                 top_k=num_experts_per_token,
                 pad_to_multiple_of=8,
                 grouped_in=grouped_in,
+                grouped_out=grouped_out,
             )
         elif kernel_backend == KernelBackend.triton:
             assert self.bias is None
@@ -216,7 +217,7 @@ class MoE(nn.Module):
                 expert_offsets=expert_padding_offset,
                 gates=None,
                 grouped_in=False,
-                grouped_out=False,
+                grouped_out=True,
             )
             hidden_states = self.act(hidden_states)
             hidden_states = self.c_proj(

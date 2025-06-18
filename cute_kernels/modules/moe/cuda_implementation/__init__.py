@@ -115,6 +115,7 @@ class _GroupedGemmExperts_Cute(torch.autograd.Function):
         top_k: int,
         pad_to_multiple_of: int,
         grouped_in: bool,
+        grouped_out: bool,
     ) -> torch.Tensor:
         assert x.dim() == 2
 
@@ -223,7 +224,7 @@ class _GroupedGemmExperts_Cute(torch.autograd.Function):
                 K=top_k,
             )
 
-        return x_grad, weight_grad, *[None] * 9
+        return x_grad, weight_grad, *[None] * 10
 
 
 class _UngroupWithPadding(torch.autograd.Function):
@@ -304,6 +305,7 @@ def grouped_gemm_experts_cute(
     top_k: int,
     pad_to_multiple_of: int,
     grouped_in: bool,
+    grouped_out: bool,
 ) -> torch.Tensor:
     return _GroupedGemmExperts_Cute.apply(
         x,
@@ -317,6 +319,7 @@ def grouped_gemm_experts_cute(
         top_k,
         pad_to_multiple_of,
         grouped_in,
+        grouped_out,
     )
 
 
