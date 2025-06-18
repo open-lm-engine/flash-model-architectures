@@ -60,12 +60,22 @@ class Experts(nn.Module):
             assert self.bias is None
 
             if grouped_in:
-                input = grouped_gemm_experts_cute(
+                input = grouped_gemm_experts_new_cute(
                     x=input, weight=self.weight, M_array=expert_frequency, N_array=self.N_array, K_array=self.K_array
                 )
             else:
-                input = grouped_gemm_experts_new_cute(
-                    x=input, weight=self.weight, M_array=expert_frequency, N_array=self.N_array, K_array=self.K_array
+                input = grouped_gemm_experts_cute(
+                    x=input,
+                    weight=self.weight,
+                    M_array=expert_frequency,
+                    N_array=self.N_array,
+                    K_array=self.K_array,
+                    expert_padding_offset=expert_offsets,
+                    sorted_idxs=sorted_expert_idxs,
+                    scattered_idxs=sorted_scattered_idxs,
+                    top_k=num_experts_per_token,
+                    pad_to_multiple_of=8,
+                    grouped_in=grouped_in,
                 )
         elif kernel_backend == KernelBackend.triton:
             assert self.bias is None
@@ -207,21 +217,24 @@ class MoE(nn.Module):
                 expert_frequency=expert_frequency, E=self.num_experts, pad_to_multiple_of=8
             )
 
-            hidden_states = group_with_padding(
-                x=hidden_states,
-                expert_padding_offset=expert_padding_offset,
-                sorted_idxs=sorted_expert_idxs,
-                scattered_idxs=sorted_scattered_idxs,
-                top_k=self.top_k,
-                pad_to_multiple_of=8,
-            )
-
             hidden_states = self.c_fc(
-                input=hidden_states, kernel_backend=kernel_backend, expert_frequency=padded_expert_frequency
+                input=hidden_states,
+                kernel_backend=kernel_backend,
+                num_experts_per_token=self.top_k,
+                expert_frequency=padded_expert_frequency,
+                sorted_expert_idxs=sorted_expert_idxs,
+                sorted_scattered_idxs=sorted_scattered_idxs,
+                expert_offsets=expert_padding_offset,
+                gates=None,
+                grouped_in=False,
+                grouped_out=False,
             )
             hidden_states = self.act(hidden_states)
             hidden_states = self.c_proj(
-                input=hidden_states, kernel_backend=kernel_backend, expert_frequency=padded_expert_frequency
+                input=hidden_states,
+                kernel_backend=kernel_backend,
+                expert_frequency=padded_expert_frequency,
+                grouped_in=True,
             )
 
             hidden_states = ungroup_with_padding(

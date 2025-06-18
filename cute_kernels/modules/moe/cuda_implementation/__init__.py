@@ -186,13 +186,29 @@ class _GroupedGemmExperts_Cute(torch.autograd.Function):
         M_array: torch.Tensor,
         N_array: torch.Tensor,
         K_array: torch.Tensor,
+        expert_padding_offset: torch.Tensor,
+        sorted_idxs: torch.Tensor,
+        scattered_idxs: torch.Tensor,
+        top_k: int,
+        pad_to_multiple_of: int,
+        grouped_in: bool,
     ) -> torch.Tensor:
         # x -> sum(M) x K
         # weight -> EN x K
-        _, N, K = weight.size()
+        T = x.size(0)
+        N = weight.size(1)
 
         assert N % 8 == 0
-        assert K % 8 == 0
+        assert weight.size(2) % 8 == 0
+
+        x = _group_and_pad(
+            x=x,
+            expert_padding_offset=expert_padding_offset,
+            sorted_idxs=sorted_idxs,
+            scattered_idxs=scattered_idxs,
+            top_k=top_k,
+            pad_to_multiple_of=pad_to_multiple_of,
+        )
 
         output = grouped_gemm_cute(
             A=x,
@@ -206,7 +222,13 @@ class _GroupedGemmExperts_Cute(torch.autograd.Function):
             is_B_transposed=True,
         )
 
-        ctx.save_for_backward(x, weight, M_array, K_array, N_array)
+        ctx.save_for_backward(x, weight, M_array, K_array, N_array, expert_padding_offset, sorted_idxs, scattered_idxs)
+
+        ctx.top_k = top_k
+        ctx.T = T
+        ctx.top_k = top_k
+        ctx.pad_to_multiple_of = pad_to_multiple_of
+        ctx.grouped_in = grouped_in
 
         return output
 
@@ -216,7 +238,7 @@ class _GroupedGemmExperts_Cute(torch.autograd.Function):
         # x -> sum(M) x K
         # weight -> EN x K
         # output_grad -> sum(M) x N
-        x, weight, M_array, K_array, N_array = ctx.saved_tensors
+        x, weight, M_array, K_array, N_array, expert_padding_offset, sorted_idxs, scattered_idxs = ctx.saved_tensors
 
         # A -> sum(M) x N
         # B -> EN x K
@@ -246,7 +268,16 @@ class _GroupedGemmExperts_Cute(torch.autograd.Function):
             is_B_transposed=False,
         )
 
-        return x_grad, weight_grad, *[None] * 5
+        x_grad = _ungroup_and_unpad(
+            x=x_grad,
+            expert_padding_offset=expert_padding_offset,
+            sorted_idxs=sorted_idxs,
+            scattered_idxs=scattered_idxs,
+            T=ctx.T,
+            K=ctx.top_k,
+        )
+
+        return x_grad, weight_grad, *[None] * 9
 
 
 class _GroupWithPadding(torch.autograd.Function):
@@ -371,9 +402,31 @@ class _UngroupWithPadding(torch.autograd.Function):
 
 
 def grouped_gemm_experts_cute(
-    x: torch.Tensor, weight: torch.Tensor, M_array: torch.Tensor, N_array: torch.Tensor, K_array: torch.Tensor
+    x: torch.Tensor,
+    weight: torch.Tensor,
+    M_array: torch.Tensor,
+    N_array: torch.Tensor,
+    K_array: torch.Tensor,
+    expert_padding_offset: torch.Tensor,
+    sorted_idxs: torch.Tensor,
+    scattered_idxs: torch.Tensor,
+    top_k: int,
+    pad_to_multiple_of: int,
+    grouped_in: bool,
 ) -> torch.Tensor:
-    return _GroupedGemmExperts_Cute.apply(x, weight, M_array, N_array, K_array)
+    return _GroupedGemmExperts_Cute.apply(
+        x,
+        weight,
+        M_array,
+        N_array,
+        K_array,
+        expert_padding_offset,
+        sorted_idxs,
+        scattered_idxs,
+        top_k,
+        pad_to_multiple_of,
+        grouped_in,
+    )
 
 
 def grouped_gemm_experts_new_cute(
