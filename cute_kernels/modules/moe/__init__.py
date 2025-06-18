@@ -58,24 +58,19 @@ class Experts(nn.Module):
         if kernel_backend == KernelBackend.cuda:
             assert self.bias is None
 
-            if grouped_in:
-                input = grouped_gemm_experts_new_cute(
-                    x=input, weight=self.weight, M_array=expert_frequency, N_array=self.N_array, K_array=self.K_array
-                )
-            else:
-                input = grouped_gemm_experts_cute(
-                    x=input,
-                    weight=self.weight,
-                    M_array=expert_frequency,
-                    N_array=self.N_array,
-                    K_array=self.K_array,
-                    expert_padding_offset=expert_offsets,
-                    sorted_idxs=sorted_expert_idxs,
-                    scattered_idxs=sorted_scattered_idxs,
-                    top_k=num_experts_per_token,
-                    pad_to_multiple_of=8,
-                    grouped_in=grouped_in,
-                )
+            input = grouped_gemm_experts_cute(
+                x=input,
+                weight=self.weight,
+                M_array=expert_frequency,
+                N_array=self.N_array,
+                K_array=self.K_array,
+                expert_padding_offset=expert_offsets,
+                sorted_idxs=sorted_expert_idxs,
+                scattered_idxs=sorted_scattered_idxs,
+                top_k=num_experts_per_token,
+                pad_to_multiple_of=8,
+                grouped_in=grouped_in,
+            )
         elif kernel_backend == KernelBackend.triton:
             assert self.bias is None
 
@@ -232,8 +227,14 @@ class MoE(nn.Module):
             hidden_states = self.c_proj(
                 input=hidden_states,
                 kernel_backend=kernel_backend,
+                num_experts_per_token=self.top_k,
                 expert_frequency=padded_expert_frequency,
+                sorted_expert_idxs=sorted_expert_idxs,
+                sorted_scattered_idxs=sorted_scattered_idxs,
+                expert_offsets=expert_padding_offset,
+                gates=None,
                 grouped_in=True,
+                grouped_out=False,
             )
 
             hidden_states = ungroup_with_padding(
