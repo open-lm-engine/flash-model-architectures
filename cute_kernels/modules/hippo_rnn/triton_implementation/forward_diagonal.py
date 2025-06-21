@@ -10,13 +10,13 @@ from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
 from ....triton_math import matmul
 from ....utils import cute_op
-from ...rnn.triton_implementation.forward import _activation, _get_autotune_configs
+from ...rnn.triton_implementation.forward_diagonal import _activation, _get_autotune_configs
 
 
 @triton.jit
-def _rnn_forward_update(h, W, s, V, x, ACTIVATION_FUNCTION, relu_negative_slope):
-    h = matmul(A=h, B=W, C=x, output_dtype=x.dtype)
-    h += matmul(A=s, B=V, C=None, output_dtype=x.dtype)
+def _rnn_forward_update(h, W, c, V, x, ACTIVATION_FUNCTION, relu_negative_slope):
+    h = W * h + x
+    h += V * c
     h = _activation(x=h, ACTIVATION_FUNCTION=ACTIVATION_FUNCTION, relu_negative_slope=relu_negative_slope)
     return h
 
@@ -31,7 +31,7 @@ def diagonal_hippo_rnn_forward_triton_kernel(
     hippo_A_ptr,
     hippo_B_ptr,
     h_ptr,
-    s_ptr,
+    c_ptr,
     y_ptr,
     B,
     S,
@@ -57,10 +57,10 @@ def diagonal_hippo_rnn_forward_triton_kernel(
     else:
         h = tl.load(h_ptr + indices_b[:, None] * N + indices_n[None, :], mask=mask_bn)
 
-    if s_ptr is None:
-        s = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_N), dtype=x_ptr.dtype.element_ty)
+    if c_ptr is None:
+        c = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_N), dtype=x_ptr.dtype.element_ty)
     else:
-        s = tl.load(s_ptr + indices_b[:, None] * N + indices_n[None, :], mask=mask_bn)
+        c = tl.load(c_ptr + indices_b[:, None] * N + indices_n[None, :], mask=mask_bn)
 
     indices = indices_b[:, None] * x_stride_b + indices_n[None, :]
 
@@ -68,6 +68,8 @@ def diagonal_hippo_rnn_forward_triton_kernel(
         h = _rnn_forward_update(
             h=h,
             W=W,
+            c=c,
+            V=V,
             x=tl.load(x_ptr + indices, mask=mask_bn),
             ACTIVATION_FUNCTION="tanh",
             relu_negative_slope=None,
