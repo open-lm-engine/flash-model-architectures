@@ -88,7 +88,7 @@ def diagonal_hippo_rnn_backward_triton_kernel(
     tl.atomic_add(dW_ptr + indices_n, dW, mask=mask_n)
 
 
-@cute_op(f"{LIBRARY_NAME}::diagonal_rnn_backward_triton", mutates_args={"input_grad", "weight_grad"})
+@cute_op(f"{LIBRARY_NAME}::diagonal_hippo_rnn_backward_triton", mutates_args={"input_grad", "weight_grad"})
 def diagonal_hippo_rnn_backward_triton(
     weight: torch.Tensor,
     output: torch.Tensor,

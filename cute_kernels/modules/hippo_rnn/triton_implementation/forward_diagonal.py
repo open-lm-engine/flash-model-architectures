@@ -59,7 +59,7 @@ def diagonal_hippo_rnn_forward_triton_kernel(
         indices += N
 
 
-@cute_op(f"{LIBRARY_NAME}::diagonal_rnn_forward_triton", mutates_args={"output"})
+@cute_op(f"{LIBRARY_NAME}::diagonal_hippo_rnn_forward_triton", mutates_args={"output"})
 def diagonal_hippo_rnn_forward_triton(
     input: torch.Tensor, weight: torch.Tensor, input_state: torch.Tensor | None, output: torch.Tensor
 ) -> None:
