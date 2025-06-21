@@ -10,17 +10,21 @@ from ...kernel_backend import KernelBackend
 from ...math import divide_if_divisible
 from ...torch_math import tanh
 from ...utils import ensure_contiguous
-from .triton_implementation import diagonal_rnn_backward_triton, diagonal_rnn_forward_triton
+from .triton_implementation import diagonal_hippo_rnn_backward_triton, diagonal_hippo_rnn_forward_triton
 
 
-class _RNN_Cute(torch.autograd.Function):
+class _HiPPO_RNN_Cute(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
     def forward(
         ctx,
         input: torch.Tensor,
         weight: torch.Tensor,
+        hippo_weight: torch.Tensor,
+        hippo_A: torch.Tensor,
+        hippo_B: torch.Tensor,
         input_state: torch.Tensor | None,
+        hippo_state: torch.Tensor | None,
         gradient_clipping: float | None,
         cu_seqlens: torch.Tensor | None,
         max_seqlen: torch.Tensor | int | None,
@@ -42,21 +46,11 @@ class _RNN_Cute(torch.autograd.Function):
             assert max_seqlen is None
 
             if H == 1:
-                diagonal_rnn_forward_triton(**kwargs)
+                diagonal_hippo_rnn_forward_triton(**kwargs)
             else:
-                rnn_forward_triton(**kwargs)
+                raise NotImplementedError()
         else:
-            assert max_seqlen is not None
-            is_max_seqlen_tensor = isinstance(max_seqlen, torch.Tensor)
-
-            kwargs["cu_seqlens"] = cu_seqlens
-            kwargs["max_seqlen_tensor"] = max_seqlen if is_max_seqlen_tensor else None
-            kwargs["max_seqlen"] = None if is_max_seqlen_tensor else max_seqlen
-
-            if H == 1:
-                diagonal_rnn_varlen_forward_triton(**kwargs)
-            else:
-                rnn_varlen_forward_triton(**kwargs)
+            raise NotImplementedError()
 
         ctx.save_for_backward(weight, output, input_state, cu_seqlens, max_seqlen)
         ctx.gradient_clipping = gradient_clipping
@@ -84,20 +78,11 @@ class _RNN_Cute(torch.autograd.Function):
 
         if cu_seqlens is None:
             if H == 1:
-                diagonal_rnn_backward_triton(**kwargs)
+                diagonal_hippo_rnn_backward_triton(**kwargs)
             else:
-                rnn_backward_triton(**kwargs)
+                raise NotImplementedError()
         else:
-            is_max_seqlen_tensor = isinstance(max_seqlen, torch.Tensor)
-
-            kwargs["cu_seqlens"] = cu_seqlens
-            kwargs["max_seqlen_tensor"] = max_seqlen if is_max_seqlen_tensor else None
-            kwargs["max_seqlen"] = None if is_max_seqlen_tensor else max_seqlen
-
-            if H == 1:
-                diagonal_rnn_varlen_backward_triton(**kwargs)
-            else:
-                rnn_varlen_backward_triton(**kwargs)
+            raise NotImplementedError()
 
         return input_grad, weight_grad, *[None] * 8
 

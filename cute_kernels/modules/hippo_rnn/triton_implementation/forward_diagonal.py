@@ -14,7 +14,7 @@ from ...rnn.triton_implementation.forward import _get_autotune_configs, _rnn_for
 
 @triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_N"])
 @triton.jit
-def diagonal_rnn_forward_triton_kernel(
+def diagonal_hippo_rnn_forward_triton_kernel(
     x_ptr,
     x_stride_b,
     W_ptr,
@@ -60,7 +60,7 @@ def diagonal_rnn_forward_triton_kernel(
 
 
 @cute_op(f"{LIBRARY_NAME}::diagonal_rnn_forward_triton", mutates_args={"output"})
-def diagonal_rnn_forward_triton(
+def diagonal_hippo_rnn_forward_triton(
     input: torch.Tensor, weight: torch.Tensor, input_state: torch.Tensor | None, output: torch.Tensor
 ) -> None:
     B, S, N, _ = input.size()
@@ -69,7 +69,7 @@ def diagonal_rnn_forward_triton(
     GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), ceil_divide(N, meta["BLOCK_SIZE_N"]))
 
     with torch.device(input.device):
-        diagonal_rnn_forward_triton_kernel[GRID](
+        diagonal_hippo_rnn_forward_triton_kernel[GRID](
             x_ptr=input,
             x_stride_b=input.stride(0),
             W_ptr=weight,
