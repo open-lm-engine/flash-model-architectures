@@ -35,12 +35,25 @@ class _HiPPO_RNN_Cute(torch.autograd.Function):
         N, H = input.size()[-2:]
         assert weight.size() == (N, H, H)
 
+        D = hippo_weight.size(-1)
+        assert hippo_A.size() == (D, D)
+        assert hippo_B.size(0) == D
+
         if gradient_clipping is not None and gradient_clipping < 0:
             gradient_clipping = -gradient_clipping
 
         output = torch.empty_like(input)
 
-        kwargs = {"input": input, "weight": weight, "input_state": input_state, "output": output}
+        kwargs = {
+            "input": input,
+            "weight": weight,
+            "hippo_weight": hippo_weight,
+            "hippo_A": hippo_A,
+            "hippo_B": hippo_B,
+            "input_state": input_state,
+            "hippo_state": hippo_state,
+            "output": output,
+        }
 
         if cu_seqlens is None:
             assert max_seqlen is None
@@ -176,7 +189,9 @@ def hippo_rnn_cute(
                 input_state = tanh(input_state)
 
                 # (B, N, H, D) @ (1, 1, D, D) + (B, N, H, 1) @ (1, 1, 1, D)
-                hippo_state = hippo_state @ (1 - hippo_A / s) + input_state.transpose(-1, -2) @ (hippo_B / s)
+                hippo_state = hippo_state @ (1 - hippo_A / (s + 1)) + input_state.transpose(-1, -2) @ (
+                    hippo_B / (s + 1)
+                )
 
                 if gradient_clipping is not None:
                     input_state = _GradientClipping.apply(input_state, gradient_clipping)
