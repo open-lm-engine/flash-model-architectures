@@ -119,8 +119,8 @@ def hippo_rnn_cute(
     input: torch.Tensor,
     weight: torch.Tensor,
     hippo_weight: torch.Tensor,
-    A: torch.Tensor,
-    B: torch.Tensor,
+    hippo_A: torch.Tensor,
+    hippo_B: torch.Tensor,
     input_state: torch.Tensor | None = None,
     hippo_state: torch.Tensor | None = None,
     gradient_clipping: float | None = None,
@@ -136,8 +136,8 @@ def hippo_rnn_cute(
             dimension. Should have shape (T, N, H) and `cu_seqlens` should be passed.
         weight (torch.Tensor): weight tensor of shape (N, H, H)
         hippo_weight (torch.Tensor): weight tensor of shape (N, D)
-        A (torch.Tensor): weight tensor of shape (D, D)
-        B (torch.Tensor): weight tensor of shape (D, 1)
+        hippo_A (torch.Tensor): weight tensor of shape (D, D)
+        hippo_B (torch.Tensor): weight tensor of shape (D,)
         input_state (torch.Tensor | None, optional): starting state of shape (B, N, H), None means starting state
             is 0 tensor. Defaults to None.
         hippo_state (torch.Tensor | None, optional): starting state of shape (B, N, H, D), None means starting state
@@ -163,10 +163,13 @@ def hippo_rnn_cute(
         hippo_weight = hippo_weight.unsqueeze(0).unsqueeze(-1)
         input = input.unsqueeze(-2)
 
+        hippo_A = hippo_A.unsqueeze(0).unsqueeze(0)
+        hippo_B = hippo_B.unsqueeze(0).unsqueeze(0).unsqueeze(0)
+
         if cu_seqlens is None:
             assert max_seqlen is None
             B, S, N, _, H = input.size()
-            D = A.size(0)
+            D = hippo_A.size(-1)
 
             if input_state is None:
                 input_state = torch.zeros(B, N, H, device=input.device, dtype=input.dtype)
@@ -175,7 +178,6 @@ def hippo_rnn_cute(
                 hippo_state = torch.zeros(B, N, H, D, device=input.device, dtype=input.dtype)
 
             input_state = input_state.unsqueeze(-2)
-            hippo_state = hippo_state.unsqueeze(-2)
 
             # input -> (B, S, N, 1, H)
             # weight -> (1, N, H, H)
@@ -187,6 +189,9 @@ def hippo_rnn_cute(
                 # (B, N, H, D) @ (1, N, D, 1) + (B, N, 1, H)
                 input_state = (hippo_state @ hippo_weight).transpose(-1, -2) + input_state
                 input_state = tanh(input_state)
+
+                # (B, N, H, D) @ (1, 1, D, D) + (B, N, H, 1) @ (1, 1, 1, D)
+                hippo_state = hippo_state @ (1 - hippo_A / s) + input_state.transpose(-1, -2) @ (hippo_B / s)
 
                 if gradient_clipping is not None:
                     input_state = _GradientClipping.apply(input_state, gradient_clipping)
@@ -214,7 +219,6 @@ class HiPPO_RNN(nn.Module):
     ) -> None:
         super().__init__()
 
-        assert hippo_size == 1
         assert hippo_measure == "legs"
 
         self.num_heads = num_heads
@@ -222,15 +226,13 @@ class HiPPO_RNN(nn.Module):
         self.hippo_size = hippo_size
         self.state_head_dim = divide_if_divisible(state_size, self.num_heads)
 
-        assert self.state_head_dim == 1
-
         self.input_projection = nn.Linear(input_size, state_size, bias=add_bias)
         self.state_weight = nn.Parameter(torch.empty(self.num_heads, self.state_head_dim, self.state_head_dim))
         self.hippo_weight = nn.Parameter(torch.empty(self.num_heads, self.hippo_size))
         self.output_projection = nn.Linear(state_size, output_size, bias=False)
 
         self.register_buffer("A", torch.empty(hippo_size, hippo_size))
-        self.register_buffer("B", torch.empty(hippo_size, 1))
+        self.register_buffer("B", torch.empty(hippo_size))
 
         self.reset_parameters()
 
@@ -249,14 +251,15 @@ class HiPPO_RNN(nn.Module):
         if input_state is not None:
             input_state = input_state.view(-1, self.num_heads, self.state_head_dim)
 
-        weight, hippo_weight = self.state_weight.chunk(2)
+        if hippo_state is not None:
+            hippo_state = hippo_state.view(-1, self.num_heads, self.state_head_dim, self.hippo_size)
 
         input = hippo_rnn_cute(
             input=input,
-            weight=weight,
-            hippo_weight=hippo_weight,
-            A=self.A,
-            B=self.B,
+            weight=self.state_weight,
+            hippo_weight=self.hippo_weight,
+            hippo_A=self.A,
+            hippo_B=self.B,
             input_state=input_state,
             hippo_state=hippo_state,
             gradient_clipping=self.gradient_clipping,
