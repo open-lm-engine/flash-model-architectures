@@ -61,6 +61,8 @@ class RNNTest(TestCommons):
                 state_size=state_size,
                 output_size=state_size,
                 num_heads=num_heads,
+                hippo_size=hippo_size,
+                hippo_measure="legs",
                 add_bias=False,
                 gradient_clipping=None,
             ).to(dtype)
