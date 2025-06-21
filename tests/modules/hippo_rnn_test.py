@@ -42,15 +42,17 @@ class RNNTest(TestCommons):
     ) -> None:
         set_seed(_SEED)
 
-        x_kernel, x_torch, input_state_kernel, input_state_torch = self._get_packed_tensor_inputs(
-            batch_size=batch_size,
-            sequence_length=sequence_length,
-            total_tokens=None,
-            state_size=state_size,
-            hippo_size=hippo_size,
-            has_input_state=has_input_state,
-            dtype=dtype,
-            device=device,
+        x_kernel, x_torch, input_state_kernel, input_state_torch, hippo_state_kernel, hippo_state_torch = (
+            self._get_packed_tensor_inputs(
+                batch_size=batch_size,
+                sequence_length=sequence_length,
+                total_tokens=None,
+                state_size=state_size,
+                hippo_size=hippo_size,
+                has_input_state=has_input_state,
+                dtype=dtype,
+                device=device,
+            )
         )
 
         with torch.device(device):
@@ -73,10 +75,17 @@ class RNNTest(TestCommons):
             rnn_kernel = torch.compile(rnn_kernel, fullgraph=True)
 
         y_kernel, output_state_kernel = rnn_kernel(
-            input=x_kernel, input_state=input_state_kernel, kernel_backend=KernelBackend.triton
+            input=x_kernel,
+            input_state=input_state_kernel,
+            hippo_state=hippo_state_kernel,
+            kernel_backend=KernelBackend.triton,
         )
+
         y_torch, output_state_torch = rnn_torch(
-            input=x_torch, input_state=input_state_torch, kernel_backend=KernelBackend.torch
+            input=x_torch,
+            input_state=input_state_torch,
+            hippo_state=hippo_state_torch,
+            kernel_backend=KernelBackend.torch,
         )
 
         y_kernel.sum().backward()
