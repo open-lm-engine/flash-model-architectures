@@ -115,10 +115,14 @@ class _GradientClipping(torch.autograd.Function):
         return x_grad, None
 
 
-def rnn_cute(
+def hippo_rnn_cute(
     input: torch.Tensor,
     weight: torch.Tensor,
+    hippo_weight: torch.Tensor,
+    A: torch.Tensor,
+    B: torch.Tensor,
     input_state: torch.Tensor | None = None,
+    hippo_state: torch.Tensor | None = None,
     gradient_clipping: float | None = None,
     cu_seqlens: torch.Tensor | None = None,
     max_seqlen: torch.Tensor | int | None = None,
@@ -131,7 +135,12 @@ def rnn_cute(
         input (torch.Tensor): input tensor of shape (B, S, N, H) where N is the number of heads and H is the head
             dimension. Should have shape (T, N, H) and `cu_seqlens` should be passed.
         weight (torch.Tensor): weight tensor of shape (N, H, H)
+        hippo_weight (torch.Tensor): weight tensor of shape (N, D)
+        A (torch.Tensor): weight tensor of shape (D, D)
+        B (torch.Tensor): weight tensor of shape (D, 1)
         input_state (torch.Tensor | None, optional): starting state of shape (B, N, H), None means starting state
+            is 0 tensor. Defaults to None.
+        hippo_state (torch.Tensor | None, optional): starting state of shape (B, N, H, D), None means starting state
             is 0 tensor. Defaults to None.
         gradient_clipping (float | None, optional): gradient clipping for the state gradient in backward, None
             implies no clipping. Defaults to None.
@@ -151,16 +160,22 @@ def rnn_cute(
         output = torch.empty_like(input)
 
         weight = weight.unsqueeze(0)
+        hippo_weight = hippo_weight.unsqueeze(0).unsqueeze(-1)
         input = input.unsqueeze(-2)
 
         if cu_seqlens is None:
             assert max_seqlen is None
             B, S, N, _, H = input.size()
+            D = A.size(0)
 
             if input_state is None:
                 input_state = torch.zeros(B, N, H, device=input.device, dtype=input.dtype)
 
+            if hippo_state is None:
+                hippo_state = torch.zeros(B, N, H, D, device=input.device, dtype=input.dtype)
+
             input_state = input_state.unsqueeze(-2)
+            hippo_state = hippo_state.unsqueeze(-2)
 
             # input -> (B, S, N, 1, H)
             # weight -> (1, N, H, H)
@@ -169,6 +184,8 @@ def rnn_cute(
             for s in range(S):
                 # (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
                 input_state = input_state @ weight + input[:, s]
+                # (B, N, H, D) @ (1, N, D, 1) + (B, N, 1, H)
+                input_state = (hippo_state @ hippo_weight).transpose(-1, -2) + input_state
                 input_state = tanh(input_state)
 
                 if gradient_clipping is not None:
@@ -176,41 +193,7 @@ def rnn_cute(
 
                 output[:, s] = input_state.squeeze(-2)
         else:
-            assert max_seqlen is not None
-            B = cu_seqlens.numel() - 1
-            _, N, _, H = input.size()
-
-            if input_state is None:
-                input_state = torch.zeros(B, N, H, device=input.device, dtype=input.dtype)
-            else:
-                input_state = input_state.clone()
-
-            # input -> (cu_seqlens[-1], N, 1, H)
-            # weight -> (1, N, H, H)
-            # input_state -> (B, N, H)
-
-            start = cu_seqlens[:-1]
-            end = cu_seqlens[1:]
-
-            for s in range(max_seqlen):
-                offset = start + s
-                unfinished = offset < end
-                new_state = input_state.unsqueeze(-2)
-
-                offset_unfinished = offset[unfinished]
-
-                # don't update the finished sequences
-                # (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
-                new_state = new_state[unfinished] @ weight + input[offset_unfinished]
-                new_state = tanh(new_state)
-
-                if gradient_clipping is not None:
-                    new_state = _GradientClipping.apply(new_state, gradient_clipping)
-
-                new_state = new_state.squeeze(-2)
-
-                output[offset_unfinished] = new_state
-                input_state[unfinished] = new_state
+            raise NotImplementedError()
     else:
         output = _RNN_Cute.apply(input, weight, input_state, gradient_clipping, cu_seqlens, max_seqlen)
 
@@ -236,10 +219,14 @@ class HiPPO_RNN(nn.Module):
 
         self.num_heads = num_heads
         self.gradient_clipping = gradient_clipping
+        self.hippo_size = hippo_size
         self.state_head_dim = divide_if_divisible(state_size, self.num_heads)
+
+        assert self.state_head_dim == 1
 
         self.input_projection = nn.Linear(input_size, state_size, bias=add_bias)
         self.state_weight = nn.Parameter(torch.empty(self.num_heads, self.state_head_dim, self.state_head_dim))
+        self.hippo_weight = nn.Parameter(torch.empty(self.num_heads, self.hippo_size))
         self.output_projection = nn.Linear(state_size, output_size, bias=False)
 
         self.register_buffer("A", torch.empty(hippo_size, hippo_size))
@@ -251,6 +238,7 @@ class HiPPO_RNN(nn.Module):
         self,
         input: torch.Tensor,
         input_state: torch.Tensor | None = None,
+        hippo_state: torch.Tensor | None = None,
         cu_seqlens: torch.Tensor | None = None,
         max_seqlen: int | None = None,
         kernel_backend: KernelBackend = KernelBackend.triton,
@@ -261,10 +249,16 @@ class HiPPO_RNN(nn.Module):
         if input_state is not None:
             input_state = input_state.view(-1, self.num_heads, self.state_head_dim)
 
-        input = rnn_cute(
+        weight, hippo_weight = self.state_weight.chunk(2)
+
+        input = hippo_rnn_cute(
             input=input,
-            weight=self.state_weight,
+            weight=weight,
+            hippo_weight=hippo_weight,
+            A=self.A,
+            B=self.B,
             input_state=input_state,
+            hippo_state=hippo_state,
             gradient_clipping=self.gradient_clipping,
             cu_seqlens=cu_seqlens,
             max_seqlen=max_seqlen,
