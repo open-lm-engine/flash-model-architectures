@@ -282,6 +282,7 @@ class HiPPO_RNN(nn.Module):
     @torch.no_grad()
     def reset_parameters(self) -> None:
         nn.init.normal_(self.state_weight)
+        nn.init.normal_(self.hippo_weight)
 
         self.A.fill_(1)
         self.B.fill_(1)
