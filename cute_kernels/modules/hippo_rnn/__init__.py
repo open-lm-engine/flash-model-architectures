@@ -185,7 +185,18 @@ def hippo_rnn_cute(
         else:
             raise NotImplementedError()
     else:
-        output = _RNN_Cute.apply(input, weight, input_state, gradient_clipping, cu_seqlens, max_seqlen)
+        output = _HiPPO_RNN_Cute.apply(
+            input,
+            weight,
+            hippo_weight,
+            hippo_A,
+            hippo_B,
+            input_state,
+            hippo_state,
+            gradient_clipping,
+            cu_seqlens,
+            max_seqlen,
+        )
 
     return output
 
