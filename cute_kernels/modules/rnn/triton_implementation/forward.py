@@ -8,7 +8,7 @@ import triton.language as tl
 
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2, get_powers_of_2
-from ....triton_math import leaky_relu, matmul, sigmoid, tanh
+from ....triton_math import matmul, tanh
 from ....utils import cute_op
 
 
@@ -22,25 +22,6 @@ def _get_autotune_configs() -> list[triton.Config]:
                 )
 
     return configs
-
-
-@triton.jit
-def _activation(x, ACTIVATION_FUNCTION, relu_negative_slope):
-    if ACTIVATION_FUNCTION == "leaky_relu":
-        x = leaky_relu(x, relu_negative_slope)
-    elif ACTIVATION_FUNCTION == "sigmoid":
-        x = sigmoid(x)
-    elif ACTIVATION_FUNCTION == "tanh":
-        x = tanh(x)
-
-    return x
-
-
-@triton.jit
-def _rnn_forward_update(h, W, x, ACTIVATION_FUNCTION, relu_negative_slope):
-    h = matmul(A=h, B=W, C=x, output_dtype=x.dtype)
-    h = _activation(x=h, ACTIVATION_FUNCTION=ACTIVATION_FUNCTION, relu_negative_slope=relu_negative_slope)
-    return h
 
 
 @triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_H"])
@@ -83,13 +64,10 @@ def rnn_forward_triton_kernel(
     indices = indices_b[:, None] * x_stride_b + pid_n * H + indices_h[None, :]
 
     for _ in range(S):
-        h = _rnn_forward_update(
-            h=h,
-            W=W,
-            x=tl.load(x_ptr + indices, mask=mask_bh),
-            ACTIVATION_FUNCTION="tanh",
-            relu_negative_slope=None,
-        )
+        x = tl.load(x_ptr + indices, mask=mask_bh)
+
+        h = matmul(A=h, B=W, C=x, output_dtype=x.dtype)
+        h = tanh(h)
 
         tl.store(y_ptr + indices, h, mask=mask_bh)
 

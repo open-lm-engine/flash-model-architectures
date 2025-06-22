@@ -9,7 +9,7 @@ import triton.language as tl
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
 from ....utils import cute_op
-from ...rnn.triton_implementation.forward import _get_autotune_configs, _rnn_forward_update
+from ...rnn.triton_implementation.forward import _get_autotune_configs
 
 
 @triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_H"])

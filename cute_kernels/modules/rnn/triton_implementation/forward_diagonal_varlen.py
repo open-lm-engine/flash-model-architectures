@@ -8,8 +8,9 @@ import triton.language as tl
 
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
+from ....triton_math import tanh
 from ....utils import cute_op
-from .forward_diagonal import _get_autotune_configs, _rnn_forward_update
+from .forward_diagonal import _get_autotune_configs
 
 
 @triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_N"])
@@ -60,13 +61,10 @@ def diagonal_rnn_varlen_forward_triton_kernel(
         unfinished = start < end
         mask = unfinished & mask_n[None, :]
 
-        h = _rnn_forward_update(
-            h=h,
-            W=W,
-            x=tl.load(x_ptr + indices, mask=mask),
-            ACTIVATION_FUNCTION="tanh",
-            relu_negative_slope=None,
-        )
+        x = tl.load(x_ptr + indices, mask=mask)
+
+        h = W * h + x
+        h = tanh(h)
 
         tl.store(y_ptr + indices, h, mask=mask)
 
