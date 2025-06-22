@@ -91,8 +91,13 @@ def diagonal_hippo_rnn_backward_triton_kernel(
 @cute_op(f"{LIBRARY_NAME}::diagonal_hippo_rnn_backward_triton", mutates_args={"input_grad", "weight_grad"})
 def diagonal_hippo_rnn_backward_triton(
     weight: torch.Tensor,
+    hippo_weight: torch.Tensor,
+    hippo_A: torch.Tensor,
+    hippo_B: torch.Tensor,
     output: torch.Tensor,
+    hippo_output: torch.Tensor,
     input_state: torch.Tensor | None,
+    hippo_state: torch.Tensor | None,
     output_grad: torch.Tensor,
     input_grad: torch.Tensor,
     weight_grad: torch.Tensor,
@@ -106,6 +111,9 @@ def diagonal_hippo_rnn_backward_triton(
     with torch.device(output.device):
         diagonal_hippo_rnn_backward_triton_kernel[GRID](
             W_ptr=weight,
+            V_ptr=hippo_weight,
+            hippo_A_ptr=hippo_A,
+            hippo_B_ptr=hippo_B,
             y_ptr=output,
             y_stride_b=output.stride(0),
             h_ptr=input_state,

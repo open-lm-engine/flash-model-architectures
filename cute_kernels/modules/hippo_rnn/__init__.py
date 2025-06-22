@@ -39,6 +39,9 @@ class _HiPPO_RNN_Cute(torch.autograd.Function):
         assert hippo_A.size() == (D, D)
         assert hippo_B.size(0) == D
 
+        if D != 1:
+            raise NotImplementedError()
+
         if gradient_clipping is not None and gradient_clipping < 0:
             gradient_clipping = -gradient_clipping
 
@@ -68,7 +71,16 @@ class _HiPPO_RNN_Cute(torch.autograd.Function):
             raise NotImplementedError()
 
         ctx.save_for_backward(
-            weight, hippo_weight, hippo_A, hippo_B, output, input_state, hippo_state, cu_seqlens, max_seqlen
+            weight,
+            hippo_weight,
+            hippo_A,
+            hippo_B,
+            output,
+            hippo_output,
+            input_state,
+            hippo_state,
+            cu_seqlens,
+            max_seqlen,
         )
 
         ctx.gradient_clipping = gradient_clipping
@@ -78,19 +90,34 @@ class _HiPPO_RNN_Cute(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
     def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor]:
-        weight, hippo_weight, hippo_A, hippo_B, output, input_state, hippo_state, cu_seqlens, max_seqlen = (
-            ctx.saved_tensors
-        )
+        (
+            weight,
+            hippo_weight,
+            hippo_A,
+            hippo_B,
+            output,
+            hippo_output,
+            input_state,
+            hippo_state,
+            cu_seqlens,
+            max_seqlen,
+        ) = ctx.saved_tensors
 
         input_grad = torch.empty_like(output)
         weight_grad = torch.zeros_like(weight, dtype=torch.float32)
+        hippo_weight_grad = torch.zeros_like(hippo_weight, dtype=torch.float32)
 
         H = weight.size(-1)
 
         kwargs = {
             "weight": weight,
+            "hippo_weight": hippo_weight,
+            "hippo_A": hippo_A,
+            "hippo_B": hippo_B,
             "output": output,
+            "hippo_output": hippo_output,
             "input_state": input_state,
+            "hippo_state": hippo_state,
             "output_grad": output_grad,
             "input_grad": input_grad,
             "weight_grad": weight_grad,
@@ -105,7 +132,7 @@ class _HiPPO_RNN_Cute(torch.autograd.Function):
         else:
             raise NotImplementedError()
 
-        return input_grad, weight_grad, *[None] * 8
+        return input_grad, weight_grad, hippo_weight_grad, *[None] * 7
 
 
 class _GradientClipping(torch.autograd.Function):
