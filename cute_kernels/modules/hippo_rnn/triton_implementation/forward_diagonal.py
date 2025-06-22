@@ -35,6 +35,7 @@ def diagonal_hippo_rnn_forward_triton_kernel(
     hippo_A_ptr,
     hippo_B_ptr,
     h_ptr,
+    c0_ptr,
     y_ptr,
     c_ptr,
     B,
@@ -61,10 +62,10 @@ def diagonal_hippo_rnn_forward_triton_kernel(
     else:
         h = tl.load(h_ptr + indices_b[:, None] * N + indices_n[None, :], mask=mask_bn)
 
-    if c_ptr is None:
+    if c0_ptr is None:
         c = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_N), dtype=x_ptr.dtype.element_ty)
     else:
-        c = tl.load(c_ptr + indices_b[:, None] * N + indices_n[None, :], mask=mask_bn)
+        c = tl.load(c0_ptr + indices_b[:, None] * N + indices_n[None, :], mask=mask_bn)
 
     hippo_A = tl.load(hippo_A_ptr)
     hippo_B = tl.load(hippo_B_ptr)
@@ -117,7 +118,7 @@ def diagonal_hippo_rnn_forward_triton(
             hippo_A_ptr=hippo_A,
             hippo_B_ptr=hippo_B,
             h_ptr=input_state,
-            s_ptr=hippo_state,
+            c0_ptr=hippo_state,
             y_ptr=output,
             c_ptr=hippo_output,
             B=B,
