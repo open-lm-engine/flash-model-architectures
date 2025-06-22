@@ -8,17 +8,21 @@ import triton.language as tl
 
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
-from ....triton_math import matmul
 from ....utils import cute_op
 from ...rnn.triton_implementation.forward_diagonal import _activation, _get_autotune_configs
 
 
 @triton.jit
-def _rnn_forward_update(h, W, c, V, x, ACTIVATION_FUNCTION, relu_negative_slope):
+def _rnn_forward_update(h, W, c, V, x, hippo_A, hippo_B, s, ACTIVATION_FUNCTION, relu_negative_slope):
     h = W * h + x
     h += V * c
     h = _activation(x=h, ACTIVATION_FUNCTION=ACTIVATION_FUNCTION, relu_negative_slope=relu_negative_slope)
-    return h
+
+    A = 1 - hippo_A / s
+    B = hippo_B / s
+    c = c * A + h * B
+
+    return h, c
 
 
 @triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_N"])
@@ -31,8 +35,8 @@ def diagonal_hippo_rnn_forward_triton_kernel(
     hippo_A_ptr,
     hippo_B_ptr,
     h_ptr,
-    c_ptr,
     y_ptr,
+    c_ptr,
     B,
     S,
     N,
@@ -62,25 +66,32 @@ def diagonal_hippo_rnn_forward_triton_kernel(
     else:
         c = tl.load(c_ptr + indices_b[:, None] * N + indices_n[None, :], mask=mask_bn)
 
+    hippo_A = tl.load(hippo_A_ptr)
+    hippo_B = tl.load(hippo_B_ptr)
+
     indices = indices_b[:, None] * x_stride_b + indices_n[None, :]
 
-    for s in range(S):
-        h = _rnn_forward_update(
+    for s in range(1, S + 1):
+        h, c = _rnn_forward_update(
             h=h,
             W=W,
             c=c,
             V=V,
             x=tl.load(x_ptr + indices, mask=mask_bn),
+            hippo_A=hippo_A,
+            hippo_B=hippo_B,
+            s=s,
             ACTIVATION_FUNCTION="tanh",
             relu_negative_slope=None,
         )
 
         tl.store(y_ptr + indices, h, mask=mask_bn)
+        tl.store(c_ptr + indices, c, mask=mask_bn)
 
         indices += N
 
 
-@cute_op(f"{LIBRARY_NAME}::diagonal_hippo_rnn_forward_triton", mutates_args={"output"})
+@cute_op(f"{LIBRARY_NAME}::diagonal_hippo_rnn_forward_triton", mutates_args={"output", "hippo_output"})
 def diagonal_hippo_rnn_forward_triton(
     input: torch.Tensor,
     weight: torch.Tensor,
@@ -90,6 +101,7 @@ def diagonal_hippo_rnn_forward_triton(
     input_state: torch.Tensor | None,
     hippo_state: torch.Tensor | None,
     output: torch.Tensor,
+    hippo_output: torch.Tensor,
 ) -> None:
     B, S, N, _ = input.size()
 
@@ -107,6 +119,7 @@ def diagonal_hippo_rnn_forward_triton(
             h_ptr=input_state,
             s_ptr=hippo_state,
             y_ptr=output,
+            c_ptr=hippo_output,
             B=B,
             S=S,
             N=N,
