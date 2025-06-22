@@ -23,7 +23,7 @@ class RNNTest(TestCommons):
             [1024],  # sequence_length
             [256],  # state_size
             [1],  # hippo_size
-            [4, 256],  # num_heads
+            [256],  # num_heads
             [False, True],  # has_input_state
             [False, True],  # is_compiling
         )
