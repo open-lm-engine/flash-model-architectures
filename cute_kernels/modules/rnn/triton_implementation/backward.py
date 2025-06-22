@@ -26,18 +26,6 @@ def _activation_backward(y, dy, ACTIVATION_FUNCTION, relu_negative_slope):
 
 
 @triton.jit
-def _rnn_backward_update(y, W, dy, dW, y_prev, ACTIVATION_FUNCTION: tl.constexpr, relu_negative_slope):
-    dx = _activation_backward(
-        y=y, dy=dy, ACTIVATION_FUNCTION=ACTIVATION_FUNCTION, relu_negative_slope=relu_negative_slope
-    )
-
-    dh = matmul(A=dx, B=W.T, C=None, output_dtype=dx.dtype)
-    dW = matmul(A=y_prev.T, B=dx, C=dW, output_dtype=dW.dtype)
-
-    return dx, dW, dh
-
-
-@triton.jit
 def _load_previous_output(
     h0_ptr,
     h0_stride_b,
@@ -128,15 +116,9 @@ def rnn_backward_triton_kernel(
             dtype=W.dtype,
         )
 
-        dx, dW, dh = _rnn_backward_update(
-            y=y,
-            W=W,
-            dy=dy,
-            dW=dW,
-            y_prev=y_prev,
-            ACTIVATION_FUNCTION="tanh",
-            relu_negative_slope=None,
-        )
+        dx = dy * tanh_backward(y)
+        dh = matmul(A=dx, B=W.T, C=None, output_dtype=dx.dtype)
+        dW = matmul(A=y_prev.T, B=dx, C=dW, output_dtype=dW.dtype)
 
         tl.store(dx_ptrs, dx, mask=mask_bh)
         y = y_prev
