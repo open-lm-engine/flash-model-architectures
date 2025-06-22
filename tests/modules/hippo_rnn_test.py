@@ -76,12 +76,12 @@ class RNNTest(TestCommons):
         if is_compiling:
             rnn_kernel = torch.compile(rnn_kernel, fullgraph=True)
 
-        # y_kernel, output_state_kernel = rnn_kernel(
-        #     input=x_kernel,
-        #     input_state=input_state_kernel,
-        #     hippo_state=hippo_state_kernel,
-        #     kernel_backend=KernelBackend.triton,
-        # )
+        y_kernel, output_state_kernel = rnn_kernel(
+            input=x_kernel,
+            input_state=input_state_kernel,
+            hippo_state=hippo_state_kernel,
+            kernel_backend=KernelBackend.triton,
+        )
 
         y_torch, output_state_torch = rnn_torch(
             input=x_torch,
@@ -96,9 +96,9 @@ class RNNTest(TestCommons):
         y_torch.sum().backward()
         weight_torch_grads = self.collect_gradients_from_module_and_zero_grads(rnn)
 
-        # self.assert_equal_tensors(
-        #     y_kernel, y_torch, False, atol_float32=4e-6, rtol_float32=0, atol_float16=6.5e-5, rtol_float16=0
-        # )
+        self.assert_equal_tensors(
+            y_kernel, y_torch, False, atol_float32=4e-6, rtol_float32=0, atol_float16=6.5e-5, rtol_float16=0
+        )
         # self.assert_equal_tensors(
         #     output_state_kernel,
         #     output_state_torch,
