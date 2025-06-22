@@ -51,8 +51,8 @@ def rnn_forward_triton_kernel(
     x_stride_s,
     W_ptr,
     W_stride_n,
-    h_ptr,
-    h_stride_b,
+    h0_ptr,
+    h0_stride_b,
     y_ptr,
     B,
     S,
@@ -75,10 +75,10 @@ def rnn_forward_triton_kernel(
         mask=mask_h[:, None] & mask_h[None, :],
     )
 
-    if h_ptr is None:
+    if h0_ptr is None:
         h = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=x_ptr.dtype.element_ty)
     else:
-        h = tl.load(h_ptr + indices_b[:, None] * h_stride_b + pid_n * H + indices_h[None, :], mask=mask_bh)
+        h = tl.load(h0_ptr + indices_b[:, None] * h0_stride_b + pid_n * H + indices_h[None, :], mask=mask_bh)
 
     indices = indices_b[:, None] * x_stride_b + pid_n * H + indices_h[None, :]
 
@@ -113,8 +113,8 @@ def rnn_forward_triton(
             x_stride_s=input.stride(1),
             W_ptr=weight,
             W_stride_n=weight.stride(0),
-            h_ptr=input_state,
-            h_stride_b=None if input_state is None else input_state.stride(0),
+            h0_ptr=input_state,
+            h0_stride_b=None if input_state is None else input_state.stride(0),
             y_ptr=output,
             B=B,
             S=S,

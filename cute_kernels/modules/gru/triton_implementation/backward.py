@@ -30,8 +30,8 @@ def gru_backward_triton_kernel(
     dxr_ptr,
     dWr_ptr,
     z_ptr,
-    h_ptr,
-    h_stride_b,
+    h0_ptr,
+    h0_stride_b,
     dy_ptr,
     dx_ptr,
     dW_ptr,
@@ -82,8 +82,8 @@ def gru_backward_triton_kernel(
         indices -= y_stride_s
 
         y_prev = _load_previous_output(
-            h_ptr=h_ptr,
-            h_stride_b=h_stride_b,
+            h0_ptr=h0_ptr,
+            h0_stride_b=h0_stride_b,
             y_ptrs=y_ptr + indices,
             pid_n=pid_n,
             H=H,
@@ -197,8 +197,8 @@ def gru_backward_triton(
             dxr_ptr=reset_input_grad,
             dWr_ptr=reset_weight_grad,
             z_ptr=output_update,
-            h_ptr=input_state,
-            h_stride_b=None if input_state is None else input_state.stride(0),
+            h0_ptr=input_state,
+            h0_stride_b=None if input_state is None else input_state.stride(0),
             dy_ptr=output_grad,
             dx_ptr=input_grad,
             dW_ptr=weight_grad,

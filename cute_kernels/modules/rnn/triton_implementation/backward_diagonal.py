@@ -28,7 +28,7 @@ def _rnn_backward_update(y, W, dy, dW, y_prev, ACTIVATION_FUNCTION: tl.constexpr
 
 @triton.jit
 def _load_previous_output(
-    h_ptr,
+    h0_ptr,
     y_ptrs,
     N,
     indices_b,
@@ -40,10 +40,10 @@ def _load_previous_output(
     dtype,
 ):
     if s == 0:
-        if h_ptr is None:
+        if h0_ptr is None:
             y_prev = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_N), dtype=dtype)
         else:
-            y_prev = tl.load(h_ptr + indices_b[:, None] * N + indices_n[None, :], mask=mask_bn)
+            y_prev = tl.load(h0_ptr + indices_b[:, None] * N + indices_n[None, :], mask=mask_bn)
     else:
         y_prev = tl.load(y_ptrs, mask=mask_bn)
 
@@ -56,7 +56,7 @@ def diagonal_rnn_backward_triton_kernel(
     W_ptr,
     y_ptr,
     y_stride_b,
-    h_ptr,
+    h0_ptr,
     dy_ptr,
     dx_ptr,
     dW_ptr,
@@ -96,7 +96,7 @@ def diagonal_rnn_backward_triton_kernel(
         indices -= N
 
         y_prev = _load_previous_output(
-            h_ptr=h_ptr,
+            h0_ptr=h0_ptr,
             y_ptrs=y_ptr + indices,
             N=N,
             indices_b=indices_b,
@@ -144,7 +144,7 @@ def diagonal_rnn_backward_triton(
             W_ptr=weight,
             y_ptr=output,
             y_stride_b=output.stride(0),
-            h_ptr=input_state,
+            h0_ptr=input_state,
             dy_ptr=output_grad,
             dx_ptr=input_grad,
             dW_ptr=weight_grad,

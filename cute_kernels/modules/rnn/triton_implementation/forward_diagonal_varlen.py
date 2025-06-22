@@ -18,7 +18,7 @@ def diagonal_rnn_varlen_forward_triton_kernel(
     x_ptr,
     x_stride_t,
     W_ptr,
-    h_ptr,
+    h0_ptr,
     y_ptr,
     cu_seqlens_ptr,
     IS_MAX_SEQLEN_TENSOR: tl.constexpr,
@@ -40,10 +40,10 @@ def diagonal_rnn_varlen_forward_triton_kernel(
 
     W = tl.load(W_ptr + indices_n, mask=mask_n)[None, :]
 
-    if h_ptr is None:
+    if h0_ptr is None:
         h = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_N), dtype=x_ptr.dtype.element_ty)
     else:
-        h = tl.load(h_ptr + indices_b[:, None] * N + indices_n[None, :], mask=mask_bn)
+        h = tl.load(h0_ptr + indices_b[:, None] * N + indices_n[None, :], mask=mask_bn)
 
     cu_seqlens_ptrs = cu_seqlens_ptr + indices_b[:, None]
     start = tl.load(cu_seqlens_ptrs, mask=mask_b[:, None])
@@ -97,7 +97,7 @@ def diagonal_rnn_varlen_forward_triton(
             x_ptr=input,
             x_stride_t=input.stride(0),
             W_ptr=weight,
-            h_ptr=input_state,
+            h0_ptr=input_state,
             y_ptr=output,
             cu_seqlens_ptr=cu_seqlens,
             IS_MAX_SEQLEN_TENSOR=is_max_seqlen_tensor,
