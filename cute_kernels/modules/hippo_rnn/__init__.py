@@ -152,6 +152,7 @@ def hippo_rnn_cute(
     input: torch.Tensor,
     weight: torch.Tensor,
     hippo_weight: torch.Tensor,
+    compress_weight: torch.Tensor,
     hippo_A: torch.Tensor,
     hippo_B: torch.Tensor,
     input_state: torch.Tensor | None = None,
@@ -169,11 +170,12 @@ def hippo_rnn_cute(
             dimension. Should have shape (T, N, H) and `cu_seqlens` should be passed.
         weight (torch.Tensor): weight tensor of shape (N, H, H)
         hippo_weight (torch.Tensor): weight tensor of shape (N, D)
+        compress_weight (torch.Tensor): weight tensor of shape (N, H)
         hippo_A (torch.Tensor): weight tensor of shape (D, D)
         hippo_B (torch.Tensor): weight tensor of shape (D,)
         input_state (torch.Tensor | None, optional): starting state of shape (B, N, H), None means starting state
             is 0 tensor. Defaults to None.
-        hippo_state (torch.Tensor | None, optional): starting state of shape (B, N, H, D), None means starting state
+        hippo_state (torch.Tensor | None, optional): starting state of shape (B, N, D), None means starting state
             is 0 tensor. Defaults to None.
         gradient_clipping (float | None, optional): gradient clipping for the state gradient in backward, None
             implies no clipping. Defaults to None.
@@ -194,6 +196,7 @@ def hippo_rnn_cute(
 
         weight = weight.unsqueeze(0)
         hippo_weight = hippo_weight.unsqueeze(0).unsqueeze(-1)
+        compress_weight = compress_weight.unsqueeze(0).unsqueeze(-1)
         input = input.unsqueeze(-2)
 
         hippo_A = hippo_A.unsqueeze(0).unsqueeze(0)
@@ -208,25 +211,27 @@ def hippo_rnn_cute(
                 input_state = torch.zeros(B, N, H, device=input.device, dtype=input.dtype)
 
             if hippo_state is None:
-                hippo_state = torch.zeros(B, N, H, D, device=input.device, dtype=input.dtype)
+                hippo_state = torch.zeros(B, N, D, device=input.device, dtype=input.dtype)
 
             input_state = input_state.unsqueeze(-2)
+            hippo_state = hippo_state.unsqueeze(-2)
 
             # input -> (B, S, N, 1, H)
             # weight -> (1, N, H, H)
             # input_state -> (B, N, 1, H)
 
             for s in range(S):
-                # (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
+                # (B, N, 1, H) = (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
                 input_state = input_state @ weight + input[:, s]
-                # (B, N, H, D) @ (1, N, D, 1) + (B, N, 1, H)
+                # (B, N, 1, H) = [(B, N, H, D) @ (1, N, D, 1)].T + (B, N, 1, H)
                 input_state = (hippo_state @ hippo_weight).transpose(-1, -2) + input_state
                 input_state = tanh(input_state)
 
-                # (B, N, H, D) @ (1, 1, D, D) + (B, N, H, 1) @ (1, 1, 1, D)
-                hippo_state = hippo_state @ (1 - hippo_A / (s + 1)) + input_state.transpose(-1, -2) @ (
-                    hippo_B / (s + 1)
-                )
+                # (B, N, 1, 1) = (B, N, 1, H) @ (1, N, H, 1)
+                compressed_input = input_state @ compress_weight
+
+                # (B, N, 1, D) = (B, N, 1, D) @ (1, 1, D, D) + (B, N, 1, 1) @ (1, 1, 1, D)
+                hippo_state = hippo_state @ (1 - hippo_A / (s + 1)) + compressed_input @ (hippo_B / (s + 1))
 
                 if gradient_clipping is not None:
                     input_state = _GradientClipping.apply(input_state, gradient_clipping)
@@ -273,8 +278,11 @@ class HiPPO_RNN(nn.Module):
         self.state_head_dim = divide_if_divisible(state_size, self.num_heads)
 
         self.input_projection = nn.Linear(input_size, state_size, bias=add_bias)
+
         self.state_weight = nn.Parameter(torch.empty(self.num_heads, self.state_head_dim, self.state_head_dim))
         self.hippo_weight = nn.Parameter(torch.empty(self.num_heads, self.hippo_size))
+        self.compress_weight = nn.Parameter(torch.empty(self.num_heads, self.state_head_dim))
+
         self.output_projection = nn.Linear(state_size, output_size, bias=False)
 
         self.register_buffer("A", torch.empty(hippo_size, hippo_size))
@@ -304,6 +312,7 @@ class HiPPO_RNN(nn.Module):
             input=input,
             weight=self.state_weight,
             hippo_weight=self.hippo_weight,
+            compress_weight=self.compress_weight,
             hippo_A=self.A,
             hippo_B=self.B,
             input_state=input_state,
@@ -332,6 +341,7 @@ class HiPPO_RNN(nn.Module):
     def reset_parameters(self) -> None:
         nn.init.normal_(self.state_weight)
         nn.init.normal_(self.hippo_weight)
+        nn.init.normal_(self.compress_weight)
 
         self.A.fill_(1)
         self.B.fill_(1)

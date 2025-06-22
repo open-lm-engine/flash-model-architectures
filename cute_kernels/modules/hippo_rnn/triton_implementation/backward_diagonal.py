@@ -16,15 +16,29 @@ from .forward_diagonal import _get_autotune_configs
 
 
 @triton.jit
-def _hippo_rnn_backward_update(y, W, dy, dW, y_prev, ACTIVATION_FUNCTION: tl.constexpr, relu_negative_slope):
+def _hippo_rnn_backward_update(
+    y, W, V, hippo_A, hippo_B, dy, dc, dW, y_prev, c_prev, s, ACTIVATION_FUNCTION: tl.constexpr, relu_negative_slope
+):
+    # r = W * h + V * c + x
+    # h = tanh(r)
+    # c = (1 - A / (s + 1)) * c + B / (s + 1) * h
+    # y = h
+
+    s1 = s + 1
+    A = 1 - hippo_A / s1
+    B = hippo_B / s1
+
     dx = _activation_backward(
-        y=y, dy=dy, ACTIVATION_FUNCTION=ACTIVATION_FUNCTION, relu_negative_slope=relu_negative_slope
+        y=y, dy=(dc * B + dy), ACTIVATION_FUNCTION=ACTIVATION_FUNCTION, relu_negative_slope=relu_negative_slope
     )
 
     dh = dx * W
-    dW += tl.sum(y_prev * dx, axis=0)
+    dc = dx * V + dc * A
 
-    return dx, dW, dh
+    dW += tl.sum(y_prev * dx, axis=0)
+    dV += tl.sum(c_prev * dx, axis=0)
+
+    return dx, dW, dV, dh, dc
 
 
 @triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_N"], reset_to_zero=["dW_ptr"])
@@ -37,6 +51,7 @@ def diagonal_hippo_rnn_backward_triton_kernel(
     y_ptr,
     y_stride_b,
     h0_ptr,
+    c0_ptr,
     dy_ptr,
     dx_ptr,
     dW_ptr,
@@ -95,7 +110,20 @@ def diagonal_hippo_rnn_backward_triton_kernel(
             dtype=W.dtype,
         )
 
-        dx, dW, dh = _hippo_rnn_backward_update(
+        c_prev = _load_previous_output(
+            h0_ptr=c0_ptr,
+            y_ptrs=c_ptr + indices,
+            N=N,
+            indices_b=indices_b,
+            indices_n=indices_n,
+            mask_bn=mask_bn,
+            BLOCK_SIZE_B=BLOCK_SIZE_B,
+            BLOCK_SIZE_N=BLOCK_SIZE_N,
+            s=s,
+            dtype=W.dtype,
+        )
+
+        dx, dW, dV, dh, dc = _hippo_rnn_backward_update(
             y=y,
             W=W,
             dy=dy,
