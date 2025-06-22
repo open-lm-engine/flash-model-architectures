@@ -114,8 +114,8 @@ def rnn_backward_triton_kernel(
         indices -= y_stride_s
 
         y_prev = _load_previous_output(
-            h_ptr=h0_ptr,
-            h_stride_b=h0_stride_b,
+            h0_ptr=h0_ptr,
+            h0_stride_b=h0_stride_b,
             y_ptrs=y_ptr + indices,
             pid_n=pid_n,
             H=H,
