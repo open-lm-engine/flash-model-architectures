@@ -27,8 +27,8 @@ def gru_forward_triton_kernel(
     Wr_ptr,
     r_ptr,
     z_ptr,
-    h_ptr,
-    h_stride_b,
+    h0_ptr,
+    h0_stride_b,
     y_ptr,
     B,
     S,
@@ -53,10 +53,10 @@ def gru_forward_triton_kernel(
     Wf = tl.load(Wf_ptr + indices, mask=mask_hh)
     Wr = tl.load(Wr_ptr + indices, mask=mask_hh)
 
-    if h_ptr is None:
+    if h0_ptr is None:
         h = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=x_ptr.dtype.element_ty)
     else:
-        h = tl.load(h_ptr + indices_b[:, None] * h_stride_b + pid_n * H + indices_h[None, :], mask=mask_bh)
+        h = tl.load(h0_ptr + indices_b[:, None] * h0_stride_b + pid_n * H + indices_h[None, :], mask=mask_bh)
 
     indices = indices_b[:, None] * x_stride_b + pid_n * H + indices_h[None, :]
 
@@ -131,8 +131,8 @@ def gru_forward_triton(
             Wr_ptr=reset_weight,
             r_ptr=reset_gate,
             z_ptr=output_update,
-            h_ptr=input_state,
-            h_stride_b=None if input_state is None else input_state.stride(0),
+            h0_ptr=input_state,
+            h0_stride_b=None if input_state is None else input_state.stride(0),
             y_ptr=output,
             B=B,
             S=S,
