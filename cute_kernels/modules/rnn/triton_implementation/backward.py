@@ -8,21 +8,9 @@ import triton.language as tl
 
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
-from ....triton_math import clamp, leaky_relu_backward, matmul, sigmoid_backward, tanh_backward
+from ....triton_math import clamp, matmul, tanh_backward
 from ....utils import cute_op
 from .forward import _get_autotune_configs
-
-
-@triton.jit
-def _activation_backward(y, dy, ACTIVATION_FUNCTION, relu_negative_slope):
-    if ACTIVATION_FUNCTION == "leaky_relu":
-        dy *= leaky_relu_backward(y, relu_negative_slope)
-    elif ACTIVATION_FUNCTION == "sigmoid":
-        dy *= sigmoid_backward(y)
-    elif ACTIVATION_FUNCTION == "tanh":
-        dy *= tanh_backward(y)
-
-    return dy
 
 
 @triton.jit

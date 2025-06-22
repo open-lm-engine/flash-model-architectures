@@ -8,22 +8,9 @@ import triton.language as tl
 
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
-from ....triton_math import clamp
+from ....triton_math import clamp, tanh_backward
 from ....utils import cute_op
-from .backward import _activation_backward
 from .forward_diagonal import _get_autotune_configs
-
-
-@triton.jit
-def _rnn_backward_update(y, W, dy, dW, y_prev, ACTIVATION_FUNCTION: tl.constexpr, relu_negative_slope):
-    dx = _activation_backward(
-        y=y, dy=dy, ACTIVATION_FUNCTION=ACTIVATION_FUNCTION, relu_negative_slope=relu_negative_slope
-    )
-
-    dh = dx * W
-    dW += tl.sum(y_prev * dx, axis=0)
-
-    return dx, dW, dh
 
 
 @triton.jit
@@ -108,15 +95,9 @@ def diagonal_rnn_backward_triton_kernel(
             dtype=W.dtype,
         )
 
-        dx, dW, dh = _rnn_backward_update(
-            y=y,
-            W=W,
-            dy=dy,
-            dW=dW,
-            y_prev=y_prev,
-            ACTIVATION_FUNCTION="tanh",
-            relu_negative_slope=None,
-        )
+        dx = dy * tanh_backward(y)
+        dh = dx * W
+        dW += tl.sum(y_prev * dx, axis=0)
 
         tl.store(dx_ptrs, dx, mask=mask_bn)
         y = y_prev
