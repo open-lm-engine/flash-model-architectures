@@ -10,8 +10,21 @@ from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
 from ....triton_math import clamp
 from ....utils import cute_op
-from ...rnn.triton_implementation.backward_diagonal import _load_previous_output, _rnn_backward_update
+from ...rnn.triton_implementation.backward import _activation_backward
+from ...rnn.triton_implementation.backward_diagonal import _load_previous_output
 from .forward_diagonal import _get_autotune_configs
+
+
+@triton.jit
+def _hippo_rnn_backward_update(y, W, dy, dW, y_prev, ACTIVATION_FUNCTION: tl.constexpr, relu_negative_slope):
+    dx = _activation_backward(
+        y=y, dy=dy, ACTIVATION_FUNCTION=ACTIVATION_FUNCTION, relu_negative_slope=relu_negative_slope
+    )
+
+    dh = dx * W
+    dW += tl.sum(y_prev * dx, axis=0)
+
+    return dx, dW, dh
 
 
 @triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_N"], reset_to_zero=["dW_ptr"])
@@ -82,7 +95,7 @@ def diagonal_hippo_rnn_backward_triton_kernel(
             dtype=W.dtype,
         )
 
-        dx, dW, dh = _rnn_backward_update(
+        dx, dW, dh = _hippo_rnn_backward_update(
             y=y,
             W=W,
             dy=dy,
