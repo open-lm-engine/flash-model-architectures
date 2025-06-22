@@ -10,7 +10,7 @@ from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
 from ....triton_math import clamp
 from ....utils import cute_op
-from ...rnn.triton_implementation.backward import _get_autotune_configs, _load_previous_output, _rnn_backward_update
+from ...rnn.triton_implementation.backward import _get_autotune_configs, _load_previous_output
 
 
 @triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_H"], reset_to_zero=["dW_ptr", "dWf_ptr", "dWr_ptr"])
