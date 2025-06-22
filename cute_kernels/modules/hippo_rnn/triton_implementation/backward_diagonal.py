@@ -18,6 +18,9 @@ from .forward_diagonal import _get_autotune_configs
 @triton.jit
 def diagonal_hippo_rnn_backward_triton_kernel(
     W_ptr,
+    V_ptr,
+    hippo_A_ptr,
+    hippo_B_ptr,
     y_ptr,
     y_stride_b,
     h_ptr,
@@ -42,12 +45,21 @@ def diagonal_hippo_rnn_backward_triton_kernel(
     mask_bn = mask_b[:, None] & mask_n[None, :]
 
     dh = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_N), dtype=W_ptr.dtype.element_ty)
+    dc = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_N), dtype=W_ptr.dtype.element_ty)
+
     dW = tl.zeros((BLOCK_SIZE_N,), dtype=tl.float32)
+    dV = tl.zeros((BLOCK_SIZE_N,), dtype=tl.float32)
 
     W = tl.load(W_ptr + indices_n, mask=mask_n)[None, :]
+    V = tl.load(V_ptr + indices_n, mask=mask_n)[None, :]
+
+    hippo_A = tl.load(hippo_A_ptr)
+    hippo_B = tl.load(hippo_B_ptr)
 
     indices = indices_b[:, None] * y_stride_b + (S - 1) * N + indices_n[None, :]
+
     y = tl.load(y_ptr + indices, mask=mask_bn)
+    c = tl.load(c_ptr + indices, mask=mask_bn)
 
     # backward counting reduces 1 instruction since we need to compare s == 0, otherwise we have to compare s == S - 1
     for s in range(S - 1, -1, -1):
