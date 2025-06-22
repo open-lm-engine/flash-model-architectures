@@ -10,7 +10,7 @@ from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
 from ....triton_math import clamp
 from ....utils import cute_op
-from ...rnn.triton_implementation.backward import _load_previous_output, _rnn_backward_update
+from ...rnn.triton_implementation.backward_diagonal import _load_previous_output, _rnn_backward_update
 from .forward_diagonal import _get_autotune_configs
 
 
@@ -23,7 +23,7 @@ def diagonal_hippo_rnn_backward_triton_kernel(
     hippo_B_ptr,
     y_ptr,
     y_stride_b,
-    h_ptr,
+    h0_ptr,
     dy_ptr,
     dx_ptr,
     dW_ptr,
@@ -57,9 +57,7 @@ def diagonal_hippo_rnn_backward_triton_kernel(
     hippo_B = tl.load(hippo_B_ptr)
 
     indices = indices_b[:, None] * y_stride_b + (S - 1) * N + indices_n[None, :]
-
     y = tl.load(y_ptr + indices, mask=mask_bn)
-    c = tl.load(c_ptr + indices, mask=mask_bn)
 
     # backward counting reduces 1 instruction since we need to compare s == 0, otherwise we have to compare s == S - 1
     for s in range(S - 1, -1, -1):
@@ -72,7 +70,7 @@ def diagonal_hippo_rnn_backward_triton_kernel(
         indices -= N
 
         y_prev = _load_previous_output(
-            h_ptr=h_ptr,
+            h0_ptr=h0_ptr,
             y_ptrs=y_ptr + indices,
             N=N,
             indices_b=indices_b,
@@ -128,7 +126,7 @@ def diagonal_hippo_rnn_backward_triton(
             hippo_B_ptr=hippo_B,
             y_ptr=output,
             y_stride_b=output.stride(0),
-            h_ptr=input_state,
+            h0_ptr=input_state,
             dy_ptr=output_grad,
             dx_ptr=input_grad,
             dW_ptr=weight_grad,
