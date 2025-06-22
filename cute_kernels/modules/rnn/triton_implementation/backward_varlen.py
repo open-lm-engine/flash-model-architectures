@@ -15,8 +15,8 @@ from .backward import _get_autotune_configs, _rnn_backward_update
 
 @triton.jit
 def _load_input_state(
-    h_ptr,
-    h_stride_b,
+    h0_ptr,
+    h0_stride_b,
     pid_n,
     indices_b,
     indices_h,
@@ -26,10 +26,10 @@ def _load_input_state(
     BLOCK_SIZE_H,
     dtype,
 ):
-    if h_ptr is None:
+    if h0_ptr is None:
         y_prev = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=dtype)
     else:
-        y_ptrs = h_ptr + indices_b[:, None] * h_stride_b + pid_n * H + indices_h[None, :]
+        y_ptrs = h0_ptr + indices_b[:, None] * h0_stride_b + pid_n * H + indices_h[None, :]
         y_prev = tl.load(y_ptrs, mask=mask_bh)
 
     return y_prev
@@ -42,8 +42,8 @@ def rnn_varlen_backward_triton_kernel(
     W_stride_n,
     y_ptr,
     y_stride_t,
-    h_ptr,
-    h_stride_b,
+    h0_ptr,
+    h0_stride_b,
     dy_ptr,
     cu_seqlens_ptr,
     IS_MAX_SEQLEN_TENSOR: tl.constexpr,
@@ -103,8 +103,8 @@ def rnn_varlen_backward_triton_kernel(
         y_prev = tl.where(
             start == end,
             _load_input_state(
-                h_ptr=h_ptr,
-                h_stride_b=h_stride_b,
+                h0_ptr=h0_ptr,
+                h0_stride_b=h0_stride_b,
                 pid_n=pid_n,
                 indices_b=indices_b,
                 indices_h=indices_h,
@@ -163,8 +163,8 @@ def rnn_varlen_backward_triton(
             W_stride_n=weight.stride(0),
             y_ptr=output,
             y_stride_t=output.stride(0),
-            h_ptr=input_state,
-            h_stride_b=None if input_state is None else input_state.stride(0),
+            h0_ptr=input_state,
+            h0_stride_b=None if input_state is None else input_state.stride(0),
             dy_ptr=output_grad,
             cu_seqlens_ptr=cu_seqlens,
             IS_MAX_SEQLEN_TENSOR=is_max_seqlen_tensor,
