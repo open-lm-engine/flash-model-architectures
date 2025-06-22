@@ -18,8 +18,10 @@ def _rnn_forward_update(h, W, c, V, x, hippo_A, hippo_B, s, ACTIVATION_FUNCTION,
     h += V * c
     h = _activation(x=h, ACTIVATION_FUNCTION=ACTIVATION_FUNCTION, relu_negative_slope=relu_negative_slope)
 
-    A = 1 - hippo_A / s
-    B = hippo_B / s
+    s1 = (1 / s).to(c.dtype)
+
+    A = 1 - hippo_A * s1
+    B = hippo_B * s1
     c = c * A + h * B
 
     return h, c
