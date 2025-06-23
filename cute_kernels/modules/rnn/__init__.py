@@ -159,17 +159,12 @@ def rnn_cute(
 
         output = torch.empty_like(input)
 
-        weight = weight.unsqueeze(0)
-        input = input.unsqueeze(-2)
-
         if cu_seqlens is None:
             assert max_seqlen is None
-            B, S, N, _, H = input.size()
+            B, S, N, H = input.size()
 
             if input_state is None:
                 input_state = torch.zeros(B, N, H, device=input.device, dtype=input.dtype)
-
-            input_state = input_state.unsqueeze(-2)
 
             # input -> (B, S, N, 1, H)
             # weight -> (1, N, H, H)
@@ -177,13 +172,14 @@ def rnn_cute(
 
             for s in range(S):
                 # (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
-                input_state = input_state @ weight + input[:, s]
+                input_state = input_state.unsqueeze(-2) @ weight.unsqueeze(0) + input[:, s].unsqueeze(-2)
                 input_state = tanh(input_state)
 
                 if gradient_clipping is not None:
                     input_state = _GradientClipping.apply(input_state, gradient_clipping)
 
-                output[:, s] = input_state.squeeze(-2)
+                input_state = input_state.squeeze(-2)
+                output[:, s] = input_state
         else:
             assert max_seqlen is not None
             B = cu_seqlens.numel() - 1
