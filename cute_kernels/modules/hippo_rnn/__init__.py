@@ -55,7 +55,6 @@ class _HiPPO_RNN_Cute(torch.autograd.Function):
             "compress_weight": compress_weight,
             "hippo_A": hippo_A,
             "hippo_B": hippo_B,
-            "I": torch.eye(D, device=hippo_A.device, dtype=hippo_A.dtype),
             "input_state": input_state,
             "hippo_state": hippo_state,
             "output": output,
@@ -199,7 +198,7 @@ def hippo_rnn_cute(
         input = input.unsqueeze(-2)
 
         hippo_A = hippo_A.unsqueeze(0).unsqueeze(0)
-        hippo_B = hippo_B.unsqueeze(0).unsqueeze(0).unsqueeze(0)
+        hippo_B = hippo_B.unsqueeze(0).unsqueeze(0).unsqueeze(-1)
 
         D = hippo_A.size(-1)
         I = torch.eye(D, device=hippo_A.device, dtype=hippo_A.dtype)
