@@ -171,7 +171,7 @@ def rnn_cute(
             # input_state -> (B, N, H)
 
             for s in range(S):
-                # (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
+                # (B, N, 1, H) = (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
                 input_state = input_state.unsqueeze(-2) @ weight.unsqueeze(0) + input[:, s].unsqueeze(-2)
                 input_state = tanh(input_state)
                 input_state = input_state.squeeze(-2)

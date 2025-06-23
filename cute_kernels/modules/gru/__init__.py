@@ -213,17 +213,25 @@ def gru_cute(
             # weight -> (N, H, H)
             # input_state -> (B, N, H)
 
-            input_state = input_state.unsqueeze(-2)
-
             for s in range(S):
-                # (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
-                forget_gate = sigmoid(input_state @ forget_weight.unsqueeze(0) + forget_input[:, s].unsqueeze(-2))
-                reset_gate = sigmoid(input_state @ reset_weight.unsqueeze(0) + reset_input[:, s].unsqueeze(-2))
+                # (B, N, 1, H) = (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
+                forget_gate = input_state.unsqueeze(-2) @ forget_weight.unsqueeze(0) + forget_input[:, s].unsqueeze(-2)
+                forget_gate = sigmoid(forget_gate)
 
-                possible_new_state = tanh((input_state * reset_gate) @ weight.unsqueeze(0) + input[:, s].unsqueeze(-2))
+                # (B, N, 1, H) = (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
+                reset_gate = input_state.unsqueeze(-2) @ reset_weight.unsqueeze(0) + reset_input[:, s].unsqueeze(-2)
+                reset_gate = sigmoid(reset_gate)
+
+                # (B, N, 1, H) = [(B, N, 1, H) * (B, N, 1, H)] @ (1, N, H, H) + (B, N, 1, H)
+                possible_new_state = (input_state.unsqueeze(-2) * reset_gate) @ weight.unsqueeze(0) + input[
+                    :, s
+                ].unsqueeze(-2)
+                possible_new_state = tanh(possible_new_state)
+
                 input_state = forget_gate * input_state + (1 - forget_gate) * possible_new_state
+                input_state = input_state.squeeze(-2)
 
-                output[:, s] = input_state.squeeze(-2)
+                output[:, s] = input_state
         else:
             assert max_seqlen is not None
             B = cu_seqlens.numel() - 1
