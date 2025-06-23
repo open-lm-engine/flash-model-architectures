@@ -278,7 +278,7 @@ class HiPPO_RNN(nn.Module):
 
         self.state_weight = nn.Parameter(torch.empty(self.num_heads, self.state_head_dim, self.state_head_dim))
         self.hippo_weight = nn.Parameter(torch.empty(self.num_heads, self.hippo_size))
-        self.compress_weight = nn.Parameter(torch.empty(self.num_heads, self.state_head_dim))
+        self.compress_weight = nn.Parameter(torch.empty(self.num_heads, self.hippo_size, self.state_head_dim))
 
         self.output_projection = nn.Linear(state_size, output_size, bias=False)
 
