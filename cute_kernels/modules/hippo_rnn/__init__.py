@@ -341,5 +341,8 @@ class HiPPO_RNN(nn.Module):
         nn.init.normal_(self.hippo_weight)
         nn.init.normal_(self.compress_weight)
 
+        arange = torch.arange(1, 2 * self.hippo_size, 2, dtype=torch.float32)
         self.A.fill_(1)
-        self.B.fill_(1)
+
+        B = arange.sqrt_().type_as(self.B)
+        self.B.fill_(B)
