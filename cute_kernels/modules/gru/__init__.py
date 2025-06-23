@@ -202,9 +202,6 @@ def gru_cute(
 
         output = torch.empty_like(input)
 
-        forget_input = forget_input.unsqueeze(-2)
-        reset_input = reset_input.unsqueeze(-2)
-
         if cu_seqlens is None:
             assert max_seqlen is None
             B, S, N, H = input.size()
@@ -220,8 +217,8 @@ def gru_cute(
 
             for s in range(S):
                 # (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
-                forget_gate = sigmoid(input_state @ forget_weight.unsqueeze(0) + forget_input[:, s])
-                reset_gate = sigmoid(input_state @ reset_weight.unsqueeze(0) + reset_input[:, s])
+                forget_gate = sigmoid(input_state @ forget_weight.unsqueeze(0) + forget_input[:, s].unsqueeze(-2))
+                reset_gate = sigmoid(input_state @ reset_weight.unsqueeze(0) + reset_input[:, s].unsqueeze(-2))
 
                 possible_new_state = tanh((input_state * reset_gate) @ weight.unsqueeze(0) + input[:, s].unsqueeze(-2))
                 input_state = forget_gate * input_state + (1 - forget_gate) * possible_new_state
@@ -254,8 +251,12 @@ def gru_cute(
 
                 # don't update the finished sequences
                 # (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
-                forget_gate = sigmoid(new_state @ forget_weight.unsqueeze(0) + forget_input[offset_unfinished])
-                reset_gate = sigmoid(new_state @ reset_weight.unsqueeze(0) + reset_input[offset_unfinished])
+                forget_gate = sigmoid(
+                    new_state @ forget_weight.unsqueeze(0) + forget_input[offset_unfinished].unsqueeze(-2)
+                )
+                reset_gate = sigmoid(
+                    new_state @ reset_weight.unsqueeze(0) + reset_input[offset_unfinished].unsqueeze(-2)
+                )
 
                 possible_new_state = tanh(
                     (new_state * reset_gate) @ weight.unsqueeze(0) + input[offset_unfinished].unsqueeze(-2)
