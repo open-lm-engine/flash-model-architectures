@@ -220,8 +220,8 @@ def hippo_rnn_cute(
             for s in range(S):
                 # (B, N, 1, H) = (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
                 input_state = input_state @ weight + input[:, s]
-                # (B, N, 1, H) = [(B, N, 1, D) @ (1, N, D, H)].T + (B, N, 1, H)
-                input_state = (hippo_state @ hippo_weight).transpose(-1, -2) + input_state
+                # (B, N, 1, H) = (B, N, 1, D) @ (1, N, D, H) + (B, N, 1, H)
+                input_state = (hippo_state @ hippo_weight) + input_state
                 input_state = tanh(input_state)
 
                 # (B, N, 1, 1) = (B, N, 1, H) @ (1, N, H, 1)
