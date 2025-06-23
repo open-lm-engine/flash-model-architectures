@@ -211,7 +211,7 @@ def gru_cute(
 
             # input -> (B, S, N, H)
             # weight -> (N, H, H)
-            # input_state -> (B, N, 1, H)
+            # input_state -> (B, N, H)
 
             input_state = input_state.unsqueeze(-2)
 
