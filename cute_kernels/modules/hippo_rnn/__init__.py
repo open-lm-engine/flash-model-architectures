@@ -53,6 +53,7 @@ class _HiPPO_RNN_Cute(torch.autograd.Function):
             "input": input,
             "weight": weight,
             "hippo_weight": hippo_weight,
+            "compress_weight": compress_weight,
             "hippo_A": hippo_A,
             "hippo_B": hippo_B,
             "input_state": input_state,
