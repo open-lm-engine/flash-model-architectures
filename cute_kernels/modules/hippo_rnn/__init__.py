@@ -192,10 +192,7 @@ def hippo_rnn_cute(
 
         output = torch.empty_like(input)
 
-        weight = weight.unsqueeze(0)
-        hippo_weight = hippo_weight.unsqueeze(0)
         compress_weight = compress_weight.unsqueeze(0).unsqueeze(-1)
-        input = input.unsqueeze(-2)
 
         hippo_A = hippo_A.unsqueeze(0).unsqueeze(0)
         hippo_B = hippo_B.unsqueeze(0).unsqueeze(0).unsqueeze(-1)
@@ -205,7 +202,7 @@ def hippo_rnn_cute(
 
         if cu_seqlens is None:
             assert max_seqlen is None
-            B, S, N, _, H = input.size()
+            B, S, N, H = input.size()
 
             if input_state is None:
                 input_state = torch.zeros(B, N, H, device=input.device, dtype=input.dtype)
@@ -213,25 +210,29 @@ def hippo_rnn_cute(
             if hippo_state is None:
                 hippo_state = torch.zeros(B, N, D, device=input.device, dtype=input.dtype)
 
-            input_state = input_state.unsqueeze(-2)
-            hippo_state = hippo_state.unsqueeze(-2)
+            # input -> (B, S, N, H)
+            # weight -> (N, H, H)
+            # input_state -> (B, N, H)
+            # hippo_state -> (B, N, D)
 
-            # input -> (B, S, N, 1, H)
-            # weight -> (1, N, H, H)
-            # input_state -> (B, N, 1, H)
+            input_state = input_state.unsqueeze(-2)
 
             for s in range(S):
                 # (B, N, 1, H) = (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
-                input_state = input_state @ weight + input[:, s]
+                input_state = input_state @ weight.unsqueeze(0) + input[:, s].unsqueeze(-2)
                 # (B, N, 1, H) = (B, N, 1, D) @ (1, N, D, H) + (B, N, 1, H)
-                input_state = (hippo_state @ hippo_weight) + input_state
+                input_state = hippo_state.unsqueeze(-2) @ hippo_weight.unsqueeze(0) + input_state
                 input_state = tanh(input_state)
 
                 # (B, N, 1, 1) = (B, N, 1, H) @ (1, N, H, 1)
                 compressed_input = input_state @ compress_weight
 
-                # (B, N, 1, D) = (B, N, 1, D) @ (1, 1, D, D) + (B, N, 1, 1) @ (1, 1, 1, D)
-                hippo_state = hippo_state @ (I - hippo_A / (s + 1)) + compressed_input @ (hippo_B / (s + 1))
+                # (B, N, D, 1) = (1, 1, D, D) @ (B, N, D, 1) + (1, 1, D, 1) @ (B, N, 1, 1)
+                hippo_state = (I - hippo_A / (s + 1)) @ hippo_state.unsqueeze(-1) + (
+                    hippo_B / (s + 1)
+                ) @ compressed_input
+
+                hippo_state = hippo_state.squeeze(-1)
 
                 if gradient_clipping is not None:
                     input_state = _GradientClipping.apply(input_state, gradient_clipping)
