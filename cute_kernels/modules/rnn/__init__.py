@@ -179,6 +179,7 @@ def rnn_cute(
                     input_state = _GradientClipping.apply(input_state, gradient_clipping)
 
                 input_state = input_state.squeeze(-2)
+
                 output[:, s] = input_state
         else:
             assert max_seqlen is not None
@@ -200,13 +201,12 @@ def rnn_cute(
             for s in range(max_seqlen):
                 offset = start + s
                 unfinished = offset < end
-                new_state = input_state.unsqueeze(-2)
 
                 offset_unfinished = offset[unfinished]
 
                 # don't update the finished sequences
                 # (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
-                new_state = new_state[unfinished] @ weight + input[offset_unfinished]
+                new_state = input_state[unfinished].unsqueeze(-2) @ weight + input[offset_unfinished]
                 new_state = tanh(new_state)
 
                 if gradient_clipping is not None:
