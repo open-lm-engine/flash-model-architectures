@@ -228,7 +228,7 @@ def gru_cute(
                 ].unsqueeze(-2)
                 possible_new_state = tanh(possible_new_state)
 
-                input_state = forget_gate * input_state + (1 - forget_gate) * possible_new_state
+                input_state = forget_gate * input_state.unsqueeze(-2) + (1 - forget_gate) * possible_new_state
                 input_state = input_state.squeeze(-2)
 
                 output[:, s] = input_state
