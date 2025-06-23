@@ -209,11 +209,11 @@ def gru_cute(
             if input_state is None:
                 input_state = torch.zeros(B, N, H, device=input.device, dtype=input.dtype)
 
-            input_state = input_state.unsqueeze(-2)
-
             # input -> (B, S, N, H)
             # weight -> (N, H, H)
             # input_state -> (B, N, 1, H)
+
+            input_state = input_state.unsqueeze(-2)
 
             for s in range(S):
                 # (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
@@ -244,9 +244,8 @@ def gru_cute(
             for s in range(max_seqlen):
                 offset = start + s
                 unfinished = offset < end
-                new_state = input_state.unsqueeze(-2)
 
-                new_state = new_state[unfinished]
+                new_state = input_state[unfinished].unsqueeze(-2)
                 offset_unfinished = offset[unfinished]
 
                 # don't update the finished sequences
