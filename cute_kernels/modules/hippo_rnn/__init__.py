@@ -10,7 +10,7 @@ from ...kernel_backend import KernelBackend
 from ...math import divide_if_divisible
 from ...torch_math import tanh
 from ...utils import ensure_contiguous
-from .triton_implementation import diagonal_hippo_rnn_backward_triton, diagonal_hippo_rnn_forward_triton
+from .triton_implementation import diagonal_hippo_rnn_backward_triton, hippo_rnn_forward_triton
 
 
 class _HiPPO_RNN_Cute(torch.autograd.Function):
@@ -21,6 +21,7 @@ class _HiPPO_RNN_Cute(torch.autograd.Function):
         input: torch.Tensor,
         weight: torch.Tensor,
         hippo_weight: torch.Tensor,
+        compress_weight: torch.Tensor,
         hippo_A: torch.Tensor,
         hippo_B: torch.Tensor,
         input_state: torch.Tensor | None,
@@ -62,11 +63,7 @@ class _HiPPO_RNN_Cute(torch.autograd.Function):
 
         if cu_seqlens is None:
             assert max_seqlen is None
-
-            if H == 1:
-                diagonal_hippo_rnn_forward_triton(**kwargs)
-            else:
-                raise NotImplementedError()
+            hippo_rnn_forward_triton(**kwargs)
         else:
             raise NotImplementedError()
 
@@ -106,6 +103,7 @@ class _HiPPO_RNN_Cute(torch.autograd.Function):
         input_grad = torch.empty_like(output)
         weight_grad = torch.zeros_like(weight, dtype=torch.float32)
         hippo_weight_grad = torch.zeros_like(hippo_weight, dtype=torch.float32)
+        compress_weight_grad = torch.zeros_like(compress_weight, dtype=torch.float32)
 
         H = weight.size(-1)
 
@@ -132,7 +130,7 @@ class _HiPPO_RNN_Cute(torch.autograd.Function):
         else:
             raise NotImplementedError()
 
-        return input_grad, weight_grad, hippo_weight_grad, *[None] * 7
+        return input_grad, weight_grad, hippo_weight_grad, compress_weight_grad, *[None] * 7
 
 
 class _GradientClipping(torch.autograd.Function):
@@ -169,7 +167,7 @@ def hippo_rnn_cute(
         input (torch.Tensor): input tensor of shape (B, S, N, H) where N is the number of heads and H is the head
             dimension. Should have shape (T, N, H) and `cu_seqlens` should be passed.
         weight (torch.Tensor): weight tensor of shape (N, H, H)
-        hippo_weight (torch.Tensor): weight tensor of shape (N, D)
+        hippo_weight (torch.Tensor): weight tensor of shape (N, D, H)
         compress_weight (torch.Tensor): weight tensor of shape (N, H)
         hippo_A (torch.Tensor): weight tensor of shape (D, D)
         hippo_B (torch.Tensor): weight tensor of shape (D,)
@@ -195,7 +193,7 @@ def hippo_rnn_cute(
         output = torch.empty_like(input)
 
         weight = weight.unsqueeze(0)
-        hippo_weight = hippo_weight.unsqueeze(0).unsqueeze(-1)
+        hippo_weight = hippo_weight.unsqueeze(0)
         compress_weight = compress_weight.unsqueeze(0).unsqueeze(-1)
         input = input.unsqueeze(-2)
 
@@ -223,7 +221,7 @@ def hippo_rnn_cute(
             for s in range(S):
                 # (B, N, 1, H) = (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
                 input_state = input_state @ weight + input[:, s]
-                # (B, N, 1, H) = [(B, N, H, D) @ (1, N, D, 1)].T + (B, N, 1, H)
+                # (B, N, 1, H) = [(B, N, 1, D) @ (1, N, D, H)].T + (B, N, 1, H)
                 input_state = (hippo_state @ hippo_weight).transpose(-1, -2) + input_state
                 input_state = tanh(input_state)
 
@@ -244,6 +242,7 @@ def hippo_rnn_cute(
             input,
             weight,
             hippo_weight,
+            compress_weight,
             hippo_A,
             hippo_B,
             input_state,

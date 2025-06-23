@@ -3,4 +3,4 @@
 # **************************************************
 
 from .backward_diagonal import diagonal_hippo_rnn_backward_triton
-from .forward_diagonal import diagonal_hippo_rnn_forward_triton
+from .forward import hippo_rnn_forward_triton
