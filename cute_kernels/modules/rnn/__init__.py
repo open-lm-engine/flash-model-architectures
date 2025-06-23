@@ -167,8 +167,8 @@ def rnn_cute(
                 input_state = torch.zeros(B, N, H, device=input.device, dtype=input.dtype)
 
             # input -> (B, S, N, H)
-            # weight -> (1, N, H, H)
-            # input_state -> (B, N, 1, H)
+            # weight -> (N, H, H)
+            # input_state -> (B, N, H)
 
             for s in range(S):
                 # (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
@@ -192,7 +192,7 @@ def rnn_cute(
                 input_state = input_state.clone()
 
             # input -> (cu_seqlens[-1], N, H)
-            # weight -> (1, N, H, H)
+            # weight -> (N, H, H)
             # input_state -> (B, N, H)
 
             start = cu_seqlens[:-1]
