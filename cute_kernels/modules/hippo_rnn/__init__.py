@@ -344,5 +344,4 @@ class HiPPO_RNN(nn.Module):
         arange = torch.arange(1, 2 * self.hippo_size, 2, dtype=torch.float32)
         self.A.fill_(1)
 
-        B = arange.sqrt_().type_as(self.B)
-        self.B.copy_(B)
+        self.B.copy_(arange.sqrt_())
