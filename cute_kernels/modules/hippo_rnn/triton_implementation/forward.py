@@ -14,7 +14,7 @@ from ...rnn.triton_implementation.forward import _activation, _get_autotune_conf
 
 
 @triton.jit
-def _hippo_rnn_forward_update(x, h, c, W, V, hippo_A, hippo_B, s, ACTIVATION_FUNCTION, relu_negative_slope):
+def _hippo_rnn_forward_update(x, h, c, W, V, U, hippo_A, hippo_B, s, ACTIVATION_FUNCTION, relu_negative_slope):
     h = matmul(A=h, B=W, C=x, output_dtype=tl.float32)
     h = matmul(A=c, B=V, C=h, output_dtype=x.dtype)
     h = _activation(x=h, ACTIVATION_FUNCTION=ACTIVATION_FUNCTION, relu_negative_slope=relu_negative_slope)
@@ -24,7 +24,7 @@ def _hippo_rnn_forward_update(x, h, c, W, V, hippo_A, hippo_B, s, ACTIVATION_FUN
     B = hippo_B * s1
 
     c = matmul(A=c, B=A, C=c, output_dtype=tl.float32)
-    f = matmul(A=h, B=V, C=None, output_dtype=x.dtype)
+    f = matmul(A=h, B=U[:, None], C=None, output_dtype=x.dtype)
     c = matmul(A=f, B=B[None, :], C=c, output_dtype=x.dtype)
 
     return h, c
@@ -40,6 +40,7 @@ def hippo_rnn_forward_triton_kernel(
     W_stride_n,
     V_ptr,
     V_stride_n,
+    U_ptr,
     hippo_A_ptr,
     hippo_B_ptr,
     h0_ptr,
@@ -80,6 +81,8 @@ def hippo_rnn_forward_triton_kernel(
         mask=mask_d[:, None] & mask_h[None, :],
     )
 
+    U = tl.load(U_ptr + pid_n * H + indices_h, mask=mask_h)
+
     if h0_ptr is None:
         h = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=x_ptr.dtype.element_ty)
     else:
@@ -106,6 +109,7 @@ def hippo_rnn_forward_triton_kernel(
             c=c,
             W=W,
             V=V,
+            U=U,
             hippo_A=hippo_A,
             hippo_B=hippo_B,
             s=s,
@@ -124,6 +128,7 @@ def hippo_rnn_forward_triton(
     input: torch.Tensor,
     weight: torch.Tensor,
     hippo_weight: torch.Tensor,
+    compress_weight: torch.Tensor,
     hippo_A: torch.Tensor,
     hippo_B: torch.Tensor,
     input_state: torch.Tensor | None,
@@ -151,6 +156,7 @@ def hippo_rnn_forward_triton(
             W_stride_n=weight.stride(0),
             V_ptr=hippo_weight,
             V_stride_n=hippo_weight.stride(0),
+            U_ptr=compress_weight,
             hippo_A_ptr=hippo_A,
             hippo_B_ptr=hippo_B,
             h0_ptr=input_state,
