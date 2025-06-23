@@ -257,17 +257,19 @@ def gru_cute(
                 offset_unfinished = offset[unfinished]
 
                 # don't update the finished sequences
-                # (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
-                forget_gate = sigmoid(
-                    new_state @ forget_weight.unsqueeze(0) + forget_input[offset_unfinished].unsqueeze(-2)
-                )
-                reset_gate = sigmoid(
-                    new_state @ reset_weight.unsqueeze(0) + reset_input[offset_unfinished].unsqueeze(-2)
-                )
+                # (B, N, 1, H) = (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
+                forget_gate = new_state @ forget_weight.unsqueeze(0) + forget_input[offset_unfinished].unsqueeze(-2)
+                forget_gate = sigmoid(forget_gate)
 
-                possible_new_state = tanh(
-                    (new_state * reset_gate) @ weight.unsqueeze(0) + input[offset_unfinished].unsqueeze(-2)
-                )
+                # (B, N, 1, H) = (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
+                reset_gate = new_state @ reset_weight.unsqueeze(0) + reset_input[offset_unfinished].unsqueeze(-2)
+                reset_gate = sigmoid(reset_gate)
+
+                # (B, N, 1, H) = [(B, N, 1, H) * (B, N, 1, H)] @ (1, N, H, H) + (B, N, 1, H)
+                possible_new_state = (new_state * reset_gate) @ weight.unsqueeze(0) + input[
+                    offset_unfinished
+                ].unsqueeze(-2)
+                possible_new_state = tanh(possible_new_state)
 
                 new_state = forget_gate * new_state + (1 - forget_gate) * possible_new_state
                 new_state = new_state.squeeze(-2)
