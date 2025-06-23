@@ -14,13 +14,13 @@ from ...rnn.triton_implementation.forward import _activation, _get_autotune_conf
 
 
 @triton.jit
-def _hippo_rnn_forward_update(x, h, c, W, Wh, Wc, hippo_A, hippo_B, s, ACTIVATION_FUNCTION, relu_negative_slope):
+def _hippo_rnn_forward_update(x, h, c, W, Wh, Wc, hippo_A, hippo_B, I, s, ACTIVATION_FUNCTION, relu_negative_slope):
     h = matmul(A=h, B=W, C=x, output_dtype=tl.float32)
     h = matmul(A=c, B=Wh, C=h, output_dtype=x.dtype)
     h = _activation(x=h, ACTIVATION_FUNCTION=ACTIVATION_FUNCTION, relu_negative_slope=relu_negative_slope)
 
     s1 = (1 / s).to(c.dtype)
-    A = 1 - hippo_A * s1
+    A = I - hippo_A * s1
     B = hippo_B * s1
 
     c = matmul(A=c, B=A, C=c, output_dtype=tl.float32)
@@ -100,6 +100,8 @@ def hippo_rnn_forward_triton_kernel(
 
     indices = indices_b[:, None] * x_stride_b + pid_n * H + indices_h[None, :]
 
+    I = tl.full((BLOCK_SIZE_D, BLOCK_SIZE_D), 1, dtype=x.dtype)
+
     for s in range(1, S + 1):
         x = tl.load(x_ptr + indices, mask=mask_bh)
 
@@ -112,6 +114,7 @@ def hippo_rnn_forward_triton_kernel(
             Wc=Wc,
             hippo_A=hippo_A,
             hippo_B=hippo_B,
+            I=I,
             s=s,
             ACTIVATION_FUNCTION="tanh",
             relu_negative_slope=None,
