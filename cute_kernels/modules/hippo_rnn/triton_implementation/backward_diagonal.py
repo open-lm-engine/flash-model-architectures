@@ -12,7 +12,7 @@ from ....triton_math import clamp
 from ....utils import cute_op
 from ...rnn.triton_implementation.backward import _activation_backward
 from ...rnn.triton_implementation.backward_diagonal import _load_previous_output
-from .forward_diagonal import _get_autotune_configs
+from .forward import _get_autotune_configs
 
 
 @triton.jit
