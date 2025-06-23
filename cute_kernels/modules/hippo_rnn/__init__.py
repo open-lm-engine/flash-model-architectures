@@ -345,4 +345,4 @@ class HiPPO_RNN(nn.Module):
         self.A.fill_(1)
 
         B = arange.sqrt_().type_as(self.B)
-        self.B.fill_(B)
+        self.B.copy_(B)
