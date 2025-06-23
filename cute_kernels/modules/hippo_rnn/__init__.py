@@ -2,6 +2,7 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
+import numpy as np
 import torch
 import torch.nn as nn
 
@@ -199,10 +200,12 @@ def hippo_rnn_cute(
         hippo_A = hippo_A.unsqueeze(0).unsqueeze(0)
         hippo_B = hippo_B.unsqueeze(0).unsqueeze(0).unsqueeze(0)
 
+        D = hippo_A.size(-1)
+        I = torch.eye(D, device=hippo_A.device, dtype=hippo_A.dtype)
+
         if cu_seqlens is None:
             assert max_seqlen is None
             B, S, N, _, H = input.size()
-            D = hippo_A.size(-1)
 
             if input_state is None:
                 input_state = torch.zeros(B, N, H, device=input.device, dtype=input.dtype)
@@ -228,7 +231,7 @@ def hippo_rnn_cute(
                 compressed_input = input_state @ compress_weight
 
                 # (B, N, 1, D) = (B, N, 1, D) @ (1, 1, D, D) + (B, N, 1, 1) @ (1, 1, 1, D)
-                hippo_state = hippo_state @ (1 - hippo_A / (s + 1)) + compressed_input @ (hippo_B / (s + 1))
+                hippo_state = hippo_state @ (I - hippo_A / (s + 1)) + compressed_input @ (hippo_B / (s + 1))
 
                 if gradient_clipping is not None:
                     input_state = _GradientClipping.apply(input_state, gradient_clipping)
@@ -341,7 +344,20 @@ class HiPPO_RNN(nn.Module):
         nn.init.normal_(self.hippo_weight)
         nn.init.normal_(self.compress_weight)
 
-        arange = torch.arange(1, 2 * self.hippo_size, 2, dtype=torch.float32)
-        self.A.fill_(1)
+        arange = np.arange(self.hippo_size, dtype=np.float64)
+        r = 2 * arange + 1
 
-        self.B.copy_(arange.sqrt_())
+        B = np.sqrt(r)
+
+        M = np.tril(r) - np.diag(arange)
+        T = B[:, None]
+        T_inv = 1 / B[None, :]
+        r = 2 * arange + 1
+
+        A = T * T_inv * M
+
+        A = torch.tensor(A)
+        B = torch.tensor(B)
+
+        self.A.copy_(A)
+        self.B.copy_(B)
