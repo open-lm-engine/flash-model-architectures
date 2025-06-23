@@ -159,25 +159,22 @@ def rnn_cute(
 
         output = torch.empty_like(input)
 
-        weight = weight.unsqueeze(0)
-        input = input.unsqueeze(-2)
-
         if cu_seqlens is None:
             assert max_seqlen is None
-            B, S, N, _, H = input.size()
+            B, S, N, H = input.size()
 
             if input_state is None:
                 input_state = torch.zeros(B, N, H, device=input.device, dtype=input.dtype)
 
-            input_state = input_state.unsqueeze(-2)
+            # input -> (B, S, N, H)
+            # weight -> (N, H, H)
+            # input_state -> (B, N, H)
 
-            # input -> (B, S, N, 1, H)
-            # weight -> (1, N, H, H)
-            # input_state -> (B, N, 1, H)
+            input_state = input_state.unsqueeze(-2)
 
             for s in range(S):
                 # (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
-                input_state = input_state @ weight + input[:, s]
+                input_state = input_state @ weight.unsqueeze(0) + input[:, s].unsqueeze(-2)
                 input_state = tanh(input_state)
 
                 if gradient_clipping is not None:
@@ -187,15 +184,15 @@ def rnn_cute(
         else:
             assert max_seqlen is not None
             B = cu_seqlens.numel() - 1
-            _, N, _, H = input.size()
+            _, N, H = input.size()
 
             if input_state is None:
                 input_state = torch.zeros(B, N, H, device=input.device, dtype=input.dtype)
             else:
                 input_state = input_state.clone()
 
-            # input -> (cu_seqlens[-1], N, 1, H)
-            # weight -> (1, N, H, H)
+            # input -> (cu_seqlens[-1], N, H)
+            # weight -> (N, H, H)
             # input_state -> (B, N, H)
 
             start = cu_seqlens[:-1]
@@ -204,13 +201,15 @@ def rnn_cute(
             for s in range(max_seqlen):
                 offset = start + s
                 unfinished = offset < end
-                new_state = input_state.unsqueeze(-2)
 
                 offset_unfinished = offset[unfinished]
 
                 # don't update the finished sequences
                 # (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
-                new_state = new_state[unfinished] @ weight + input[offset_unfinished]
+                new_state = input_state[unfinished].unsqueeze(-2) @ weight.unsqueeze(0) + input[
+                    offset_unfinished
+                ].unsqueeze(-2)
+
                 new_state = tanh(new_state)
 
                 if gradient_clipping is not None:
