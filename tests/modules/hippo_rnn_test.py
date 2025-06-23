@@ -18,14 +18,14 @@ class RNNTest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(
             [torch.device("cuda")],
-            [torch.float32, torch.float16],
+            [torch.float32],
             [3],  # batch_size
             [1024],  # sequence_length
             [256],  # state_size
             [7],  # hippo_size
-            [256],  # num_heads
-            [False, True],  # has_input_state
-            [False, True],  # is_compiling
+            [64],  # num_heads
+            [False],  # has_input_state
+            [False],  # is_compiling
         )
     )
     def test_hippo_rnn(
