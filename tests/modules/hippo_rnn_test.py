@@ -19,10 +19,10 @@ class RNNTest(TestCommons):
         TestCommons.make_args_matrix(
             [torch.device("cuda")],
             [torch.float32, torch.float16],
-            [4],  # batch_size
+            [3],  # batch_size
             [1024],  # sequence_length
             [256],  # state_size
-            [8],  # hippo_size
+            [7],  # hippo_size
             [256],  # num_heads
             [False, True],  # has_input_state
             [False, True],  # is_compiling
