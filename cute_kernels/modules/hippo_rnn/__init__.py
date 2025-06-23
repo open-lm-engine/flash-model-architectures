@@ -40,9 +40,6 @@ class _HiPPO_RNN_Cute(torch.autograd.Function):
         assert hippo_A.size() == (D, D)
         assert hippo_B.size(0) == D
 
-        if D != 1:
-            raise NotImplementedError()
-
         if gradient_clipping is not None and gradient_clipping < 0:
             gradient_clipping = -gradient_clipping
 
