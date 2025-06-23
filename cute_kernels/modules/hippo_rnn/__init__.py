@@ -34,11 +34,10 @@ class _HiPPO_RNN_Cute(torch.autograd.Function):
         assert weight.dim() == 3
 
         N, H = input.size()[-2:]
-        assert weight.size() == (N, H, H)
-
         D = hippo_weight.size(1)
-        assert hippo_weight.size() == (N, D, H)
 
+        assert weight.size() == (N, H, H)
+        assert hippo_weight.size() == (N, D, H)
         assert hippo_A.size() == (D, D)
         assert hippo_B.size(0) == D
 
