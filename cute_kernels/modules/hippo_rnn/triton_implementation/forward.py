@@ -43,6 +43,7 @@ def hippo_rnn_forward_triton_kernel(
     Wc_ptr,
     hippo_A_ptr,
     hippo_B_ptr,
+    I_ptr,
     h0_ptr,
     h0_stride_b,
     c0_ptr,
@@ -93,14 +94,13 @@ def hippo_rnn_forward_triton_kernel(
     else:
         c = tl.load(c0_ptr + indices_b[:, None] * c0_stride_b + pid_n * D + indices_d[None, :], mask=mask_bd)
 
-    hippo_A = tl.load(
-        hippo_A_ptr + indices_d[:, None] * D + indices_d[None, :], mask=mask_d[:, None] & mask_d[None, :]
-    )
+    mask_dd = mask_d[:, None] & mask_d[None, :]
+    I = tl.load(I_ptr + indices_d[:, None] * D + indices_d[None, :], mask=mask_dd)
+
+    hippo_A = tl.load(hippo_A_ptr + indices_d[:, None] * D + indices_d[None, :], mask=mask_dd)
     hippo_B = tl.load(hippo_B_ptr + indices_d, mask=mask_d)
 
     indices = indices_b[:, None] * x_stride_b + pid_n * H + indices_h[None, :]
-
-    I = tl.full((BLOCK_SIZE_D, BLOCK_SIZE_D), 1, dtype=x.dtype)
 
     for s in range(1, S + 1):
         x = tl.load(x_ptr + indices, mask=mask_bh)
@@ -126,7 +126,7 @@ def hippo_rnn_forward_triton_kernel(
         indices += x_stride_s
 
 
-@cute_op(f"{LIBRARY_NAME}::hippo_rnn_forward_triton", mutates_args={"output"})
+@cute_op(f"{LIBRARY_NAME}::hippo_rnn_forward_triton", mutates_args={"output", "hippo_output"})
 def hippo_rnn_forward_triton(
     input: torch.Tensor,
     weight: torch.Tensor,
@@ -134,6 +134,7 @@ def hippo_rnn_forward_triton(
     compress_weight: torch.Tensor,
     hippo_A: torch.Tensor,
     hippo_B: torch.Tensor,
+    I: torch.Tensor,
     input_state: torch.Tensor | None,
     hippo_state: torch.Tensor | None,
     output: torch.Tensor,
@@ -162,6 +163,7 @@ def hippo_rnn_forward_triton(
             Wc_ptr=compress_weight,
             hippo_A_ptr=hippo_A,
             hippo_B_ptr=hippo_B,
+            I_ptr=I,
             h0_ptr=input_state,
             h0_stride_b=None if input_state is None else input_state.stride(0),
             c0_ptr=hippo_state,
