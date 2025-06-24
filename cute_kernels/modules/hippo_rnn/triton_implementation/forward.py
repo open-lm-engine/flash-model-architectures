@@ -49,6 +49,8 @@ def hippo_rnn_forward_triton_kernel(
     c0_stride_b,
     y_ptr,
     c_ptr,
+    c_stride_b,
+    c_stride_s,
     B,
     S,
     H,
@@ -100,10 +102,11 @@ def hippo_rnn_forward_triton_kernel(
     )
     hippo_B = tl.load(hippo_B_ptr + indices_d, mask=mask_d)
 
-    indices = indices_b[:, None] * x_stride_b + pid_n * H + indices_h[None, :]
+    indices_x = indices_b[:, None] * x_stride_b + pid_n * H + indices_h[None, :]
+    indices_c = indices_b[:, None] * c_stride_b + pid_n * D + indices_d[None, :]
 
     for s in range(1, S + 1):
-        x = tl.load(x_ptr + indices, mask=mask_bh)
+        x = tl.load(x_ptr + indices_x, mask=mask_bh)
 
         h, c = _hippo_rnn_forward_update(
             x=x,
@@ -120,10 +123,11 @@ def hippo_rnn_forward_triton_kernel(
             relu_negative_slope=None,
         )
 
-        tl.store(y_ptr + indices, h, mask=mask_bh)
-        tl.store(c_ptr + indices, c, mask=mask_bh)
+        tl.store(y_ptr + indices_x, h, mask=mask_bh)
+        tl.store(c_ptr + indices_c, c, mask=mask_bh)
 
-        indices += x_stride_s
+        indices_x += x_stride_s
+        indices_c += c_stride_s
 
 
 @cute_op(f"{LIBRARY_NAME}::hippo_rnn_forward_triton", mutates_args={"output", "hippo_output"})
@@ -168,6 +172,8 @@ def hippo_rnn_forward_triton(
             c0_stride_b=None if hippo_state is None else hippo_state.stride(0),
             y_ptr=output,
             c_ptr=hippo_output,
+            c_stride_b=hippo_output.stride(0),
+            c_stride_s=hippo_output.stride(1),
             B=B,
             S=S,
             H=H,
