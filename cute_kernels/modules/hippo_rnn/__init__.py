@@ -11,7 +11,7 @@ from ...kernel_backend import KernelBackend
 from ...math import divide_if_divisible
 from ...torch_math import tanh
 from ...utils import ensure_contiguous
-from .triton_implementation import diagonal_hippo_rnn_backward_triton, hippo_rnn_forward_triton
+from .triton_implementation import hippo_rnn_backward_triton, hippo_rnn_forward_triton
 
 
 class _HiPPO_RNN_Cute(torch.autograd.Function):
@@ -70,6 +70,7 @@ class _HiPPO_RNN_Cute(torch.autograd.Function):
         ctx.save_for_backward(
             weight,
             hippo_weight,
+            compress_weight,
             hippo_A,
             hippo_B,
             output,
@@ -90,6 +91,7 @@ class _HiPPO_RNN_Cute(torch.autograd.Function):
         (
             weight,
             hippo_weight,
+            compress_weight,
             hippo_A,
             hippo_B,
             output,
@@ -105,11 +107,10 @@ class _HiPPO_RNN_Cute(torch.autograd.Function):
         hippo_weight_grad = torch.zeros_like(hippo_weight, dtype=torch.float32)
         compress_weight_grad = torch.zeros_like(compress_weight, dtype=torch.float32)
 
-        H = weight.size(-1)
-
         kwargs = {
             "weight": weight,
             "hippo_weight": hippo_weight,
+            "compress_weight": compress_weight,
             "hippo_A": hippo_A,
             "hippo_B": hippo_B,
             "output": output,
@@ -119,14 +120,13 @@ class _HiPPO_RNN_Cute(torch.autograd.Function):
             "output_grad": output_grad,
             "input_grad": input_grad,
             "weight_grad": weight_grad,
+            "hippo_weight_grad": hippo_weight_grad,
+            "compress_weight_grad": compress_weight_grad,
             "gradient_clipping": ctx.gradient_clipping,
         }
 
         if cu_seqlens is None:
-            if H == 1:
-                diagonal_hippo_rnn_backward_triton(**kwargs)
-            else:
-                raise NotImplementedError()
+            hippo_rnn_backward_triton(**kwargs)
         else:
             raise NotImplementedError()
 
