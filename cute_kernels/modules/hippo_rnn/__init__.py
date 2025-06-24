@@ -34,7 +34,7 @@ class _HiPPO_RNN_Cute(torch.autograd.Function):
         assert input.dim() in [3, 4]
         assert weight.dim() == 3
 
-        N, H = input.size()[-2:]
+        B, S, N, H = input.size()
         D = hippo_weight.size(1)
 
         assert weight.size() == (N, H, H)
@@ -46,7 +46,7 @@ class _HiPPO_RNN_Cute(torch.autograd.Function):
             gradient_clipping = -gradient_clipping
 
         output = torch.empty_like(input)
-        hippo_output = torch.empty(*input.size(), D, device=input.device, dtype=input.dtype)
+        hippo_output = torch.empty(B, S, N, D, device=input.device, dtype=input.dtype)
 
         kwargs = {
             "input": input,
