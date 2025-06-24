@@ -23,7 +23,7 @@ def _hippo_rnn_forward_update(x, h, c, W, Wh, Wc, hippo_A, hippo_B, I, s, ACTIVA
     A = I - hippo_A * s1
     B = hippo_B * s1
 
-    c = matmul(A=c, B=A, C=c, output_dtype=tl.float32)
+    c = matmul(A=c, B=A.T, C=None, output_dtype=tl.float32)
     f = matmul(A=h, B=Wc[:, None], C=None, output_dtype=x.dtype)
     c = matmul(A=f, B=B[None, :], C=c, output_dtype=x.dtype)
 
