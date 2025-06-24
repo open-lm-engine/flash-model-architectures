@@ -31,55 +31,78 @@ def _rnn_backward_update(y, W, dy, dW, y_prev, ACTIVATION_FUNCTION: tl.constexpr
 def hippo_rnn_backward_triton_kernel(
     W_ptr,
     W_stride_n,
+    Wh_ptr,
+    Wh_stride_n,
+    Wc_ptr,
+    hippo_A_ptr,
+    hippo_B_ptr,
     y_ptr,
     y_stride_b,
     y_stride_s,
+    c_ptr,
+    c_stride_b,
+    c_stride_s,
     h0_ptr,
     h0_stride_b,
+    c0_ptr,
+    c0_stride_b,
     dy_ptr,
     dx_ptr,
     dW_ptr,
+    dWh_ptr,
+    dWc_ptr,
     gradient_clipping,
     B,
     S,
     H,
+    D,
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
+    BLOCK_SIZE_D: tl.constexpr,
 ):
     pid_b = tl.program_id(axis=0)
     pid_n = tl.program_id(axis=1)
 
     indices_b = pid_b * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
     indices_h = tl.arange(0, BLOCK_SIZE_H)
-    indices_weight = pid_n * W_stride_n + indices_h[:, None] * H + indices_h[None, :]
+    indices_d = tl.arange(0, BLOCK_SIZE_D)
 
     mask_b = indices_b < B
     mask_h = indices_h < H
+    mask_d = indices_d < D
+
     mask_bh = mask_b[:, None] & mask_h[None, :]
     mask_hh = mask_h[:, None] & mask_h[None, :]
+    mask_bd = mask_b[:, None] & mask_d[None, :]
 
     dh = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=W_ptr.dtype.element_ty)
     dW = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
+    dWh = tl.zeros((BLOCK_SIZE_D, BLOCK_SIZE_H), dtype=tl.float32)
+    dWc = tl.zeros((BLOCK_SIZE_H,), dtype=tl.float32)
+
+    indices_weight = pid_n * W_stride_n + indices_h[:, None] * H + indices_h[None, :]
 
     W = tl.load(W_ptr + indices_weight, mask=mask_hh)
 
-    indices = indices_b[:, None] * y_stride_b + (S - 1) * y_stride_s + pid_n * H + indices_h[None, :]
-    y = tl.load(y_ptr + indices, mask=mask_bh)
+    indices_y = indices_b[:, None] * y_stride_b + (S - 1) * y_stride_s + pid_n * H + indices_h[None, :]
+    indices_c = indices_b[:, None] * c_stride_b + (S - 1) * c_stride_s + pid_n * D + indices_d[None, :]
+
+    y = tl.load(y_ptr + indices_y, mask=mask_bh)
 
     # backward counting reduces 1 instruction since we need to compare s == 0, otherwise we have to compare s == S - 1
     for s in range(S - 1, -1, -1):
         if gradient_clipping is not None:
             dh = clamp(dh, min_value=-gradient_clipping, max_value=gradient_clipping)
 
-        dy = tl.load(dy_ptr + indices, mask=mask_bh) + dh
+        dy = tl.load(dy_ptr + indices_y, mask=mask_bh) + dh
 
-        dx_ptrs = dx_ptr + indices
-        indices -= y_stride_s
+        dx_ptrs = dx_ptr + indices_y
+        indices_y -= y_stride_s
 
         y_prev = _load_previous_output(
             h0_ptr=h0_ptr,
             h0_stride_b=h0_stride_b,
-            y_ptrs=y_ptr + indices,
+            y_ptrs=y_ptr + indices_y,
             pid_n=pid_n,
             H=H,
             indices_b=indices_b,
@@ -87,6 +110,21 @@ def hippo_rnn_backward_triton_kernel(
             mask_bh=mask_bh,
             BLOCK_SIZE_B=BLOCK_SIZE_B,
             BLOCK_SIZE_H=BLOCK_SIZE_H,
+            s=s,
+            dtype=W.dtype,
+        )
+
+        c_prev = _load_previous_output(
+            h0_ptr=c0_ptr,
+            h0_stride_b=c0_stride_b,
+            y_ptrs=c_ptr + indices_c,
+            pid_n=pid_n,
+            H=D,
+            indices_b=indices_b,
+            indices_h=indices_d,
+            mask_bh=mask_bd,
+            BLOCK_SIZE_B=BLOCK_SIZE_B,
+            BLOCK_SIZE_H=BLOCK_SIZE_D,
             s=s,
             dtype=W.dtype,
         )
