@@ -308,7 +308,7 @@ class HiPPO_RNN(nn.Module):
             input_state = input_state.view(-1, self.num_heads, self.state_head_dim)
 
         if hippo_state is not None:
-            hippo_state = hippo_state.view(-1, self.num_heads, self.state_head_dim, self.hippo_size)
+            hippo_state = hippo_state.view(-1, self.num_heads, self.hippo_size)
 
         input = hippo_rnn_cute(
             input=input,
