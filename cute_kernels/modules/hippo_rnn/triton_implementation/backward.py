@@ -10,20 +10,7 @@ from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
 from ....triton_math import clamp, matmul
 from ....utils import cute_op
-from ...rnn.triton_implementation.backward import _activation_backward, _load_previous_output
 from .forward import _get_autotune_configs
-
-
-@triton.jit
-def _rnn_backward_update(y, W, dy, dW, y_prev, ACTIVATION_FUNCTION: tl.constexpr, relu_negative_slope):
-    dx = _activation_backward(
-        y=y, dy=dy, ACTIVATION_FUNCTION=ACTIVATION_FUNCTION, relu_negative_slope=relu_negative_slope
-    )
-
-    dh = matmul(A=dx, B=W.T, C=None, output_dtype=dx.dtype)
-    dW = matmul(A=y_prev.T, B=dx, C=dW, output_dtype=dW.dtype)
-
-    return dx, dW, dh
 
 
 @triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_H"], reset_to_zero=["dW_ptr"])
@@ -99,35 +86,23 @@ def hippo_rnn_backward_triton_kernel(
         dx_ptrs = dx_ptr + indices_y
         indices_y -= y_stride_s
 
-        y_prev = _load_previous_output(
-            h0_ptr=h0_ptr,
-            h0_stride_b=h0_stride_b,
-            y_ptrs=y_ptr + indices_y,
-            pid_n=pid_n,
-            H=H,
-            indices_b=indices_b,
-            indices_h=indices_h,
-            mask_bh=mask_bh,
-            BLOCK_SIZE_B=BLOCK_SIZE_B,
-            BLOCK_SIZE_H=BLOCK_SIZE_H,
-            s=s,
-            dtype=W.dtype,
-        )
+        if s == 0:
+            if h0_ptr is None:
+                y_prev = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=W.dtype)
+            else:
+                y_prev = tl.load(
+                    h0_ptr + indices_b[:, None] * h0_stride_b + pid_n * H + indices_h[None, :], mask=mask_bh
+                )
 
-        c_prev = _load_previous_output(
-            h0_ptr=c0_ptr,
-            h0_stride_b=c0_stride_b,
-            y_ptrs=c_ptr + indices_c,
-            pid_n=pid_n,
-            H=D,
-            indices_b=indices_b,
-            indices_h=indices_d,
-            mask_bh=mask_bd,
-            BLOCK_SIZE_B=BLOCK_SIZE_B,
-            BLOCK_SIZE_H=BLOCK_SIZE_D,
-            s=s,
-            dtype=W.dtype,
-        )
+            if c0_ptr is None:
+                c_prev = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_D), dtype=W.dtype)
+            else:
+                c_prev = tl.load(
+                    c0_ptr + indices_b[:, None] * h0_stride_b + pid_n * D + indices_d[None, :], mask=mask_bd
+                )
+        else:
+            y_prev = tl.load(y_ptr + indices_y, mask=mask_bh)
+            c_prev = tl.load(c_ptr + indices_c, mask=mask_bd)
 
         dx, dW, dh = _rnn_backward_update(
             y=y,
