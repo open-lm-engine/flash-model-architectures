@@ -79,34 +79,19 @@ def gru_forward_triton_kernel(
     indices = indices_b[:, None] * x_stride_b + pid_n * H + indices_h[None, :]
 
     for _ in range(S):
-        r = _rnn_forward_update(
-            h=h,
-            W=Wr,
-            x=tl.load(xr_ptr + indices, mask=mask_bh),
-            ACTIVATION_FUNCTION="sigmoid",
-            relu_negative_slope=None,
-        )
-
+        x = tl.load(xr_ptr + indices, mask=mask_bh)
+        r = matmul(A=h, B=Wr, C=x, output_dtype=tl.float32)
+        r = sigmoid(r, output_dtype=x.dtype)
         tl.store(r_ptr + indices, r, mask=mask_bh)
 
-        z = _rnn_forward_update(
-            h=h * r,
-            W=W,
-            x=tl.load(x_ptr + indices, mask=mask_bh),
-            ACTIVATION_FUNCTION="tanh",
-            relu_negative_slope=None,
-        )
-
+        x = tl.load(x_ptr + indices, mask=mask_bh)
+        z = matmul(A=h * r, B=W, C=x, output_dtype=tl.float32)
+        z = tanh(z, output_dtype=x.dtype)
         tl.store(z_ptr + indices, z, mask=mask_bh)
 
-        f = _rnn_forward_update(
-            h=h,
-            W=Wf,
-            x=tl.load(xf_ptr + indices, mask=mask_bh),
-            ACTIVATION_FUNCTION="sigmoid",
-            relu_negative_slope=None,
-        )
-
+        x = tl.load(xf_ptr + indices, mask=mask_bh)
+        f = matmul(A=h, B=Wf, C=x, output_dtype=tl.float32)
+        f = sigmoid(f, output_dtype=x.dtype)
         tl.store(f_ptr + indices, f, mask=mask_bh)
 
         h = f * h + (1 - f) * z
