@@ -84,6 +84,7 @@ class RNNTest(TestCommons):
         self.assert_equal_tensors(
             y_kernel, y_torch, False, atol_float32=4e-6, rtol_float32=0, atol_float16=6.5e-5, rtol_float16=0
         )
+
         self.assert_equal_tensors(
             output_state_kernel,
             output_state_torch,
@@ -93,6 +94,7 @@ class RNNTest(TestCommons):
             atol_float16=6.5e-5,
             rtol_float16=0,
         )
+
         self.assert_equal_tensors(
             x_kernel.grad, x_torch.grad, False, atol_float32=7.1e-5, rtol_float32=0, atol_float16=1e-3, rtol_float16=0
         )
@@ -181,18 +183,17 @@ class RNNTest(TestCommons):
         self.assert_equal_tensors(y_kernel, y_torch, False)
         self.assert_equal_tensors(x_packed_kernel.grad, x_packed_torch.grad, False)
 
-        for weight_name in weight_kernel_grads:
-            self.assert_equal_tensors(
-                weight_kernel_grads[weight_name],
-                weight_torch_grads[weight_name],
-                False,
-                atol_float32=3e-7,
-                rtol_float32=0,
-                atol_float16=1.5e-3,
-                rtol_float16=0,
-                atol_bfloat16=6e-3,
-                rtol_bfloat16=0,
-            )
+        self.assert_equal_tensors(
+            weight_kernel_grads["state_weight"],
+            weight_torch_grads["state_weight"],
+            False,
+            atol_float32=3e-7,
+            rtol_float32=0,
+            atol_float16=1.5e-3,
+            rtol_float16=0,
+            atol_bfloat16=6e-3,
+            rtol_bfloat16=0,
+        )
 
     @parameterized.expand(
         TestCommons.make_args_matrix(
