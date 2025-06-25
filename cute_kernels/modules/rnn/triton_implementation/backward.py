@@ -98,15 +98,9 @@ def rnn_backward_triton_kernel(
         else:
             y_prev = tl.load(y_ptr + indices, mask=mask_bh)
 
-        dx, dW, dh = _rnn_backward_update(
-            y=y,
-            W=W,
-            dy=dy,
-            dW=dW,
-            y_prev=y_prev,
-            ACTIVATION_FUNCTION="tanh",
-            relu_negative_slope=None,
-        )
+        dx = dy * tanh_backward(y)
+        dh = matmul(A=dx, B=W.T, C=None, output_dtype=dx.dtype)
+        dW = matmul(A=y_prev.T, B=dx, C=dW, output_dtype=dW.dtype)
 
         tl.store(dx_ptrs, dx, mask=mask_bh)
         y = y_prev
