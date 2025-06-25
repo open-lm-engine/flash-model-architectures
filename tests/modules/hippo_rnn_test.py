@@ -24,7 +24,7 @@ class RNNTest(TestCommons):
             [256],  # state_size
             [7],  # hippo_size
             [64],  # num_heads
-            [False],  # has_input_state
+            [False, True],  # has_input_state
             [False],  # is_compiling
         )
     )

@@ -96,12 +96,9 @@ def hippo_rnn_forward_triton_kernel(
         h = tanh(h, output_dtype=x.dtype)
 
         s1 = (1 / s).to(c.dtype)
-        A = I - hippo_A * s1
-        B = hippo_B * s1
-
         f = matmul(A=h, B=Wc[:, None], C=None, output_dtype=x.dtype)
-        c = matmul(A=c, B=A.T, C=None, output_dtype=tl.float32)
-        c = matmul(A=f, B=B[None, :], C=c, output_dtype=x.dtype)
+        c = matmul(A=c, B=(I - hippo_A * s1).T, C=None, output_dtype=tl.float32)
+        c = matmul(A=f, B=(hippo_B * s1)[None, :], C=c, output_dtype=x.dtype)
 
         tl.store(y_ptr + indices_x, h, mask=mask_bh)
         tl.store(c_ptr + indices_c, c, mask=mask_bh)
