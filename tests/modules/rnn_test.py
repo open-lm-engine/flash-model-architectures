@@ -94,7 +94,7 @@ class RNNTest(TestCommons):
             rtol_float16=0,
         )
         self.assert_equal_tensors(
-            x_kernel.grad, x_torch.grad, False, atol_float32=6e-3, rtol_float32=0, atol_float16=2e-3, rtol_float16=0
+            x_kernel.grad, x_torch.grad, False, atol_float32=7.1e-5, rtol_float32=0, atol_float16=1e-3, rtol_float16=0
         )
 
         for weight_name in weight_kernel_grads:
