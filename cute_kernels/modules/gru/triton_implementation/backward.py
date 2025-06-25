@@ -138,10 +138,8 @@ def gru_backward_triton_kernel(
         dr = drh * y_prev
 
         dxr = dr * sigmoid_backward(r)
-        _dh = matmul(A=dxr, B=Wr.T, C=None, output_dtype=dx.dtype)
+        dh = matmul(A=dxr, B=Wr.T, C=dh, output_dtype=dx.dtype)
         dWr = matmul(A=y_prev.T, B=dxr, C=dWr, output_dtype=dW.dtype)
-
-        dh += _dh
         tl.store(dxr_ptrs, dxr, mask=mask_bh)
 
     tl.atomic_add(dW_ptr + indices_W, dW, mask=mask_hh)
