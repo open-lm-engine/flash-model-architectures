@@ -90,7 +90,7 @@ def hippo_rnn_backward_triton_kernel(
     y = tl.load(y_ptr + indices_y, mask=mask_bh)
 
     # backward counting reduces 1 instruction since we need to compare s == 0, otherwise we have to compare s == S - 1
-    for s in range(S - 1, -1, -1):
+    for s in range(S, 0, -1):
         if gradient_clipping is not None:
             dh = clamp(dh, min_value=-gradient_clipping, max_value=gradient_clipping)
 
@@ -105,7 +105,7 @@ def hippo_rnn_backward_triton_kernel(
         indices_y -= y_stride_s
         indices_c -= c_stride_s
 
-        if s == 0:
+        if s == 1:
             if h0_ptr is None:
                 y_prev = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=W.dtype)
             else:
