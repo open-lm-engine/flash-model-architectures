@@ -38,6 +38,7 @@ def diagonal_rnn_backward_triton_kernel(
 
     mask_b = indices_b < B
     mask_n = indices_n < N
+
     mask_bn = mask_b[:, None] & mask_n[None, :]
 
     dh = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_N), dtype=W_ptr.dtype.element_ty)
