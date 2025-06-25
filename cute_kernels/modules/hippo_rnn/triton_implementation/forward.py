@@ -8,26 +8,9 @@ import triton.language as tl
 
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
-from ....triton_math import matmul
+from ....triton_math import matmul, tanh
 from ....utils import cute_op
-from ...rnn.triton_implementation.forward import _activation, _get_autotune_configs
-
-
-@triton.jit
-def _hippo_rnn_forward_update(x, h, c, W, Wh, Wc, hippo_A, hippo_B, I, s, ACTIVATION_FUNCTION, relu_negative_slope):
-    h = matmul(A=h, B=W, C=x, output_dtype=tl.float32)
-    h = matmul(A=c, B=Wh, C=h, output_dtype=x.dtype)
-    h = _activation(x=h, ACTIVATION_FUNCTION=ACTIVATION_FUNCTION, relu_negative_slope=relu_negative_slope)
-
-    s1 = (1 / s).to(c.dtype)
-    A = I - hippo_A * s1
-    B = hippo_B * s1
-
-    c = matmul(A=c, B=A.T, C=None, output_dtype=tl.float32)
-    f = matmul(A=h, B=Wc[:, None], C=None, output_dtype=x.dtype)
-    c = matmul(A=f, B=B[None, :], C=c, output_dtype=x.dtype)
-
-    return h, c
+from ...rnn.triton_implementation.forward import _get_autotune_configs
 
 
 @triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_H"])
@@ -108,20 +91,17 @@ def hippo_rnn_forward_triton_kernel(
     for s in range(1, S + 1):
         x = tl.load(x_ptr + indices_x, mask=mask_bh)
 
-        h, c = _hippo_rnn_forward_update(
-            x=x,
-            h=h,
-            c=c,
-            W=W,
-            Wh=Wh,
-            Wc=Wc,
-            hippo_A=hippo_A,
-            hippo_B=hippo_B,
-            I=I,
-            s=s,
-            ACTIVATION_FUNCTION="tanh",
-            relu_negative_slope=None,
-        )
+        h = matmul(A=h, B=W, C=x, output_dtype=tl.float32)
+        h = matmul(A=c, B=Wh, C=h, output_dtype=tl.float32)
+        h = tanh(h, output_dtype=x.dtype)
+
+        s1 = (1 / s).to(c.dtype)
+        A = I - hippo_A * s1
+        B = hippo_B * s1
+
+        f = matmul(A=h, B=Wc[:, None], C=None, output_dtype=x.dtype)
+        c = matmul(A=c, B=A.T, C=None, output_dtype=tl.float32)
+        c = matmul(A=f, B=B[None, :], C=c, output_dtype=x.dtype)
 
         tl.store(y_ptr + indices_x, h, mask=mask_bh)
         tl.store(c_ptr + indices_c, c, mask=mask_bh)
