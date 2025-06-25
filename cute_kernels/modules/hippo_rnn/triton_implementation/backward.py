@@ -142,9 +142,14 @@ def hippo_rnn_backward_triton(
     gradient_clipping: float | None,
 ) -> None:
     B, S, N, H = output.size()
+    D = hippo_A.size(0)
 
     BLOCK_SIZE_H = get_next_power_of_2(H)
     BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
+
+    BLOCK_SIZE_D = get_next_power_of_2(D)
+    BLOCK_SIZE_D = max(16, BLOCK_SIZE_D)
+
     GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), N)
 
     with torch.device(output.device):
@@ -159,6 +164,9 @@ def hippo_rnn_backward_triton(
             y_ptr=output,
             y_stride_b=output.stride(0),
             y_stride_s=output.stride(1),
+            c_ptr=hippo_output,
+            c_stride_b=hippo_output.stride(0),
+            c_stride_s=hippo_output.stride(1),
             h0_ptr=input_state,
             h0_stride_b=None if input_state is None else input_state.stride(0),
             c0_ptr=hippo_state,
@@ -166,9 +174,13 @@ def hippo_rnn_backward_triton(
             dy_ptr=output_grad,
             dx_ptr=input_grad,
             dW_ptr=weight_grad,
+            dWh_ptr=hippo_weight_grad,
+            dWc_ptr=compress_weight_grad,
             gradient_clipping=gradient_clipping,
             B=B,
             S=S,
             H=H,
+            D=D,
             BLOCK_SIZE_H=BLOCK_SIZE_H,
+            BLOCK_SIZE_D=BLOCK_SIZE_D,
         )
