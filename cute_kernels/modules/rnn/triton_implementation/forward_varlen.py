@@ -8,8 +8,9 @@ import triton.language as tl
 
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
+from ....triton_math import matmul, tanh
 from ....utils import cute_op
-from .forward import _get_autotune_configs, _rnn_forward_update
+from .forward import _get_autotune_configs
 
 
 @triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_H"])
@@ -38,6 +39,7 @@ def rnn_varlen_forward_triton_kernel(
 
     mask_b = indices_b < B
     mask_h = indices_h < H
+
     mask_bh = mask_b[:, None] & mask_h[None, :]
 
     W = tl.load(
@@ -65,14 +67,9 @@ def rnn_varlen_forward_triton_kernel(
         unfinished = start < end
         mask = unfinished & mask_h[None, :]
 
-        h = _rnn_forward_update(
-            h=h,
-            W=W,
-            x=tl.load(x_ptr + indices, mask=mask_bh),
-            ACTIVATION_FUNCTION="tanh",
-            relu_negative_slope=None,
-        )
-
+        x = tl.load(x_ptr + indices, mask=mask_bh)
+        h = matmul(A=h, B=W, C=x, output_dtype=tl.float32)
+        h = tanh(h, output_dtype=x.dtype)
         tl.store(y_ptr + indices, h, mask=mask)
 
         indices += x_stride_t
