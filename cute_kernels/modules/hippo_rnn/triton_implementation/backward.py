@@ -61,7 +61,7 @@ def hippo_rnn_backward_triton_kernel(
     mask_bh = mask_b[:, None] & mask_h[None, :]
     mask_hh = mask_h[:, None] & mask_h[None, :]
     mask_bd = mask_b[:, None] & mask_d[None, :]
-    mask_dh = mask_d[:, None] & mask_h[None, :]
+    mask_dh = mask_d[:, None] & mask_d[None, :]
 
     dh = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=W_ptr.dtype.element_ty)
     dc = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_D), dtype=W_ptr.dtype.element_ty)
