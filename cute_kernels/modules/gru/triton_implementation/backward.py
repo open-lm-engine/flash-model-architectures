@@ -76,6 +76,7 @@ def gru_backward_triton_kernel(
 
     mask_b = indices_b < B
     mask_h = indices_h < H
+
     mask_bh = mask_b[:, None] & mask_h[None, :]
     mask_hh = mask_h[:, None] & mask_h[None, :]
 
@@ -120,18 +121,12 @@ def gru_backward_triton_kernel(
         dz = dy * (1 - f)
         df = dy * (y_prev - z)
 
-        dx, dW, drh = _rnn_backward_update(
-            y=z,
-            W=W,
-            dy=dz,
-            dW=dW,
-            y_prev=r * y_prev,
-            ACTIVATION_FUNCTION="tanh",
-            relu_negative_slope=None,
-        )
+        dx = dz * tanh_backward(z)
+        drh = matmul(A=dx, B=W.T, C=None, output_dtype=dx.dtype)
+        dW = matmul(A=(r * y_prev).T, B=dx, C=dW, output_dtype=dW.dtype)
+        tl.store(dx_ptrs, dx, mask=mask_bh)
 
         dh += drh * r
-        tl.store(dx_ptrs, dx, mask=mask_bh)
 
         dxf, dWf, _dh = _rnn_backward_update(
             y=f,
