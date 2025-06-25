@@ -101,7 +101,7 @@ def hippo_rnn_forward_triton_kernel(
         c = matmul(A=f, B=(hippo_B * s1)[None, :], C=c, output_dtype=x.dtype)
 
         tl.store(y_ptr + indices_x, h, mask=mask_bh)
-        tl.store(c_ptr + indices_c, c, mask=mask_bh)
+        tl.store(c_ptr + indices_c, c, mask=mask_bd)
 
         indices_x += x_stride_s
         indices_c += c_stride_s
