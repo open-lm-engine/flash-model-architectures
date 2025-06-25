@@ -10,7 +10,7 @@ from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
 from ....triton_math import clamp
 from ....utils import cute_op
-from ...rnn.triton_implementation.backward import _get_autotune_configs, _load_previous_output, _rnn_backward_update
+from ...rnn.triton_implementation.backward import _get_autotune_configs, _rnn_backward_update
 
 
 @triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_H"], reset_to_zero=["dW_ptr", "dWf_ptr", "dWr_ptr"])
@@ -81,20 +81,15 @@ def gru_backward_triton_kernel(
 
         indices -= y_stride_s
 
-        y_prev = _load_previous_output(
-            h0_ptr=h0_ptr,
-            h0_stride_b=h0_stride_b,
-            y_ptrs=y_ptr + indices,
-            pid_n=pid_n,
-            H=H,
-            indices_b=indices_b,
-            indices_h=indices_h,
-            mask_bh=mask_bh,
-            BLOCK_SIZE_B=BLOCK_SIZE_B,
-            BLOCK_SIZE_H=BLOCK_SIZE_H,
-            s=s,
-            dtype=W.dtype,
-        )
+        if s == 0:
+            if h0_ptr is None:
+                y_prev = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=W.dtype)
+            else:
+                y_prev = tl.load(
+                    h0_ptr + indices_b[:, None] * h0_stride_b + pid_n * H + indices_h[None, :], mask=mask_bh
+                )
+        else:
+            y_prev = tl.load(y_ptr + indices, mask=mask_bh)
 
         dh = f * dy
         dz = dy * (1 - f)

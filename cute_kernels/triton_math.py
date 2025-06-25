@@ -31,12 +31,13 @@ def sigmoid(x, MIN_EXP_FP32: tl.constexpr = -88.3762626647949, MAX_EXP_FP32: tl.
 
 
 @triton.jit
-def tanh(x):
-    dtype = x.dtype
+def tanh(x, output_dtype: tl.constexpr = None):
+    if output_dtype is None:
+        output_dtype = x.dtype
 
     x = x.to(tl.float32)
     x = 2 * sigmoid(2 * x) - 1
-    x = x.to(dtype)
+    x = x.to(output_dtype)
 
     return x
 
@@ -105,6 +106,6 @@ def matmul(A, B, C, output_dtype: tl.constexpr):
             if output_dtype == tl.bfloat16:
                 x = tl.dot(A, B, C.to(tl.float32), out_dtype=tl.float32).to(output_dtype)
             else:
-                x = tl.dot(A, B, C, out_dtype=output_dtype)
+                x = tl.dot(A, B, C.to(tl.float32), out_dtype=output_dtype)
 
     return x

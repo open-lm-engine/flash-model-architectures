@@ -37,32 +37,6 @@ def _rnn_backward_update(y, W, dy, dW, y_prev, ACTIVATION_FUNCTION: tl.constexpr
     return dx, dW, dh
 
 
-@triton.jit
-def _load_previous_output(
-    h0_ptr,
-    h0_stride_b,
-    y_ptrs,
-    pid_n,
-    H,
-    indices_b,
-    indices_h,
-    mask_bh,
-    BLOCK_SIZE_B: tl.constexpr,
-    BLOCK_SIZE_H: tl.constexpr,
-    s,
-    dtype,
-):
-    if s == 0:
-        if h0_ptr is None:
-            y_prev = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=dtype)
-        else:
-            y_prev = tl.load(h0_ptr + indices_b[:, None] * h0_stride_b + pid_n * H + indices_h[None, :], mask=mask_bh)
-    else:
-        y_prev = tl.load(y_ptrs, mask=mask_bh)
-
-    return y_prev
-
-
 @triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_H"], reset_to_zero=["dW_ptr"])
 @triton.jit
 def rnn_backward_triton_kernel(
@@ -92,6 +66,7 @@ def rnn_backward_triton_kernel(
 
     mask_b = indices_b < B
     mask_h = indices_h < H
+
     mask_bh = mask_b[:, None] & mask_h[None, :]
     mask_hh = mask_h[:, None] & mask_h[None, :]
 
@@ -113,20 +88,15 @@ def rnn_backward_triton_kernel(
         dx_ptrs = dx_ptr + indices
         indices -= y_stride_s
 
-        y_prev = _load_previous_output(
-            h0_ptr=h0_ptr,
-            h0_stride_b=h0_stride_b,
-            y_ptrs=y_ptr + indices,
-            pid_n=pid_n,
-            H=H,
-            indices_b=indices_b,
-            indices_h=indices_h,
-            mask_bh=mask_bh,
-            BLOCK_SIZE_B=BLOCK_SIZE_B,
-            BLOCK_SIZE_H=BLOCK_SIZE_H,
-            s=s,
-            dtype=W.dtype,
-        )
+        if s == 0:
+            if h0_ptr is None:
+                y_prev = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=W.dtype)
+            else:
+                y_prev = tl.load(
+                    h0_ptr + indices_b[:, None] * h0_stride_b + pid_n * H + indices_h[None, :], mask=mask_bh
+                )
+        else:
+            y_prev = tl.load(y_ptr + indices, mask=mask_bh)
 
         dx, dW, dh = _rnn_backward_update(
             y=y,

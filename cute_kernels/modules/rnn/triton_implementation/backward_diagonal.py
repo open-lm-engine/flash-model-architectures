@@ -26,30 +26,6 @@ def _rnn_backward_update(y, W, dy, dW, y_prev, ACTIVATION_FUNCTION: tl.constexpr
     return dx, dW, dh
 
 
-@triton.jit
-def _load_previous_output(
-    h0_ptr,
-    y_ptrs,
-    N,
-    indices_b,
-    indices_n,
-    mask_bn,
-    BLOCK_SIZE_B: tl.constexpr,
-    BLOCK_SIZE_N: tl.constexpr,
-    s,
-    dtype,
-):
-    if s == 0:
-        if h0_ptr is None:
-            y_prev = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_N), dtype=dtype)
-        else:
-            y_prev = tl.load(h0_ptr + indices_b[:, None] * N + indices_n[None, :], mask=mask_bn)
-    else:
-        y_prev = tl.load(y_ptrs, mask=mask_bn)
-
-    return y_prev
-
-
 @triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_N"], reset_to_zero=["dW_ptr"])
 @triton.jit
 def diagonal_rnn_backward_triton_kernel(
@@ -95,18 +71,13 @@ def diagonal_rnn_backward_triton_kernel(
         dx_ptrs = dx_ptr + indices
         indices -= N
 
-        y_prev = _load_previous_output(
-            h0_ptr=h0_ptr,
-            y_ptrs=y_ptr + indices,
-            N=N,
-            indices_b=indices_b,
-            indices_n=indices_n,
-            mask_bn=mask_bn,
-            BLOCK_SIZE_B=BLOCK_SIZE_B,
-            BLOCK_SIZE_N=BLOCK_SIZE_N,
-            s=s,
-            dtype=W.dtype,
-        )
+        if s == 0:
+            if h0_ptr is None:
+                y_prev = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_N), dtype=W.dtype)
+            else:
+                y_prev = tl.load(h0_ptr + indices_b[:, None] * N + indices_n[None, :], mask=mask_bn)
+        else:
+            y_prev = tl.load(y_ptr + indices, mask=mask_bn)
 
         dx, dW, dh = _rnn_backward_update(
             y=y,

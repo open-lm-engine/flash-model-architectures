@@ -8,8 +8,8 @@ import triton.language as tl
 
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2, get_powers_of_2
+from ....triton_math import tanh
 from ....utils import cute_op
-from .forward import _activation
 
 
 def _get_autotune_configs() -> list[triton.Config]:
@@ -22,13 +22,6 @@ def _get_autotune_configs() -> list[triton.Config]:
                 )
 
     return configs
-
-
-@triton.jit
-def _rnn_forward_update(h, W, x, ACTIVATION_FUNCTION, relu_negative_slope):
-    h = W * h + x
-    h = _activation(x=h, ACTIVATION_FUNCTION=ACTIVATION_FUNCTION, relu_negative_slope=relu_negative_slope)
-    return h
 
 
 @triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_N"])
@@ -53,6 +46,7 @@ def diagonal_rnn_forward_triton_kernel(
 
     mask_b = indices_b < B
     mask_n = indices_n < N
+
     mask_bn = mask_b[:, None] & mask_n[None, :]
 
     W = tl.load(W_ptr + indices_n, mask=mask_n)[None, :]
@@ -65,14 +59,9 @@ def diagonal_rnn_forward_triton_kernel(
     indices = indices_b[:, None] * x_stride_b + indices_n[None, :]
 
     for _ in range(S):
-        h = _rnn_forward_update(
-            h=h,
-            W=W,
-            x=tl.load(x_ptr + indices, mask=mask_bn),
-            ACTIVATION_FUNCTION="tanh",
-            relu_negative_slope=None,
-        )
-
+        x = tl.load(x_ptr + indices, mask=mask_bn)
+        h = W * h + x
+        h = tanh(h)
         tl.store(y_ptr + indices, h, mask=mask_bn)
 
         indices += N

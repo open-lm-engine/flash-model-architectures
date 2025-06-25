@@ -8,8 +8,26 @@ import triton.language as tl
 
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
+from ....triton_math import matmul, sigmoid, tanh
 from ....utils import cute_op
-from ...rnn.triton_implementation.forward import _get_autotune_configs, _rnn_forward_update
+from ...rnn.triton_implementation.forward import _get_autotune_configs
+
+
+@triton.jit
+def _activation(x, ACTIVATION_FUNCTION, relu_negative_slope):
+    if ACTIVATION_FUNCTION == "sigmoid":
+        x = sigmoid(x)
+    elif ACTIVATION_FUNCTION == "tanh":
+        x = tanh(x)
+
+    return x
+
+
+@triton.jit
+def _rnn_forward_update(h, W, x, ACTIVATION_FUNCTION, relu_negative_slope):
+    h = matmul(A=h, B=W, C=x, output_dtype=x.dtype)
+    h = _activation(x=h, ACTIVATION_FUNCTION=ACTIVATION_FUNCTION, relu_negative_slope=relu_negative_slope)
+    return h
 
 
 @triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_H"])
