@@ -128,15 +128,9 @@ def gru_backward_triton_kernel(
 
         dh += drh * r
 
-        dxf, dWf, _dh = _rnn_backward_update(
-            y=f,
-            W=Wf,
-            dy=df,
-            dW=dWf,
-            y_prev=y_prev,
-            ACTIVATION_FUNCTION="sigmoid",
-            relu_negative_slope=None,
-        )
+        dxf = df * sigmoid_backward(f)
+        _dh = matmul(A=dxf, B=Wf.T, C=None, output_dtype=dx.dtype)
+        dWf = matmul(A=y_prev.T, B=dxf, C=dWf, output_dtype=dW.dtype)
 
         dh += _dh
         tl.store(dxf_ptrs, dxf, mask=mask_bh)
