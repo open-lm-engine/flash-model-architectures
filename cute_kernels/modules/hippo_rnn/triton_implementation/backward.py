@@ -88,7 +88,6 @@ def hippo_rnn_backward_triton_kernel(
     hippo_B = tl.load(hippo_B_ptr + indices_d, mask=mask_d)
 
     y = tl.load(y_ptr + indices_y, mask=mask_bh)
-    c = tl.load(c_ptr + indices_c, mask=mask_bd)
 
     # backward counting reduces 1 instruction since we need to compare s == 0, otherwise we have to compare s == S - 1
     for s in range(S - 1, -1, -1):
@@ -97,12 +96,14 @@ def hippo_rnn_backward_triton_kernel(
 
         dy = tl.load(dy_ptr + indices_y, mask=mask_bh) + dh
 
-        s1 = (1 / s).to(c.dtype)
+        s1 = (1 / s).to(y.dtype)
         df = matmul(A=dc, B=(hippo_B * s1)[:, None], C=None, output_dtype=y.dtype)
         dy = matmul(A=df, B=Wc[None, :], C=dy, output_dtype=y.dtype)
+        dWc = matmul(A=y.T, B=df, C=None, output_dtype=y.dtype)
 
         dx_ptrs = dx_ptr + indices_y
         indices_y -= y_stride_s
+        indices_c -= c_stride_s
 
         if s == 0:
             if h0_ptr is None:
@@ -116,7 +117,7 @@ def hippo_rnn_backward_triton_kernel(
                 c_prev = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_D), dtype=W.dtype)
             else:
                 c_prev = tl.load(
-                    c0_ptr + indices_b[:, None] * h0_stride_b + pid_n * D + indices_d[None, :], mask=mask_bd
+                    c0_ptr + indices_b[:, None] * c0_stride_b + pid_n * D + indices_d[None, :], mask=mask_bd
                 )
         else:
             y_prev = tl.load(y_ptr + indices_y, mask=mask_bh)
@@ -124,15 +125,19 @@ def hippo_rnn_backward_triton_kernel(
 
         dx = dy * tanh_backward(y)
         dh = matmul(A=dx, B=W.T, C=None, output_dtype=dx.dtype)
-        dc = matmul(A=dx, B=Wc.T, C=None, output_dtype=dx.dtype)
         dW = matmul(A=y_prev.T, B=dx, C=dW, output_dtype=dW.dtype)
         dWh = matmul(A=c_prev.T, B=dx, C=dWh, output_dtype=dWh.dtype)
+        _dc = matmul(A=dx, B=Wh.T, C=None, output_dtype=dx.dtype)
+
+        dc = matmul(A=dc, B=I - hippo_A * s1, C=_dc, output_dtype=dx.dtype)
 
         tl.store(dx_ptrs, dx, mask=mask_bh)
         y = y_prev
+        c = c_prev
 
     tl.atomic_add(dW_ptr + indices_W, dW, mask=mask_hh)
-    tl.atomic_add(dWc_ptr + indices_Wh, dWh, mask=mask_h)
+    tl.atomic_add(dWh_ptr + indices_Wh, dWh, mask=mask_h)
+    tl.atomic_add(dWc_ptr + indices_Wc, dWc, mask=mask_h)
 
 
 @cute_op(
