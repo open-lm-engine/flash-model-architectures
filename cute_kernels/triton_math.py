@@ -109,9 +109,6 @@ def matmul(A, B, C, output_dtype: tl.constexpr):
             else:
                 x = tl.dot(A, B, out_dtype=output_dtype)
         else:
-            if output_dtype == tl.bfloat16:
-                x = tl.dot(A, B, C.to(tl.float32), out_dtype=tl.float32).to(output_dtype)
-            else:
-                x = tl.dot(A, B, C.to(tl.float32), out_dtype=output_dtype)
+            x = tl.dot(A, B, C.to(tl.float32), out_dtype=tl.float32).to(output_dtype)
 
     return x
