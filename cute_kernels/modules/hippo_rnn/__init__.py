@@ -192,12 +192,7 @@ def hippo_rnn_cute(
 
         output = torch.empty_like(input)
 
-        compress_weight = compress_weight.unsqueeze(0).unsqueeze(-1)
-
-        hippo_A = hippo_A.unsqueeze(0).unsqueeze(0)
-        hippo_B = hippo_B.unsqueeze(0).unsqueeze(0).unsqueeze(-1)
-
-        D = hippo_A.size(-1)
+        D = hippo_A.size(0)
         I = torch.eye(D, device=hippo_A.device, dtype=hippo_A.dtype)
 
         if cu_seqlens is None:
@@ -215,29 +210,28 @@ def hippo_rnn_cute(
             # input_state -> (B, N, H)
             # hippo_state -> (B, N, D)
 
-            input_state = input_state.unsqueeze(-2)
-
             for s in range(S):
                 # (B, N, 1, H) = (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
-                input_state = input_state @ weight.unsqueeze(0) + input[:, s].unsqueeze(-2)
+                input_state = input_state.unsqueeze(-2) @ weight.unsqueeze(0) + input[:, s].unsqueeze(-2)
                 # (B, N, 1, H) = (B, N, 1, D) @ (1, N, D, H) + (B, N, 1, H)
                 input_state = hippo_state.unsqueeze(-2) @ hippo_weight.unsqueeze(0) + input_state
                 input_state = tanh(input_state)
 
                 # (B, N, 1, 1) = (B, N, 1, H) @ (1, N, H, 1)
-                compressed_input = input_state @ compress_weight
+                compressed_input = input_state @ compress_weight.unsqueeze(0).unsqueeze(-1)
 
                 # (B, N, D, 1) = (1, 1, D, D) @ (B, N, D, 1) + (1, 1, D, 1) @ (B, N, 1, 1)
-                hippo_state = (I - hippo_A / (s + 1)) @ hippo_state.unsqueeze(-1) + (
+                hippo_state = (I - hippo_A / (s + 1)).unsqueeze(0).unsqueeze(0) @ hippo_state.unsqueeze(-1) + (
                     hippo_B / (s + 1)
-                ) @ compressed_input
+                ).unsqueeze(0).unsqueeze(0).unsqueeze(-1) @ compressed_input
 
+                input_state = input_state.squeeze(-2)
                 hippo_state = hippo_state.squeeze(-1)
 
                 if gradient_clipping is not None:
                     input_state = _GradientClipping.apply(input_state, gradient_clipping)
 
-                output[:, s] = input_state.squeeze(-2)
+                output[:, s] = input_state
         else:
             raise NotImplementedError()
     else:
