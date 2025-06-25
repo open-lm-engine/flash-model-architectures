@@ -8,9 +8,9 @@ import triton.language as tl
 
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
-from ....triton_math import clamp
+from ....triton_math import clamp, tanh_backward
 from ....utils import cute_op
-from .backward_diagonal import _get_autotune_configs, _rnn_backward_update
+from .backward_diagonal import _get_autotune_configs
 
 
 @triton.jit
@@ -59,6 +59,7 @@ def diagonal_rnn_varlen_backward_triton_kernel(
 
     mask_b = indices_b < B
     mask_n = indices_n < N
+
     mask_bn = mask_b[:, None] & mask_n[None, :]
 
     dh = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_N), dtype=W_ptr.dtype.element_ty)
@@ -108,15 +109,9 @@ def diagonal_rnn_varlen_backward_triton_kernel(
             tl.load(y_ptr + indices, mask=mask & (indices >= 0)),
         )
 
-        dx, dW, dh = _rnn_backward_update(
-            y=y,
-            W=W,
-            dy=dy,
-            dW=dW,
-            y_prev=y_prev,
-            ACTIVATION_FUNCTION="tanh",
-            relu_negative_slope=None,
-        )
+        dx = dy * tanh_backward(y)
+        dh = dx * W
+        dW += tl.sum(y_prev * dx, axis=0)
 
         tl.store(dx_ptrs, dx, mask=mask)
         y = y_prev

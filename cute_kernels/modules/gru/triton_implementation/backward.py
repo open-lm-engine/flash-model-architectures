@@ -8,9 +8,10 @@ import triton.language as tl
 
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
-from ....triton_math import clamp
+from ....triton_math import clamp, matmul, sigmoid_backward, tanh_backward
 from ....utils import cute_op
-from ...rnn.triton_implementation.backward import _get_autotune_configs, _load_previous_output, _rnn_backward_update
+from ...rnn.triton_implementation.backward import _get_autotune_configs
+from .forward import _get_autotune_configs
 
 
 @triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_H"], reset_to_zero=["dW_ptr", "dWf_ptr", "dWr_ptr"])
@@ -51,6 +52,7 @@ def gru_backward_triton_kernel(
 
     mask_b = indices_b < B
     mask_h = indices_h < H
+
     mask_bh = mask_b[:, None] & mask_h[None, :]
     mask_hh = mask_h[:, None] & mask_h[None, :]
 
@@ -81,64 +83,35 @@ def gru_backward_triton_kernel(
 
         indices -= y_stride_s
 
-        y_prev = _load_previous_output(
-            h0_ptr=h0_ptr,
-            h0_stride_b=h0_stride_b,
-            y_ptrs=y_ptr + indices,
-            pid_n=pid_n,
-            H=H,
-            indices_b=indices_b,
-            indices_h=indices_h,
-            mask_bh=mask_bh,
-            BLOCK_SIZE_B=BLOCK_SIZE_B,
-            BLOCK_SIZE_H=BLOCK_SIZE_H,
-            s=s,
-            dtype=W.dtype,
-        )
+        if s == 0:
+            if h0_ptr is None:
+                y_prev = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=W.dtype)
+            else:
+                y_prev = tl.load(
+                    h0_ptr + indices_b[:, None] * h0_stride_b + pid_n * H + indices_h[None, :], mask=mask_bh
+                )
+        else:
+            y_prev = tl.load(y_ptr + indices, mask=mask_bh)
 
         dh = f * dy
         dz = dy * (1 - f)
         df = dy * (y_prev - z)
 
-        dx, dW, drh = _rnn_backward_update(
-            y=z,
-            W=W,
-            dy=dz,
-            dW=dW,
-            y_prev=r * y_prev,
-            ACTIVATION_FUNCTION="tanh",
-            relu_negative_slope=None,
-        )
-
-        dh += drh * r
+        dx = dz * tanh_backward(z)
+        drh = matmul(A=dx, B=W.T, C=None, output_dtype=dx.dtype)
+        dW = matmul(A=(r * y_prev).T, B=dx, C=dW, output_dtype=dW.dtype)
         tl.store(dx_ptrs, dx, mask=mask_bh)
 
-        dxf, dWf, _dh = _rnn_backward_update(
-            y=f,
-            W=Wf,
-            dy=df,
-            dW=dWf,
-            y_prev=y_prev,
-            ACTIVATION_FUNCTION="sigmoid",
-            relu_negative_slope=None,
-        )
+        dh += drh * r
 
-        dh += _dh
+        dxf = df * sigmoid_backward(f)
+        dh = matmul(A=dxf, B=Wf.T, C=dh, output_dtype=dx.dtype)
+        dWf = matmul(A=y_prev.T, B=dxf, C=dWf, output_dtype=dW.dtype)
         tl.store(dxf_ptrs, dxf, mask=mask_bh)
 
-        dr = drh * y_prev
-
-        dxr, dWr, _dh = _rnn_backward_update(
-            y=r,
-            W=Wr,
-            dy=dr,
-            dW=dWr,
-            y_prev=y_prev,
-            ACTIVATION_FUNCTION="sigmoid",
-            relu_negative_slope=None,
-        )
-
-        dh += _dh
+        dxr = drh * y_prev * sigmoid_backward(r)
+        dh = matmul(A=dxr, B=Wr.T, C=dh, output_dtype=dx.dtype)
+        dWr = matmul(A=y_prev.T, B=dxr, C=dWr, output_dtype=dW.dtype)
         tl.store(dxr_ptrs, dxr, mask=mask_bh)
 
     tl.atomic_add(dW_ptr + indices_W, dW, mask=mask_hh)
