@@ -61,17 +61,20 @@ def hippo_rnn_backward_triton_kernel(
     mask_bh = mask_b[:, None] & mask_h[None, :]
     mask_hh = mask_h[:, None] & mask_h[None, :]
     mask_bd = mask_b[:, None] & mask_d[None, :]
+    mask_dh = mask_d[:, None] & mask_h[None, :]
 
     dh = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=W_ptr.dtype.element_ty)
     dc = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_D), dtype=W_ptr.dtype.element_ty)
     dW = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
     dWh = tl.zeros((BLOCK_SIZE_D, BLOCK_SIZE_H), dtype=tl.float32)
-    dWc = tl.zeros((BLOCK_SIZE_H,), dtype=tl.float32)
+    dWc = tl.zeros((BLOCK_SIZE_H, 1), dtype=tl.float32)
 
     indices_W = pid_n * W_stride_n + indices_h[:, None] * H + indices_h[None, :]
+    indices_Wh = pid_n * Wh_stride_n + indices_d[:, None] * H + indices_h[None, :]
     indices_Wc = pid_n * H + indices_h
 
     W = tl.load(W_ptr + indices_W, mask=mask_hh)
+    Wh = tl.load(Wh_ptr + indices_Wh, mask=mask_dh)
     Wc = tl.load(Wc_ptr + indices_Wc, mask=mask_h)
 
     indices_y = indices_b[:, None] * y_stride_b + (S - 1) * y_stride_s + pid_n * H + indices_h[None, :]
@@ -98,8 +101,6 @@ def hippo_rnn_backward_triton_kernel(
         df = matmul(A=dc, B=(hippo_B * s1)[:, None], C=None, output_dtype=y.dtype)
         dy = matmul(A=df, B=Wc[None, :], C=dy, output_dtype=y.dtype)
 
-        dx = dy * tanh_backward(y)
-
         dx_ptrs = dx_ptr + indices_y
         indices_y -= y_stride_s
 
@@ -121,20 +122,17 @@ def hippo_rnn_backward_triton_kernel(
             y_prev = tl.load(y_ptr + indices_y, mask=mask_bh)
             c_prev = tl.load(c_ptr + indices_c, mask=mask_bd)
 
-        dx, dW, dh = _rnn_backward_update(
-            y=y,
-            W=W,
-            dy=dy,
-            dW=dW,
-            y_prev=y_prev,
-            ACTIVATION_FUNCTION="tanh",
-            relu_negative_slope=None,
-        )
+        dx = dy * tanh_backward(y)
+        dh = matmul(A=dx, B=W.T, C=None, output_dtype=dx.dtype)
+        dc = matmul(A=dx, B=Wc.T, C=None, output_dtype=dx.dtype)
+        dW = matmul(A=y_prev.T, B=dx, C=dW, output_dtype=dW.dtype)
+        dWh = matmul(A=c_prev.T, B=dx, C=dWh, output_dtype=dWh.dtype)
 
         tl.store(dx_ptrs, dx, mask=mask_bh)
         y = y_prev
 
     tl.atomic_add(dW_ptr + indices_W, dW, mask=mask_hh)
+    tl.atomic_add(dWc_ptr + indices_Wh, dWh, mask=mask_h)
 
 
 @cute_op(
