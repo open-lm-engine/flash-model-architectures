@@ -8,7 +8,7 @@ import triton.language as tl
 
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
-from ....triton_math import clamp, matmul
+from ....triton_math import clamp, matmul, tanh_backward
 from ....utils import cute_op
 from .forward import _get_autotune_configs
 
@@ -63,18 +63,29 @@ def hippo_rnn_backward_triton_kernel(
     mask_bd = mask_b[:, None] & mask_d[None, :]
 
     dh = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=W_ptr.dtype.element_ty)
+    dc = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_D), dtype=W_ptr.dtype.element_ty)
     dW = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
     dWh = tl.zeros((BLOCK_SIZE_D, BLOCK_SIZE_H), dtype=tl.float32)
     dWc = tl.zeros((BLOCK_SIZE_H,), dtype=tl.float32)
 
-    indices_weight = pid_n * W_stride_n + indices_h[:, None] * H + indices_h[None, :]
+    indices_W = pid_n * W_stride_n + indices_h[:, None] * H + indices_h[None, :]
+    indices_Wc = pid_n * H + indices_h
 
-    W = tl.load(W_ptr + indices_weight, mask=mask_hh)
+    W = tl.load(W_ptr + indices_W, mask=mask_hh)
+    Wc = tl.load(Wc_ptr + indices_Wc, mask=mask_h)
 
     indices_y = indices_b[:, None] * y_stride_b + (S - 1) * y_stride_s + pid_n * H + indices_h[None, :]
     indices_c = indices_b[:, None] * c_stride_b + (S - 1) * c_stride_s + pid_n * D + indices_d[None, :]
 
+    I = tl.where(indices_d[:, None] == indices_d[None, :], 1, 0).to(y_ptr.dtype.element_ty)
+
+    hippo_A = tl.load(
+        hippo_A_ptr + indices_d[:, None] * D + indices_d[None, :], mask=mask_d[:, None] & mask_d[None, :]
+    )
+    hippo_B = tl.load(hippo_B_ptr + indices_d, mask=mask_d)
+
     y = tl.load(y_ptr + indices_y, mask=mask_bh)
+    c = tl.load(c_ptr + indices_c, mask=mask_bd)
 
     # backward counting reduces 1 instruction since we need to compare s == 0, otherwise we have to compare s == S - 1
     for s in range(S - 1, -1, -1):
@@ -82,6 +93,12 @@ def hippo_rnn_backward_triton_kernel(
             dh = clamp(dh, min_value=-gradient_clipping, max_value=gradient_clipping)
 
         dy = tl.load(dy_ptr + indices_y, mask=mask_bh) + dh
+
+        s1 = (1 / s).to(c.dtype)
+        df = matmul(A=dc, B=(hippo_B * s1)[:, None], C=None, output_dtype=y.dtype)
+        dy = matmul(A=df, B=Wc[None, :], C=dy, output_dtype=y.dtype)
+
+        dx = dh * tanh_backward(y)
 
         dx_ptrs = dx_ptr + indices_y
         indices_y -= y_stride_s
@@ -117,7 +134,7 @@ def hippo_rnn_backward_triton_kernel(
         tl.store(dx_ptrs, dx, mask=mask_bh)
         y = y_prev
 
-    tl.atomic_add(dW_ptr + indices_weight, dW, mask=mask_hh)
+    tl.atomic_add(dW_ptr + indices_W, dW, mask=mask_hh)
 
 
 @cute_op(
