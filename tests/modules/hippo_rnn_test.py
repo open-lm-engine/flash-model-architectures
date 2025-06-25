@@ -49,6 +49,7 @@ class RNNTest(TestCommons):
                 total_tokens=None,
                 state_size=state_size,
                 hippo_size=hippo_size,
+                num_heads=num_heads,
                 has_input_state=has_input_state,
                 dtype=dtype,
                 device=device,
@@ -130,6 +131,7 @@ class RNNTest(TestCommons):
         total_tokens: int | None,
         state_size: int,
         hippo_size: int,
+        num_heads: int,
         has_input_state: bool,
         dtype: torch.dtype,
         device: torch.device,
@@ -152,7 +154,7 @@ class RNNTest(TestCommons):
             )
 
             hippo_state_kernel, hippo_state_torch = self.get_random_duplicated_tensors(
-                (batch_size, state_size, hippo_size), device=device, dtype=dtype, std=0.01
+                (batch_size, num_heads, hippo_size), device=device, dtype=dtype, std=0.01
             )
 
         return x_kernel, x_torch, input_state_kernel, input_state_torch, hippo_state_kernel, hippo_state_torch
