@@ -8,34 +8,10 @@ import triton.language as tl
 
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
-from ....triton_math import clamp, leaky_relu_backward, matmul, sigmoid_backward, tanh_backward
+from ....triton_math import clamp, matmul, sigmoid_backward, tanh_backward
 from ....utils import cute_op
 from ...rnn.triton_implementation.backward import _get_autotune_configs
 from .forward import _get_autotune_configs
-
-
-@triton.jit
-def _activation_backward(y, dy, ACTIVATION_FUNCTION, relu_negative_slope):
-    if ACTIVATION_FUNCTION == "leaky_relu":
-        dy *= leaky_relu_backward(y, relu_negative_slope)
-    elif ACTIVATION_FUNCTION == "sigmoid":
-        dy *= sigmoid_backward(y)
-    elif ACTIVATION_FUNCTION == "tanh":
-        dy *= tanh_backward(y)
-
-    return dy
-
-
-@triton.jit
-def _rnn_backward_update(y, W, dy, dW, y_prev, ACTIVATION_FUNCTION: tl.constexpr, relu_negative_slope):
-    dx = _activation_backward(
-        y=y, dy=dy, ACTIVATION_FUNCTION=ACTIVATION_FUNCTION, relu_negative_slope=relu_negative_slope
-    )
-
-    dh = matmul(A=dx, B=W.T, C=None, output_dtype=dx.dtype)
-    dW = matmul(A=y_prev.T, B=dx, C=dW, output_dtype=dW.dtype)
-
-    return dx, dW, dh
 
 
 @triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_H"], reset_to_zero=["dW_ptr", "dWf_ptr", "dWr_ptr"])
