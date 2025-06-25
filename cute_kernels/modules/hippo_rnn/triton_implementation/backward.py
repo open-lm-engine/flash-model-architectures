@@ -137,7 +137,7 @@ def hippo_rnn_backward_triton_kernel(
 
     tl.atomic_add(dW_ptr + indices_W, dW, mask=mask_hh)
     tl.atomic_add(dWh_ptr + indices_Wh, dWh, mask=mask_dh)
-    tl.atomic_add(dWc_ptr + indices_Wc, dWc, mask=mask_h)
+    tl.atomic_add(dWc_ptr + indices_Wc[:, None], dWc, mask=mask_h[:, None])
 
 
 @cute_op(
