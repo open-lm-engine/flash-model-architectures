@@ -91,7 +91,7 @@ class RNNTest(TestCommons):
             kernel_backend=KernelBackend.torch,
         )
 
-        # y_kernel.sum().backward()
+        y_kernel.sum().backward()
         weight_kernel_grads = self.collect_gradients_from_module_and_zero_grads(rnn)
 
         y_torch.sum().backward()
@@ -100,29 +100,29 @@ class RNNTest(TestCommons):
         self.assert_equal_tensors(
             y_kernel, y_torch, False, atol_float32=4e-6, rtol_float32=0, atol_float16=6.5e-5, rtol_float16=0
         )
-        # self.assert_equal_tensors(
-        #     output_state_kernel,
-        #     output_state_torch,
-        #     False,
-        #     atol_float32=4e-6,
-        #     rtol_float32=0,
-        #     atol_float16=6.5e-5,
-        #     rtol_float16=0,
-        # )
-        # self.assert_equal_tensors(
-        #     x_kernel.grad, x_torch.grad, False, atol_float32=6e-3, rtol_float32=0, atol_float16=2e-3, rtol_float16=0
-        # )
+        self.assert_equal_tensors(
+            output_state_kernel,
+            output_state_torch,
+            False,
+            atol_float32=4e-6,
+            rtol_float32=0,
+            atol_float16=6.5e-5,
+            rtol_float16=0,
+        )
+        self.assert_equal_tensors(
+            x_kernel.grad, x_torch.grad, False, atol_float32=6e-3, rtol_float32=0, atol_float16=2e-3, rtol_float16=0
+        )
 
-        # for weight_name in weight_kernel_grads:
-        #     self.assert_equal_tensors(
-        #         weight_kernel_grads[weight_name],
-        #         weight_torch_grads[weight_name],
-        #         False,
-        #         atol_float32=6e-3,
-        #         rtol_float32=0,
-        #         atol_float16=2.3e-2,
-        #         rtol_float16=0,
-        #     )
+        for weight_name in weight_kernel_grads:
+            self.assert_equal_tensors(
+                weight_kernel_grads[weight_name],
+                weight_torch_grads[weight_name],
+                False,
+                atol_float32=6e-3,
+                rtol_float32=0,
+                atol_float16=2.3e-2,
+                rtol_float16=0,
+            )
 
     def _get_packed_tensor_inputs(
         self,
