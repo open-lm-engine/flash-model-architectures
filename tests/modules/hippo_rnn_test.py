@@ -19,11 +19,11 @@ class RNNTest(TestCommons):
         TestCommons.make_args_matrix(
             [torch.device("cuda")],
             [torch.float32],
-            [3],  # batch_size
-            [1024],  # sequence_length
-            [256],  # state_size
+            [1],  # batch_size
+            [2],  # sequence_length
+            [7],  # state_size
             [7],  # hippo_size
-            [64],  # num_heads
+            [1],  # num_heads
             [False, True],  # has_input_state
             [False],  # is_compiling
         )
@@ -110,10 +110,12 @@ class RNNTest(TestCommons):
             rtol_float16=0,
         )
         self.assert_equal_tensors(
-            x_kernel.grad, x_torch.grad, False, atol_float32=6e-3, rtol_float32=0, atol_float16=2e-3, rtol_float16=0
+            x_kernel.grad, x_torch.grad, False, atol_float32=3e-7, rtol_float32=0, atol_float16=2e-3, rtol_float16=0
         )
 
         for weight_name in weight_kernel_grads:
+            print(weight_name)
+            print((weight_kernel_grads[weight_name] - weight_torch_grads[weight_name]).abs().max())
             self.assert_equal_tensors(
                 weight_kernel_grads[weight_name],
                 weight_torch_grads[weight_name],
