@@ -14,7 +14,9 @@ from .forward import _get_autotune_configs
 
 
 @triton.autotune(
-    configs=_get_autotune_configs()[:1], key=["BLOCK_SIZE_H"], reset_to_zero=["dW_ptr", "dWh_ptr", "dWc_ptr"]
+    configs=_get_autotune_configs(),
+    key=["BLOCK_SIZE_H", "BLOCK_SIZE_D"],
+    reset_to_zero=["dW_ptr", "dWh_ptr", "dWc_ptr"],
 )
 @triton.jit
 def hippo_rnn_backward_triton_kernel(

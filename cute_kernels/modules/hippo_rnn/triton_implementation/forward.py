@@ -13,7 +13,7 @@ from ....utils import cute_op
 from ...rnn.triton_implementation.forward import _get_autotune_configs
 
 
-@triton.autotune(configs=_get_autotune_configs()[:1], key=["BLOCK_SIZE_H"])
+@triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_H", "BLOCK_SIZE_D"])
 @triton.jit
 def hippo_rnn_forward_triton_kernel(
     x_ptr,
