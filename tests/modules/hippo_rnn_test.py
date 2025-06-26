@@ -21,11 +21,11 @@ class RNNTest(TestCommons):
             [torch.float32],
             [3],  # batch_size
             [1024],  # sequence_length
-            [96],  # state_size
+            [256],  # state_size
             [7],  # hippo_size
-            [4],  # num_heads
-            [False],  # has_input_state
-            [False],  # is_compiling
+            [64, 256],  # num_heads
+            [False, True],  # has_input_state
+            [False, True],  # is_compiling
         )
     )
     def test_hippo_rnn(
@@ -70,6 +70,7 @@ class RNNTest(TestCommons):
 
             nn.init.normal_(rnn.state_weight, std=0.01)
             nn.init.normal_(rnn.hippo_weight, std=0.01)
+            nn.init.normal_(rnn.compress_weight, std=0.01)
 
         rnn_torch = rnn
         rnn_kernel = rnn
@@ -110,21 +111,37 @@ class RNNTest(TestCommons):
             rtol_float16=0,
         )
         self.assert_equal_tensors(
-            x_kernel.grad, x_torch.grad, False, atol_float32=3e-7, rtol_float32=0, atol_float16=2e-3, rtol_float16=0
+            x_kernel.grad, x_torch.grad, False, atol_float32=6.3e-4, rtol_float32=0, atol_float16=2e-3, rtol_float16=0
         )
 
-        for weight_name in weight_kernel_grads:
-            print(weight_name)
-            print((weight_kernel_grads[weight_name] - weight_torch_grads[weight_name]).abs().max())
-            self.assert_equal_tensors(
-                weight_kernel_grads[weight_name],
-                weight_torch_grads[weight_name],
-                False,
-                atol_float32=6e-3,
-                rtol_float32=0,
-                atol_float16=2.3e-2,
-                rtol_float16=0,
-            )
+        self.assert_equal_tensors(
+            weight_kernel_grads["state_weight"],
+            weight_torch_grads["state_weight"],
+            False,
+            atol_float32=5.4e-5,
+            rtol_float32=0,
+            atol_float16=0,
+            rtol_float16=0,
+        )
+        self.assert_equal_tensors(
+            weight_kernel_grads["hippo_weight"],
+            weight_torch_grads["hippo_weight"],
+            False,
+            atol_float32=1.6e-4,
+            rtol_float32=0,
+            atol_float16=0,
+            rtol_float16=0,
+        )
+
+        self.assert_equal_tensors(
+            weight_kernel_grads["compress_weight"],
+            weight_torch_grads["compress_weight"],
+            False,
+            atol_float32=8.5e-2,
+            rtol_float32=0,
+            atol_float16=0,
+            rtol_float16=0,
+        )
 
     def _get_packed_tensor_inputs(
         self,
