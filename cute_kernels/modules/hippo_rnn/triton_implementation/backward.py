@@ -101,7 +101,7 @@ def hippo_rnn_backward_triton_kernel(
         s1 = (1 / s).to(y.dtype)
         df = matmul(A=dc, B=(hippo_B * s1)[:, None], C=None, output_dtype=y.dtype)
         dy = matmul(A=df, B=Wc[None, :], C=dy, output_dtype=y.dtype)
-        dWc = matmul(A=y.T, B=df, C=None, output_dtype=y.dtype)
+        dWc = matmul(A=y.T, B=df, C=None, output_dtype=dWc.dtype)
 
         dx_ptrs = dx_ptr + indices_y
         indices_y -= y_stride_s
