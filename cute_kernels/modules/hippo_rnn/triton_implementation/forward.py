@@ -16,10 +16,16 @@ def _get_autotune_configs() -> list[triton.Config]:
     configs = []
     for num_warps in get_powers_of_2(1, 8):
         for num_stages in range(1, 5):
-            for BLOCK_SIZE_B in [1] + get_powers_of_2(16, 32):
-                configs.append(
-                    triton.Config({"BLOCK_SIZE_B": BLOCK_SIZE_B}, num_stages=num_stages, num_warps=num_warps)
-                )
+            for num_ctas in get_powers_of_2(1, 16):
+                for BLOCK_SIZE_B in get_powers_of_2(1, 32):
+                    configs.append(
+                        triton.Config(
+                            {"BLOCK_SIZE_B": BLOCK_SIZE_B},
+                            num_stages=num_stages,
+                            num_warps=num_warps,
+                            num_ctas=num_ctas,
+                        )
+                    )
 
     return configs
 
