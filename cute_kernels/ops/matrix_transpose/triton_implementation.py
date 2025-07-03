@@ -7,7 +7,7 @@ import triton
 import triton.language as tl
 
 from ...constants import LIBRARY_NAME
-from ...math import ceil_divide, get_powers_of_2
+from ...math import ceil_divide
 from ...utils import cute_op
 
 
