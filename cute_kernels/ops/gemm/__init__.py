@@ -78,59 +78,7 @@ def gemm_cute(
     else:
         output = torch.empty(M, N, dtype=A.dtype, device=A.device)
 
-        if kernel_backend == "cutlass_tensorcore_mma_gemm_cuda":
-            cutlass_tensorcore_mma_gemm_cuda(
-                A=A,
-                B=B,
-                C=C,
-                output=output,
-                is_A_transposed=is_A_transposed,
-                is_B_transposed=is_B_transposed,
-                alpha=alpha,
-                beta=beta,
-            )
-        elif kernel_backend == "cutlass":
-            cutlass_gemm_cuda(
-                A=A,
-                B=B,
-                C=C,
-                output=output,
-                is_A_transposed=is_A_transposed,
-                is_B_transposed=is_B_transposed,
-                alpha=alpha,
-                beta=beta,
-            )
-        elif kernel_backend == "shared_memory_cuda":
-            BLOCK_SIZE = 32
-
-            shared_memory_gemm_cuda(
-                A=A,
-                B=B,
-                C=C,
-                output=output,
-                is_A_transposed=is_A_transposed,
-                is_B_transposed=is_B_transposed,
-                alpha=alpha,
-                beta=beta,
-                BLOCK_SIZE=BLOCK_SIZE,
-            )
-        elif kernel_backend == "naive_cuda":
-            BLOCK_SIZE_M = 16
-            BLOCK_SIZE_N = 16
-
-            naive_gemm_cuda(
-                A=A,
-                B=B,
-                C=C,
-                output=output,
-                is_A_transposed=is_A_transposed,
-                is_B_transposed=is_B_transposed,
-                alpha=alpha,
-                beta=beta,
-                BLOCK_SIZE_M=BLOCK_SIZE_M,
-                BLOCK_SIZE_N=BLOCK_SIZE_N,
-            )
-        elif kernel_backend == KernelBackend.triton:
+        if kernel_backend == KernelBackend.triton:
             bmm_triton(
                 A=A.unsqueeze(0),
                 B=B.unsqueeze(0),
