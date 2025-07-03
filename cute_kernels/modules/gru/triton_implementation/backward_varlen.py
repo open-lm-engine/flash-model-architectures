@@ -8,9 +8,9 @@ import triton.language as tl
 
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
-from ....triton_math import clamp
+from ....triton_math import clamp, matmul, sigmoid_backward, tanh_backward
 from ....utils import cute_op
-from ...rnn.triton_implementation.backward import _get_autotune_configs, _rnn_backward_update
+from ...rnn.triton_implementation.backward import _get_autotune_configs
 from ...rnn.triton_implementation.backward_varlen import _load_input_state
 
 
@@ -30,8 +30,8 @@ def gru_varlen_backward_triton_kernel(
     dxr_ptr,
     dWr_ptr,
     z_ptr,
-    h_ptr,
-    h_stride_b,
+    h0_ptr,
+    h0_stride_b,
     dy_ptr,
     cu_seqlens_ptr,
     IS_MAX_SEQLEN_TENSOR: tl.constexpr,
@@ -53,6 +53,7 @@ def gru_varlen_backward_triton_kernel(
 
     mask_b = indices_b < B
     mask_h = indices_h < H
+
     mask_bh = mask_b[:, None] & mask_h[None, :]
     mask_hh = mask_h[:, None] & mask_h[None, :]
 
@@ -100,8 +101,8 @@ def gru_varlen_backward_triton_kernel(
         y_prev = tl.where(
             start == end,
             _load_input_state(
-                h_ptr=h_ptr,
-                h_stride_b=h_stride_b,
+                h0_ptr=h0_ptr,
+                h0_stride_b=h0_stride_b,
                 pid_n=pid_n,
                 indices_b=indices_b,
                 indices_h=indices_h,
@@ -118,45 +119,21 @@ def gru_varlen_backward_triton_kernel(
         dz = dy * (1 - f)
         df = dy * (y_prev - z)
 
-        dx, dW, drh = _rnn_backward_update(
-            y=z,
-            W=W,
-            dy=dz,
-            dW=dW,
-            y_prev=r * y_prev,
-            ACTIVATION_FUNCTION="tanh",
-            relu_negative_slope=None,
-        )
-
-        dh += drh * r
+        dx = dz * tanh_backward(z)
+        drh = matmul(A=dx, B=W.T, C=None, output_dtype=dx.dtype)
+        dW = matmul(A=(r * y_prev).T, B=dx, C=dW, output_dtype=dW.dtype)
         tl.store(dx_ptrs, dx, mask=mask)
 
-        dxf, dWf, _dh = _rnn_backward_update(
-            y=f,
-            W=Wf,
-            dy=df,
-            dW=dWf,
-            y_prev=y_prev,
-            ACTIVATION_FUNCTION="sigmoid",
-            relu_negative_slope=None,
-        )
+        dh += drh * r
 
-        dh += _dh
+        dxf = df * sigmoid_backward(f)
+        dh = matmul(A=dxf, B=Wf.T, C=dh, output_dtype=dx.dtype)
+        dWf = matmul(A=y_prev.T, B=dxf, C=dWf, output_dtype=dW.dtype)
         tl.store(dxf_ptrs, dxf, mask=mask)
 
-        dr = drh * y_prev
-
-        dxr, dWr, _dh = _rnn_backward_update(
-            y=r,
-            W=Wr,
-            dy=dr,
-            dW=dWr,
-            y_prev=y_prev,
-            ACTIVATION_FUNCTION="sigmoid",
-            relu_negative_slope=None,
-        )
-
-        dh += _dh
+        dxr = drh * y_prev * sigmoid_backward(r)
+        dh = matmul(A=dxr, B=Wr.T, C=dh, output_dtype=dx.dtype)
+        dWr = matmul(A=y_prev.T, B=dxr, C=dWr, output_dtype=dW.dtype)
         tl.store(dxr_ptrs, dxr, mask=mask)
 
         end -= 1
@@ -222,8 +199,8 @@ def gru_varlen_backward_triton(
             dxr_ptr=reset_input_grad,
             dWr_ptr=reset_weight_grad,
             z_ptr=output_update,
-            h_ptr=input_state,
-            h_stride_b=None if input_state is None else input_state.stride(0),
+            h0_ptr=input_state,
+            h0_stride_b=None if input_state is None else input_state.stride(0),
             dy_ptr=output_grad,
             cu_seqlens_ptr=cu_seqlens,
             IS_MAX_SEQLEN_TENSOR=is_max_seqlen_tensor,

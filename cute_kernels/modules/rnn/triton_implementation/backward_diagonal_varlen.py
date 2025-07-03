@@ -8,14 +8,14 @@ import triton.language as tl
 
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
-from ....triton_math import clamp
+from ....triton_math import clamp, tanh_backward
 from ....utils import cute_op
-from .backward_diagonal import _get_autotune_configs, _rnn_backward_update
+from .backward_diagonal import _get_autotune_configs
 
 
 @triton.jit
 def _load_input_state(
-    h_ptr,
+    h0_ptr,
     indices_b,
     indices_n,
     mask_bn,
@@ -24,10 +24,10 @@ def _load_input_state(
     BLOCK_SIZE_N,
     dtype,
 ):
-    if h_ptr is None:
+    if h0_ptr is None:
         y_prev = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_N), dtype=dtype)
     else:
-        y_prev = tl.load(h_ptr + indices_b[:, None] * N + indices_n[None, :], mask=mask_bn)
+        y_prev = tl.load(h0_ptr + indices_b[:, None] * N + indices_n[None, :], mask=mask_bn)
 
     return y_prev
 
@@ -38,7 +38,7 @@ def diagonal_rnn_varlen_backward_triton_kernel(
     W_ptr,
     y_ptr,
     y_stride_t,
-    h_ptr,
+    h0_ptr,
     dy_ptr,
     cu_seqlens_ptr,
     IS_MAX_SEQLEN_TENSOR: tl.constexpr,
@@ -59,6 +59,7 @@ def diagonal_rnn_varlen_backward_triton_kernel(
 
     mask_b = indices_b < B
     mask_n = indices_n < N
+
     mask_bn = mask_b[:, None] & mask_n[None, :]
 
     dh = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_N), dtype=W_ptr.dtype.element_ty)
@@ -96,7 +97,7 @@ def diagonal_rnn_varlen_backward_triton_kernel(
         y_prev = tl.where(
             start == end,
             _load_input_state(
-                h_ptr=h_ptr,
+                h0_ptr=h0_ptr,
                 indices_b=indices_b,
                 indices_n=indices_n,
                 mask_bn=mask_bn,
@@ -108,15 +109,9 @@ def diagonal_rnn_varlen_backward_triton_kernel(
             tl.load(y_ptr + indices, mask=mask & (indices >= 0)),
         )
 
-        dx, dW, dh = _rnn_backward_update(
-            y=y,
-            W=W,
-            dy=dy,
-            dW=dW,
-            y_prev=y_prev,
-            ACTIVATION_FUNCTION="tanh",
-            relu_negative_slope=None,
-        )
+        dx = dy * tanh_backward(y)
+        dh = dx * W
+        dW += tl.sum(y_prev * dx, axis=0)
 
         tl.store(dx_ptrs, dx, mask=mask)
         y = y_prev
@@ -152,7 +147,7 @@ def diagonal_rnn_varlen_backward_triton(
             W_ptr=weight,
             y_ptr=output,
             y_stride_t=output.stride(0),
-            h_ptr=input_state,
+            h0_ptr=input_state,
             dy_ptr=output_grad,
             cu_seqlens_ptr=cu_seqlens,
             IS_MAX_SEQLEN_TENSOR=is_max_seqlen_tensor,

@@ -8,8 +8,9 @@ import triton.language as tl
 
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
+from ....triton_math import tanh
 from ....utils import cute_op
-from .forward_diagonal import _get_autotune_configs, _rnn_forward_update
+from .forward_diagonal import _get_autotune_configs
 
 
 @triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_N"])
@@ -18,7 +19,7 @@ def diagonal_rnn_varlen_forward_triton_kernel(
     x_ptr,
     x_stride_t,
     W_ptr,
-    h_ptr,
+    h0_ptr,
     y_ptr,
     cu_seqlens_ptr,
     IS_MAX_SEQLEN_TENSOR: tl.constexpr,
@@ -36,14 +37,13 @@ def diagonal_rnn_varlen_forward_triton_kernel(
 
     mask_b = indices_b < B
     mask_n = indices_n < N
-    mask_bn = mask_b[:, None] & mask_n[None, :]
 
     W = tl.load(W_ptr + indices_n, mask=mask_n)[None, :]
 
-    if h_ptr is None:
+    if h0_ptr is None:
         h = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_N), dtype=x_ptr.dtype.element_ty)
     else:
-        h = tl.load(h_ptr + indices_b[:, None] * N + indices_n[None, :], mask=mask_bn)
+        h = tl.load(h0_ptr + indices_b[:, None] * N + indices_n[None, :], mask=mask_b[:, None] & mask_n[None, :])
 
     cu_seqlens_ptrs = cu_seqlens_ptr + indices_b[:, None]
     start = tl.load(cu_seqlens_ptrs, mask=mask_b[:, None])
@@ -60,14 +60,9 @@ def diagonal_rnn_varlen_forward_triton_kernel(
         unfinished = start < end
         mask = unfinished & mask_n[None, :]
 
-        h = _rnn_forward_update(
-            h=h,
-            W=W,
-            x=tl.load(x_ptr + indices, mask=mask),
-            ACTIVATION_FUNCTION="tanh",
-            relu_negative_slope=None,
-        )
-
+        x = tl.load(x_ptr + indices, mask=mask)
+        h = W * h + x
+        h = tanh(h)
         tl.store(y_ptr + indices, h, mask=mask)
 
         indices += x_stride_t
@@ -97,7 +92,7 @@ def diagonal_rnn_varlen_forward_triton(
             x_ptr=input,
             x_stride_t=input.stride(0),
             W_ptr=weight,
-            h_ptr=input_state,
+            h0_ptr=input_state,
             y_ptr=output,
             cu_seqlens_ptr=cu_seqlens,
             IS_MAX_SEQLEN_TENSOR=is_max_seqlen_tensor,

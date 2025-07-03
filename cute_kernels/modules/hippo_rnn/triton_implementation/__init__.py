@@ -2,7 +2,5 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
-from .gru import GRU
-from .hippo_rnn import HiPPO_RNN
-from .moe import MoE
-from .rnn import RNN
+from .backward import hippo_rnn_backward_triton
+from .forward import hippo_rnn_forward_triton

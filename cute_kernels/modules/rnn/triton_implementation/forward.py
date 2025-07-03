@@ -8,7 +8,7 @@ import triton.language as tl
 
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2, get_powers_of_2
-from ....triton_math import leaky_relu, matmul, sigmoid, tanh
+from ....triton_math import matmul, tanh
 from ....utils import cute_op
 
 
@@ -24,25 +24,6 @@ def _get_autotune_configs() -> list[triton.Config]:
     return configs
 
 
-@triton.jit
-def _activation(x, ACTIVATION_FUNCTION, relu_negative_slope):
-    if ACTIVATION_FUNCTION == "leaky_relu":
-        x = leaky_relu(x, relu_negative_slope)
-    elif ACTIVATION_FUNCTION == "sigmoid":
-        x = sigmoid(x)
-    elif ACTIVATION_FUNCTION == "tanh":
-        x = tanh(x)
-
-    return x
-
-
-@triton.jit
-def _rnn_forward_update(h, W, x, ACTIVATION_FUNCTION, relu_negative_slope):
-    h = matmul(A=h, B=W, C=x, output_dtype=x.dtype)
-    h = _activation(x=h, ACTIVATION_FUNCTION=ACTIVATION_FUNCTION, relu_negative_slope=relu_negative_slope)
-    return h
-
-
 @triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_H"])
 @triton.jit
 def rnn_forward_triton_kernel(
@@ -51,8 +32,8 @@ def rnn_forward_triton_kernel(
     x_stride_s,
     W_ptr,
     W_stride_n,
-    h_ptr,
-    h_stride_b,
+    h0_ptr,
+    h0_stride_b,
     y_ptr,
     B,
     S,
@@ -68,6 +49,7 @@ def rnn_forward_triton_kernel(
 
     mask_b = indices_b < B
     mask_h = indices_h < H
+
     mask_bh = mask_b[:, None] & mask_h[None, :]
 
     W = tl.load(
@@ -75,22 +57,17 @@ def rnn_forward_triton_kernel(
         mask=mask_h[:, None] & mask_h[None, :],
     )
 
-    if h_ptr is None:
+    if h0_ptr is None:
         h = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=x_ptr.dtype.element_ty)
     else:
-        h = tl.load(h_ptr + indices_b[:, None] * h_stride_b + pid_n * H + indices_h[None, :], mask=mask_bh)
+        h = tl.load(h0_ptr + indices_b[:, None] * h0_stride_b + pid_n * H + indices_h[None, :], mask=mask_bh)
 
     indices = indices_b[:, None] * x_stride_b + pid_n * H + indices_h[None, :]
 
     for _ in range(S):
-        h = _rnn_forward_update(
-            h=h,
-            W=W,
-            x=tl.load(x_ptr + indices, mask=mask_bh),
-            ACTIVATION_FUNCTION="tanh",
-            relu_negative_slope=None,
-        )
-
+        x = tl.load(x_ptr + indices, mask=mask_bh)
+        h = matmul(A=h, B=W, C=x, output_dtype=tl.float32)
+        h = tanh(h, output_dtype=x.dtype)
         tl.store(y_ptr + indices, h, mask=mask_bh)
 
         indices += x_stride_s
@@ -113,8 +90,8 @@ def rnn_forward_triton(
             x_stride_s=input.stride(1),
             W_ptr=weight,
             W_stride_n=weight.stride(0),
-            h_ptr=input_state,
-            h_stride_b=None if input_state is None else input_state.stride(0),
+            h0_ptr=input_state,
+            h0_stride_b=None if input_state is None else input_state.stride(0),
             y_ptr=output,
             B=B,
             S=S,

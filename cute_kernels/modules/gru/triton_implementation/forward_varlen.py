@@ -8,8 +8,9 @@ import triton.language as tl
 
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
+from ....triton_math import matmul, sigmoid, tanh
 from ....utils import cute_op
-from ...rnn.triton_implementation.forward import _get_autotune_configs, _rnn_forward_update
+from ...rnn.triton_implementation.forward import _get_autotune_configs
 
 
 @triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_H"])
@@ -26,8 +27,8 @@ def gru_varlen_forward_triton_kernel(
     Wr_ptr,
     r_ptr,
     z_ptr,
-    h_ptr,
-    h_stride_b,
+    h0_ptr,
+    h0_stride_b,
     y_ptr,
     cu_seqlens_ptr,
     IS_MAX_SEQLEN_TENSOR: tl.constexpr,
@@ -45,19 +46,20 @@ def gru_varlen_forward_triton_kernel(
 
     mask_b = indices_b < B
     mask_h = indices_h < H
+
     mask_bh = mask_b[:, None] & mask_h[None, :]
+    mask_hh = mask_h[:, None] & mask_h[None, :]
 
     indices = pid_n * W_stride_n + indices_h[:, None] * H + indices_h[None, :]
-    mask_hh = mask_h[:, None] & mask_h[None, :]
 
     W = tl.load(W_ptr + indices, mask=mask_hh)
     Wf = tl.load(Wf_ptr + indices, mask=mask_hh)
     Wr = tl.load(Wr_ptr + indices, mask=mask_hh)
 
-    if h_ptr is None:
+    if h0_ptr is None:
         h = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=x_ptr.dtype.element_ty)
     else:
-        h = tl.load(h_ptr + indices_b[:, None] * h_stride_b + pid_n * H + indices_h[None, :], mask=mask_bh)
+        h = tl.load(h0_ptr + indices_b[:, None] * h0_stride_b + pid_n * H + indices_h[None, :], mask=mask_bh)
 
     cu_seqlens_ptrs = cu_seqlens_ptr + indices_b[:, None]
     start = tl.load(cu_seqlens_ptrs, mask=mask_b[:, None])
@@ -74,34 +76,19 @@ def gru_varlen_forward_triton_kernel(
         unfinished = start < end
         mask = unfinished & mask_h[None, :]
 
-        r = _rnn_forward_update(
-            h=h,
-            W=Wr,
-            x=tl.load(xr_ptr + indices, mask=mask),
-            ACTIVATION_FUNCTION="sigmoid",
-            relu_negative_slope=None,
-        )
-
+        x = tl.load(xr_ptr + indices, mask=mask)
+        r = matmul(A=h, B=Wr, C=x, output_dtype=tl.float32)
+        r = sigmoid(r, output_dtype=x.dtype)
         tl.store(r_ptr + indices, r, mask=mask)
 
-        z = _rnn_forward_update(
-            h=h * r,
-            W=W,
-            x=tl.load(x_ptr + indices, mask=mask),
-            ACTIVATION_FUNCTION="tanh",
-            relu_negative_slope=None,
-        )
-
+        x = tl.load(x_ptr + indices, mask=mask)
+        z = matmul(A=h * r, B=W, C=x, output_dtype=tl.float32)
+        z = tanh(z, output_dtype=x.dtype)
         tl.store(z_ptr + indices, z, mask=mask)
 
-        f = _rnn_forward_update(
-            h=h,
-            W=Wf,
-            x=tl.load(xf_ptr + indices, mask=mask),
-            ACTIVATION_FUNCTION="sigmoid",
-            relu_negative_slope=None,
-        )
-
+        x = tl.load(xf_ptr + indices, mask=mask)
+        f = matmul(A=h, B=Wf, C=x, output_dtype=tl.float32)
+        f = sigmoid(f, output_dtype=x.dtype)
         tl.store(f_ptr + indices, f, mask=mask)
 
         h = f * h + (1 - f) * z
@@ -152,8 +139,8 @@ def gru_varlen_forward_triton(
             Wr_ptr=reset_weight,
             r_ptr=reset_gate,
             z_ptr=output_update,
-            h_ptr=input_state,
-            h_stride_b=None if input_state is None else input_state.stride(0),
+            h0_ptr=input_state,
+            h0_stride_b=None if input_state is None else input_state.stride(0),
             y_ptr=output,
             cu_seqlens_ptr=cu_seqlens,
             IS_MAX_SEQLEN_TENSOR=is_max_seqlen_tensor,

@@ -8,8 +8,9 @@ import triton.language as tl
 
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
+from ....triton_math import matmul, tanh
 from ....utils import cute_op
-from .forward import _get_autotune_configs, _rnn_forward_update
+from .forward import _get_autotune_configs
 
 
 @triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_H"])
@@ -19,8 +20,8 @@ def rnn_varlen_forward_triton_kernel(
     x_stride_t,
     W_ptr,
     W_stride_n,
-    h_ptr,
-    h_stride_b,
+    h0_ptr,
+    h0_stride_b,
     y_ptr,
     cu_seqlens_ptr,
     IS_MAX_SEQLEN_TENSOR: tl.constexpr,
@@ -38,6 +39,7 @@ def rnn_varlen_forward_triton_kernel(
 
     mask_b = indices_b < B
     mask_h = indices_h < H
+
     mask_bh = mask_b[:, None] & mask_h[None, :]
 
     W = tl.load(
@@ -45,10 +47,10 @@ def rnn_varlen_forward_triton_kernel(
         mask=mask_h[:, None] & mask_h[None, :],
     )
 
-    if h_ptr is None:
+    if h0_ptr is None:
         h = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=x_ptr.dtype.element_ty)
     else:
-        h = tl.load(h_ptr + indices_b[:, None] * h_stride_b + pid_n * H + indices_h[None, :], mask=mask_bh)
+        h = tl.load(h0_ptr + indices_b[:, None] * h0_stride_b + pid_n * H + indices_h[None, :], mask=mask_bh)
 
     cu_seqlens_ptrs = cu_seqlens_ptr + indices_b[:, None]
     start = tl.load(cu_seqlens_ptrs, mask=mask_b[:, None])
@@ -65,14 +67,9 @@ def rnn_varlen_forward_triton_kernel(
         unfinished = start < end
         mask = unfinished & mask_h[None, :]
 
-        h = _rnn_forward_update(
-            h=h,
-            W=W,
-            x=tl.load(x_ptr + indices, mask=mask_bh),
-            ACTIVATION_FUNCTION="tanh",
-            relu_negative_slope=None,
-        )
-
+        x = tl.load(x_ptr + indices, mask=mask_bh)
+        h = matmul(A=h, B=W, C=x, output_dtype=tl.float32)
+        h = tanh(h, output_dtype=x.dtype)
         tl.store(y_ptr + indices, h, mask=mask)
 
         indices += x_stride_t
@@ -104,8 +101,8 @@ def rnn_varlen_forward_triton(
             x_stride_t=input.stride(0),
             W_ptr=weight,
             W_stride_n=weight.stride(0),
-            h_ptr=input_state,
-            h_stride_b=None if input_state is None else input_state.stride(0),
+            h0_ptr=input_state,
+            h0_stride_b=None if input_state is None else input_state.stride(0),
             y_ptr=output,
             cu_seqlens_ptr=cu_seqlens,
             IS_MAX_SEQLEN_TENSOR=is_max_seqlen_tensor,
