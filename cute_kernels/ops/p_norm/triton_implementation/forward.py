@@ -45,10 +45,8 @@ def p_norm_forward_triton_kernel(
         r = x * x
         r = tl.sum(r, axis=1)
         r = tl.rsqrt(r)
-    elif p == "inf":
-        r = tl.abs(x)
-        r = tl.max(r, axis=1)
-        r = 1 / r
+    else:
+        tl.static_assert(False)
 
     if p_norm_denominator_ptr is not None:
         tl.store(p_norm_denominator_ptr + indices_b, r, mask=mask_b)
