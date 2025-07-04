@@ -17,7 +17,7 @@ def p_norm_forward_triton_kernel(
     weight_ptr,
     output_ptr,
     eps,
-    p_norm_denominator,
+    p_norm_denominator_ptr,
     p: tl.constexpr,
     B,
     H,
@@ -50,8 +50,8 @@ def p_norm_forward_triton_kernel(
             r = r ** (1 / p)
             r = 1 / r
 
-    if p_norm_denominator is not None:
-        tl.store(p_norm_denominator + indices_b, r, mask=mask_b)
+    if p_norm_denominator_ptr is not None:
+        tl.store(p_norm_denominator_ptr + indices_b, r, mask=mask_b)
 
     x *= r[:, None]
 
