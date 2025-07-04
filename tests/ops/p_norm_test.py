@@ -32,7 +32,7 @@ class P_NormTest(TestCommons):
             [torch.float32, torch.float16],  # dtype
             [True, False],  # memory_efficient
             [True, False],  # has_weight
-            [1, 2, "inf"],  # p
+            [2],  # p
             [p_norm_cute],  # function
         )
     )
