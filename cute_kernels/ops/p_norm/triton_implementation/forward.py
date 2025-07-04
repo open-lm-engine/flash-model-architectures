@@ -44,7 +44,7 @@ def p_norm_forward_triton_kernel(
         r = 1 / r
     elif p == 2:
         r = x * x
-        r = tl.sum(r, asix=1)
+        r = tl.sum(r, axis=1)
         r = tl.rsqrt(r)
     elif p == "inf":
         r = tl.abs(x)
