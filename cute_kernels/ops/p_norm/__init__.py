@@ -23,6 +23,7 @@ class _P_Norm_Cute(torch.autograd.Function):
         memory_efficient: bool,
         kernel_backend: KernelBackend | CutoTuneParameter,
     ) -> torch.Tensor:
+        assert p in [1, 2]
         assert kernel_backend == KernelBackend.triton or isinstance(kernel_backend, CutoTuneParameter)
 
         if weight is not None:
