@@ -54,8 +54,6 @@ class _P_Norm_Cute(torch.autograd.Function):
         x_grad = torch.empty_like(x)
         weight_grad = None if weight is None else torch.zeros_like(weight, dtype=torch.float32)
 
-        p = ctx.p
-
         norm_2_backward_triton(
             x=x,
             weight=weight,

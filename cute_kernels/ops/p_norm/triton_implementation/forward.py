@@ -38,7 +38,10 @@ def norm_2_forward_triton_kernel(
 
     r = x * x
     r = tl.sum(r, axis=1)
-    r = tl.rsqrt(r)
+    # can't use rqsrt since we need to do a max(r, eps)
+    r = tl.sqrt(r)
+    r = tl.max(r, eps)
+    r = 1 / r
 
     if p_norm_denominator_ptr is not None:
         tl.store(p_norm_denominator_ptr + indices_b, r, mask=mask_b)
