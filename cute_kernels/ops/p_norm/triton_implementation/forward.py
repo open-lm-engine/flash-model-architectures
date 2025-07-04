@@ -17,7 +17,7 @@ def p_norm_forward_triton_kernel(
     weight_ptr,
     output_ptr,
     eps,
-    norm_denominator_ptr,
+    p_norm_denominator,
     p: tl.constexpr,
     B,
     H,
@@ -47,8 +47,8 @@ def p_norm_forward_triton_kernel(
         r = r ** (1 / p)
         r = 1 / r
 
-    if norm_denominator_ptr is not None:
-        tl.store(norm_denominator_ptr + indices_b, r, mask=mask_b)
+    if p_norm_denominator is not None:
+        tl.store(p_norm_denominator + indices_b, r, mask=mask_b)
 
     x *= r[:, None]
 
@@ -59,7 +59,7 @@ def p_norm_forward_triton_kernel(
     tl.store(output_ptr + indices_bh, x, mask=mask_bh)
 
 
-@cute_op(f"{LIBRARY_NAME}::p_norm_forward_triton", mutates_args={"output", "rmsnorm_denominator"})
+@cute_op(f"{LIBRARY_NAME}::p_norm_forward_triton", mutates_args={"output", "p_norm_denominator"})
 def p_norm_forward_triton(
     x: torch.Tensor,
     weight: torch.Tensor | None,
