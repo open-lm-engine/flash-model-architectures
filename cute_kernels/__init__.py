@@ -25,6 +25,7 @@ from .ops import (
     gemm_cute,
     grouped_gemm_cute,
     matrix_transpose_cute,
+    p_norm_cute,
     pack_sequence_cute,
     rmsnorm_cute,
     softmax_cute,

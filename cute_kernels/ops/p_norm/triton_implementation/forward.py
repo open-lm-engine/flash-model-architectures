@@ -18,7 +18,7 @@ def p_norm_forward_triton_kernel(
     output_ptr,
     eps,
     norm_denominator_ptr,
-    p,
+    p: tl.constexpr,
     B,
     H,
     BLOCK_SIZE_B: tl.constexpr,
@@ -37,13 +37,20 @@ def p_norm_forward_triton_kernel(
 
     x = tl.load(x_ptr + indices_bh, mask=mask_bh).to(tl.float32)
 
-    squared_sum = tl.sum(x * x, axis=1)
-    inverse_rms = tl.rsqrt((squared_sum / H) + eps)
+    r = tl.abs(x)
+    r = r**p
+    r = tl.sum(r, asix=1)
 
-    if rmsnorm_denominator_ptr is not None:
-        tl.store(rmsnorm_denominator_ptr + indices_b, inverse_rms, mask=mask_b)
+    if p == 2:
+        r = tl.rsqrt(r)
+    else:
+        r = r ** (1 / p)
+        r = 1 / r
 
-    x *= inverse_rms[:, None]
+    if norm_denominator_ptr is not None:
+        tl.store(norm_denominator_ptr + indices_b, r, mask=mask_b)
+
+    x *= r[:, None]
 
     if weight_ptr is not None:
         weight = tl.load(weight_ptr + indices_h, mask=mask_h)
