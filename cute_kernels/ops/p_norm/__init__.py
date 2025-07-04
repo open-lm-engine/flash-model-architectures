@@ -18,6 +18,7 @@ class _P_Norm_Cute(torch.autograd.Function):
         ctx,
         x: torch.Tensor,
         weight: torch.Tensor | None,
+        p: int | str,
         eps: float | None,
         memory_efficient: bool,
         kernel_backend: KernelBackend | CutoTuneParameter,
@@ -37,9 +38,10 @@ class _P_Norm_Cute(torch.autograd.Function):
         output = torch.empty_like(x)
         p_norm_denominator = None if memory_efficient else torch.empty(B, device=x.device, dtype=torch.float32)
 
-        p_norm_forward_triton(x=x, weight=weight, output=output, eps=eps, p_norm_denominator=p_norm_denominator)
+        p_norm_forward_triton(x=x, weight=weight, p=p, output=output, eps=eps, p_norm_denominator=p_norm_denominator)
 
         ctx.save_for_backward(x, weight, p_norm_denominator)
+        ctx.p = p
         ctx.eps = eps
 
         return output
@@ -96,6 +98,6 @@ def p_norm_cute(
         if weight is not None:
             x = x * weight
     else:
-        x = _P_Norm_Cute.apply(x, weight, eps, memory_efficient, kernel_backend)
+        x = _P_Norm_Cute.apply(x, weight, p, eps, memory_efficient, kernel_backend)
 
     return x
