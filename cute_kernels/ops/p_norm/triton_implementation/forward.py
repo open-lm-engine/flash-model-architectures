@@ -18,7 +18,6 @@ def p_norm_forward_triton_kernel(
     output_ptr,
     eps,
     p_norm_denominator_ptr,
-    p: tl.constexpr,
     B,
     H,
     BLOCK_SIZE_B: tl.constexpr,
@@ -37,16 +36,9 @@ def p_norm_forward_triton_kernel(
 
     x = tl.load(x_ptr + indices_bh, mask=mask_bh).to(tl.float32)
 
-    if p == 1:
-        r = tl.abs(x)
-        r = tl.sum(r, axis=1)
-        r = 1 / r
-    elif p == 2:
-        r = x * x
-        r = tl.sum(r, axis=1)
-        r = tl.rsqrt(r)
-    else:
-        tl.static_assert(False)
+    r = x * x
+    r = tl.sum(r, axis=1)
+    r = tl.rsqrt(r)
 
     if p_norm_denominator_ptr is not None:
         tl.store(p_norm_denominator_ptr + indices_b, r, mask=mask_b)
@@ -60,12 +52,10 @@ def p_norm_forward_triton_kernel(
     tl.store(output_ptr + indices_bh, x, mask=mask_bh)
 
 
-@cute_op(f"{LIBRARY_NAME}::p_norm_forward_triton", mutates_args={"output", "p_norm_denominator"})
-def p_norm_forward_triton(
+@cute_op(f"{LIBRARY_NAME}::norm_2_forward_triton", mutates_args={"output", "p_norm_denominator"})
+def norm_2_forward_triton(
     x: torch.Tensor,
     weight: torch.Tensor | None,
-    p: int | None,
-    is_p_inf: bool,
     output: torch.Tensor,
     eps: float,
     p_norm_denominator: torch.Tensor | None,
@@ -84,7 +74,6 @@ def p_norm_forward_triton(
             output_ptr=output,
             eps=eps,
             p_norm_denominator_ptr=p_norm_denominator,
-            p="inf" if is_p_inf else p,
             B=B,
             H=H,
             BLOCK_SIZE_B=BLOCK_SIZE_B,

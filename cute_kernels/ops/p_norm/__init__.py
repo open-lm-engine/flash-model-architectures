@@ -8,7 +8,7 @@ import torch.nn.functional as F
 from ...cutotune import CutoTuneParameter
 from ...kernel_backend import KernelBackend
 from ...utils import ensure_contiguous, get_num_elements_and_hidden_size
-from .triton_implementation import p_norm_forward_triton, rmsnorm_backward_triton
+from .triton_implementation import norm_2_forward_triton, rmsnorm_backward_triton
 
 
 class _P_Norm_Cute(torch.autograd.Function):
@@ -23,7 +23,7 @@ class _P_Norm_Cute(torch.autograd.Function):
         memory_efficient: bool,
         kernel_backend: KernelBackend | CutoTuneParameter,
     ) -> torch.Tensor:
-        assert p in [1, 2]
+        assert p == 2
         assert kernel_backend == KernelBackend.triton or isinstance(kernel_backend, CutoTuneParameter)
 
         if weight is not None:
@@ -39,17 +39,7 @@ class _P_Norm_Cute(torch.autograd.Function):
         output = torch.empty_like(x)
         p_norm_denominator = None if memory_efficient else torch.empty(B, device=x.device, dtype=torch.float32)
 
-        is_p_inf = p == "inf"
-
-        p_norm_forward_triton(
-            x=x,
-            weight=weight,
-            p=None if is_p_inf else p,
-            is_p_inf=is_p_inf,
-            output=output,
-            eps=eps,
-            p_norm_denominator=p_norm_denominator,
-        )
+        norm_2_forward_triton(x=x, weight=weight, output=output, eps=eps, p_norm_denominator=p_norm_denominator)
 
         ctx.save_for_backward(x, weight, p_norm_denominator)
         ctx.p = p
@@ -64,10 +54,13 @@ class _P_Norm_Cute(torch.autograd.Function):
         x_grad = torch.empty_like(x)
         weight_grad = None if weight is None else torch.zeros_like(weight, dtype=torch.float32)
 
+        p = ctx.p
+
         rmsnorm_backward_triton(
             x=x,
             weight=weight,
             output_grad=output_grad,
+            p=p,
             p_norm_denominator=p_norm_denominator,
             x_grad=x_grad,
             weight_grad=weight_grad,

@@ -3,4 +3,4 @@
 # **************************************************
 
 from .backward import rmsnorm_backward_triton
-from .forward import p_norm_forward_triton
+from .forward import norm_2_forward_triton

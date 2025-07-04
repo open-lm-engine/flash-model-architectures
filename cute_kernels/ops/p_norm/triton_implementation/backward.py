@@ -16,6 +16,7 @@ def rmsnorm_backward_triton_kernel(
     x_ptr,
     weight_ptr,
     output_grad_ptr,
+    p,
     x_grad_ptr,
     weight_grad_ptr,
     eps,
@@ -55,8 +56,16 @@ def rmsnorm_backward_triton_kernel(
         x = tl.load(x_ptr + indices_bh, mask=mask_bh).to(tl.float32)
 
         if rmsnorm_denominator_ptr is None:
-            squared_sum = tl.sum(x * x, axis=1)
-            inverse_rms = tl.rsqrt(squared_sum / H + eps)
+            if p == 1:
+                r = tl.abs(x)
+                r = tl.sum(r, axis=1)
+                r = 1 / r
+            elif p == 2:
+                r = x * x
+                r = tl.sum(r, axis=1)
+                r = tl.rsqrt(r)
+            else:
+                tl.static_assert(False)
         else:
             inverse_rms = tl.load(rmsnorm_denominator_ptr + indices_b, mask=mask_b)
 
@@ -93,6 +102,7 @@ def rmsnorm_backward_triton(
     x: torch.Tensor,
     weight: torch.Tensor | None,
     output_grad: torch.Tensor,
+    p: int | None,
     rmsnorm_denominator: torch.Tensor | None,
     x_grad: torch.Tensor,
     weight_grad: torch.Tensor | None,
