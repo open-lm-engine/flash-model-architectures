@@ -66,7 +66,8 @@ def p_norm_forward_triton_kernel(
 def p_norm_forward_triton(
     x: torch.Tensor,
     weight: torch.Tensor | None,
-    p: int | str,
+    p: int | None,
+    is_p_inf: bool,
     output: torch.Tensor,
     eps: float,
     p_norm_denominator: torch.Tensor | None,
@@ -85,7 +86,7 @@ def p_norm_forward_triton(
             output_ptr=output,
             eps=eps,
             p_norm_denominator_ptr=p_norm_denominator,
-            p=p,
+            p="inf" if is_p_inf else p,
             B=B,
             H=H,
             BLOCK_SIZE_B=BLOCK_SIZE_B,

@@ -38,7 +38,17 @@ class _P_Norm_Cute(torch.autograd.Function):
         output = torch.empty_like(x)
         p_norm_denominator = None if memory_efficient else torch.empty(B, device=x.device, dtype=torch.float32)
 
-        p_norm_forward_triton(x=x, weight=weight, p=p, output=output, eps=eps, p_norm_denominator=p_norm_denominator)
+        is_p_inf = p == "inf"
+
+        p_norm_forward_triton(
+            x=x,
+            weight=weight,
+            p=None if is_p_inf else p,
+            is_p_inf=is_p_inf,
+            output=output,
+            eps=eps,
+            p_norm_denominator=p_norm_denominator,
+        )
 
         ctx.save_for_backward(x, weight, p_norm_denominator)
         ctx.p = p
