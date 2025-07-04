@@ -7,7 +7,8 @@ import triton
 import triton.language as tl
 
 from ....constants import LIBRARY_NAME, MAX_TRITON_BLOCK_SIZE
-from ....math import ceil_divide, get_next_power_of_2, get_powers_of_2
+from ....math import ceil_divide, get_next_power_of_2
+from ....triton_math import power
 from ....utils import cute_op, get_num_elements_and_hidden_size
 
 
@@ -36,19 +37,19 @@ def p_norm_forward_triton_kernel(
     mask_bh = mask_b[:, None] & mask_h[None, :]
 
     x = tl.load(x_ptr + indices_bh, mask=mask_bh).to(tl.float32)
-    r = tl.abs(x)
 
-    if p == "inf":
-        r = tl.max(r, axis=1)
-    else:
-        r = r**p
+    if p == 1:
+        r = tl.abs(x)
+        r = tl.sum(r, axis=1)
+        r = 1 / r
+    elif p == 2:
+        r = x * x
         r = tl.sum(r, asix=1)
-
-        if p == 2:
-            r = tl.rsqrt(r)
-        else:
-            r = r ** (1 / p)
-            r = 1 / r
+        r = tl.rsqrt(r)
+    elif p == "inf":
+        r = tl.abs(x)
+        r = tl.max(r, axis=1)
+        r = 1 / r
 
     if p_norm_denominator_ptr is not None:
         tl.store(p_norm_denominator_ptr + indices_b, r, mask=mask_b)

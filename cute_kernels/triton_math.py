@@ -59,6 +59,15 @@ def leaky_relu(x, negative_slope):
 
 
 @triton.jit
+def power(x, n):
+    y = x
+    for _ in range(n - 1):
+        y *= x
+
+    return y
+
+
+@triton.jit
 def sigmoid_backward(y):
     dtype = y.dtype
 
