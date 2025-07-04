@@ -12,7 +12,7 @@ from ....utils import cute_op, get_num_elements_and_hidden_size
 
 
 @triton.jit
-def p_norm_forward_triton_kernel(
+def norm_2_forward_triton_kernel(
     x_ptr,
     weight_ptr,
     output_ptr,
@@ -68,7 +68,7 @@ def norm_2_forward_triton(
     NUM_WARPS = 8
 
     with torch.device(x.device):
-        p_norm_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](
+        norm_2_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](
             x_ptr=x,
             weight_ptr=weight,
             output_ptr=output,

@@ -8,7 +8,7 @@ import torch.nn.functional as F
 from ...cutotune import CutoTuneParameter
 from ...kernel_backend import KernelBackend
 from ...utils import ensure_contiguous, get_num_elements_and_hidden_size
-from .triton_implementation import norm_2_forward_triton, rmsnorm_backward_triton
+from .triton_implementation import norm_2_backward_triton, norm_2_forward_triton
 
 
 class _P_Norm_Cute(torch.autograd.Function):
@@ -56,11 +56,10 @@ class _P_Norm_Cute(torch.autograd.Function):
 
         p = ctx.p
 
-        rmsnorm_backward_triton(
+        norm_2_backward_triton(
             x=x,
             weight=weight,
             output_grad=output_grad,
-            p=p,
             p_norm_denominator=p_norm_denominator,
             x_grad=x_grad,
             weight_grad=weight_grad,
