@@ -105,7 +105,7 @@ def p_norm_cute(
 
     if kernel_backend == KernelBackend.torch:
         if p == "inf":
-            x = x / x.max(dim=-1, keepdim=True)
+            x = x / x.max(dim=-1, keepdim=True)[0]
         else:
             x = F.normalize(x, p=p, dim=-1, eps=eps)
 
