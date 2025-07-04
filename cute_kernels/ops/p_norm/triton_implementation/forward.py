@@ -36,16 +36,19 @@ def p_norm_forward_triton_kernel(
     mask_bh = mask_b[:, None] & mask_h[None, :]
 
     x = tl.load(x_ptr + indices_bh, mask=mask_bh).to(tl.float32)
-
     r = tl.abs(x)
-    r = r**p
-    r = tl.sum(r, asix=1)
 
-    if p == 2:
-        r = tl.rsqrt(r)
+    if p == "inf":
+        r = tl.max(r, axis=1)
     else:
-        r = r ** (1 / p)
-        r = 1 / r
+        r = r**p
+        r = tl.sum(r, asix=1)
+
+        if p == 2:
+            r = tl.rsqrt(r)
+        else:
+            r = r ** (1 / p)
+            r = 1 / r
 
     if p_norm_denominator is not None:
         tl.store(p_norm_denominator + indices_b, r, mask=mask_b)
