@@ -67,7 +67,7 @@ class _P_Norm_Cute(torch.autograd.Function):
         if weight_grad is not None:
             weight_grad = weight_grad.type_as(weight)
 
-        return x_grad, weight_grad, *[None] * 3
+        return x_grad, weight_grad, *[None] * 4
 
 
 def p_norm_cute(
