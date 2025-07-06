@@ -181,8 +181,11 @@ def hippo_rnn_backward_triton(
     BLOCK_SIZE_H = get_next_power_of_2(H)
     BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
 
-    BLOCK_SIZE_D = get_next_power_of_2(D)
-    BLOCK_SIZE_D = max(16, BLOCK_SIZE_D)
+    if D == 1:
+        BLOCK_SIZE_D = 1
+    else:
+        BLOCK_SIZE_D = get_next_power_of_2(D)
+        BLOCK_SIZE_D = max(16, BLOCK_SIZE_D)
 
     GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), N)
 
