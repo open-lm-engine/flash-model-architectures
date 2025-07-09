@@ -13,11 +13,11 @@ from .triton_implementation import pack_unpack_sequence_triton
 def _pack_sequence(
     x: torch.Tensor,
     cu_seqlens: torch.Tensor,
-    desired_shape: tuple[int],
+    output_shape: tuple[int],
     padding_side: str,
     kernel_backend: KernelBackend,
 ) -> torch.Tensor:
-    output = torch.empty(desired_shape, device=x.device, dtype=x.dtype)
+    output = torch.empty(output_shape, device=x.device, dtype=x.dtype)
 
     if kernel_backend == KernelBackend.cuda:
         pack_unpack_sequence_cuda(
@@ -34,11 +34,11 @@ def _pack_sequence(
 def _unpack_sequence(
     x: torch.Tensor,
     cu_seqlens: torch.Tensor,
-    desired_shape: tuple[int],
+    output_shape: tuple[int],
     padding_side: str,
     kernel_backend: KernelBackend,
 ) -> torch.Tensor:
-    output = torch.zeros(*desired_shape, device=x.device, dtype=x.dtype)
+    output = torch.zeros(*output_shape, device=x.device, dtype=x.dtype)
 
     if kernel_backend == KernelBackend.cuda:
         pack_unpack_sequence_cuda(
@@ -59,7 +59,7 @@ class _PackSequence_Cute(torch.autograd.Function):
         ctx,
         x: torch.Tensor,
         cu_seqlens: torch.Tensor,
-        desired_shape: tuple[int],
+        output_shape: tuple[int],
         padding_side: str,
         kernel_backend_forward: KernelBackend,
         kernel_backend_backward: KernelBackend,
@@ -76,7 +76,7 @@ class _PackSequence_Cute(torch.autograd.Function):
         output = _pack_sequence(
             x=x,
             cu_seqlens=cu_seqlens,
-            desired_shape=desired_shape,
+            output_shape=output_shape,
             padding_side=padding_side,
             kernel_backend=kernel_backend_forward,
         )
@@ -89,7 +89,7 @@ class _PackSequence_Cute(torch.autograd.Function):
         x_grad = _unpack_sequence(
             x=output_grad,
             cu_seqlens=ctx.saved_tensors[0],
-            desired_shape=ctx.x_shape,
+            output_shape=ctx.x_shape,
             padding_side=ctx.padding_side,
             kernel_backend=ctx.kernel_backend_backward,
         )
@@ -104,15 +104,15 @@ class _UnpackSequence_Cute(torch.autograd.Function):
         ctx,
         x: torch.Tensor,
         cu_seqlens: torch.Tensor,
-        desired_shape: tuple[int],
+        output_shape: tuple[int],
         padding_side: str,
         kernel_backend_forward: KernelBackend,
         kernel_backend_backward: KernelBackend,
     ) -> torch.Tensor:
         assert padding_side in ["left", "right"]
         assert x.dim() >= 2
-        assert desired_shape[0] == cu_seqlens.size(0) - 1
-        assert desired_shape[2:] == x.size()[1:]
+        assert output_shape[0] == cu_seqlens.size(0) - 1
+        assert output_shape[2:] == x.size()[1:]
 
         ctx.save_for_backward(cu_seqlens)
         ctx.padding_side = padding_side
@@ -125,7 +125,7 @@ class _UnpackSequence_Cute(torch.autograd.Function):
             x=x,
             cu_seqlens=cu_seqlens,
             padding_side=padding_side,
-            desired_shape=desired_shape,
+            output_shape=output_shape,
             kernel_backend=kernel_backend_forward,
         )
 
@@ -137,7 +137,7 @@ class _UnpackSequence_Cute(torch.autograd.Function):
         x_grad = _pack_sequence(
             x=output_grad,
             cu_seqlens=ctx.saved_tensors[0],
-            desired_shape=ctx.x_shape,
+            output_shape=ctx.x_shape,
             padding_side=ctx.padding_side,
             kernel_backend=ctx.kernel_backend_backward,
         )
@@ -148,6 +148,7 @@ class _UnpackSequence_Cute(torch.autograd.Function):
 def pack_sequence_cute(
     inputs: torch.Tensor | list[torch.Tensor],
     cu_seqlens: torch.Tensor,
+    output_shape: tuple[int] | None = None,
     padding_side: str = "left",
     *,
     kernel_backend_forward: KernelBackend = KernelBackend.cuda,
@@ -157,9 +158,6 @@ def pack_sequence_cute(
     if not is_list:
         inputs = [inputs]
 
-    # NOTE we call .item() outside because data dependent (cu_seqlens[-1]) memory allocation calls sync anyways
-    # so, we do it once for all the tensors
-    N = cu_seqlens[-1].item()
     outputs = []
 
     for x in inputs:
@@ -179,11 +177,17 @@ def pack_sequence_cute(
                 raise ValueError(f"unexpected padding_side ({padding_side})")
 
             x = x[batch_indices, seq_indices]
+
+            if output_shape is not None:
+                assert x.size() == output_shape
         else:
-            desired_shape = (N, *x.size()[2:])
+            if output_shape is None:
+                # NOTE we call .item() outside because data dependent (cu_seqlens[-1]) memory allocation calls sync anyways
+                # so, we do it once for all the tensors
+                output_shape = (cu_seqlens[-1].item(), *x.size()[2:])
 
             x = _PackSequence_Cute.apply(
-                x, cu_seqlens, desired_shape, padding_side, kernel_backend_forward, kernel_backend_backward
+                x, cu_seqlens, output_shape, padding_side, kernel_backend_forward, kernel_backend_backward
             )
 
         outputs.append(x)
@@ -197,7 +201,7 @@ def pack_sequence_cute(
 def unpack_sequence_cute(
     inputs: torch.Tensor | list[torch.Tensor],
     cu_seqlens: torch.Tensor,
-    desired_shape: tuple[int],
+    output_shape: tuple[int],
     padding_side: str = "left",
     *,
     kernel_backend_forward: KernelBackend = KernelBackend.cuda,
@@ -213,9 +217,9 @@ def unpack_sequence_cute(
         if kernel_backend_forward == KernelBackend.torch:
             assert kernel_backend_backward == KernelBackend.torch
 
-            B, S = desired_shape[:2]
+            B, S = output_shape[:2]
             assert cu_seqlens.size(0) - 1 == B
-            assert desired_shape[2:] == x.size()[1:]
+            assert output_shape[2:] == x.size()[1:]
 
             seqlens = cu_seqlens[1:] - cu_seqlens[:-1]
             batch_indices = torch.arange(B, device=x.device).repeat_interleave(seqlens)
@@ -228,11 +232,11 @@ def unpack_sequence_cute(
             else:
                 raise ValueError(f"unexpected padding_side ({padding_side})")
 
-            padded = torch.zeros(desired_shape, dtype=x.dtype, device=x.device)
+            padded = torch.zeros(output_shape, dtype=x.dtype, device=x.device)
             padded[batch_indices, seq_indices] = x
         else:
             padded = _UnpackSequence_Cute.apply(
-                x, cu_seqlens, desired_shape, padding_side, kernel_backend_forward, kernel_backend_backward
+                x, cu_seqlens, output_shape, padding_side, kernel_backend_forward, kernel_backend_backward
             )
 
         outputs.append(padded)
