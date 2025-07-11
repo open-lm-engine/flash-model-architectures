@@ -5,11 +5,11 @@
 import torch
 import triton
 import triton.language as tl
+from torch.library import custom_op
 
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
 from ....triton_math import clamp, matmul, sigmoid_backward, tanh_backward
-from ....utils import cute_op
 from ...rnn.triton_implementation.backward import _get_autotune_configs
 from .forward import _get_autotune_configs
 
@@ -119,7 +119,7 @@ def gru_backward_triton_kernel(
     tl.atomic_add(dWr_ptr + indices_W, dWr, mask=mask_hh)
 
 
-@cute_op(
+@custom_op(
     f"{LIBRARY_NAME}::gru_backward_triton",
     mutates_args={
         "forget_input_grad",
