@@ -5,10 +5,10 @@
 import torch
 import triton
 import triton.language as tl
+from torch.library import custom_op
 
 from ...constants import LIBRARY_NAME
 from ...math import ceil_divide
-from ...utils import cute_op
 
 
 @triton.jit
@@ -30,7 +30,7 @@ def add_scalar_triton_kernel(x_ptr, y, output_ptr, N, BLOCK_SIZE: tl.constexpr):
         _add_scalar(x_ptr=x_ptr, y=y, output_ptr=output_ptr, indices=indices, mask=indices < N)
 
 
-@cute_op(f"{LIBRARY_NAME}::add_scalar_triton", mutates_args={"output"})
+@custom_op(f"{LIBRARY_NAME}::add_scalar_triton", mutates_args={"output"})
 def add_scalar_triton(x: torch.Tensor, y: float, output: torch.Tensor) -> None:
     N = x.numel()
     BLOCK_SIZE = 4096

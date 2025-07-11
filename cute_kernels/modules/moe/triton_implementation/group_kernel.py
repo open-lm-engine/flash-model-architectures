@@ -5,10 +5,9 @@
 import torch
 import triton
 import triton.language as tl
+from torch.library import custom_op
 
 from ....constants import LIBRARY_NAME
-from ....math import ceil_divide
-from ....utils import cute_op
 
 
 @triton.autotune(configs=[triton.Config({"BLOCK_N": 256, "BLOCK_K": 128}, num_stages=4, num_warps=4)], key=["K"])
@@ -68,7 +67,7 @@ def group_triton_kernel(
         tgt_blk_ptrs += BLOCK_K * stride_ti
 
 
-@cute_op(f"{LIBRARY_NAME}::group", mutates_args={"out"})
+@custom_op(f"{LIBRARY_NAME}::group", mutates_args={"out"})
 def group(
     A: torch.Tensor,
     sorted_expert_idxs: torch.Tensor,

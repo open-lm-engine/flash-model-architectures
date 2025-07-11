@@ -5,10 +5,10 @@
 import torch
 import triton
 import triton.language as tl
+from torch.library import custom_op
 
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide
-from ....utils import cute_op
 
 
 @triton.autotune(
@@ -100,7 +100,7 @@ def groupXtY_triton_kernel(
         tl.store(DW_blk_ptrs, acc, mask=K_mask[:, None] & N_mask[None, :])
 
 
-@cute_op(f"{LIBRARY_NAME}::group_bwd_W", mutates_args={"DW"})
+@custom_op(f"{LIBRARY_NAME}::group_bwd_W", mutates_args={"DW"})
 def group_bwd_W(DY: torch.Tensor, X: torch.Tensor, expert_offsets: torch.Tensor, DW: torch.Tensor, E: int) -> None:
     grid = lambda meta: (E * ceil_divide(meta["K"], meta["BLOCK_K"]), ceil_divide(meta["N"], meta["BLOCK_N"]))
 

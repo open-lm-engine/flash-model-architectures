@@ -5,11 +5,11 @@
 import torch
 import triton
 import triton.language as tl
+from torch.library import custom_op
 
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
 from ....triton_math import clamp, tanh_backward
-from ....utils import cute_op
 from .forward_diagonal import _get_autotune_configs
 
 
@@ -77,7 +77,7 @@ def diagonal_rnn_backward_triton_kernel(
     tl.atomic_add(dW_ptr + indices_n, dW, mask=mask_n)
 
 
-@cute_op(f"{LIBRARY_NAME}::diagonal_rnn_backward_triton", mutates_args={"input_grad", "weight_grad"})
+@custom_op(f"{LIBRARY_NAME}::diagonal_rnn_backward_triton", mutates_args={"input_grad", "weight_grad"})
 def diagonal_rnn_backward_triton(
     weight: torch.Tensor,
     output: torch.Tensor,

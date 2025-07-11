@@ -5,10 +5,10 @@
 import torch
 import triton
 import triton.language as tl
+from torch.library import custom_op
 
 from ...constants import LIBRARY_NAME
 from ...math import ceil_divide, get_powers_of_2
-from ...utils import cute_op
 
 
 def _get_autotune_configs() -> list[triton.Config]:
@@ -114,7 +114,7 @@ def bmm_triton_kernel(
     tl.store(output_ptr + indices_lmn, accumulator, mask=mask_mn)
 
 
-@cute_op(f"{LIBRARY_NAME}::bmm_triton", mutates_args={"output"})
+@custom_op(f"{LIBRARY_NAME}::bmm_triton", mutates_args={"output"})
 def bmm_triton(
     A: torch.Tensor,
     B: torch.Tensor,

@@ -3,10 +3,10 @@
 # **************************************************
 
 import torch
+from torch.library import custom_op
 
 from ...constants import LIBRARY_NAME
 from ...kernel_backend import KernelBackend
-from ...utils import cute_op
 from .cuda_implementation import continuous_count_cuda
 
 
@@ -14,7 +14,7 @@ def _fake_bincount(x: torch.Tensor, minlength: int) -> torch.Tensor:
     return torch.empty(minlength, device=x.device, dtype=torch.int)
 
 
-@cute_op(f"{LIBRARY_NAME}::bincount", mutates_args={}, fake_func=_fake_bincount)
+@custom_op(f"{LIBRARY_NAME}::bincount", mutates_args={}, fake_func=_fake_bincount)
 def bincount(x: torch.Tensor, minlength: int) -> torch.Tensor:
     return x.bincount(minlength=minlength)
 

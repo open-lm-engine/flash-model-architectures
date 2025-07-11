@@ -5,11 +5,11 @@
 import torch
 import triton
 import triton.language as tl
+from torch.library import custom_op
 
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
 from ....triton_math import matmul, tanh
-from ....utils import cute_op
 from .forward import _get_autotune_configs
 
 
@@ -76,7 +76,7 @@ def rnn_varlen_forward_triton_kernel(
         start += 1
 
 
-@cute_op(f"{LIBRARY_NAME}::rnn_varlen_forward_triton", mutates_args={"output"})
+@custom_op(f"{LIBRARY_NAME}::rnn_varlen_forward_triton", mutates_args={"output"})
 def rnn_varlen_forward_triton(
     input: torch.Tensor,
     weight: torch.Tensor,

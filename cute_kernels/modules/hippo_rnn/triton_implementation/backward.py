@@ -5,11 +5,11 @@
 import torch
 import triton
 import triton.language as tl
+from torch.library import custom_op
 
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2, get_powers_of_2
 from ....triton_math import clamp, matmul, tanh_backward
-from ....utils import cute_op
 
 
 def _get_autotune_configs() -> list[triton.Config]:
@@ -154,7 +154,7 @@ def hippo_rnn_backward_triton_kernel(
     tl.atomic_add(dWc_ptr + indices_Wc[:, None], dWc, mask=mask_h[:, None])
 
 
-@cute_op(
+@custom_op(
     f"{LIBRARY_NAME}::hippo_rnn_backward_triton",
     mutates_args={"input_grad", "weight_grad", "hippo_weight_grad", "compress_weight_grad"},
 )
