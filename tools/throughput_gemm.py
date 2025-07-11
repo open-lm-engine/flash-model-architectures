@@ -17,8 +17,8 @@ n = 100
 
 headers = ["dtype", "torch TFLOPs", "torch compile TFLOPs", "triton TFLOPs"]
 kernels = [
-    partial(gemm_cute, KernelBackend.torch),
-    partial(torch.compile(gemm_cute, mode="max-autotune"), KernelBackend.torch),
+    partial(gemm_cute, kernel_backend=KernelBackend.torch),
+    partial(torch.compile(gemm_cute, mode="max-autotune"), kernel_backend=KernelBackend.torch),
     partial(gemm_cute, kernel_backend=KernelBackend.triton),
 ]
 
