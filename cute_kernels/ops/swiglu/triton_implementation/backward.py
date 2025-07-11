@@ -5,11 +5,12 @@
 import torch
 import triton
 import triton.language as tl
+from torch.library import custom_op
 
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide
 from ....triton_math import sigmoid
-from ....utils import cute_op, get_num_elements_and_hidden_size
+from ....utils import get_num_elements_and_hidden_size
 
 
 @triton.jit
@@ -54,7 +55,7 @@ def swiglu_backward_triton_kernel(
     tl.store(up_grad_ptr + indices_gate, up_grad, mask=mask)
 
 
-@cute_op(f"{LIBRARY_NAME}::swiglu_backward_triton", mutates_args={"gate_grad", "up_grad"})
+@custom_op(f"{LIBRARY_NAME}::swiglu_backward_triton", mutates_args={"gate_grad", "up_grad"})
 def swiglu_backward_triton(
     gate: torch.Tensor,
     up: torch.Tensor,

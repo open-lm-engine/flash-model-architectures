@@ -5,11 +5,11 @@
 import torch
 import triton
 import triton.language as tl
+from torch.library import custom_op
 
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2, get_powers_of_2
 from ....triton_math import matmul, tanh
-from ....utils import cute_op
 
 
 def _get_autotune_configs() -> list[triton.Config]:
@@ -73,7 +73,7 @@ def rnn_forward_triton_kernel(
         indices += x_stride_s
 
 
-@cute_op(f"{LIBRARY_NAME}::rnn_forward_triton", mutates_args={"output"})
+@custom_op(f"{LIBRARY_NAME}::rnn_forward_triton", mutates_args={"output"})
 def rnn_forward_triton(
     input: torch.Tensor, weight: torch.Tensor, input_state: torch.Tensor | None, output: torch.Tensor
 ) -> None:

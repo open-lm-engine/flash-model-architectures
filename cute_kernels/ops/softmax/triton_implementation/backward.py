@@ -5,10 +5,11 @@
 import torch
 import triton
 import triton.language as tl
+from torch.library import custom_op
 
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
-from ....utils import cute_op, get_num_elements_and_hidden_size
+from ....utils import get_num_elements_and_hidden_size
 
 
 @triton.jit
@@ -78,7 +79,7 @@ def softmax_backward_triton_kernel(
         tl.store(x_grad_ptr + indices, output, mask=mask_bh)
 
 
-@cute_op(f"{LIBRARY_NAME}::softmax_backward_triton", mutates_args={"x_grad"})
+@custom_op(f"{LIBRARY_NAME}::softmax_backward_triton", mutates_args={"x_grad"})
 def softmax_backward_triton(
     output: torch.Tensor, output_grad: torch.Tensor, x_grad: torch.Tensor, logits_multiplier: float | None
 ) -> None:

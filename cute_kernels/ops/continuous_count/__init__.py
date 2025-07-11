@@ -4,19 +4,8 @@
 
 import torch
 
-from ...constants import LIBRARY_NAME
 from ...kernel_backend import KernelBackend
-from ...utils import cute_op
 from .cuda_implementation import continuous_count_cuda
-
-
-def _fake_bincount(x: torch.Tensor, minlength: int) -> torch.Tensor:
-    return torch.empty(minlength, device=x.device, dtype=torch.int)
-
-
-@cute_op(f"{LIBRARY_NAME}::bincount", mutates_args={}, fake_func=_fake_bincount)
-def bincount(x: torch.Tensor, minlength: int) -> torch.Tensor:
-    return x.bincount(minlength=minlength)
 
 
 @torch.no_grad()
@@ -44,7 +33,7 @@ def continuous_count_cute(
     assert x.dtype in [torch.int32, torch.long]
 
     if kernel_backend == KernelBackend.torch:
-        output = bincount(x=x, minlength=size).to(torch.uint32)
+        output = x.bincount(minlength=size).to(torch.uint32)
     elif kernel_backend == KernelBackend.cuda:
         output = torch.empty(size, dtype=torch.uint32, device=x.device)
         continuous_count_cuda(x=x, output=output, E=size, THREAD_BLOCK_CLUSTER_SIZE=1, BLOCK_SIZE=1024)

@@ -3,13 +3,13 @@
 # **************************************************
 
 import torch
+from torch.library import custom_op
 
 from ....constants import LIBRARY_NAME
 from ....jit import cpp_jit
-from ....utils import cute_op
 
 
-@cute_op(f"{LIBRARY_NAME}::pack_unpack_sequence_cuda", mutates_args={"output"})
+@custom_op(f"{LIBRARY_NAME}::pack_unpack_sequence_cuda", mutates_args={"output"})
 @cpp_jit()
 def pack_unpack_sequence_cuda(
     x: torch.Tensor,

@@ -5,10 +5,10 @@
 import torch
 import triton
 import triton.language as tl
+from torch.library import custom_op
 
 from ...constants import LIBRARY_NAME
 from ...math import ceil_divide
-from ...utils import cute_op
 
 
 @triton.jit
@@ -31,7 +31,7 @@ def matrix_transpose_triton_kernel(x_ptr, y_ptr, M, N, BLOCK_SIZE: tl.constexpr)
     tl.store(y_ptr + indices, x.T, mask=mask.T)
 
 
-@cute_op(f"{LIBRARY_NAME}::matrix_transpose_triton", mutates_args={"output"})
+@custom_op(f"{LIBRARY_NAME}::matrix_transpose_triton", mutates_args={"output"})
 def matrix_transpose_triton(x: torch.Tensor, output: torch.Tensor) -> None:
     M, N = x.size()
     NUM_WARPS = 32

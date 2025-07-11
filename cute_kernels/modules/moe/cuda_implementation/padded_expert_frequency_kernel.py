@@ -5,10 +5,10 @@
 import torch
 import triton
 import triton.language as tl
+from torch.library import custom_op
 
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide
-from ....utils import cute_op
 
 
 @triton.jit
@@ -24,7 +24,7 @@ def padded_expert_frequency_triton_kernel(x_ptr, y_ptr, pad_to_multiple_of, N, B
     tl.store(y_ptr + indices, y, mask=mask)
 
 
-@cute_op(f"{LIBRARY_NAME}::padded_expert_frequency_triton", mutates_args={"output"})
+@custom_op(f"{LIBRARY_NAME}::padded_expert_frequency_triton", mutates_args={"output"})
 def padded_expert_frequency_triton(
     expert_frequency: torch.Tensor, output: torch.Tensor, pad_to_multiple_of: int
 ) -> None:

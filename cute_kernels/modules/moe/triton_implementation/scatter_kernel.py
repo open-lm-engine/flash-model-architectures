@@ -5,10 +5,10 @@
 import torch
 import triton
 import triton.language as tl
+from torch.library import custom_op
 
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide
-from ....utils import cute_op
 
 
 @triton.jit
@@ -135,7 +135,7 @@ def scatter2scatter_triton_kernel(
     tl.store(Y_blk_ptrs, acc, mask=M_boundary_mask[:, None] & N_mask[None, :])
 
 
-@cute_op(f"{LIBRARY_NAME}::scatter2scatter", mutates_args={"out"})
+@custom_op(f"{LIBRARY_NAME}::scatter2scatter", mutates_args={"out"})
 def scatter2scatter(
     X: torch.Tensor,
     W: torch.Tensor,
