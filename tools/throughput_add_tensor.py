@@ -2,16 +2,22 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
+from functools import partial
+
 import torch
 from tabulate import tabulate
 
-from cute_kernels import add_tensor_cute, add_tensor_torch, device_synchronize
+from cute_kernels import KernelBackend, add_tensor_cute, device_synchronize
 
 
 n = 100
 
-headers = ["dtype", "torch", "kernel"]
-kernels = [add_tensor_torch, add_tensor_cute]
+headers = ["dtype", "torch", "CUDA kernel", "triton kernel"]
+kernels = [
+    partial(add_tensor_cute, kernel_backend=KernelBackend.torch),
+    partial(add_tensor_cute, kernel_backend=KernelBackend.cuda),
+    partial(add_tensor_cute, kernel_backend=KernelBackend.triton),
+]
 
 table = []
 
