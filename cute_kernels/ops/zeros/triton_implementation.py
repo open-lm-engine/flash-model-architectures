@@ -5,10 +5,10 @@
 import torch
 import triton
 import triton.language as tl
+from torch.library import custom_op
 
 from ...constants import LIBRARY_NAME
 from ...math import ceil_divide
-from ...utils import cute_op
 
 
 @triton.jit
@@ -24,7 +24,7 @@ def fill_triton_kernel(x_ptr, fill_value, N, BLOCK_SIZE: tl.constexpr):
         tl.store(x_ptr + indices, fill_value, mask=indices < N)
 
 
-@cute_op(f"{LIBRARY_NAME}::fill_triton", mutates_args={"x"})
+@custom_op(f"{LIBRARY_NAME}::fill_triton", mutates_args={"x"})
 def fill_triton(x: torch.Tensor, fill_value: float) -> None:
     BLOCK_SIZE = 4096
     NUM_WARPS = 32

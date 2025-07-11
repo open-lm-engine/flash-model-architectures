@@ -5,11 +5,12 @@
 import torch
 import triton
 import triton.language as tl
+from torch.library import custom_op
 
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide
 from ....triton_math import sigmoid
-from ....utils import cute_op, get_num_elements_and_hidden_size
+from ....utils import get_num_elements_and_hidden_size
 
 
 @triton.jit
@@ -45,7 +46,7 @@ def swiglu_forward_triton_kernel(
     tl.store(output_ptr + indices, output, mask=mask)
 
 
-@cute_op(f"{LIBRARY_NAME}::swiglu_forward_triton", mutates_args={"output"})
+@custom_op(f"{LIBRARY_NAME}::swiglu_forward_triton", mutates_args={"output"})
 def swiglu_forward_triton(gate: torch.Tensor, up: torch.Tensor, output: torch.Tensor) -> None:
     B, H = get_num_elements_and_hidden_size(gate)
     BLOCK_SIZE_B = 64

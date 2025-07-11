@@ -5,10 +5,11 @@
 import torch
 import triton
 import triton.language as tl
+from torch.library import custom_op
 
 from ....constants import LIBRARY_NAME, MAX_TRITON_BLOCK_SIZE
-from ....math import ceil_divide, get_next_power_of_2, get_powers_of_2
-from ....utils import cute_op, get_num_elements_and_hidden_size
+from ....math import ceil_divide, get_next_power_of_2
+from ....utils import get_num_elements_and_hidden_size
 
 
 @triton.jit
@@ -51,7 +52,7 @@ def rmsnorm_forward_triton_kernel(
     tl.store(output_ptr + indices_bh, x, mask=mask_bh)
 
 
-@cute_op(f"{LIBRARY_NAME}::rmsnorm_forward_triton", mutates_args={"output", "rmsnorm_denominator"})
+@custom_op(f"{LIBRARY_NAME}::rmsnorm_forward_triton", mutates_args={"output", "rmsnorm_denominator"})
 def rmsnorm_forward_triton(
     x: torch.Tensor,
     weight: torch.Tensor | None,

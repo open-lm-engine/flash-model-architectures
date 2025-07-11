@@ -5,10 +5,11 @@
 import torch
 import triton
 import triton.language as tl
+from torch.library import custom_op
 
 from ....constants import LIBRARY_NAME, MAX_TRITON_BLOCK_SIZE
 from ....math import ceil_divide, get_next_power_of_2
-from ....utils import cute_op, get_num_elements_and_hidden_size, get_sm_count
+from ....utils import get_num_elements_and_hidden_size, get_sm_count
 
 
 @triton.jit
@@ -82,7 +83,7 @@ def norm_2_backward_triton_kernel(
         tl.atomic_add(weight_grad_ptr + indices_h, weight_grad, mask=mask_h)
 
 
-@cute_op(f"{LIBRARY_NAME}::norm_2_backward_triton", mutates_args={"x_grad", "weight_grad"})
+@custom_op(f"{LIBRARY_NAME}::norm_2_backward_triton", mutates_args={"x_grad", "weight_grad"})
 def norm_2_backward_triton(
     x: torch.Tensor,
     weight: torch.Tensor | None,
