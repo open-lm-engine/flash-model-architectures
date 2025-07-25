@@ -88,9 +88,9 @@ def bmm_triton_kernel(
     mask_n = indices_n < N
 
     accumulator = tl.zeros((BLOCK_SIZE_M, BLOCK_SIZE_N), dtype=tl.float32)
+    indices_k = tl.arange(0, BLOCK_SIZE_K)
 
-    for k in range(tl.cdiv(K, BLOCK_SIZE_K)):
-        indices_k = k * BLOCK_SIZE_K + tl.arange(0, BLOCK_SIZE_K)
+    for _ in range(tl.cdiv(K, BLOCK_SIZE_K)):
         mask_k = indices_k < K
 
         if IS_A_TRANSPOSED:
@@ -118,6 +118,7 @@ def bmm_triton_kernel(
             B = B.T
 
         accumulator = tl.dot(A, B, accumulator, allow_tf32=True)
+        indices_k += BLOCK_SIZE_K
 
     accumulator = accumulator.to(A_ptr.dtype.element_ty)
     accumulator *= alpha
