@@ -8,32 +8,39 @@ import triton.language as tl
 from torch.library import custom_op
 
 from ...constants import LIBRARY_NAME
-from ...math import ceil_divide, get_powers_of_2
+from ...math import ceil_divide
 
 
-def _get_autotune_configs() -> list[triton.Config]:
-    configs = []
-    for BLOCK_SIZE_M in get_powers_of_2(32, 128):
-        for BLOCK_SIZE_N in get_powers_of_2(32, 128):
-            for BLOCK_SIZE_K in get_powers_of_2(16, 64):
-                for NUM_WARPS in get_powers_of_2(4, 8):
-                    for NUM_STAGES in range(4):
-                        configs.append(
-                            triton.Config(
-                                {
-                                    "BLOCK_SIZE_M": BLOCK_SIZE_M,
-                                    "BLOCK_SIZE_N": BLOCK_SIZE_N,
-                                    "BLOCK_SIZE_K": BLOCK_SIZE_K,
-                                },
-                                num_warps=NUM_WARPS,
-                                num_stages=NUM_STAGES,
-                            )
-                        )
-
-    return configs
-
-
-@triton.autotune(configs=_get_autotune_configs(), key=[])
+@triton.autotune(
+    configs=[
+        triton.Config(
+            {"BLOCK_SIZE_M": 128, "BLOCK_SIZE_N": 256, "BLOCK_SIZE_K": 64, "GROUP_SIZE_M": 8},
+            num_stages=3,
+            num_warps=8,
+        ),
+        triton.Config(
+            {"BLOCK_SIZE_M": 64, "BLOCK_SIZE_N": 256, "BLOCK_SIZE_K": 32, "GROUP_SIZE_M": 8}, num_stages=4, num_warps=4
+        ),
+        triton.Config(
+            {"BLOCK_SIZE_M": 128, "BLOCK_SIZE_N": 128, "BLOCK_SIZE_K": 32, "GROUP_SIZE_M": 8},
+            num_stages=4,
+            num_warps=4,
+        ),
+        triton.Config(
+            {"BLOCK_SIZE_M": 128, "BLOCK_SIZE_N": 64, "BLOCK_SIZE_K": 32, "GROUP_SIZE_M": 8}, num_stages=4, num_warps=4
+        ),
+        triton.Config(
+            {"BLOCK_SIZE_M": 64, "BLOCK_SIZE_N": 128, "BLOCK_SIZE_K": 32, "GROUP_SIZE_M": 8}, num_stages=4, num_warps=4
+        ),
+        triton.Config(
+            {"BLOCK_SIZE_M": 128, "BLOCK_SIZE_N": 32, "BLOCK_SIZE_K": 32, "GROUP_SIZE_M": 8}, num_stages=4, num_warps=4
+        ),
+        triton.Config(
+            {"BLOCK_SIZE_M": 64, "BLOCK_SIZE_N": 32, "BLOCK_SIZE_K": 32, "GROUP_SIZE_M": 8}, num_stages=5, num_warps=2
+        ),
+    ],
+    key=[],
+)
 @triton.jit
 def bmm_triton_kernel(
     A_ptr,
@@ -47,6 +54,7 @@ def bmm_triton_kernel(
     M,
     K,
     N,
+    GROUP_SIZE_M: tl.constexpr,
     BLOCK_SIZE_M: tl.constexpr,
     BLOCK_SIZE_K: tl.constexpr,
     BLOCK_SIZE_N: tl.constexpr,
@@ -56,12 +64,22 @@ def bmm_triton_kernel(
     # C -> M x N
 
     BLOCK_ID_L = tl.program_id(axis=0)
-
     BLOCK_ID = tl.program_id(axis=1)
+
+    NUM_BLOCKS_M = tl.cdiv(M, BLOCK_SIZE_M)
     NUM_BLOCKS_N = tl.cdiv(N, BLOCK_SIZE_N)
 
-    BLOCK_ID_M = BLOCK_ID // NUM_BLOCKS_N
-    BLOCK_ID_N = BLOCK_ID % NUM_BLOCKS_N
+    NUM_BLOCKS_IN_GROUP = GROUP_SIZE_M * NUM_BLOCKS_N
+    GROUP_ID = BLOCK_ID // NUM_BLOCKS_IN_GROUP
+
+    FIRST_BLOCK_M_IN_GROUP = GROUP_ID * GROUP_SIZE_M
+    CURRENT_GROUP_SIZE_M = min(NUM_BLOCKS_M - FIRST_BLOCK_M_IN_GROUP, GROUP_SIZE_M)
+
+    BLOCK_ID_M = FIRST_BLOCK_M_IN_GROUP + ((BLOCK_ID % NUM_BLOCKS_IN_GROUP) % CURRENT_GROUP_SIZE_M)
+    BLOCK_ID_N = (BLOCK_ID % NUM_BLOCKS_IN_GROUP) // CURRENT_GROUP_SIZE_M
+
+    if BLOCK_ID_N >= NUM_BLOCKS_N:
+        return
 
     indices_m = BLOCK_ID_M * BLOCK_SIZE_M + tl.arange(0, BLOCK_SIZE_M)
     indices_n = BLOCK_ID_N * BLOCK_SIZE_N + tl.arange(0, BLOCK_SIZE_N)
@@ -70,9 +88,9 @@ def bmm_triton_kernel(
     mask_n = indices_n < N
 
     accumulator = tl.zeros((BLOCK_SIZE_M, BLOCK_SIZE_N), dtype=tl.float32)
+    indices_k = tl.arange(0, BLOCK_SIZE_K)
 
-    for k in range(tl.cdiv(K, BLOCK_SIZE_K)):
-        indices_k = k * BLOCK_SIZE_K + tl.arange(0, BLOCK_SIZE_K)
+    for _ in range(tl.cdiv(K, BLOCK_SIZE_K)):
         mask_k = indices_k < K
 
         if IS_A_TRANSPOSED:
@@ -100,6 +118,7 @@ def bmm_triton_kernel(
             B = B.T
 
         accumulator = tl.dot(A, B, accumulator, allow_tf32=True)
+        indices_k += BLOCK_SIZE_K
 
     accumulator = accumulator.to(A_ptr.dtype.element_ty)
     accumulator *= alpha
