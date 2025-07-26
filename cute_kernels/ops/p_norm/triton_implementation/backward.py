@@ -80,7 +80,7 @@ def norm_2_backward_triton_kernel(
             weight_grad += tl.sum(output_grad * (x * r[:, None]).to(x_dtype), axis=0)
 
     if weight_ptr is not None:
-        tl.atomic_add(weight_grad_ptr + indices_h, weight_grad, mask=mask_h)
+        tl.atomic_add(weight_grad_ptr + indices_h, weight_grad, mask=mask_h, sem="relaxed")
 
 
 @custom_op(f"{LIBRARY_NAME}::norm_2_backward_triton", mutates_args={"x_grad", "weight_grad"})

@@ -98,7 +98,7 @@ def cross_entropy_forward_backward_triton_kernel(
     if reduction == "mean":
         loss /= B
 
-    tl.atomic_add(loss_ptr + tl.arange(0, 1), loss)
+    tl.atomic_add(loss_ptr + tl.arange(0, 1), loss, sem="relaxed")
 
 
 @custom_op(f"{LIBRARY_NAME}::cross_entropy_forward_backward_triton", mutates_args={"loss", "x_grad"})

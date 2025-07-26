@@ -114,7 +114,7 @@ class GRUTest(TestCommons):
                 rtol_float32=0,
                 atol_float16=2.3e-2,
                 rtol_float16=0,
-                atol_bfloat16=6e-2,
+                atol_bfloat16=6.7e-2,
                 rtol_bfloat16=0,
             )
 

@@ -56,7 +56,7 @@ def ungroup_with_padding_triton_kernel(
             x = tl.load(x_ptrs + indices_h[None, :], mask=mask_b[:, None])
 
             if ATOMIC_ADD:
-                tl.atomic_add(y_ptrs + indices_h[None, :], x, mask=mask_b[:, None])
+                tl.atomic_add(y_ptrs + indices_h[None, :], x, mask=mask_b[:, None], sem="relaxed")
             else:
                 tl.store(y_ptrs + indices_h[None, :], x, mask=mask_b[:, None])
         else:
@@ -66,7 +66,7 @@ def ungroup_with_padding_triton_kernel(
             x = tl.load(x_ptrs + indices_h[None, :], mask=mask_bh)
 
             if ATOMIC_ADD:
-                tl.atomic_add(y_ptrs + indices_h[None, :], x, mask=mask_bh)
+                tl.atomic_add(y_ptrs + indices_h[None, :], x, mask=mask_bh, sem="relaxed")
             else:
                 tl.store(y_ptrs + indices_h[None, :], x, mask=mask_bh)
 
