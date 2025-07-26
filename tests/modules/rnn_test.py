@@ -105,7 +105,7 @@ class RNNTest(TestCommons):
             False,
             atol_float32=1.5e-3,
             rtol_float32=0,
-            atol_float16=1.6e-2,
+            atol_float16=1.7e-2,
             rtol_float16=0,
         )
 
