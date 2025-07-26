@@ -138,9 +138,9 @@ def gru_varlen_backward_triton_kernel(
 
         end -= 1
 
-    tl.atomic_add(dW_ptr + indices_W, dW, mask=mask_hh)
-    tl.atomic_add(dWf_ptr + indices_W, dWf, mask=mask_hh)
-    tl.atomic_add(dWr_ptr + indices_W, dWr, mask=mask_hh)
+    tl.atomic_add(dW_ptr + indices_W, dW, mask=mask_hh, sem="relaxed")
+    tl.atomic_add(dWf_ptr + indices_W, dWf, mask=mask_hh, sem="relaxed")
+    tl.atomic_add(dWr_ptr + indices_W, dWr, mask=mask_hh, sem="relaxed")
 
 
 @custom_op(

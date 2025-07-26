@@ -96,7 +96,7 @@ def fused_residual_add_rmsnorm_backward_triton_kernel(
             weight_grad += tl.sum(output_grad * (added_x_residual * inverse_rms[:, None]).to(x_dtype), axis=0)
 
     if weight_ptr is not None:
-        tl.atomic_add(weight_grad_ptr + indices_h, weight_grad, mask=mask_h)
+        tl.atomic_add(weight_grad_ptr + indices_h, weight_grad, mask=mask_h, sem="relaxed")
 
 
 @custom_op(
