@@ -17,7 +17,7 @@ S = 4096
 N = 64
 H = 768
 
-with torch.cuda.current_device():
+with torch.device(torch.cuda.current_device()):
     rnn = RNN(input_size=H, state_size=1024, output_size=H, num_heads=N, add_bias=False)
 
 headers = ["dtype", "torch", "kernel"]
