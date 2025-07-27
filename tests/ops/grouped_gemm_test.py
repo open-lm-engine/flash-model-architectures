@@ -7,7 +7,7 @@ from typing import Callable
 import torch
 from parameterized import parameterized
 
-from fma import grouped_gemm_cute, set_seed
+from fma import grouped_gemm, set_seed
 
 from ..test_commons import TestCommons
 
@@ -22,7 +22,7 @@ class GroupedGEMMTest(TestCommons):
             [False, True],  # is_B_transposed
             [torch.device("cuda")],  # device
             [torch.bfloat16],  # dtype
-            [grouped_gemm_cute, torch.compile(grouped_gemm_cute, fullgraph=True)],  # function
+            [grouped_gemm, torch.compile(grouped_gemm, fullgraph=True)],  # function
         )
     )
     def test_grouped_gemm(

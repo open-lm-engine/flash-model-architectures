@@ -9,7 +9,7 @@ from .cuda_implementation import grouped_gemm_cuda
 
 
 @ensure_contiguous
-def grouped_gemm_cute(
+def grouped_gemm(
     A: torch.Tensor,
     B: torch.Tensor,
     C: torch.Tensor | None,
