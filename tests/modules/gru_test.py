@@ -215,7 +215,7 @@ class GRUTest(TestCommons):
             [False, True],  # is_compiling
         )
     )
-    def test_gru_varlen_cute(
+    def test_gru_varlen(
         self,
         device: torch.device,
         dtype: torch.dtype,

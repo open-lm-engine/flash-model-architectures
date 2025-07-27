@@ -206,7 +206,7 @@ class RNNTest(TestCommons):
             [False, True],  # is_compiling
         )
     )
-    def test_rnn_varlen_cute(
+    def test_rnn_varlen(
         self,
         device: torch.device,
         dtype: torch.dtype,
