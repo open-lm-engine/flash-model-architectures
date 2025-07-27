@@ -12,7 +12,7 @@ from .cuda_implementation import swiglu_backward_cuda, swiglu_forward_cuda
 from .triton_implementation import swiglu_backward_triton, swiglu_forward_triton
 
 
-class _Swiglu_Cute(torch.autograd.Function):
+class _Swiglu(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
     def forward(
@@ -59,7 +59,7 @@ class _Swiglu_Cute(torch.autograd.Function):
         return gate_grad, up_grad, None, None
 
 
-class _SwigluPacked_Cute(torch.autograd.Function):
+class _SwigluPacked(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
     def forward(
@@ -94,7 +94,7 @@ class _SwigluPacked_Cute(torch.autograd.Function):
         return x_grad, None, None
 
 
-def swiglu_cute(
+def swiglu(
     gate: torch.Tensor,
     up: torch.Tensor,
     *,
@@ -125,12 +125,12 @@ def swiglu_cute(
         output = up * F.silu(gate)
         output = output.to(dtype)
     else:
-        output = _Swiglu_Cute.apply(gate, up, kernel_backend_forward, kernel_backend_backward)
+        output = _Swiglu.apply(gate, up, kernel_backend_forward, kernel_backend_backward)
 
     return output
 
 
-def swiglu_packed_cute(
+def swiglu_packed(
     x: torch.Tensor,
     *,
     kernel_backend_forward: KernelBackend = KernelBackend.triton,
@@ -152,13 +152,13 @@ def swiglu_packed_cute(
     if kernel_backend_forward == KernelBackend.torch:
         up, gate = x.chunk(2, dim=-1)
 
-        output = swiglu_cute(
+        output = swiglu(
             gate=gate,
             up=up,
             kernel_backend_forward=kernel_backend_forward,
             kernel_backend_backward=kernel_backend_backward,
         )
     else:
-        output = _SwigluPacked_Cute.apply(x, kernel_backend_forward, kernel_backend_backward)
+        output = _SwigluPacked.apply(x, kernel_backend_forward, kernel_backend_backward)
 
     return output
