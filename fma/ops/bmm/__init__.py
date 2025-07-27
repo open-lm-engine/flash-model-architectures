@@ -11,7 +11,7 @@ from .triton_implementation import bmm_triton
 
 
 @ensure_contiguous
-def bmm_op(
+def bmm(
     A: torch.Tensor,
     B: torch.Tensor,
     C: torch.Tensor | None,

@@ -9,7 +9,7 @@ from .cuda_implementation import continuous_count_cuda
 
 
 @torch.no_grad()
-def continuous_count_cute(
+def continuous_count(
     x: torch.Tensor, size: int, *, kernel_backend: KernelBackend = KernelBackend.cuda
 ) -> torch.Tensor:
     """counts the number of occurances of the values [0, 1, ..., `size`) in the input tensor (`size` is excluded).
