@@ -4,7 +4,7 @@
 
 #include "dtypes.h"
 
-namespace fma {
+namespace flash_model_architectures {
     inline __host__ uint32 get_num_SMs() {
         int32 device_id;
         cudaGetDevice(&device_id);
@@ -14,4 +14,4 @@ namespace fma {
 
         return num_SMs;
     }
-}  // namespace fma
+}  // namespace flash_model_architectures

@@ -6,9 +6,9 @@
 #include <cuda_runtime.h>
 #include <torch/extension.h>
 
-#include "include/fma.h"
+#include "include/flash_model_architectures.h"
 
-namespace ck = fma;
+namespace ck = flash_model_architectures;
 
 using uint64 = ck::uint64;
 

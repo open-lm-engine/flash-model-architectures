@@ -9,8 +9,9 @@ from unittest import TestCase
 
 import torch
 import torch.nn as nn
-from fma import init_inductor
 from torch.testing import assert_close
+
+from fma import init_inductor
 
 
 class TestCommons(TestCase):

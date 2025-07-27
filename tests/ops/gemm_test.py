@@ -5,8 +5,9 @@
 from typing import Callable
 
 import torch
-from fma import KernelBackend, ceil_divide, gemm_cute, set_seed
 from parameterized import parameterized
+
+from fma import KernelBackend, ceil_divide, gemm_cute, set_seed
 
 from ..test_commons import TestCommons
 

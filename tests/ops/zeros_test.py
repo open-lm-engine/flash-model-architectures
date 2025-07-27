@@ -5,8 +5,9 @@
 from typing import Callable
 
 import torch
-from fma import KernelBackend, zeros_cute
 from parameterized import parameterized
+
+from fma import KernelBackend, zeros_cute
 
 from ..test_commons import TestCommons
 

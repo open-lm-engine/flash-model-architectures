@@ -5,8 +5,9 @@
 import torch
 import torch.nn.functional as F
 from flash_attn.bert_padding import unpad_input
-from fma import device_synchronize, pack_sequence_cute
 from tabulate import tabulate
+
+from fma import device_synchronize, pack_sequence_cute
 
 
 n = 100

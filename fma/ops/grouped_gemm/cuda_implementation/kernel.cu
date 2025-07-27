@@ -17,9 +17,9 @@
 #include "cutlass/util/packed_stride.hpp"
 #include "cutlass/util/reference/device/gemm.h"
 #include "cutlass/util/tensor_view_io.h"
-#include "include/fma.h"
+#include "include/flash_model_architectures.h"
 
-namespace ck = fma;
+namespace ck = flash_model_architectures;
 using namespace cute;
 
 using uint32 = ck::uint32;

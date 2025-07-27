@@ -9,7 +9,7 @@
 
 #include "dtypes.h"
 
-namespace fma {
+namespace flash_model_architectures {
     template <typename T>
     struct ChunkedArray {
         T* array;
@@ -38,4 +38,4 @@ namespace fma {
 
         return result;
     }
-}  // namespace fma
+}  // namespace flash_model_architectures

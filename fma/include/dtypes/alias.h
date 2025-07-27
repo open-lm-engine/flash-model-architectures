@@ -9,7 +9,7 @@
 #include <cuda_runtime.h>
 #include <torch/extension.h>
 
-namespace fma {
+namespace flash_model_architectures {
     // define dtype aliases
     using fp64 = double;
     using fp64_2 = double2;
@@ -40,4 +40,4 @@ namespace fma {
 
     using int16 = short;
     using uint16 = ushort;
-}  // namespace fma
+}  // namespace flash_model_architectures

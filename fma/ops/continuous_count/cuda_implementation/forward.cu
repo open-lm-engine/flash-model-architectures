@@ -12,7 +12,7 @@
 #define MAX_ALLOWED_E 16384
 
 namespace cg = cooperative_groups;
-namespace ck = fma;
+namespace ck = flash_model_architectures;
 namespace ck_mem = ck::memory;
 
 using int32 = ck::int32;

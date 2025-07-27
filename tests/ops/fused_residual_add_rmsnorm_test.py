@@ -5,8 +5,9 @@
 from typing import Callable
 
 import torch
-from fma import KernelBackend, fused_residual_add_rmsnorm_cute, set_seed
 from parameterized import parameterized
+
+from fma import KernelBackend, fused_residual_add_rmsnorm_cute, set_seed
 
 from ..test_commons import TestCommons
 from .rmsnorm_test import _get_sizes

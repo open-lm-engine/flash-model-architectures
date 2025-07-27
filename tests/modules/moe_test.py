@@ -3,8 +3,9 @@
 # **************************************************
 
 import torch
-from fma import KernelBackend, MoE, set_seed
 from parameterized import parameterized
+
+from fma import KernelBackend, MoE, set_seed
 
 from ..test_commons import TestCommons
 

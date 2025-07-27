@@ -5,8 +5,9 @@
 from functools import partial
 
 import torch
-from fma import KernelBackend, add_tensor_cute, device_synchronize
 from tabulate import tabulate
+
+from fma import KernelBackend, add_tensor_cute, device_synchronize
 
 
 n = 100

@@ -13,7 +13,7 @@
 #include "common.h"
 #include "cutlass/bfloat16.h"
 
-namespace fma {
+namespace flash_model_architectures {
     template <>
     struct DType<c10::BFloat16> {
         using c10_dtype = c10::BFloat16;
@@ -41,4 +41,4 @@ namespace fma {
 
     template <>
     struct DType<bf16> : public DType<c10::BFloat16> {};
-}  // namespace fma
+}  // namespace flash_model_architectures

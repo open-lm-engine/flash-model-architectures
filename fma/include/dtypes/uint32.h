@@ -11,7 +11,7 @@
 #include "alias.h"
 #include "common.h"
 
-namespace fma {
+namespace flash_model_architectures {
     template <>
     struct DType<uint32> {
         using nv_dtype = uint32;
@@ -34,4 +34,4 @@ namespace fma {
 
         return static_cast<int32>(value);
     }
-}  // namespace fma
+}  // namespace flash_model_architectures

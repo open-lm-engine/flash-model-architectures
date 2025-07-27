@@ -8,11 +8,11 @@
 #include <cuda_runtime.h>
 #include <torch/extension.h>
 
-namespace fma::memory {
+namespace flash_model_architectures::memory {
     template <typename scalar_t>
     inline __device__ scalar_t *get_dynamic_shared_memory() {
         extern __shared__ char shared_memory_raw[];
         alignas(scalar_t) scalar_t *shared_memory = reinterpret_cast<scalar_t *>(shared_memory_raw);
         return shared_memory;
     }
-}  // namespace fma::memory
+}  // namespace flash_model_architectures::memory

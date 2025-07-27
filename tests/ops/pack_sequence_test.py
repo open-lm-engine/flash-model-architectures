@@ -6,8 +6,9 @@ from typing import Callable
 
 import torch
 import torch._dynamo.config
-from fma import KernelBackend, pack_sequence_cute, unpack_sequence_cute
 from parameterized import parameterized
+
+from fma import KernelBackend, pack_sequence_cute, unpack_sequence_cute
 
 from ..test_commons import TestCommons
 

@@ -5,8 +5,9 @@
 from functools import partial
 
 import torch
-from fma import KernelBackend, device_synchronize, gemm_cute
 from tabulate import tabulate
+
+from fma import KernelBackend, device_synchronize, gemm_cute
 
 
 torch._inductor.config.max_autotune_gemm_backends = "TRITON"

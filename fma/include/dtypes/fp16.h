@@ -13,7 +13,7 @@
 #include "common.h"
 #include "cutlass/half.h"
 
-namespace fma {
+namespace flash_model_architectures {
     template <>
     struct DType<c10::Half> {
         using c10_dtype = c10::Half;
@@ -34,4 +34,4 @@ namespace fma {
 
     template <>
     struct DType<fp16> : public DType<c10::Half> {};
-}  // namespace fma
+}  // namespace flash_model_architectures

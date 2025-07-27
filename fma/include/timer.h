@@ -4,7 +4,7 @@
 
 #include "dtypes.h"
 
-namespace fma {
+namespace flash_model_architectures {
     struct GpuTimer {
         cudaStream_t _stream_id;
         cudaEvent_t _start;
@@ -39,4 +39,4 @@ namespace fma {
             return elapsed;
         }
     };
-}  // namespace fma
+}  // namespace flash_model_architectures

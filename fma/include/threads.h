@@ -15,7 +15,7 @@
 #include "dtypes.h"
 #include "math.h"
 
-namespace fma {
+namespace flash_model_architectures {
     inline __device__ uint32 get_num_blocks() { return gridDim.x * gridDim.y * gridDim.z; }
 
     inline __host__ int get_max_thread_blocks(const uint32 &sm_count, const uint32 &thread_block_cluster_size) {
@@ -45,4 +45,4 @@ namespace fma {
 
         return std::make_tuple(NUM_BLOCKS, thread_block_cluster_size);
     }
-}  // namespace fma
+}  // namespace flash_model_architectures

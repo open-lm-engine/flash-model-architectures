@@ -12,7 +12,7 @@
 #include "alias.h"
 #include "common.h"
 
-namespace fma {
+namespace flash_model_architectures {
     template <>
     struct DType<fp64> {
         using c10_dtype = fp64;
@@ -41,4 +41,4 @@ namespace fma {
         inline __device__ static nv_dtype2 downcast(const nv_dtype2 &value) { return value; }
         inline __device__ static nv_dtype4 downcast(const nv_dtype4 &value) { return value; }
     };
-}  // namespace fma
+}  // namespace flash_model_architectures
