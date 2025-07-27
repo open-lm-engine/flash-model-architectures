@@ -18,7 +18,7 @@ from .triton_implementation import (
 )
 
 
-class _GRU_Cute(torch.autograd.Function):
+class _GRU(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
     def forward(
@@ -165,7 +165,7 @@ class _GRU_Cute(torch.autograd.Function):
         )
 
 
-def gru_cute(
+def gru(
     input: torch.Tensor,
     weight: torch.Tensor,
     forget_input: torch.Tensor,
@@ -277,7 +277,7 @@ def gru_cute(
                 output[offset_unfinished] = new_state
                 input_state[unfinished] = new_state
     else:
-        output = _GRU_Cute.apply(
+        output = _GRU.apply(
             input,
             weight,
             forget_input,
@@ -336,7 +336,7 @@ class GRU(nn.Module):
         if input_state is not None:
             input_state = input_state.view(-1, self.num_heads, self.state_head_dim)
 
-        input = gru_cute(
+        input = gru(
             input=input,
             weight=self.state_weight,
             forget_input=forget_gate,
