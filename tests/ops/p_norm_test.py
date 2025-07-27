@@ -5,9 +5,8 @@
 from typing import Callable
 
 import torch
+from fma import KernelBackend, p_norm_cute, set_seed
 from parameterized import parameterized
-
-from cute_kernels import KernelBackend, p_norm_cute, set_seed
 
 from ..test_commons import TestCommons
 

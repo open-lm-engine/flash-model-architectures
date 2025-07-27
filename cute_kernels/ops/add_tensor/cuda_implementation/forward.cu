@@ -6,9 +6,9 @@
 #include <cuda_runtime.h>
 #include <torch/extension.h>
 
-#include "include/cute_kernels.h"
+#include "include/fma.h"
 
-namespace ck = cute_kernels;
+namespace ck = fma;
 namespace ck_mem = ck::memory;
 
 using fp32 = ck::fp32;

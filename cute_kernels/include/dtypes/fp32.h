@@ -12,7 +12,7 @@
 #include "alias.h"
 #include "common.h"
 
-namespace cute_kernels {
+namespace fma {
     template <>
     struct DType<fp32> {
         using c10_dtype = fp32;
@@ -42,4 +42,4 @@ namespace cute_kernels {
         inline __device__ static nv_dtype2 downcast(const nv_dtype2 &value) { return value; }
         inline __device__ static nv_dtype4 downcast(const nv_dtype4 &value) { return value; }
     };
-}  // namespace cute_kernels
+}  // namespace fma

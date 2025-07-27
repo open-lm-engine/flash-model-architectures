@@ -7,12 +7,12 @@
 #include <cuda_runtime.h>
 #include <torch/extension.h>
 
-#include "include/cute_kernels.h"
+#include "include/fma.h"
 
 #define MAX_ALLOWED_E 16384
 
 namespace cg = cooperative_groups;
-namespace ck = cute_kernels;
+namespace ck = fma;
 namespace ck_mem = ck::memory;
 
 using int32 = ck::int32;

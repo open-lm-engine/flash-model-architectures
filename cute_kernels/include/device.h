@@ -4,7 +4,7 @@
 
 #include "dtypes.h"
 
-namespace cute_kernels {
+namespace fma {
     inline __host__ uint32 get_num_SMs() {
         int32 device_id;
         cudaGetDevice(&device_id);
@@ -14,4 +14,4 @@ namespace cute_kernels {
 
         return num_SMs;
     }
-}  // namespace cute_kernels
+}  // namespace fma

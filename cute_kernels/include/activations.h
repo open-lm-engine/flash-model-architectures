@@ -9,7 +9,7 @@
 #define MAX_EXP_FP32 88.3762626647949
 #define MIN_EXP_FP32 -88.3762626647949
 
-namespace cute_kernels {
+namespace fma {
     template <typename input_T, typename output_T>
     __device__ output_T sigmoid(const input_T &x) {
         fp32 x_fp32 = DType<input_T>::upcast(x);
@@ -20,4 +20,4 @@ namespace cute_kernels {
 
         return DType<output_T>::downcast(x_fp32);
     }
-}  // namespace cute_kernels
+}  // namespace fma

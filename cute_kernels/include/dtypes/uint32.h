@@ -11,7 +11,7 @@
 #include "alias.h"
 #include "common.h"
 
-namespace cute_kernels {
+namespace fma {
     template <>
     struct DType<uint32> {
         using nv_dtype = uint32;
@@ -34,4 +34,4 @@ namespace cute_kernels {
 
         return static_cast<int32>(value);
     }
-}  // namespace cute_kernels
+}  // namespace fma

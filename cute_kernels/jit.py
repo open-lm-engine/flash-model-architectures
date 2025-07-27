@@ -12,7 +12,7 @@ import torch
 from torch.utils.cpp_extension import load as load_cpp_extension
 
 
-_CPP_MODULE_PREFIX = "cute_kernels"
+_CPP_MODULE_PREFIX = "fma"
 _GLOBAL_RANK = int(os.getenv("RANK", 0))
 _WORLD_SIZE = int(os.getenv("WORLD_SIZE", 1))
 
@@ -26,7 +26,7 @@ def _get_cpp_function(function_name: str, module_name: str, source_files: list[s
     extra_cflags = ["-O3", "-Wall", "-shared", "-fPIC", "-fdiagnostics-color"]
     extra_cuda_cflags = ["-O3", "-lineinfo"]
     extra_include_paths = [
-        os.path.dirname(__file__),  # cute_kernels/include
+        os.path.dirname(__file__),  # fma/include
         os.path.dirname(os.path.dirname(__file__)) + "/cutlass/include",  # cutlass
         os.path.dirname(os.path.dirname(__file__)) + "/cutlass/tools/util/include",  # cutlass
     ]

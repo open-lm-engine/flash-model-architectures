@@ -4,9 +4,8 @@
 
 import torch
 import torch.nn as nn
+from fma import GRU, KernelBackend, set_seed
 from parameterized import parameterized
-
-from cute_kernels import GRU, KernelBackend, set_seed
 
 from ..test_commons import TestCommons
 

@@ -7,7 +7,7 @@ import torch
 from .math import get_powers_of_2
 
 
-LIBRARY_NAME = "cute_kernels"
+LIBRARY_NAME = "fma"
 
 WARP_SIZE = 32
 

@@ -17,9 +17,9 @@
 #include "cutlass/util/packed_stride.hpp"
 #include "cutlass/util/reference/device/gemm.h"
 #include "cutlass/util/tensor_view_io.h"
-#include "include/cute_kernels.h"
+#include "include/fma.h"
 
-namespace ck = cute_kernels;
+namespace ck = fma;
 using namespace cute;
 
 using uint32 = ck::uint32;

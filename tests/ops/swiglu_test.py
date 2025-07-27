@@ -5,9 +5,8 @@
 from typing import Callable
 
 import torch
+from fma import KernelBackend, ceil_divide, swiglu_cute, swiglu_packed_cute
 from parameterized import parameterized
-
-from cute_kernels import KernelBackend, ceil_divide, swiglu_cute, swiglu_packed_cute
 
 from ..test_commons import TestCommons
 

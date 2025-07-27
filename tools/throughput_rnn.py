@@ -5,9 +5,8 @@
 from functools import partial
 
 import torch
+from fma import RNN, KernelBackend, device_synchronize
 from tabulate import tabulate
-
-from cute_kernels import RNN, KernelBackend, device_synchronize
 
 
 n = 100

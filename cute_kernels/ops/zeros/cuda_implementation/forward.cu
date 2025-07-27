@@ -6,9 +6,9 @@
 #include <cuda_runtime.h>
 #include <torch/extension.h>
 
-#include "include/cute_kernels.h"
+#include "include/fma.h"
 
-namespace ck = cute_kernels;
+namespace ck = fma;
 
 using uint64 = ck::uint64;
 

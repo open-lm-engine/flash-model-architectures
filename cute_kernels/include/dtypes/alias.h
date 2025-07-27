@@ -9,7 +9,7 @@
 #include <cuda_runtime.h>
 #include <torch/extension.h>
 
-namespace cute_kernels {
+namespace fma {
     // define dtype aliases
     using fp64 = double;
     using fp64_2 = double2;
@@ -40,4 +40,4 @@ namespace cute_kernels {
 
     using int16 = short;
     using uint16 = ushort;
-}  // namespace cute_kernels
+}  // namespace fma

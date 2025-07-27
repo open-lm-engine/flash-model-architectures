@@ -4,7 +4,7 @@
 
 #include "../dtypes.h"
 
-namespace cute_kernels::memory {
+namespace fma::memory {
     template <typename T>
     inline __device__ T *load_128_bits(const T *array, const uint64 &index) {
         const int32_4 *vector_array = reinterpret_cast<const int32_4 *>(array);
@@ -24,4 +24,4 @@ namespace cute_kernels::memory {
     constexpr inline __device__ uint32 get_num_elements_for_vector_load_stores() {
         return sizeof(int32_4) / sizeof(T);
     }
-}  // namespace cute_kernels::memory
+}  // namespace fma::memory

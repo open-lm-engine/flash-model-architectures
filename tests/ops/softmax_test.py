@@ -5,9 +5,8 @@
 from typing import Callable
 
 import torch
+from fma import KernelBackend, set_seed, softmax_cute
 from parameterized import parameterized
-
-from cute_kernels import KernelBackend, set_seed, softmax_cute
 
 from ..test_commons import TestCommons
 from .rmsnorm_test import _get_sizes

@@ -5,9 +5,8 @@
 from typing import Callable
 
 import torch
+from fma import KernelBackend, cross_entropy_cute, set_seed
 from parameterized import parameterized
-
-from cute_kernels import KernelBackend, cross_entropy_cute, set_seed
 
 from ..test_commons import TestCommons
 

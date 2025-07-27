@@ -5,9 +5,8 @@
 from typing import Callable
 
 import torch
+from fma import KernelBackend, matrix_transpose_cute
 from parameterized import parameterized
-
-from cute_kernels import KernelBackend, matrix_transpose_cute
 
 from ..test_commons import TestCommons
 

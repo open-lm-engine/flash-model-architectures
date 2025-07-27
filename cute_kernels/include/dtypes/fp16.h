@@ -13,7 +13,7 @@
 #include "common.h"
 #include "cutlass/half.h"
 
-namespace cute_kernels {
+namespace fma {
     template <>
     struct DType<c10::Half> {
         using c10_dtype = c10::Half;
@@ -34,4 +34,4 @@ namespace cute_kernels {
 
     template <>
     struct DType<fp16> : public DType<c10::Half> {};
-}  // namespace cute_kernels
+}  // namespace fma

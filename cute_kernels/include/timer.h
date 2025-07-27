@@ -4,7 +4,7 @@
 
 #include "dtypes.h"
 
-namespace cute_kernels {
+namespace fma {
     struct GpuTimer {
         cudaStream_t _stream_id;
         cudaEvent_t _start;
@@ -39,4 +39,4 @@ namespace cute_kernels {
             return elapsed;
         }
     };
-}  // namespace cute_kernels
+}  // namespace fma

@@ -9,7 +9,7 @@
 
 #include "dtypes.h"
 
-namespace cute_kernels {
+namespace fma {
     template <typename T>
     struct ChunkedArray {
         T* array;
@@ -38,4 +38,4 @@ namespace cute_kernels {
 
         return result;
     }
-}  // namespace cute_kernels
+}  // namespace fma
