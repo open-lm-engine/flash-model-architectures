@@ -5,8 +5,9 @@
 from typing import Callable
 
 import torch
-from fma import KernelBackend, cross_entropy_cute, set_seed
 from parameterized import parameterized
+
+from fma import KernelBackend, cross_entropy, set_seed
 
 from ..test_commons import TestCommons
 
@@ -21,7 +22,7 @@ class CrossEntropyTest(TestCommons):
             [torch.device("cuda")],  # device
             [torch.float32, torch.bfloat16],  # dtype
             [None, 0.7],  # logits_multiplier
-            [cross_entropy_cute, torch.compile(cross_entropy_cute, fullgraph=True)],  # function
+            [cross_entropy, torch.compile(cross_entropy, fullgraph=True)],  # function
         )
     )
     def test_cross_entropy(
@@ -41,7 +42,7 @@ class CrossEntropyTest(TestCommons):
         labels = torch.randint(0, x_kernel.size(-1), (x_kernel.size(0),), device=x_kernel.device)
 
         loss_kernel = function(x=x_kernel, labels=labels, logits_multiplier=logits_multiplier)
-        loss_expected = cross_entropy_cute(
+        loss_expected = cross_entropy(
             x=x_expected, labels=labels, logits_multiplier=logits_multiplier, kernel_backend=KernelBackend.torch
         )
 

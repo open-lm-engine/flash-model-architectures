@@ -11,7 +11,7 @@ from ...utils import ensure_contiguous, get_num_elements_and_hidden_size
 from .triton_implementation import cross_entropy_forward_backward_triton
 
 
-class _CrossEntropy_Cute(torch.autograd.Function):
+class _CrossEntropy(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
     def forward(
@@ -49,7 +49,7 @@ class _CrossEntropy_Cute(torch.autograd.Function):
         return x_grad, *[None] * 4
 
 
-def cross_entropy_cute(
+def cross_entropy(
     x: torch.Tensor,
     labels: torch.Tensor,
     reduction: str = "mean",
@@ -80,6 +80,6 @@ def cross_entropy_cute(
 
         x = F.cross_entropy(x, labels, reduction=reduction)
     else:
-        x = _CrossEntropy_Cute.apply(x, labels, reduction, logits_multiplier, kernel_backend)
+        x = _CrossEntropy.apply(x, labels, reduction, logits_multiplier, kernel_backend)
 
     return x

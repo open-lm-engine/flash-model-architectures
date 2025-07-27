@@ -16,7 +16,7 @@ from .modules import GRU, RNN, MoE
 from .ops import (
     bmm,
     continuous_count,
-    cross_entropy_cute,
+    cross_entropy,
     fused_linear_cross_entropy_cute,
     fused_residual_add_rmsnorm_cute,
     gemm_cute,
