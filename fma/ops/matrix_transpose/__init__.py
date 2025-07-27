@@ -10,7 +10,7 @@ from ...utils import ensure_contiguous
 from .triton_implementation import matrix_transpose_triton
 
 
-class _MatrixTranspose_Cute(torch.autograd.Function):
+class _MatrixTranspose(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
     def forward(ctx, x: torch.Tensor, kernel_backend: KernelBackend | CutoTuneParameter) -> torch.Tensor:
@@ -35,7 +35,7 @@ class _MatrixTranspose_Cute(torch.autograd.Function):
         return x_grad, None
 
 
-def matrix_transpose_cute(
+def matrix_transpose(
     x: torch.Tensor, *, kernel_backend: KernelBackend | CutoTuneParameter = KernelBackend.triton
 ) -> torch.Tensor:
     """transposes a matrix
@@ -50,6 +50,6 @@ def matrix_transpose_cute(
     if kernel_backend == KernelBackend.torch:
         x = x.T
     else:
-        x = _MatrixTranspose_Cute.apply(x, kernel_backend)
+        x = _MatrixTranspose.apply(x, kernel_backend)
 
     return x
