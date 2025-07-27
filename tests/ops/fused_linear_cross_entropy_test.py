@@ -6,8 +6,9 @@ import random
 from typing import Callable
 
 import torch
-from fma import KernelBackend, fused_linear_cross_entropy_cute, set_seed
 from parameterized import parameterized
+
+from fma import KernelBackend, fused_linear_cross_entropy, set_seed
 
 from ..test_commons import TestCommons
 
@@ -23,8 +24,8 @@ class FusedLinearCrossEntropyTest(TestCommons):
             [torch.float32, torch.bfloat16],  # dtype
             [None, 0.7],  # logits_multiplier
             [
-                fused_linear_cross_entropy_cute,
-                torch.compile(fused_linear_cross_entropy_cute, fullgraph=True),
+                fused_linear_cross_entropy,
+                torch.compile(fused_linear_cross_entropy, fullgraph=True),
             ],  # function
         )
     )
@@ -51,7 +52,7 @@ class FusedLinearCrossEntropyTest(TestCommons):
         labels = torch.randint(0, vocab_size, (x_kernel.size(0),), device=x_kernel.device)
 
         loss_kernel = function(x=x_kernel, weight=weight_kernel, labels=labels, logits_multiplier=logits_multiplier)
-        loss_expected = fused_linear_cross_entropy_cute(
+        loss_expected = fused_linear_cross_entropy(
             x=x_expected,
             weight=weight_expected,
             labels=labels,

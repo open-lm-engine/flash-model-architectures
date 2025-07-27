@@ -9,7 +9,7 @@ from ..cutotune import CutoTuneParameter
 from ..kernel_backend import KernelBackend
 from ..math import ceil_divide, get_next_power_of_2
 from ..utils import ensure_contiguous
-from .cross_entropy import cross_entropy_cute, cross_entropy_forward_backward_triton
+from .cross_entropy import cross_entropy, cross_entropy_forward_backward_triton
 
 
 class _FusedLinearCrossEntropy_Cute(torch.autograd.Function):
@@ -110,7 +110,7 @@ def fused_linear_cross_entropy_cute(
 
     if kernel_backend == KernelBackend.torch:
         x = F.linear(x, weight)
-        x = cross_entropy_cute(
+        x = cross_entropy(
             x=x,
             labels=labels,
             reduction=reduction,
