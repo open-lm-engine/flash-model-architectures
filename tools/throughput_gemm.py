@@ -7,7 +7,7 @@ from functools import partial
 import torch
 from tabulate import tabulate
 
-from fma import KernelBackend, device_synchronize, gemm_cute
+from fma import KernelBackend, device_synchronize, gemm
 
 
 torch._inductor.config.max_autotune_gemm_backends = "TRITON"
@@ -17,9 +17,9 @@ n = 100
 
 headers = ["dtype", "torch TFLOPs", "torch compile TFLOPs", "triton TFLOPs"]
 kernels = [
-    partial(gemm_cute, kernel_backend=KernelBackend.torch),
-    partial(torch.compile(gemm_cute, mode="max-autotune"), kernel_backend=KernelBackend.torch),
-    partial(gemm_cute, kernel_backend=KernelBackend.triton),
+    partial(gemm, kernel_backend=KernelBackend.torch),
+    partial(torch.compile(gemm, mode="max-autotune"), kernel_backend=KernelBackend.torch),
+    partial(gemm, kernel_backend=KernelBackend.triton),
 ]
 
 table = []

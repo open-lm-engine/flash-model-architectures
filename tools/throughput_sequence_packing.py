@@ -7,7 +7,7 @@ import torch.nn.functional as F
 from flash_attn.bert_padding import unpad_input
 from tabulate import tabulate
 
-from fma import device_synchronize, pack_sequence_cute
+from fma import device_synchronize, pack_sequence
 
 
 n = 100
@@ -26,10 +26,10 @@ attention_mask = torch.stack(attention_mask, dim=0).to(torch.cuda.current_device
 def _hf_compatible_pack_cute(x, attention_mask: torch.Tensor):
     seqlens: torch.Tensor = attention_mask.sum(dim=-1, dtype=torch.int32)
     cu_seqlens = F.pad(torch.cumsum(seqlens, dim=0, dtype=torch.int32), (1, 0))
-    return pack_sequence_cute(x, cu_seqlens)
+    return pack_sequence(x, cu_seqlens)
 
 
-headers = ["dtype", "pack_sequence_cute", "unpad_input"]
+headers = ["dtype", "pack_sequence", "unpad_input"]
 kernels = [_hf_compatible_pack_cute, unpad_input]
 
 
