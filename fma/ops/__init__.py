@@ -15,4 +15,4 @@ from .rmsnorm import rmsnorm
 from .sequence_packing import pack_sequence, unpack_sequence
 from .softmax import softmax
 from .swiglu import swiglu, swiglu_packed
-from .zeros import zeros_cute
+from .zeros import zeros

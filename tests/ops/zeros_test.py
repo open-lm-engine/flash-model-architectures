@@ -7,7 +7,7 @@ from typing import Callable
 import torch
 from parameterized import parameterized
 
-from fma import KernelBackend, zeros_cute
+from fma import KernelBackend, zeros
 
 from ..test_commons import TestCommons
 
@@ -19,7 +19,7 @@ class ZerosTest(TestCommons):
             [torch.device("cuda")],  # device
             TestCommons.get_dtypes(),  # dtype
             [KernelBackend.cuda, KernelBackend.triton],  # kernel_backend
-            [zeros_cute, torch.compile(zeros_cute, fullgraph=True)],  # function
+            [zeros, torch.compile(zeros, fullgraph=True)],  # function
         )
     )
     def test_zeros(

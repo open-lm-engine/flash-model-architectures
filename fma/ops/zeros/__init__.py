@@ -10,7 +10,7 @@ from .triton_implementation import fill_triton
 
 
 @torch.no_grad()
-def zeros_cute(
+def zeros(
     shape: torch.Size,
     dtype: torch.dtype | None = None,
     device: torch.device | None = None,

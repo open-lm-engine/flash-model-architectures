@@ -29,6 +29,6 @@ from .ops import (
     swiglu,
     swiglu_packed,
     unpack_sequence,
-    zeros_cute,
+    zeros,
 )
 from .utils import device_synchronize, get_ptx_from_triton_kernel, get_triton_num_warps, set_seed
