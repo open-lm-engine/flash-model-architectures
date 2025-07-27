@@ -11,7 +11,7 @@ from ...utils import ensure_contiguous
 from .triton_implementation import softmax_backward_triton, softmax_forward_triton
 
 
-class _Softmax_Cute(torch.autograd.Function):
+class _Softmax(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
     def forward(
@@ -41,7 +41,7 @@ class _Softmax_Cute(torch.autograd.Function):
         return x_grad, None, None
 
 
-def softmax_cute(
+def softmax(
     x: torch.Tensor,
     logits_multiplier: float | None = None,
     *,
@@ -70,6 +70,6 @@ def softmax_cute(
 
         x = x.to(dtype)
     else:
-        x = _Softmax_Cute.apply(x, logits_multiplier, kernel_backend)
+        x = _Softmax.apply(x, logits_multiplier, kernel_backend)
 
     return x

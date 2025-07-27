@@ -25,7 +25,7 @@ from .ops import (
     p_norm,
     pack_sequence,
     rmsnorm,
-    softmax_cute,
+    softmax,
     swiglu_cute,
     swiglu_packed_cute,
     unpack_sequence,
