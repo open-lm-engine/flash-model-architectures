@@ -40,9 +40,3 @@ Join the [discord server](https://discord.gg/AFDxmjH5RV) if you are interested i
 | [swiglu_packed](cute_kernels/ops/swiglu/__init__.py) | ✅ | ❌ |
 | [unpack_sequence](cute_kernels/ops/sequence_packing/__init__.py) | ✅ | ✅ |
 | [zeros](cute_kernels/ops/zeros/__init__.py) | ✅ | ✅ |
-
-# Cute Inductor
-CuteInductor allows easier injection of kernels contained in this repository into any PyTorch module.
-<p align="center">
-  <img src="assets/cute-inductor.webp" width="300px" height="300px">
-</p>

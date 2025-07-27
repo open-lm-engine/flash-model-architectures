@@ -2,7 +2,6 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
-from .cute_inductor import CuteInductor
 from .cutotune import (
     CutoTuneConfig,
     CutoTuneParameter,
