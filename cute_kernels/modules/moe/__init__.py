@@ -42,7 +42,6 @@ class Experts(nn.Module):
         input: torch.Tensor,
         kernel_backend: KernelBackend,
         num_experts_per_token: int | None = None,
-        expert_frequency: torch.Tensor | None = None,
         sorted_expert_idxs: torch.Tensor | None = None,
         sorted_scattered_idxs: torch.Tensor | None = None,
         expert_offsets: torch.Tensor | None = None,
@@ -50,13 +49,7 @@ class Experts(nn.Module):
         grouped_in: bool = False,
         grouped_out: bool = False,
     ) -> torch.Tensor:
-        if kernel_backend == KernelBackend.cuda:
-            assert self.bias is None
-
-            input = grouped_gemm_experts_cute(
-                x=input, weight=self.weight, M_array=expert_frequency, N_array=self.N_array, K_array=self.K_array
-            )
-        elif kernel_backend == KernelBackend.triton:
+        if kernel_backend == KernelBackend.triton:
             assert self.bias is None
 
             input = scattered_experts(
@@ -74,6 +67,11 @@ class Experts(nn.Module):
             raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
         return input
+
+    def cuda_forward(self, input: torch.Tensor, expert_frequency: torch.Tensor) -> torch.Tensor:
+        return grouped_gemm_experts_cute(
+            x=input, weight=self.weight, M_array=expert_frequency, N_array=self.N_array, K_array=self.K_array
+        )
 
     def torch_forward(
         self, input: torch.Tensor, expert_frequency: torch.Tensor | None, return_list: bool = False
@@ -212,13 +210,9 @@ class MoE(nn.Module):
                 pad_to_multiple_of=8,
             )
 
-            hidden_states = self.c_fc(
-                input=hidden_states, kernel_backend=kernel_backend, expert_frequency=padded_expert_frequency
-            )
+            hidden_states = self.c_fc.cuda_forward(input=hidden_states, expert_frequency=padded_expert_frequency)
             hidden_states = self.act(hidden_states)
-            hidden_states = self.c_proj(
-                input=hidden_states, kernel_backend=kernel_backend, expert_frequency=padded_expert_frequency
-            )
+            hidden_states = self.c_proj.cuda_forward(input=hidden_states, expert_frequency=padded_expert_frequency)
 
             hidden_states = ungroup_with_padding(
                 x=hidden_states,
@@ -269,8 +263,9 @@ class MoE(nn.Module):
             hidden_states = self.c_fc.torch_forward(
                 input=hidden_states, expert_frequency=expert_frequency, return_list=True
             )
+
             hidden_states = [self.act(i) for i in hidden_states]
-            hidden_states = self.c_proj.torch_forward(input=hidden_states, return_list=False)
+            hidden_states = self.c_proj.torch_forward(input=hidden_states, expert_frequency=None, return_list=False)
 
             hidden_states = hidden_states * batch_gates.unsqueeze(-1)
             zeros = torch.zeros((T, self.hidden_size), dtype=hidden_states.dtype, device=hidden_states.device)
