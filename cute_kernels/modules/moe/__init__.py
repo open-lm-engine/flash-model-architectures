@@ -37,7 +37,31 @@ class Experts(nn.Module):
 
         self.reset_parameters()
 
-    def triton_forward(
+    def up_projection_triton_forward(
+        self,
+        input: torch.Tensor,
+        num_experts_per_token: int | None = None,
+        sorted_expert_idxs: torch.Tensor | None = None,
+        sorted_scattered_idxs: torch.Tensor | None = None,
+        expert_offsets: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        assert self.bias is None
+
+        input = scattered_experts(
+            inputs=input,
+            expert_weights=self.weight.permute(0, 2, 1),
+            k=num_experts_per_token,
+            sorted_expert_idxs=sorted_expert_idxs,
+            sorted_scattered_idxs=sorted_scattered_idxs,
+            expert_offsets=expert_offsets,
+            gates=None,
+            grouped_in=False,
+            grouped_out=True,
+        )
+
+        return input
+
+    def down_projection_triton_forward(
         self,
         input: torch.Tensor,
         num_experts_per_token: int | None = None,
@@ -45,8 +69,6 @@ class Experts(nn.Module):
         sorted_scattered_idxs: torch.Tensor | None = None,
         expert_offsets: torch.Tensor | None = None,
         gates: torch.Tensor | None = None,
-        grouped_in: bool = False,
-        grouped_out: bool = False,
     ) -> torch.Tensor:
         assert self.bias is None
 
@@ -58,8 +80,8 @@ class Experts(nn.Module):
             sorted_scattered_idxs=sorted_scattered_idxs,
             expert_offsets=expert_offsets,
             gates=gates,
-            grouped_in=grouped_in,
-            grouped_out=grouped_out,
+            grouped_in=True,
+            grouped_out=False,
         )
 
         return input
@@ -226,22 +248,20 @@ class MoE(nn.Module):
             with torch.no_grad():
                 expert_offsets = expert_frequency.cumsum(-1)
 
-            hidden_states = self.c_fc.triton_forward(
+            hidden_states = self.c_fc.up_projection_triton_forward(
                 input=hidden_states,
                 num_experts_per_token=self.top_k,
                 sorted_expert_idxs=sorted_expert_idxs,
                 sorted_scattered_idxs=sorted_scattered_idxs,
                 expert_offsets=expert_offsets,
-                grouped_out=True,
             )
             hidden_states = self.act(hidden_states)
-            hidden_states = self.c_proj.triton_forward(
+            hidden_states = self.c_proj.down_projection_triton_forward(
                 input=hidden_states,
                 num_experts_per_token=1,
                 sorted_expert_idxs=sorted_expert_idxs,
                 sorted_scattered_idxs=sorted_scattered_idxs,
                 expert_offsets=expert_offsets,
-                grouped_in=True,
                 gates=router_weights,
             )
         elif kernel_backend == KernelBackend.torch:
