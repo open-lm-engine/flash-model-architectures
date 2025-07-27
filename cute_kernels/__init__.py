@@ -31,5 +31,4 @@ from .ops import (
     unpack_sequence_cute,
     zeros_cute,
 )
-from .tensor import CuteTensor
 from .utils import device_synchronize, get_ptx_from_triton_kernel, get_triton_num_warps, set_seed
