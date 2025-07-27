@@ -17,7 +17,7 @@ from .ops import (
     bmm,
     continuous_count,
     cross_entropy,
-    fused_linear_cross_entropy_cute,
+    fused_linear_cross_entropy,
     fused_residual_add_rmsnorm_cute,
     gemm_cute,
     grouped_gemm_cute,

@@ -12,7 +12,7 @@ from ..utils import ensure_contiguous
 from .cross_entropy import cross_entropy, cross_entropy_forward_backward_triton
 
 
-class _FusedLinearCrossEntropy_Cute(torch.autograd.Function):
+class _FusedLinearCrossEntropy(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
     def forward(
@@ -86,7 +86,7 @@ class _FusedLinearCrossEntropy_Cute(torch.autograd.Function):
         return x_grad, weight_grad, *[None] * 4
 
 
-def fused_linear_cross_entropy_cute(
+def fused_linear_cross_entropy(
     x: torch.Tensor,
     weight: torch.Tensor,
     labels: torch.Tensor,
@@ -118,6 +118,6 @@ def fused_linear_cross_entropy_cute(
             kernel_backend=kernel_backend,
         )
     else:
-        x = _FusedLinearCrossEntropy_Cute.apply(x, weight, labels, reduction, logits_multiplier, kernel_backend)
+        x = _FusedLinearCrossEntropy.apply(x, weight, labels, reduction, logits_multiplier, kernel_backend)
 
     return x
