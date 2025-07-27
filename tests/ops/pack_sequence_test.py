@@ -8,7 +8,7 @@ import torch
 import torch._dynamo.config
 from parameterized import parameterized
 
-from fma import KernelBackend, pack_sequence_cute, unpack_sequence_cute
+from fma import KernelBackend, pack_sequence, unpack_sequence
 
 from ..test_commons import TestCommons
 
@@ -23,7 +23,7 @@ class PackSequenceTest(TestCommons):
             [False, True],  # use_output_shape
             ["left", "right"],  # padding_side
             [KernelBackend.cuda, KernelBackend.triton],  # kernel_backend
-            [pack_sequence_cute, torch.compile(pack_sequence_cute, fullgraph=True)],  # function
+            [pack_sequence, torch.compile(pack_sequence, fullgraph=True)],  # function
         )
     )
     def test_pack_sequence(
@@ -52,7 +52,7 @@ class PackSequenceTest(TestCommons):
                 kernel_backend_backward=kernel_backend,
             )
 
-        z_expected = pack_sequence_cute(
+        z_expected = pack_sequence(
             x_expected,
             cu_seqlens=cu_seqlens.to(torch.int),
             output_shape=output_shape,
@@ -76,7 +76,7 @@ class PackSequenceTest(TestCommons):
             TestCommons.get_dtypes(),  # dtype
             ["left", "right"],  # padding_side
             [KernelBackend.cuda, KernelBackend.triton],  # kernel_backend
-            [unpack_sequence_cute, torch.compile(unpack_sequence_cute, fullgraph=True)],  # function
+            [unpack_sequence, torch.compile(unpack_sequence, fullgraph=True)],  # function
         )
     )
     def test_unpack_sequence(
@@ -103,7 +103,7 @@ class PackSequenceTest(TestCommons):
                 kernel_backend_backward=kernel_backend,
             )
 
-        z_expected = unpack_sequence_cute(
+        z_expected = unpack_sequence(
             x_expected,
             cu_seqlens=cu_seqlens.to(torch.int),
             output_shape=output_shape,

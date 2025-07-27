@@ -23,12 +23,12 @@ from .ops import (
     grouped_gemm,
     matrix_transpose,
     p_norm,
-    pack_sequence_cute,
+    pack_sequence,
     rmsnorm,
     softmax_cute,
     swiglu_cute,
     swiglu_packed_cute,
-    unpack_sequence_cute,
+    unpack_sequence,
     zeros_cute,
 )
 from .utils import device_synchronize, get_ptx_from_triton_kernel, get_triton_num_warps, set_seed

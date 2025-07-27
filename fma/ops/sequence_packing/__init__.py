@@ -52,7 +52,7 @@ def _unpack_sequence(
     return output
 
 
-class _PackSequence_Cute(torch.autograd.Function):
+class _PackSequence(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
     def forward(
@@ -97,7 +97,7 @@ class _PackSequence_Cute(torch.autograd.Function):
         return x_grad, *[None] * 5
 
 
-class _UnpackSequence_Cute(torch.autograd.Function):
+class _UnpackSequence(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
     def forward(
@@ -145,7 +145,7 @@ class _UnpackSequence_Cute(torch.autograd.Function):
         return x_grad, *[None] * 5
 
 
-def pack_sequence_cute(
+def pack_sequence(
     inputs: torch.Tensor | list[torch.Tensor],
     cu_seqlens: torch.Tensor,
     output_shape: tuple[int] | None = None,
@@ -186,7 +186,7 @@ def pack_sequence_cute(
                 # so, we do it once for all the tensors
                 output_shape = (cu_seqlens[-1].item(), *x.size()[2:])
 
-            x = _PackSequence_Cute.apply(
+            x = _PackSequence.apply(
                 x, cu_seqlens, output_shape, padding_side, kernel_backend_forward, kernel_backend_backward
             )
 
@@ -198,7 +198,7 @@ def pack_sequence_cute(
     return outputs
 
 
-def unpack_sequence_cute(
+def unpack_sequence(
     inputs: torch.Tensor | list[torch.Tensor],
     cu_seqlens: torch.Tensor,
     output_shape: tuple[int],
@@ -235,7 +235,7 @@ def unpack_sequence_cute(
             padded = torch.zeros(output_shape, dtype=x.dtype, device=x.device)
             padded[batch_indices, seq_indices] = x
         else:
-            padded = _UnpackSequence_Cute.apply(
+            padded = _UnpackSequence.apply(
                 x, cu_seqlens, output_shape, padding_side, kernel_backend_forward, kernel_backend_backward
             )
 
