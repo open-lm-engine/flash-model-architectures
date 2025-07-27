@@ -37,10 +37,9 @@ class Experts(nn.Module):
 
         self.reset_parameters()
 
-    def forward(
+    def triton_forward(
         self,
         input: torch.Tensor,
-        kernel_backend: KernelBackend,
         num_experts_per_token: int | None = None,
         sorted_expert_idxs: torch.Tensor | None = None,
         sorted_scattered_idxs: torch.Tensor | None = None,
@@ -49,22 +48,19 @@ class Experts(nn.Module):
         grouped_in: bool = False,
         grouped_out: bool = False,
     ) -> torch.Tensor:
-        if kernel_backend == KernelBackend.triton:
-            assert self.bias is None
+        assert self.bias is None
 
-            input = scattered_experts(
-                inputs=input,
-                expert_weights=self.weight.permute(0, 2, 1),
-                k=num_experts_per_token,
-                sorted_expert_idxs=sorted_expert_idxs,
-                sorted_scattered_idxs=sorted_scattered_idxs,
-                expert_offsets=expert_offsets,
-                gates=gates,
-                grouped_in=grouped_in,
-                grouped_out=grouped_out,
-            )
-        else:
-            raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
+        input = scattered_experts(
+            inputs=input,
+            expert_weights=self.weight.permute(0, 2, 1),
+            k=num_experts_per_token,
+            sorted_expert_idxs=sorted_expert_idxs,
+            sorted_scattered_idxs=sorted_scattered_idxs,
+            expert_offsets=expert_offsets,
+            gates=gates,
+            grouped_in=grouped_in,
+            grouped_out=grouped_out,
+        )
 
         return input
 
@@ -230,9 +226,8 @@ class MoE(nn.Module):
             with torch.no_grad():
                 expert_offsets = expert_frequency.cumsum(-1)
 
-            hidden_states = self.c_fc(
+            hidden_states = self.c_fc.triton_forward(
                 input=hidden_states,
-                kernel_backend=kernel_backend,
                 num_experts_per_token=self.top_k,
                 sorted_expert_idxs=sorted_expert_idxs,
                 sorted_scattered_idxs=sorted_scattered_idxs,
@@ -240,9 +235,8 @@ class MoE(nn.Module):
                 grouped_out=True,
             )
             hidden_states = self.act(hidden_states)
-            hidden_states = self.c_proj(
+            hidden_states = self.c_proj.triton_forward(
                 input=hidden_states,
-                kernel_backend=kernel_backend,
                 num_experts_per_token=1,
                 sorted_expert_idxs=sorted_expert_idxs,
                 sorted_scattered_idxs=sorted_scattered_idxs,
