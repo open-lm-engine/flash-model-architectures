@@ -9,7 +9,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from ...kernel_backend import KernelBackend
-from ...ops import continuous_count_cute
+from ...ops import continuous_count
 from .cuda_implementation import group_with_padding, grouped_gemm_experts_cute, ungroup_with_padding
 from .triton_implementation import scattered_experts
 
@@ -212,7 +212,7 @@ class MoE(nn.Module):
     ) -> torch.Tensor:
         with torch.no_grad():
             sorted_expert_idxs, sorted_scattered_idxs = selected_experts.flatten().sort()
-            expert_frequency = continuous_count_cute(
+            expert_frequency = continuous_count(
                 sorted_expert_idxs, self.num_experts, kernel_backend=KernelBackend.cuda
             )
 
