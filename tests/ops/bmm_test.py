@@ -76,7 +76,7 @@ class BMMTest(TestCommons):
             alpha=alpha,
             beta=beta,
         )
-        output_expected = bmm_op(
+        output_expected = bmm(
             A=A,
             B=B,
             C=C,
