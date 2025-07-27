@@ -13,7 +13,7 @@ from .triton_implementation import (
 )
 
 
-class _FusedResidualAddRMSNorm_Cute(torch.autograd.Function):
+class _FusedResidualAddRMSNorm(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
     def forward(
@@ -86,7 +86,7 @@ class _FusedResidualAddRMSNorm_Cute(torch.autograd.Function):
         return x_grad, residual_grad, weight_grad, *[None] * 4
 
 
-def fused_residual_add_rmsnorm_cute(
+def fused_residual_add_rmsnorm(
     x: torch.Tensor,
     residual: torch.Tensor,
     weight: torch.Tensor | None,
@@ -119,7 +119,7 @@ def fused_residual_add_rmsnorm_cute(
 
         x = F.rms_norm(x, (x.size(-1),), weight=weight, eps=eps)
     else:
-        x, residual = _FusedResidualAddRMSNorm_Cute.apply(
+        x, residual = _FusedResidualAddRMSNorm.apply(
             x, residual, weight, eps, multiplier, memory_efficient, kernel_backend
         )
 
