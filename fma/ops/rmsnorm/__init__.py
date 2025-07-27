@@ -11,7 +11,7 @@ from ...utils import ensure_contiguous, get_num_elements_and_hidden_size
 from .triton_implementation import rmsnorm_backward_triton, rmsnorm_forward_triton
 
 
-class _RMSNorm_Cute(torch.autograd.Function):
+class _RMSNorm(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
     def forward(
@@ -67,7 +67,7 @@ class _RMSNorm_Cute(torch.autograd.Function):
         return x_grad, weight_grad, *[None] * 3
 
 
-def rmsnorm_cute(
+def rmsnorm(
     x: torch.Tensor,
     weight: torch.Tensor | None,
     eps: float | None,
@@ -93,6 +93,6 @@ def rmsnorm_cute(
     if kernel_backend == KernelBackend.torch:
         x = F.rms_norm(x, (x.size(-1),), weight=weight, eps=eps)
     else:
-        x = _RMSNorm_Cute.apply(x, weight, eps, memory_efficient, kernel_backend)
+        x = _RMSNorm.apply(x, weight, eps, memory_efficient, kernel_backend)
 
     return x

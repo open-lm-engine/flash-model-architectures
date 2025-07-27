@@ -24,7 +24,7 @@ from .ops import (
     matrix_transpose,
     p_norm,
     pack_sequence_cute,
-    rmsnorm_cute,
+    rmsnorm,
     softmax_cute,
     swiglu_cute,
     swiglu_packed_cute,

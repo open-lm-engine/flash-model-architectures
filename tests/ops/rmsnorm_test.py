@@ -7,7 +7,7 @@ from typing import Callable
 import torch
 from parameterized import parameterized
 
-from fma import KernelBackend, rmsnorm_cute, set_seed
+from fma import KernelBackend, rmsnorm, set_seed
 
 from ..test_commons import TestCommons
 
@@ -32,7 +32,7 @@ class RMSNormTest(TestCommons):
             [torch.float32, torch.float16],  # dtype
             [True, False],  # memory_efficient
             [True, False],  # has_weight
-            [rmsnorm_cute, torch.compile(rmsnorm_cute, fullgraph=True)],  # function
+            [rmsnorm, torch.compile(rmsnorm, fullgraph=True)],  # function
         )
     )
     def test_rmsnorm(
@@ -58,9 +58,7 @@ class RMSNormTest(TestCommons):
             weight_expected = None
 
         z_kernel = function(x=x_kernel, weight=weight_kernel, eps=_EPSILON, memory_efficient=memory_efficient)
-        z_expected = rmsnorm_cute(
-            x=x_expected, weight=weight_expected, eps=_EPSILON, kernel_backend=KernelBackend.torch
-        )
+        z_expected = rmsnorm(x=x_expected, weight=weight_expected, eps=_EPSILON, kernel_backend=KernelBackend.torch)
 
         z_kernel.sum().backward()
         z_expected.sum().backward()
