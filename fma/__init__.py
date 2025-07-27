@@ -19,7 +19,7 @@ from .ops import (
     cross_entropy,
     fused_linear_cross_entropy,
     fused_residual_add_rmsnorm,
-    gemm_cute,
+    gemm,
     grouped_gemm_cute,
     matrix_transpose_cute,
     p_norm_cute,

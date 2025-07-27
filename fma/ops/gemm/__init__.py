@@ -10,7 +10,7 @@ from ..bmm.triton_implementation import bmm_triton
 
 
 @ensure_contiguous
-def gemm_cute(
+def gemm(
     A: torch.Tensor,
     B: torch.Tensor,
     C: torch.Tensor | None,

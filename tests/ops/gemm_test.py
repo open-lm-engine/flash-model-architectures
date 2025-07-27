@@ -7,7 +7,7 @@ from typing import Callable
 import torch
 from parameterized import parameterized
 
-from fma import KernelBackend, ceil_divide, gemm_cute, set_seed
+from fma import KernelBackend, ceil_divide, gemm, set_seed
 
 from ..test_commons import TestCommons
 
@@ -25,7 +25,7 @@ class GEMMTest(TestCommons):
             [KernelBackend.triton],  # kernel_backend
             [torch.device("cuda")],  # device
             TestCommons.get_dtypes(),  # dtype
-            [gemm_cute, torch.compile(gemm_cute, fullgraph=True)],  # function
+            [gemm, torch.compile(gemm, fullgraph=True)],  # function
         )
     )
     def test_gemm(
@@ -76,7 +76,7 @@ class GEMMTest(TestCommons):
             beta=beta,
             kernel_backend=kernel_backend,
         )
-        output_expected = gemm_cute(
+        output_expected = gemm(
             A=A,
             B=B,
             C=C,
