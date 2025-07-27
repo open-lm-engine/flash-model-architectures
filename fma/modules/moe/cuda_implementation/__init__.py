@@ -5,7 +5,7 @@
 import torch
 
 from ....math import ceil_divide
-from ....ops import grouped_gemm_cute
+from ....ops import grouped_gemm
 from ....utils import ensure_contiguous
 from .group_kernel import group_with_padding_triton
 from .padded_expert_frequency_kernel import padded_expert_frequency_triton
@@ -25,7 +25,7 @@ class _GroupedGemmExperts_Cute(torch.autograd.Function):
         assert N % 8 == 0
         assert K % 8 == 0
 
-        output = grouped_gemm_cute(
+        output = grouped_gemm(
             A=x,
             B=weight,
             C=None,
@@ -51,7 +51,7 @@ class _GroupedGemmExperts_Cute(torch.autograd.Function):
 
         # A -> sum(M) x N
         # B -> EN x K
-        x_grad = grouped_gemm_cute(
+        x_grad = grouped_gemm(
             A=output_grad,
             B=weight,
             C=None,
@@ -65,7 +65,7 @@ class _GroupedGemmExperts_Cute(torch.autograd.Function):
 
         # A -> sum(M) x N
         # B -> sum(M) x K
-        weight_grad = grouped_gemm_cute(
+        weight_grad = grouped_gemm(
             A=output_grad,
             B=x,
             C=None,
