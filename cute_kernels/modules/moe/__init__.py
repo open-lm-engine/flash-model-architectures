@@ -70,15 +70,26 @@ class Experts(nn.Module):
                 grouped_in=grouped_in,
                 grouped_out=grouped_out,
             )
-        elif kernel_backend == KernelBackend.torch:
-            input = input.split(expert_frequency.tolist(), dim=0)
-            input = [
-                F.linear(input[i], self.weight[i], None if self.bias is None else self.bias[i])
-                for i in range(self.num_experts)
-            ]
-            input = torch.cat(input, dim=0)
         else:
             raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
+
+        return input
+
+    def torch_forward(
+        self, input: torch.Tensor, expert_frequency: torch.Tensor | None, return_list: bool = False
+    ) -> list[torch.Tensor] | torch.Tensor:
+        if isinstance(input, torch.Tensor):
+            input = input.split(expert_frequency.tolist(), dim=0)
+        else:
+            assert expert_frequency is None
+
+        input = [
+            F.linear(input[i], self.weight[i], None if self.bias is None else self.bias[i])
+            for i in range(self.num_experts)
+        ]
+
+        if not return_list:
+            input = torch.cat(input, dim=0)
 
         return input
 
@@ -255,13 +266,11 @@ class MoE(nn.Module):
 
             hidden_states = hidden_states[fan_in_index]
 
-            hidden_states = self.c_fc(
-                input=hidden_states, kernel_backend=kernel_backend, expert_frequency=expert_frequency
+            hidden_states = self.c_fc.torch_forward(
+                input=hidden_states, expert_frequency=expert_frequency, return_list=True
             )
-            hidden_states = self.act(hidden_states)
-            hidden_states = self.c_proj(
-                input=hidden_states, kernel_backend=kernel_backend, expert_frequency=expert_frequency
-            )
+            hidden_states = [self.act(i) for i in hidden_states]
+            hidden_states = self.c_proj.torch_forward(input=hidden_states, return_list=False)
 
             hidden_states = hidden_states * batch_gates.unsqueeze(-1)
             zeros = torch.zeros((T, self.hidden_size), dtype=hidden_states.dtype, device=hidden_states.device)
