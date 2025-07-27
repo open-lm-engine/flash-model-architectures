@@ -12,7 +12,7 @@ from .padded_expert_frequency_kernel import padded_expert_frequency_triton
 from .ungroup_kernel import ungroup_with_padding_triton
 
 
-class _GroupedGemmExperts_Cute(torch.autograd.Function):
+class _GroupedGemmExperts(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
     def forward(
@@ -249,10 +249,10 @@ class _UngroupWithPadding(torch.autograd.Function):
         return x_grad, *[None] * 6
 
 
-def grouped_gemm_experts_cute(
+def grouped_gemm_experts(
     x: torch.Tensor, weight: torch.Tensor, M_array: torch.Tensor, N_array: torch.Tensor, K_array: torch.Tensor
 ) -> torch.Tensor:
-    return _GroupedGemmExperts_Cute.apply(x, weight, M_array, N_array, K_array)
+    return _GroupedGemmExperts.apply(x, weight, M_array, N_array, K_array)
 
 
 def group_with_padding(

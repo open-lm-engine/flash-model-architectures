@@ -22,7 +22,7 @@ from .triton_implementation import (
 )
 
 
-class _RNN_Cute(torch.autograd.Function):
+class _RNN(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
     def forward(
@@ -124,7 +124,7 @@ class _GradientClipping(torch.autograd.Function):
         return x_grad, None
 
 
-def rnn_cute(
+def rnn(
     input: torch.Tensor,
     weight: torch.Tensor,
     input_state: torch.Tensor | None = None,
@@ -219,7 +219,7 @@ def rnn_cute(
                 output[offset_unfinished] = new_state
                 input_state[unfinished] = new_state
     else:
-        output = _RNN_Cute.apply(input, weight, input_state, gradient_clipping, cu_seqlens, max_seqlen)
+        output = _RNN.apply(input, weight, input_state, gradient_clipping, cu_seqlens, max_seqlen)
 
     return output
 
@@ -260,7 +260,7 @@ class RNN(nn.Module):
         if input_state is not None:
             input_state = input_state.view(-1, self.num_heads, self.state_head_dim)
 
-        input = rnn_cute(
+        input = rnn(
             input=input,
             weight=self.state_weight,
             input_state=input_state,

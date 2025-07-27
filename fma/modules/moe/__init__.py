@@ -10,7 +10,7 @@ import torch.nn.functional as F
 
 from ...kernel_backend import KernelBackend
 from ...ops import continuous_count
-from .cuda_implementation import group_with_padding, grouped_gemm_experts_cute, ungroup_with_padding
+from .cuda_implementation import group_with_padding, grouped_gemm_experts, ungroup_with_padding
 from .triton_implementation import scattered_experts
 
 
@@ -87,7 +87,7 @@ class Experts(nn.Module):
         return input
 
     def cuda_forward(self, input: torch.Tensor, expert_frequency: torch.Tensor) -> torch.Tensor:
-        return grouped_gemm_experts_cute(
+        return grouped_gemm_experts(
             x=input, weight=self.weight, M_array=expert_frequency, N_array=self.N_array, K_array=self.K_array
         )
 
