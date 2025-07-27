@@ -11,7 +11,7 @@ from ...utils import ensure_contiguous, get_num_elements_and_hidden_size
 from .triton_implementation import norm_2_backward_triton, norm_2_forward_triton
 
 
-class _P_Norm_Cute(torch.autograd.Function):
+class _P_Norm(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
     def forward(
@@ -70,7 +70,7 @@ class _P_Norm_Cute(torch.autograd.Function):
         return x_grad, weight_grad, *[None] * 4
 
 
-def p_norm_cute(
+def p_norm(
     x: torch.Tensor,
     p: int,
     weight: torch.Tensor | None,
@@ -103,6 +103,6 @@ def p_norm_cute(
         if weight is not None:
             x = x * weight
     else:
-        x = _P_Norm_Cute.apply(x, weight, p, eps, memory_efficient, kernel_backend)
+        x = _P_Norm.apply(x, weight, p, eps, memory_efficient, kernel_backend)
 
     return x

@@ -7,7 +7,7 @@ from typing import Callable
 import torch
 from parameterized import parameterized
 
-from fma import KernelBackend, p_norm_cute, set_seed
+from fma import KernelBackend, p_norm, set_seed
 
 from ..test_commons import TestCommons
 
@@ -33,7 +33,7 @@ class P_NormTest(TestCommons):
             [True, False],  # memory_efficient
             [True, False],  # has_weight
             [2],  # p
-            [p_norm_cute, torch.compile(p_norm_cute, fullgraph=True)],  # function
+            [p_norm, torch.compile(p_norm, fullgraph=True)],  # function
         )
     )
     def test_p_norm(
@@ -60,7 +60,7 @@ class P_NormTest(TestCommons):
             weight_expected = None
 
         z_kernel = function(x=x_kernel, p=p, weight=weight_kernel, eps=_EPSILON, memory_efficient=memory_efficient)
-        z_expected = p_norm_cute(
+        z_expected = p_norm(
             x=x_expected, p=p, weight=weight_expected, eps=_EPSILON, kernel_backend=KernelBackend.torch
         )
 

@@ -22,7 +22,7 @@ from .ops import (
     gemm,
     grouped_gemm,
     matrix_transpose,
-    p_norm_cute,
+    p_norm,
     pack_sequence_cute,
     rmsnorm_cute,
     softmax_cute,
