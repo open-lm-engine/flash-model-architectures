@@ -14,8 +14,6 @@ from .kernel_backend import KernelBackend
 from .math import ceil_divide, divide_if_divisible, get_powers_of_2
 from .modules import GRU, RNN, MoE
 from .ops import (
-    add_scalar_cute,
-    add_tensor_cute,
     bmm_cute,
     continuous_count_cute,
     cross_entropy_cute,
