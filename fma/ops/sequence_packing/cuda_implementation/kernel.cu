@@ -6,7 +6,7 @@
 #include <cuda_runtime.h>
 #include <torch/extension.h>
 
-#include "include/flash_model_architectures.h"
+#include "include/fma.h"
 
 namespace ck = flash_model_architectures;
 namespace ck_mem = ck::memory;
