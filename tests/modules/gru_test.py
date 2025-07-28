@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 from parameterized import parameterized
 
-from cute_kernels import GRU, KernelBackend, set_seed
+from fma import GRU, KernelBackend, set_seed
 
 from ..test_commons import TestCommons
 
@@ -215,7 +215,7 @@ class GRUTest(TestCommons):
             [False, True],  # is_compiling
         )
     )
-    def test_gru_varlen_cute(
+    def test_gru_varlen(
         self,
         device: torch.device,
         dtype: torch.dtype,

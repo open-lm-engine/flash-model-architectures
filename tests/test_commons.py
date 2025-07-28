@@ -11,7 +11,7 @@ import torch
 import torch.nn as nn
 from torch.testing import assert_close
 
-from cute_kernels import init_inductor
+from fma import init_inductor
 
 
 class TestCommons(TestCase):

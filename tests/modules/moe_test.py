@@ -5,7 +5,7 @@
 import torch
 from parameterized import parameterized
 
-from cute_kernels import KernelBackend, MoE, set_seed
+from fma import KernelBackend, MoE, set_seed
 
 from ..test_commons import TestCommons
 

@@ -7,7 +7,7 @@ from typing import Callable
 import torch
 from parameterized import parameterized
 
-from cute_kernels import KernelBackend, bmm_cute, set_seed
+from fma import KernelBackend, bmm, set_seed
 
 from ..test_commons import TestCommons
 
@@ -24,7 +24,7 @@ class BMMTest(TestCommons):
             [False, True],  # has_C
             [torch.device("cuda")],  # device
             TestCommons.get_dtypes(),  # dtype
-            [bmm_cute, torch.compile(bmm_cute, fullgraph=True)],  # function
+            [bmm, torch.compile(bmm, fullgraph=True)],  # function
         )
     )
     def test_bmm(
@@ -76,7 +76,7 @@ class BMMTest(TestCommons):
             alpha=alpha,
             beta=beta,
         )
-        output_expected = bmm_cute(
+        output_expected = bmm(
             A=A,
             B=B,
             C=C,

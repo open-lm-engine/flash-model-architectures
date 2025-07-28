@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 from parameterized import parameterized
 
-from cute_kernels import RNN, KernelBackend, set_seed
+from fma import RNN, KernelBackend, set_seed
 
 from ..test_commons import TestCommons
 
@@ -206,7 +206,7 @@ class RNNTest(TestCommons):
             [False, True],  # is_compiling
         )
     )
-    def test_rnn_varlen_cute(
+    def test_rnn_varlen(
         self,
         device: torch.device,
         dtype: torch.dtype,
