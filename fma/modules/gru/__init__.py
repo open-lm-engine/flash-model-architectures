@@ -42,9 +42,6 @@ class _GRU(torch.autograd.Function):
         N, H = input.size()[-2:]
         assert weight.size() == (N, H, H)
 
-        if gradient_clipping is not None and gradient_clipping < 0:
-            gradient_clipping = -gradient_clipping
-
         output = torch.empty_like(input)
         forget_gate = torch.empty_like(input)
         reset_gate = torch.empty_like(input)
@@ -196,10 +193,10 @@ def gru(
         torch.Tensor: output tensor of shape (B, S, N, H)
     """
 
-    if kernel_backend == KernelBackend.torch:
-        if gradient_clipping is not None and gradient_clipping < 0:
-            gradient_clipping = -gradient_clipping
+    if gradient_clipping is not None and gradient_clipping < 0:
+        gradient_clipping = -gradient_clipping
 
+    if kernel_backend == KernelBackend.torch:
         output = torch.empty_like(input)
 
         if cu_seqlens is None:
