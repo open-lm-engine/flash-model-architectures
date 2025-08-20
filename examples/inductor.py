@@ -23,7 +23,7 @@ def replacement_function(x: torch.Tensor) -> torch.Tensor:
 
 
 class MyModule(nn.Module):
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = search_function(x)
         x = search_function(x)
         return x
