@@ -41,9 +41,8 @@ register_replacement(
 
 m = MyModule()
 
-print(search_function(search_function(torch.empty(1, device="cpu", requires_grad=True))))
-print(replacement_function(replacement_function(torch.empty(1, device="cpu", requires_grad=True))))
+print("original value =", m(torch.empty(1, device="cpu", requires_grad=True)))
+print("expected value =", replacement_function(replacement_function(torch.empty(1, device="cpu", requires_grad=True))))
 
-print(m(torch.empty(1, device="cpu", requires_grad=True)))
-func = torch.compile(m, fullgraph=True)
-print(func(torch.empty(1, device="cpu", requires_grad=True)))
+m_compiled = torch.compile(m, fullgraph=True)
+print("value with compile =", m_compiled(torch.empty(1, device="cpu", requires_grad=True)))
