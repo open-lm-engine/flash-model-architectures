@@ -386,3 +386,5 @@ void grouped_gemm_cuda(const torch::Tensor &_A,
         }
     }
 }
+
+PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) { m.def("grouped_gemm_cuda", &grouped_gemm_cuda, "grouped GEMM (CUDA)"); }

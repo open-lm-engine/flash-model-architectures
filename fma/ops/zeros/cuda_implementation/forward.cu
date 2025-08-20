@@ -22,3 +22,5 @@ void zeros_cuda(torch::Tensor &x) {
                               cudaMemset(x.data_ptr<scalar_t>(), 0, num_bytes);  // zero all BF16s
                           }));
 }
+
+PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) { m.def("zeros_cuda", &zeros_cuda, "zeros (CUDA)"); }
