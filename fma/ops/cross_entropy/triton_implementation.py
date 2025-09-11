@@ -36,8 +36,8 @@ def cross_entropy_forward_backward_triton_kernel(
 ):
     BLOCK_ID = tl.program_id(axis=0)
 
-    indices_b = BLOCK_ID * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
-    mask_b = indices_b < B
+    BLOCK_B = BLOCK_ID * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
+    mask_b = BLOCK_B < B
 
     Z = tl.zeros((BLOCK_SIZE_B, 1), dtype=tl.float32)
     M = tl.full((BLOCK_SIZE_B, 1), -float("inf"), dtype=tl.float32)
@@ -45,13 +45,13 @@ def cross_entropy_forward_backward_triton_kernel(
     NUM_BLOCKS_V = tl.cdiv(V, BLOCK_SIZE_V)
 
     for v in range(NUM_BLOCKS_V):
-        indices_v = v * BLOCK_SIZE_V + tl.arange(0, BLOCK_SIZE_V)
-        mask_v = indices_v < V
+        BLOCK_V = v * BLOCK_SIZE_V + tl.arange(0, BLOCK_SIZE_V)
+        mask_v = BLOCK_V < V
 
-        indices = indices_b[:, None] * V + indices_v[None, :]
+        BLOCK = BLOCK_B[:, None] * V + BLOCK_V[None, :]
         mask_bv = mask_b[:, None] & mask_v[None, :]
 
-        x = tl.load(x_ptr + indices, mask=mask_bv, other=-float("inf")).to(tl.float32)
+        x = tl.load(x_ptr + BLOCK, mask=mask_bv, other=-float("inf")).to(tl.float32)
         if logits_multiplier is not None:
             x *= logits_multiplier
 
@@ -63,31 +63,31 @@ def cross_entropy_forward_backward_triton_kernel(
         x = tl.exp(x)
         Z = Z * tl.exp(prev_m - M) + tl.sum(x, axis=1, keep_dims=True)
 
-    labels = tl.load(labels_ptr + indices_b, mask=mask_b)
+    labels = tl.load(labels_ptr + BLOCK_B, mask=mask_b)
 
     for v in range(NUM_BLOCKS_V):
-        indices_v = v * BLOCK_SIZE_V + tl.arange(0, BLOCK_SIZE_V)
-        mask_v = indices_v < V
+        BLOCK_V = v * BLOCK_SIZE_V + tl.arange(0, BLOCK_SIZE_V)
+        mask_v = BLOCK_V < V
 
-        indices = indices_b[:, None] * V + indices_v[None, :]
+        BLOCK = BLOCK_B[:, None] * V + BLOCK_V[None, :]
         mask_bv = mask_b[:, None] & mask_v[None, :]
 
-        x = tl.load(x_ptr + indices, mask=mask_bv).to(tl.float32)
+        x = tl.load(x_ptr + BLOCK, mask=mask_bv).to(tl.float32)
         if logits_multiplier is not None:
             x *= logits_multiplier
         x -= M
         x = tl.exp(x)
         x /= Z
 
-        x -= tl.where(indices_v[None, :] == labels[:, None], 1, 0)
+        x -= tl.where(BLOCK_V[None, :] == labels[:, None], 1, 0)
         if logits_multiplier is not None:
             x *= logits_multiplier
         if reduction == "mean":
             x /= B
 
-        tl.store(x_grad_ptr + indices, x, mask=mask_bv)
+        tl.store(x_grad_ptr + BLOCK, x, mask=mask_bv)
 
-    x = tl.load(x_ptr + indices_b * V + labels, mask=mask_b).to(tl.float32)
+    x = tl.load(x_ptr + BLOCK_B * V + labels, mask=mask_b).to(tl.float32)
     if logits_multiplier is not None:
         x *= logits_multiplier
 
