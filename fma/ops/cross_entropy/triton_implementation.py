@@ -88,6 +88,7 @@ def cross_entropy_forward_backward_triton_kernel(
         if reduction == "mean":
             x /= B
 
+        BLOCK = BLOCK_B[:, None] * x_grad_stride[0] + BLOCK_V[None, :] * x_grad_stride[1]
         tl.store(x_grad_ptr + BLOCK, x, mask=mask_bv)
 
     BLOCK = BLOCK_B * x_stride[0] + labels * x_stride[1]
