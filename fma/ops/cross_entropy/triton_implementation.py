@@ -90,7 +90,9 @@ def cross_entropy_forward_backward_triton_kernel(
 
         tl.store(x_grad_ptr + BLOCK, x, mask=mask_bv)
 
-    x = tl.load(x_ptr + BLOCK_B * V + labels, mask=mask_b).to(tl.float32)
+    BLOCK = BLOCK_B * x_stride[0] + labels * x_stride[1]
+    x = tl.load(x_ptr + BLOCK, mask=mask_b).to(tl.float32)
+
     if logits_multiplier is not None:
         x *= logits_multiplier
 
@@ -121,9 +123,12 @@ def cross_entropy_forward_backward_triton(
     with torch.device(x.device):
         cross_entropy_forward_backward_triton_kernel[GRID](
             x_ptr=x,
+            x_stride=x.stride(),
             labels_ptr=labels,
+            labels_stride=labels.stride(),
             loss_ptr=loss,
             x_grad_ptr=x_grad,
+            x_grad_stride=x_grad.stride(),
             logits_multiplier=logits_multiplier,
             B=B,
             V=V,
