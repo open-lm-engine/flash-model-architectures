@@ -7,13 +7,12 @@ import torch.nn.functional as F
 
 from ...cutotune import CutoTuneParameter
 from ...kernel_backend import KernelBackend
-from ...utils import ensure_contiguous, get_num_elements_and_hidden_size
+from ...utils import get_num_elements_and_hidden_size
 from .triton_implementation import cross_entropy_forward_backward_triton
 
 
 class _CrossEntropy(torch.autograd.Function):
     @staticmethod
-    @ensure_contiguous
     def forward(
         ctx,
         x: torch.Tensor,
