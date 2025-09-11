@@ -24,9 +24,12 @@ def _get_autotune_configs() -> list[triton.Config]:
 @triton.jit
 def cross_entropy_forward_backward_triton_kernel(
     x_ptr,
+    x_stride,
     labels_ptr,
+    labels_stride,
     loss_ptr,
     x_grad_ptr,
+    x_grad_stride,
     logits_multiplier,
     B,
     V,
@@ -48,10 +51,10 @@ def cross_entropy_forward_backward_triton_kernel(
         BLOCK_V = v * BLOCK_SIZE_V + tl.arange(0, BLOCK_SIZE_V)
         mask_v = BLOCK_V < V
 
-        BLOCK = BLOCK_B[:, None] * V + BLOCK_V[None, :]
+        x_ptrs = x_ptr + BLOCK_B[:, None] * x_stride[0] + BLOCK_V[None, :] * x_stride[1]
         mask_bv = mask_b[:, None] & mask_v[None, :]
 
-        x = tl.load(x_ptr + BLOCK, mask=mask_bv, other=-float("inf")).to(tl.float32)
+        x = tl.load(x_ptrs, mask=mask_bv, other=-float("inf")).to(tl.float32)
         if logits_multiplier is not None:
             x *= logits_multiplier
 

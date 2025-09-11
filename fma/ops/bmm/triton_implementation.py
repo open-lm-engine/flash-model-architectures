@@ -127,11 +127,14 @@ def bmm_triton_kernel(
     accumulator = accumulator.to(A_ptr.dtype.element_ty)
     accumulator *= alpha
 
-    C_ptrs = C_ptr + BLOCK_ID_L * C_stride[0] + BLOCK_M[:, None] * C_stride[1] + BLOCK_N[None, :] * C_stride[2]
     mask_mn = mask_m[:, None] & mask_n[None, :]
 
     if C_ptr is not None:
-        C = tl.load(C_ptrs, mask=mask_mn)
+        C = tl.load(
+            C_ptr + BLOCK_ID_L * C_stride[0] + BLOCK_M[:, None] * C_stride[1] + BLOCK_N[None, :] * C_stride[2],
+            mask=mask_mn,
+        )
+
         accumulator += beta * C
 
     D_ptrs = D_ptr + BLOCK_ID_L * D_stride[0] + BLOCK_M[:, None] * D_stride[1] + BLOCK_N[None, :] * D_stride[2]
