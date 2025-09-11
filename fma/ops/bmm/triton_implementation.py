@@ -167,7 +167,7 @@ def bmm_triton(
             B_ptr=B,
             B_stride=B.stride(),
             C_ptr=C,
-            C_stride=C.stride(),
+            C_stride=None if C is None else C.stride(),
             D_ptr=D,
             D_stride=D.stride(),
             alpha=alpha,
