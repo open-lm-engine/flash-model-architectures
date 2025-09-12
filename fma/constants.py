@@ -2,6 +2,8 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
+from enum import Enum
+
 import torch
 
 from .math import get_powers_of_2
@@ -27,3 +29,7 @@ DTYPE_TO_SIZE = {
     torch.int64: 8,
     torch.uint64: 8,
 }
+
+
+class Kernel(Enum):
+    fused_residual_add_rmsnorm = "fused_residual_add_rmsnorm"
