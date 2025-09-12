@@ -24,19 +24,20 @@ _REPLACEMENT_PATTERNS = {
     Kernel.fused_residual_add_rmsnorm: (
         partial(fused_residual_add_rmsnorm, kernel_backend=KernelBackend.torch),
         partial(fused_residual_add_rmsnorm, kernel_backend=KernelBackend.triton),
+        None,
     )
 }
 
 
 def enable_kernels(kernels: list[Kernel]) -> None:
     for kernel in kernels:
-        search_function, replacement_function, example_inputs = _REPLACEMENT_PATTERNS[kernel]
+        search_function, replacement_function, example_inputs_function = _REPLACEMENT_PATTERNS[kernel]
 
         for trace_function in [joint_fwd_bwd, fwd_only]:
             register_replacement(
                 search_fn=search_function,
                 replace_fn=replacement_function,
-                example_inputs=example_inputs,
+                example_inputs=example_inputs_function(),
                 trace_fn=trace_function,
                 pass_dicts=patterns,
             )
