@@ -30,11 +30,9 @@ Join the [discord server](https://discord.gg/AFDxmjH5RV) if you are interested i
 | [fused_residual_add_rmsnorm](fma/ops/fused_residual_add_rmsnorm/__init__.py) | ✅ | ❌ |
 | [gemm](fma/ops/gemm/__init__.py) | ✅ | ❌ |
 | [grouped_gemm](fma/ops/grouped_gemm/__init__.py) | ❌ | ✅ |
-| [matrix_transpose](fma/ops/matrix_transpose/__init__.py) | ✅ | ❌ |
 | [rmsnorm](fma/ops/rmsnorm/__init__.py) | ✅ | ❌ |
 | [pack_sequence](fma/ops/sequence_packing/__init__.py) | ✅ | ✅ |
 | [softmax](fma/ops/softmax/__init__.py) | ✅ | ❌ |
 | [swiglu](fma/ops/swiglu/__init__.py) | ✅ | ✅ |
 | [swiglu_packed](fma/ops/swiglu/__init__.py) | ✅ | ❌ |
 | [unpack_sequence](fma/ops/sequence_packing/__init__.py) | ✅ | ✅ |
-| [zeros](fma/ops/zeros/__init__.py) | ✅ | ✅ |
