@@ -21,7 +21,6 @@ from .ops import (
     fused_residual_add_rmsnorm,
     gemm,
     grouped_gemm,
-    matrix_transpose,
     p_norm,
     pack_sequence,
     rmsnorm,
@@ -29,6 +28,5 @@ from .ops import (
     swiglu,
     swiglu_packed,
     unpack_sequence,
-    zeros,
 )
 from .utils import device_synchronize, get_ptx_from_triton_kernel, get_triton_num_warps, set_seed

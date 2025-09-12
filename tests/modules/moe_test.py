@@ -72,6 +72,12 @@ class MoETest(TestCommons):
         kernel_backend: KernelBackend,
         is_compiling: bool,
     ) -> None:
+        if kernel_backend == KernelBackend.cuda and torch.cuda.get_device_capability(torch.cuda.current_device()) < (
+            10,
+            0,
+        ):
+            self.skipTest("skipping Blackwell Grouped Gemm since Blackwell GPU is not found")
+
         set_seed(_SEED)
 
         if num_experts_per_tok > num_experts:
