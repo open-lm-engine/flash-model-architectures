@@ -43,14 +43,21 @@ def partialize_and_update_signature(func: Callable, **kwargs) -> Callable:
     return wrapper
 
 
+_DIM_TO_SIZE = {1: (4,), 2: (4, 4), 3: (4, 4, 4), 4: (4, 4, 4, 4)}
+
+
+def _get_example_input(dim: int, device: torch.device, dtype: torch.dtype) -> torch.Tensor:
+    return torch.empty(_DIM_TO_SIZE[dim], device=device, dtype=dtype, requires_grad=True)
+
+
 def get_rmsnorm_replacer(
     device: torch.device,
 ) -> Generator[tuple[Callable, Callable, tuple[torch.Tensor, torch.Tensor]]]:
     for dtype in _ALL_DTYPES:
         for dim in range(1, 5):
             example_inputs = (
-                torch.empty((1,) * dim, device=device, dtype=dtype, requires_grad=True),
-                torch.empty(1, device=device, dtype=dtype, requires_grad=True),
+                _get_example_input(dim, device=device, dtype=dtype),
+                _get_example_input(1, device=device, dtype=dtype),
             )
 
             search_function = partialize_and_update_signature(
