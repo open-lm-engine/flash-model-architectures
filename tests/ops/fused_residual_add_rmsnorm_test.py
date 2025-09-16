@@ -2,12 +2,23 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
+from __future__ import annotations
+
 from typing import Callable
 
 import torch
+import torch.nn as nn
 from parameterized import parameterized
 
-from fma import KernelBackend, fused_residual_add_rmsnorm, set_seed
+from fma import (
+    KernelBackend,
+    enable_counters,
+    enable_kernels,
+    fused_residual_add_rmsnorm,
+    get_counter_value,
+    reset_counters,
+    set_seed,
+)
 
 from ..test_commons import TestCommons
 from .rmsnorm_test import _get_sizes
@@ -93,3 +104,39 @@ class FusedResdidualAddRMSNormTest(TestCommons):
                 atol_float32=1.1e-4,
                 rtol_float32=0,
             )
+
+    def test_fused_residual_add_rmsnorm_kernel_replacement(self) -> None:
+        class Model(nn.Module):
+            def __init__(self, shape: int) -> Model:
+                super().__init__()
+                self.norm = nn.RMSNorm(shape)
+                self.l1 = nn.Linear(shape, shape)
+                self.l2 = nn.Linear(shape, shape)
+
+            def forward(self, x: torch.Tensor) -> torch.Tensor:
+                r = x
+                x = self.l1(x)
+                x = r + x
+                x = self.norm(x)
+                x = self.l2(x)
+                return x
+
+        size = (4, 7)
+
+        device = torch.cuda.current_device()
+        dtype = torch.float32
+
+        with torch.device(device):
+            model = Model(size[-1])
+
+        x = torch.randn(size, device=device, dtype=dtype, requires_grad=True)
+
+        reset_counters()
+
+        enable_kernels([fused_residual_add_rmsnorm.__name__])
+        model = torch.compile(model)
+
+        with enable_counters():
+            model(x)
+
+        assert get_counter_value(fused_residual_add_rmsnorm) == 1

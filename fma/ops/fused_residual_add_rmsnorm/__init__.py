@@ -5,6 +5,7 @@
 import torch
 import torch.nn.functional as F
 
+from ...counters import increment_counter
 from ...cutotune import CutoTuneParameter
 from ...enums import KernelBackend
 from ...utils import ensure_contiguous, get_num_elements_and_hidden_size
@@ -134,6 +135,7 @@ def fused_residual_add_rmsnorm(
             x=x, residual=residual, weight=weight, eps=eps, multiplier=multiplier
         )
     else:
+        increment_counter(fused_residual_add_rmsnorm)
         x, residual = _FusedResidualAddRMSNorm.apply(
             x, residual, weight, eps, multiplier, memory_efficient, kernel_backend
         )
