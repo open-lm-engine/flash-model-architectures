@@ -2,12 +2,15 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
+from __future__ import annotations
+
 from typing import Callable
 
 import torch
+import torch.nn as nn
 from parameterized import parameterized
 
-from fma import KernelBackend, rmsnorm, set_seed
+from fma import Kernel, KernelBackend, enable_kernels, reset_counters, rmsnorm, set_seed
 
 from ..test_commons import TestCommons
 
@@ -76,3 +79,50 @@ class RMSNormTest(TestCommons):
                 atol_float16=0.1,
                 rtol_float16=0.01,
             )
+
+    @parameterized.expand(
+        TestCommons.make_args_matrix(
+            _get_sizes(),  # size
+            [torch.device("cuda")],  # device
+            [torch.float32, torch.float16],  # dtype
+            [True, False],  # memory_efficient
+            [True, False],  # has_weight
+            [rmsnorm, torch.compile(rmsnorm, fullgraph=True)],  # function
+        )
+    )
+    def test_rmsnorm_kernel_replacement(
+        self,
+        size: tuple[int],
+        device: torch.device,
+        dtype: torch.dtype,
+        memory_efficient: bool,
+        has_weight: bool,
+        function: Callable,
+    ) -> None:
+        class Model(nn.Module):
+            def __init__(self, shape: int | tuple[int]) -> Model:
+                super().__init__()
+                self.norm = nn.RMSNorm(shape)
+                shape = shape[-1] if isinstance(shape, tuple) else shape
+                self.l1 = nn.Linear(shape, shape)
+                self.l2 = nn.Linear(shape, shape)
+
+            def forward(self, x: torch.Tensor) -> torch.Tensor:
+                x = self.l1(x)
+                x = self.norm(x)
+                x = self.l2(x)
+                return x
+
+        if isinstance(size, int):
+            size = (size,)
+
+        with torch.device(torch.cuda.current_device()):
+            model = Model(size)
+
+        x = torch.randn(size, device=device, dtype=dtype)
+
+        enable_kernels([Kernel.rmsnorm])
+        reset_counters()
+
+        model = torch.compile(model)
+        model(x)
