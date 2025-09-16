@@ -8,7 +8,7 @@ import torch.nn.functional as F
 from ...constants import MAX_TRITON_BLOCK_SIZE
 from ...counters import increment_counter
 from ...cutotune import CutoTuneParameter
-from ...kernel_backend import KernelBackend
+from ...enums import KernelBackend
 from ...math import ceil_divide, get_next_power_of_2
 from ...utils import ensure_contiguous, get_num_elements_and_hidden_size, get_sm_count
 from .triton_implementation import rmsnorm_backward_triton_kernel, rmsnorm_forward_triton_kernel

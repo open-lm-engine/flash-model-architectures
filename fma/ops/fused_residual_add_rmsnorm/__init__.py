@@ -5,7 +5,8 @@
 import torch
 import torch.nn.functional as F
 
-from ...kernel_backend import CutoTuneParameter, KernelBackend
+from ...cutotune import CutoTuneParameter
+from ...enums import KernelBackend
 from ...utils import ensure_contiguous, get_num_elements_and_hidden_size
 from .triton_implementation import (
     fused_residual_add_rmsnorm_backward_triton,

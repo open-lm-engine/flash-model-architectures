@@ -5,7 +5,7 @@
 import torch
 
 from ...cutotune import CutoTuneParameter
-from ...kernel_backend import KernelBackend
+from ...enums import KernelBackend
 from ...utils import ensure_contiguous
 from .triton_implementation import bmm_triton
 
