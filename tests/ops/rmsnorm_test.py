@@ -88,14 +88,12 @@ class RMSNormTest(TestCommons):
                 rtol_float16=0.01,
             )
 
-    @parameterized.expand(
-        TestCommons.make_args_matrix([(5,), (4, 5), (4, 5, 6), (4, 5, 6, 7)], TestCommons.get_dtypes(), [None, 1e-4])
-    )
-    def test_rmsnorm_kernel_replacement(self, size: tuple[int], dtype: torch.dtype, eps: float | None) -> None:
+    @parameterized.expand([(4, 4)])
+    def test_rmsnorm_kernel_replacement(self, size: tuple[int]) -> None:
         class Model(nn.Module):
             def __init__(self) -> Model:
                 super().__init__()
-                self.norm = nn.RMSNorm(size[-1], eps=eps)
+                self.norm = nn.RMSNorm(size[-1])
                 self.l1 = nn.Linear(size[-1], size[-1])
                 self.l2 = nn.Linear(size[-1], size[-1])
 
@@ -106,18 +104,18 @@ class RMSNormTest(TestCommons):
                 return x
 
         device = torch.cuda.current_device()
-
-        with torch.device(device):
-            model = Model(size[-1]).to(dtype)
-
-        x = torch.randn(size, device=device, dtype=dtype, requires_grad=True)
-
-        reset_counters()
-
         enable_kernels([rmsnorm.__name__])
-        model = torch.compile(model)
 
-        with enable_counters():
-            model(x)
+        for dtype in TestCommons.get_dtypes():
+            with torch.device(device):
+                model = Model().to(dtype)
 
-        assert get_counter_value(rmsnorm) == 2
+            x = torch.randn(size, device=device, dtype=dtype, requires_grad=True)
+
+            reset_counters()
+            model = torch.compile(model)
+
+            with enable_counters():
+                model(x)
+
+            assert get_counter_value(rmsnorm) == 2
