@@ -11,6 +11,7 @@ import torch.nn as nn
 from parameterized import parameterized
 
 from fma import KernelBackend, enable_counters, enable_kernels, get_counter_value, reset_counters, rmsnorm, set_seed
+from fma.ops import rmsnorm_torch
 
 from ..test_commons import TestCommons
 
@@ -90,11 +91,11 @@ class RMSNormTest(TestCommons):
 
             def forward(self, x: torch.Tensor) -> torch.Tensor:
                 x = self.l1(x)
-                x = rmsnorm(x, weight=self.norm.weight, eps=None)
+                x = rmsnorm_torch(x, weight=self.norm.weight, eps=None)
                 x = self.l2(x)
                 return x
 
-        size = (4, 7)
+        size = (7,)
 
         device = torch.cuda.current_device()
         dtype = torch.float32
@@ -112,4 +113,4 @@ class RMSNormTest(TestCommons):
         with enable_counters():
             model(x)
 
-        assert get_counter_value(rmsnorm) == 1
+        assert get_counter_value(rmsnorm) == 2
