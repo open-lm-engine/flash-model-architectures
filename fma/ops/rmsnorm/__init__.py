@@ -6,7 +6,7 @@ import torch
 import torch.nn.functional as F
 
 from ...cutotune import CutoTuneParameter
-from ...kernel_backend import KernelBackend
+from ...enums import KernelBackend
 from ...utils import ensure_contiguous, get_num_elements_and_hidden_size
 from .triton_implementation import rmsnorm_backward_triton, rmsnorm_forward_triton
 

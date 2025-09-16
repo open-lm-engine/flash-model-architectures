@@ -5,7 +5,7 @@
 import torch
 import torch.nn.functional as F
 
-from ...kernel_backend import KernelBackend
+from ...enums import KernelBackend
 from ...math import divide_if_divisible
 from ...utils import ensure_contiguous
 from .cuda_implementation import swiglu_backward_cuda, swiglu_forward_cuda

@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 
 from ...cutotune import CutoTuneParameter
-from ...kernel_backend import KernelBackend
+from ...enums import KernelBackend
 from ...math import divide_if_divisible
 from ...torch_math import tanh
 from ...utils import ensure_contiguous

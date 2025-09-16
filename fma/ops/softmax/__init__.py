@@ -6,7 +6,7 @@ import torch
 import torch.nn.functional as F
 
 from ...cutotune import CutoTuneParameter
-from ...kernel_backend import KernelBackend
+from ...enums import KernelBackend
 from ...utils import ensure_contiguous
 from .triton_implementation import softmax_backward_triton, softmax_forward_triton
 
