@@ -102,7 +102,7 @@ class RMSNormTest(TestCommons):
                 x = self.l2(x)
                 return x
 
-        size = (7,)
+        size = (4, 7)
 
         device = torch.cuda.current_device()
         dtype = torch.float32
