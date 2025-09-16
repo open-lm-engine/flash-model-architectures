@@ -11,7 +11,6 @@ import torch.nn as nn
 from parameterized import parameterized
 
 from fma import KernelBackend, enable_counters, enable_kernels, get_counter_value, reset_counters, rmsnorm, set_seed
-from fma.ops import rmsnorm_torch
 
 from ..test_commons import TestCommons
 
@@ -99,7 +98,7 @@ class RMSNormTest(TestCommons):
 
             def forward(self, x: torch.Tensor) -> torch.Tensor:
                 x = self.l1(x)
-                x = rmsnorm_torch(x, weight=self.norm.weight, eps=None)
+                x = rmsnorm(x, weight=self.norm.weight, eps=None, kernel_backend=KernelBackend.torch)
                 x = self.l2(x)
                 return x
 
