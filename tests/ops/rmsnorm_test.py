@@ -10,7 +10,16 @@ import torch
 import torch.nn as nn
 from parameterized import parameterized
 
-from fma import Kernel, KernelBackend, enable_kernels, get_counter_value, reset_counters, rmsnorm, set_seed
+from fma import (
+    Kernel,
+    KernelBackend,
+    enable_counters,
+    enable_kernels,
+    get_counter_value,
+    reset_counters,
+    rmsnorm,
+    set_seed,
+)
 
 from ..test_commons import TestCommons
 
@@ -109,6 +118,7 @@ class RMSNormTest(TestCommons):
         enable_kernels([Kernel.rmsnorm])
         model = torch.compile(model)
 
-        model(x)
+        with enable_counters():
+            model(x)
 
         assert get_counter_value(rmsnorm) == 1

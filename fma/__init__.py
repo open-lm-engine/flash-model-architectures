@@ -2,7 +2,7 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
-from .counters import get_counter_value, reset_counters
+from .counters import enable_counters, get_counter_value, reset_counters
 from .cutotune import (
     CutoTuneConfig,
     CutoTuneParameter,
