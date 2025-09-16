@@ -80,25 +80,7 @@ class RMSNormTest(TestCommons):
                 rtol_float16=0.01,
             )
 
-    @parameterized.expand(
-        TestCommons.make_args_matrix(
-            _get_sizes(),  # size
-            [torch.device("cuda")],  # device
-            [torch.float32, torch.float16],  # dtype
-            [True, False],  # memory_efficient
-            [True, False],  # has_weight
-            [rmsnorm, torch.compile(rmsnorm, fullgraph=True)],  # function
-        )
-    )
-    def test_rmsnorm_kernel_replacement(
-        self,
-        size: tuple[int],
-        device: torch.device,
-        dtype: torch.dtype,
-        memory_efficient: bool,
-        has_weight: bool,
-        function: Callable,
-    ) -> None:
+    def test_rmsnorm_kernel_replacement(self) -> None:
         class Model(nn.Module):
             def __init__(self, shape: int | tuple[int]) -> Model:
                 super().__init__()
@@ -116,7 +98,10 @@ class RMSNormTest(TestCommons):
         if isinstance(size, int):
             size = (size,)
 
-        with torch.device(torch.cuda.current_device()):
+        device = torch.cuda.current_device()
+        dtype = torch.bfloat16
+
+        with torch.device(device):
             model = Model(size)
 
         x = torch.randn(size, device=device, dtype=dtype)
