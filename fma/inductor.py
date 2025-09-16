@@ -27,6 +27,7 @@ def _fused_residual_add_rmsnorm_inputs_0(device: torch.device) -> list[torch.Ten
     return [
         torch.empty(1, device=device, requires_grad=True),
         torch.empty(1, device=device, requires_grad=True),
+        torch.empty(1, device=device, requires_grad=True),
         None,
         None,
     ]
@@ -34,6 +35,7 @@ def _fused_residual_add_rmsnorm_inputs_0(device: torch.device) -> list[torch.Ten
 
 def _fused_residual_add_rmsnorm_inputs_1(device: torch.device) -> list[torch.Tensor, torch.Tensor, None, float]:
     return [
+        torch.empty(1, device=device, requires_grad=True),
         torch.empty(1, device=device, requires_grad=True),
         torch.empty(1, device=device, requires_grad=True),
         None,
