@@ -66,30 +66,32 @@ def get_rmsnorm_replacer(
 
 def get_fused_residual_add_rmsnorm_replacer(
     device: torch.device,
-) -> tuple[Callable, Callable, tuple[torch.Tensor, torch.Tensor, torch.Tensor]]:
-    example_inputs = (
-        torch.empty(1, device=device, requires_grad=True),
-        torch.empty(1, device=device, requires_grad=True),
-        torch.empty(1, device=device, requires_grad=True),
-    )
+) -> Generator[tuple[Callable, Callable, tuple[torch.Tensor, torch.Tensor, torch.Tensor]]]:
+    for dtype in _ALL_DTYPES:
+        for dim in range(1, 5):
+            example_inputs = (
+                torch.empty((1,) * dim, device=device, dtype=dtype, requires_grad=True),
+                torch.empty((1,) * dim, device=device, dtype=dtype, requires_grad=True),
+                torch.empty(1, device=device, dtype=dtype, requires_grad=True),
+            )
 
-    search_function = partialize_and_update_signature(
-        fused_residual_add_rmsnorm,
-        eps=None,
-        multiplier=None,
-        memory_efficient=False,
-        kernel_backend=KernelBackend.torch,
-    )
+            search_function = partialize_and_update_signature(
+                fused_residual_add_rmsnorm,
+                eps=None,
+                multiplier=None,
+                memory_efficient=False,
+                kernel_backend=KernelBackend.torch,
+            )
 
-    replacement_function = partialize_and_update_signature(
-        fused_residual_add_rmsnorm,
-        eps=None,
-        multiplier=None,
-        memory_efficient=False,
-        kernel_backend=KernelBackend.triton,
-    )
+            replacement_function = partialize_and_update_signature(
+                fused_residual_add_rmsnorm,
+                eps=None,
+                multiplier=None,
+                memory_efficient=False,
+                kernel_backend=KernelBackend.triton,
+            )
 
-    return search_function, replacement_function, example_inputs
+            yield search_function, replacement_function, example_inputs
 
 
 _MAPPING = {
