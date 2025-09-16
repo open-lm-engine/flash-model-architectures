@@ -96,9 +96,6 @@ class RMSNormTest(TestCommons):
 
         size = (4, 7)
 
-        if isinstance(size, int):
-            size = (size,)
-
         device = torch.cuda.current_device()
         dtype = torch.float32
 
