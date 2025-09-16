@@ -4,6 +4,9 @@
 
 from __future__ import annotations
 
+import functools
+import inspect
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -13,22 +16,43 @@ from torch._inductor.pattern_matcher import fwd_only, joint_fwd_bwd, register_re
 from fma.ops import rmsnorm, rmsnorm_torch
 
 
-def search_function(x: torch.Tensor, w: torch.Tensor) -> torch.Tensor:
+def partialize_and_update_signature(func, **kwargs):
+    """
+    Equivalent to functools.partial but also updates the signature on returned function
+    """
+    original_sig = inspect.signature(func)
+    parameters = original_sig.parameters
+
+    new_parameters = {key: value for key, value in parameters.items() if key not in kwargs}
+    new_sig = inspect.Signature(parameters=list(new_parameters.values()))
+
+    partial_func = functools.partial(func, **kwargs)
+
+    def wrapper(*args, **kwargs):
+        return partial_func(*args, **kwargs)
+
+    wrapper.__signature__ = new_sig  # type: ignore[attr-defined]
+    wrapper.__name__ = func.__name__
+
+    return wrapper
+
+
+def search_function(x: torch.Tensor, w: torch.Tensor, kwk: float | None) -> torch.Tensor:
     y = x + 1
-    y = rmsnorm_torch(y, weight=w, eps=None)
+    y = rmsnorm_torch(y, weight=w, eps=kwk)
     y = F.silu(y)
     return y
 
 
-def replacement_function(x: torch.Tensor, w: torch.Tensor) -> torch.Tensor:
-    y = rmsnorm(x, w, eps=None)
+def replacement_function(x: torch.Tensor, w: torch.Tensor, kwk: float | None) -> torch.Tensor:
+    y = rmsnorm(x, w, eps=kwk)
     return y
 
 
 class MyModule(nn.Module):
-    def forward(self, x: torch.Tensor, w) -> torch.Tensor:
-        x = search_function(x, w)
-        x = search_function(x, w)
+    def forward(self, x: torch.Tensor, w, kwk: float | None) -> torch.Tensor:
+        x = search_function(x, w, kwk)
+        x = search_function(x, w, kwk)
         return x
 
 
@@ -36,8 +60,8 @@ device = torch.cuda.current_device()
 
 for trace_function in [joint_fwd_bwd, fwd_only]:
     register_replacement(
-        search_fn=search_function,
-        replace_fn=replacement_function,
+        search_fn=partialize_and_update_signature(search_function, kwk=None),
+        replace_fn=partialize_and_update_signature(replacement_function, kwk=None),
         example_inputs=[
             torch.empty(1, device=device, requires_grad=True),
             torch.empty(1, device=device, requires_grad=True),
@@ -50,7 +74,11 @@ m = MyModule()
 
 print(
     "original value =",
-    m(torch.tensor([1.0], device=device, requires_grad=True), torch.tensor([1.0], device=device, requires_grad=True)),
+    m(
+        torch.tensor([1.0], device=device, requires_grad=True),
+        torch.tensor([1.0], device=device, requires_grad=True),
+        None,
+    ),
 )
 print(
     "expected value =",
@@ -58,8 +86,10 @@ print(
         replacement_function(
             torch.tensor([1.0], device=device, requires_grad=True),
             torch.tensor([1.0], device=device, requires_grad=True),
+            None,
         ),
         torch.tensor([1.0], device=device, requires_grad=True),
+        None,
     ),
 )
 
@@ -67,6 +97,8 @@ m_compiled = torch.compile(m, fullgraph=True)
 print(
     "value with compile =",
     m_compiled(
-        torch.tensor([1.0], device=device, requires_grad=True), torch.tensor([1.0], device=device, requires_grad=True)
+        torch.tensor([1.0], device=device, requires_grad=True),
+        torch.tensor([1.0], device=device, requires_grad=True),
+        None,
     ),
 )
