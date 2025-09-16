@@ -87,6 +87,24 @@ class _FusedResidualAddRMSNorm(torch.autograd.Function):
         return x_grad, residual_grad, weight_grad, *[None] * 4
 
 
+def fused_residual_add_rmsnorm_torch(
+    x: torch.Tensor,
+    residual: torch.Tensor,
+    weight: torch.Tensor | None,
+    eps: float | None,
+    multiplier: float | None = None,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    if multiplier not in [None, 1]:
+        x = x * multiplier
+
+    x = x + residual
+    residual = x
+
+    x = F.rms_norm(x, (x.size(-1),), weight=weight, eps=eps)
+
+    return x, residual
+
+
 def fused_residual_add_rmsnorm(
     x: torch.Tensor,
     residual: torch.Tensor,
@@ -95,7 +113,7 @@ def fused_residual_add_rmsnorm(
     multiplier: float | None = None,
     memory_efficient: bool = False,
     kernel_backend: KernelBackend | CutoTuneParameter = KernelBackend.triton,
-) -> tuple[torch.Tensor]:
+) -> tuple[torch.Tensor, torch.Tensor]:
     """fused residual add RMSNorm computation
 
     Args:
@@ -108,17 +126,13 @@ def fused_residual_add_rmsnorm(
             Defaults to False.
 
     Returns:
-        tuple[torch.Tensor]: output activations, updated residual stream
+        tuple[torch.Tensor, torch.Tensor]: output activations, updated residual stream
     """
 
     if kernel_backend == KernelBackend.torch:
-        if multiplier not in [None, 1]:
-            x = x * multiplier
-
-        x = x + residual
-        residual = x
-
-        x = F.rms_norm(x, (x.size(-1),), weight=weight, eps=eps)
+        x, residual = fused_residual_add_rmsnorm_torch(
+            x=x, residual=residual, weight=weight, eps=eps, multiplier=multiplier
+        )
     else:
         x, residual = _FusedResidualAddRMSNorm.apply(
             x, residual, weight, eps, multiplier, memory_efficient, kernel_backend

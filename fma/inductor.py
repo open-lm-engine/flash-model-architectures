@@ -11,7 +11,7 @@ from torch._inductor.fx_passes.joint_graph import patterns
 from torch._inductor.pattern_matcher import fwd_only, joint_fwd_bwd, register_replacement
 
 from .enums import KernelBackend
-from .ops import rmsnorm, rmsnorm_torch
+from .ops import fused_residual_add_rmsnorm, fused_residual_add_rmsnorm_torch, rmsnorm, rmsnorm_torch
 
 
 def init_inductor(cache_size_limit: int) -> None:
@@ -19,12 +19,39 @@ def init_inductor(cache_size_limit: int) -> None:
     torch._dynamo.config.accumulated_cache_size_limit = cache_size_limit
 
 
-def _rmsnorm_example_inputs(device: torch.device) -> list[tuple[torch.Tensor, torch.Tensor]]:
+def _rmsnorm_example_inputs_0(device: torch.device) -> list[torch.Tensor, torch.Tensor, None]:
     return [torch.empty(1, device=device, requires_grad=True), torch.empty(1, device=device, requires_grad=True), None]
 
 
+def _fused_residual_add_rmsnorm_inputs_0(device: torch.device) -> list[torch.Tensor, torch.Tensor, None, None]:
+    return [
+        torch.empty(1, device=device, requires_grad=True),
+        torch.empty(1, device=device, requires_grad=True),
+        None,
+        None,
+    ]
+
+
+def _fused_residual_add_rmsnorm_inputs_1(device: torch.device) -> list[torch.Tensor, torch.Tensor, None, float]:
+    return [
+        torch.empty(1, device=device, requires_grad=True),
+        torch.empty(1, device=device, requires_grad=True),
+        None,
+        0.1,
+    ]
+
+
 _MAPPING = {
-    rmsnorm.__name__: (rmsnorm_torch, partial(rmsnorm, kernel_backend=KernelBackend.triton), [_rmsnorm_example_inputs])
+    rmsnorm.__name__: (
+        rmsnorm_torch,
+        partial(rmsnorm, kernel_backend=KernelBackend.triton),
+        [_rmsnorm_example_inputs_0],
+    ),
+    fused_residual_add_rmsnorm.__name__: (
+        fused_residual_add_rmsnorm_torch,
+        partial(fused_residual_add_rmsnorm, kernel_backend=KernelBackend.triton),
+        [_fused_residual_add_rmsnorm_inputs_0, _fused_residual_add_rmsnorm_inputs_1],
+    ),
 }
 
 
