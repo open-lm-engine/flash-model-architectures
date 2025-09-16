@@ -31,7 +31,8 @@ _MAPPING = {
 }
 
 
-def enable_kernels(kernels: list[Kernel]) -> None:
+@contextmanager
+def enable_kernels(kernels: list[Kernel]):
     patterns_clone = deepcopy(patterns)
 
     device = torch.cuda.current_device()
