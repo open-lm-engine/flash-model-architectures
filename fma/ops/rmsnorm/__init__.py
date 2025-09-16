@@ -6,7 +6,7 @@ import torch
 import torch.nn.functional as F
 
 from ...constants import MAX_TRITON_BLOCK_SIZE
-from ...counters import _COUNTERS
+from ...counters import increment_counter
 from ...cutotune import CutoTuneParameter
 from ...kernel_backend import KernelBackend
 from ...math import ceil_divide, get_next_power_of_2
@@ -127,7 +127,7 @@ def rmsnorm(
     if kernel_backend == KernelBackend.torch:
         x = F.rms_norm(x, normalized_shape=(x.size(-1),), weight=weight, eps=eps)
     else:
-        _COUNTERS[rmsnorm] += 1
+        increment_counter(rmsnorm)
         x = _RMSNorm.apply(x, weight, eps, memory_efficient, kernel_backend)
 
     return x
