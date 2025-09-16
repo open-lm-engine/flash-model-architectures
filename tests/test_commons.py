@@ -16,7 +16,7 @@ from fma import init_inductor
 
 class TestCommons(TestCase):
     def setUp(self) -> None:
-        return init_inductor(cache_size_limit=1024)
+        return init_inductor(cache_size_limit=2048)
 
     @staticmethod
     def get_all_devices() -> list[torch.device]:

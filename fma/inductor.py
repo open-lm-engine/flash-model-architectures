@@ -17,7 +17,7 @@ from .ops import rmsnorm, rmsnorm_torch
 
 def init_inductor(cache_size_limit: int) -> None:
     torch._dynamo.config.cache_size_limit = cache_size_limit
-    torch._dynamo.config.accumulated_cache_size_limit = 1024
+    torch._dynamo.config.accumulated_cache_size_limit = cache_size_limit
 
 
 def _rmsnorm_example_inputs(device: torch.device) -> list[tuple[torch.Tensor, torch.Tensor]]:
