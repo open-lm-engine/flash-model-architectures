@@ -8,7 +8,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from ...kernel_backend import KernelBackend
+from ...enums import KernelBackend
 from ...ops import continuous_count
 from .cuda_implementation import group_with_padding, grouped_gemm_experts, ungroup_with_padding
 from .triton_implementation import scattered_experts

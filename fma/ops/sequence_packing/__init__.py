@@ -4,7 +4,7 @@
 
 import torch
 
-from ...kernel_backend import KernelBackend
+from ...enums import KernelBackend
 from ...utils import ensure_contiguous
 from .cuda_implementation import pack_unpack_sequence_cuda
 from .triton_implementation import pack_unpack_sequence_triton
