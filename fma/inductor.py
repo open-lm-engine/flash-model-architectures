@@ -10,7 +10,6 @@ import torch
 from torch._inductor.fx_passes.joint_graph import patterns
 from torch._inductor.pattern_matcher import fwd_only, joint_fwd_bwd, register_replacement
 
-from .enums import Kernel
 from .kernel_backend import KernelBackend
 from .ops import rmsnorm, rmsnorm_torch
 
@@ -25,11 +24,11 @@ def _rmsnorm_example_inputs(device: torch.device) -> list[tuple[torch.Tensor, to
 
 
 _MAPPING = {
-    Kernel.rmsnorm: (rmsnorm_torch, partial(rmsnorm, kernel_backend=KernelBackend.triton), _rmsnorm_example_inputs)
+    rmsnorm.__name__: (rmsnorm_torch, partial(rmsnorm, kernel_backend=KernelBackend.triton), _rmsnorm_example_inputs)
 }
 
 
-def enable_kernels(kernels: list[Kernel]):
+def enable_kernels(kernels: list[str]):
     device = torch.cuda.current_device()
 
     for kernel in kernels:
