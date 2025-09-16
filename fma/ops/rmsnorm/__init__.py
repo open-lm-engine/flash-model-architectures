@@ -8,7 +8,7 @@ import torch.nn.functional as F
 from ...counters import increment_counter
 from ...cutotune import CutoTuneParameter
 from ...enums import KernelBackend
-from ...utils import ensure_contiguous, get_num_elements_and_hidden_size, get_sm_count
+from ...utils import ensure_contiguous, get_num_elements_and_hidden_size
 from .triton_implementation import rmsnorm_backward_triton, rmsnorm_forward_triton
 
 
