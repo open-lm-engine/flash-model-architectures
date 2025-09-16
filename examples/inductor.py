@@ -10,15 +10,19 @@ import torch.nn.functional as F
 from torch._inductor.fx_passes.joint_graph import patterns
 from torch._inductor.pattern_matcher import fwd_only, joint_fwd_bwd, register_replacement
 
+from fma.ops import rmsnorm, rmsnorm_torch
+
 
 def search_function(x: torch.Tensor) -> torch.Tensor:
     y = x + 1
+    y = rmsnorm_torch(y, weight=y, eps=None)
     y = F.silu(y)
     return y
 
 
 def replacement_function(x: torch.Tensor) -> torch.Tensor:
-    y = x - 1
+    y = rmsnorm(x, x, eps=None)
+    # y = x - 1
     return y
 
 
@@ -42,11 +46,11 @@ for trace_function in [joint_fwd_bwd, fwd_only]:
 
 m = MyModule()
 
-print("original value =", m(torch.tensor(1.0, device=device, requires_grad=True)))
+print("original value =", m(torch.tensor([1.0], device=device, requires_grad=True)))
 print(
     "expected value =",
-    replacement_function(replacement_function(torch.tensor(1.0, device=device, requires_grad=True))),
+    replacement_function(replacement_function(torch.tensor([1.0], device=device, requires_grad=True))),
 )
 
 m_compiled = torch.compile(m, fullgraph=True)
-print("value with compile =", m_compiled(torch.tensor(1.0, device=device, requires_grad=True)))
+print("value with compile =", m_compiled(torch.tensor([1.0], device=device, requires_grad=True)))
