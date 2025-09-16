@@ -6,7 +6,7 @@ import torch
 import torch.nn.functional as F
 
 from ...constants import MAX_TRITON_BLOCK_SIZE
-from ...counters import increment_counter
+from ...counters import increment_counter, is_counter_enabled
 from ...cutotune import CutoTuneParameter
 from ...kernel_backend import KernelBackend
 from ...math import ceil_divide, get_next_power_of_2
