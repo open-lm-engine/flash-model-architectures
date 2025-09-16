@@ -114,9 +114,9 @@ class FusedResdidualAddRMSNormTest(TestCommons):
                 self.l2 = nn.Linear(shape, shape)
 
             def forward(self, x: torch.Tensor) -> torch.Tensor:
-                r = x
                 x = self.l1(x)
-                x = r + x
+                r = x
+                x = x + r
                 x = self.norm(x)
                 x = self.l2(x)
                 return x
@@ -139,4 +139,4 @@ class FusedResdidualAddRMSNormTest(TestCommons):
         with enable_counters():
             model(x)
 
-        assert get_counter_value(fused_residual_add_rmsnorm) == 1
+        assert get_counter_value(fused_residual_add_rmsnorm) == 2
