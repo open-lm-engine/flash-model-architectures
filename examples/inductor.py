@@ -22,7 +22,6 @@ def search_function(x: torch.Tensor) -> torch.Tensor:
 
 def replacement_function(x: torch.Tensor) -> torch.Tensor:
     y = rmsnorm(x, x, eps=None)
-    # y = x - 1
     return y
 
 
