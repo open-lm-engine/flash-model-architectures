@@ -88,7 +88,7 @@ class RMSNormTest(TestCommons):
                 rtol_float16=0.01,
             )
 
-    @parameterized.expand([(4, 4)])
+    @parameterized.expand([[(4, 4)]])
     def test_rmsnorm_kernel_replacement(self, size: tuple[int]) -> None:
         class Model(nn.Module):
             def __init__(self) -> Model:
