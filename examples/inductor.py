@@ -4,9 +4,6 @@
 
 from __future__ import annotations
 
-import functools
-import inspect
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -17,22 +14,22 @@ from fma.inductor import partialize_and_update_signature
 from fma.ops import rmsnorm, rmsnorm_torch
 
 
-def search_function(x: torch.Tensor, w: torch.Tensor, kwk: float | None) -> torch.Tensor:
+def search_function(x: torch.Tensor, w: torch.Tensor, eps: float | None) -> torch.Tensor:
     y = x + 1
-    y = rmsnorm_torch(y, weight=w, eps=kwk)
+    y = rmsnorm_torch(y, weight=w, eps=eps)
     y = F.silu(y)
     return y
 
 
-def replacement_function(x: torch.Tensor, w: torch.Tensor, kwk: float | None) -> torch.Tensor:
-    y = rmsnorm(x, w, eps=kwk)
+def replacement_function(x: torch.Tensor, w: torch.Tensor, eps: float | None) -> torch.Tensor:
+    y = rmsnorm(x, w, eps=eps)
     return y
 
 
 class MyModule(nn.Module):
-    def forward(self, x: torch.Tensor, w, kwk: float | None) -> torch.Tensor:
-        x = search_function(x, w, kwk)
-        x = search_function(x, w, kwk)
+    def forward(self, x: torch.Tensor, w, eps: float | None) -> torch.Tensor:
+        x = search_function(x, w, eps)
+        x = search_function(x, w, eps)
         return x
 
 
@@ -40,8 +37,8 @@ device = torch.cuda.current_device()
 
 for trace_function in [joint_fwd_bwd, fwd_only]:
     register_replacement(
-        search_fn=partialize_and_update_signature(search_function, kwk=None),
-        replace_fn=partialize_and_update_signature(replacement_function, kwk=None),
+        search_fn=partialize_and_update_signature(search_function, eps=None),
+        replace_fn=partialize_and_update_signature(replacement_function, eps=None),
         example_inputs=[
             torch.empty(1, device=device, requires_grad=True),
             torch.empty(1, device=device, requires_grad=True),
