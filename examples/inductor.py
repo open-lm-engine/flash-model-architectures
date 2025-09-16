@@ -8,7 +8,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch._inductor.fx_passes.joint_graph import patterns
-from torch._inductor.pattern_matcher import joint_fwd_bwd, register_replacement
+from torch._inductor.pattern_matcher import fwd_only, joint_fwd_bwd, register_replacement
 
 
 def search_function(x: torch.Tensor) -> torch.Tensor:
@@ -29,22 +29,24 @@ class MyModule(nn.Module):
         return x
 
 
-# patterns = PatternMatcherPass()
-register_replacement(
-    search_fn=search_function,
-    replace_fn=replacement_function,
-    example_inputs=[torch.empty(1, device="cpu", requires_grad=True)],
-    trace_fn=joint_fwd_bwd,
-    pass_dicts=patterns,
-)
+device = torch.cuda.current_device()
 
+for trace_function in [joint_fwd_bwd, fwd_only]:
+    register_replacement(
+        search_fn=search_function,
+        replace_fn=replacement_function,
+        example_inputs=[torch.empty(1, device=device, requires_grad=True)],
+        trace_fn=trace_function,
+        pass_dicts=patterns,
+    )
 
 m = MyModule()
 
-print("original value =", m(torch.tensor(1.0, device="cpu", requires_grad=True)))
+print("original value =", m(torch.tensor(1.0, device=device, requires_grad=True)))
 print(
-    "expected value =", replacement_function(replacement_function(torch.tensor(1.0, device="cpu", requires_grad=True)))
+    "expected value =",
+    replacement_function(replacement_function(torch.tensor(1.0, device=device, requires_grad=True))),
 )
 
 m_compiled = torch.compile(m, fullgraph=True)
-print("value with compile =", m_compiled(torch.tensor(1.0, device="cpu", requires_grad=True)))
+print("value with compile =", m_compiled(torch.tensor(1.0, device=device, requires_grad=True)))
