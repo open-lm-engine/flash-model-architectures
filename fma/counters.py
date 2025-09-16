@@ -31,7 +31,7 @@ def increment_counter(key: Any, value: int = 1) -> None:
         return
 
     global _COUNTERS
-    _COUNTERS[key] += 1
+    _COUNTERS[key] += value
 
 
 def reset_counters() -> None:
