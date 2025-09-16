@@ -47,20 +47,21 @@ def get_rmsnorm_replacer(
     device: torch.device,
 ) -> Generator[tuple[Callable, Callable, tuple[torch.Tensor, torch.Tensor]]]:
     for dtype in _ALL_DTYPES:
-        example_inputs = (
-            torch.empty(1, device=device, dtype=dtype, requires_grad=True),
-            torch.empty(1, device=device, dtype=dtype, requires_grad=True),
-        )
+        for dim in range(1, 5):
+            example_inputs = (
+                torch.empty((1,) * dim, device=device, dtype=dtype, requires_grad=True),
+                torch.empty(1, device=device, dtype=dtype, requires_grad=True),
+            )
 
-        search_function = partialize_and_update_signature(
-            rmsnorm, eps=None, memory_efficient=False, kernel_backend=KernelBackend.torch
-        )
+            search_function = partialize_and_update_signature(
+                rmsnorm, eps=None, memory_efficient=False, kernel_backend=KernelBackend.torch
+            )
 
-        replacement_function = partialize_and_update_signature(
-            rmsnorm, eps=None, memory_efficient=False, kernel_backend=KernelBackend.triton
-        )
+            replacement_function = partialize_and_update_signature(
+                rmsnorm, eps=None, memory_efficient=False, kernel_backend=KernelBackend.triton
+            )
 
-        yield search_function, replacement_function, example_inputs
+            yield search_function, replacement_function, example_inputs
 
 
 def get_fused_residual_add_rmsnorm_replacer(
@@ -96,11 +97,16 @@ _MAPPING = {
     fused_residual_add_rmsnorm.__name__: get_fused_residual_add_rmsnorm_replacer,
 }
 
+_REGISTERED_MAPPINGS = {}
+
 
 def enable_kernels(kernels: list[str]):
     device = torch.cuda.current_device()
 
     for kernel in kernels:
+        if _REGISTERED_MAPPINGS.get(kernel, False):
+            continue
+
         for search_function, replacement_function, example_inputs in _MAPPING[kernel](device):
             for trace_function in _ALL_TRACE_FUNCTIONS:
                 register_replacement(
@@ -110,3 +116,5 @@ def enable_kernels(kernels: list[str]):
                     trace_fn=trace_function,
                     pass_dicts=patterns,
                 )
+
+        _REGISTERED_MAPPINGS[kernel] = True
