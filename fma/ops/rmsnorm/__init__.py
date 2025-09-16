@@ -45,7 +45,7 @@ class _RMSNorm(torch.autograd.Function):
         assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
         NUM_WARPS = 8
 
-        rmsnorm_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](
+        torch.library.wrap_triton(rmsnorm_forward_triton_kernel)[ceil_divide(B, BLOCK_SIZE_B),](
             x_ptr=x,
             weight_ptr=weight,
             output_ptr=output,
@@ -80,7 +80,7 @@ class _RMSNorm(torch.autograd.Function):
         sm_count = get_sm_count(x.device)
         GRID = lambda meta: (min(sm_count, ceil_divide(B, meta["BLOCK_SIZE_B"])),)
 
-        rmsnorm_backward_triton_kernel[GRID](
+        torch.library.wrap_triton(rmsnorm_backward_triton_kernel)[GRID](
             x_ptr=x,
             weight_ptr=weight,
             output_grad_ptr=output_grad,
