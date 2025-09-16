@@ -21,7 +21,12 @@ def init_inductor(cache_size_limit: int) -> None:
 
 
 def _rmsnorm_example_inputs(device: torch.device) -> list[tuple[torch.Tensor, torch.Tensor]]:
-    return [torch.empty(1, device=device, requires_grad=True), torch.empty(1, device=device, requires_grad=True)]
+    return [
+        torch.empty(1, device=device, requires_grad=True),
+        torch.empty(1, device=device, requires_grad=True),
+        None,
+        False,
+    ]
 
 
 _MAPPING = {
