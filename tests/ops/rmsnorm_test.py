@@ -84,7 +84,7 @@ class RMSNormTest(TestCommons):
         class Model(nn.Module):
             def __init__(self, shape: int) -> Model:
                 super().__init__()
-                self.norm = nn.RMSNorm(shape[1])
+                self.norm = nn.RMSNorm(shape)
                 self.l1 = nn.Linear(shape, shape)
                 self.l2 = nn.Linear(shape, shape)
 
