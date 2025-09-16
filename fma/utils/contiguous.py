@@ -12,7 +12,7 @@ def make_contiguous(x: Any) -> Any:
     return x.contiguous() if isinstance(x, torch.Tensor) else x
 
 
-def ensure_contiguous(func: Callable, only_last_stride: bool = False) -> Callable:
+def ensure_contiguous(func: Callable) -> Callable:
     def inner(*args, **kwargs):
         args = tree_map(make_contiguous, args)
         kwargs = tree_map(make_contiguous, kwargs)
