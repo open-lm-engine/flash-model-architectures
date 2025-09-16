@@ -113,4 +113,5 @@ class RMSNormTest(TestCommons):
         model = torch.compile(model)
 
         model(x)
+
         assert get_counter_value(rmsnorm) == 1
