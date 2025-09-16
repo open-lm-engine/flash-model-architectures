@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import inspect
+from contextlib import contextmanager
 from functools import partial
 from typing import Callable, Generator
 
@@ -54,21 +55,20 @@ def get_rmsnorm_replacer(
     device: torch.device,
 ) -> Generator[tuple[Callable, Callable, tuple[torch.Tensor, torch.Tensor]]]:
     for dtype in _ALL_DTYPES:
-        for dim in range(1, 5):
-            example_inputs = (
-                _get_example_input(dim, device=device, dtype=dtype),
-                _get_example_input(1, device=device, dtype=dtype),
-            )
+        example_inputs = (
+            _get_example_input(2, device=device, dtype=dtype),
+            _get_example_input(1, device=device, dtype=dtype),
+        )
 
-            search_function = partialize_and_update_signature(
-                rmsnorm, eps=None, memory_efficient=False, kernel_backend=KernelBackend.torch
-            )
+        search_function = partialize_and_update_signature(
+            rmsnorm, eps=None, memory_efficient=False, kernel_backend=KernelBackend.torch
+        )
 
-            replacement_function = partialize_and_update_signature(
-                rmsnorm, eps=None, memory_efficient=False, kernel_backend=KernelBackend.triton
-            )
+        replacement_function = partialize_and_update_signature(
+            rmsnorm, eps=None, memory_efficient=False, kernel_backend=KernelBackend.triton
+        )
 
-            yield search_function, replacement_function, example_inputs
+        yield search_function, replacement_function, example_inputs
 
 
 def get_fused_residual_add_rmsnorm_replacer(
@@ -106,18 +106,15 @@ _MAPPING = {
     fused_residual_add_rmsnorm.__name__: get_fused_residual_add_rmsnorm_replacer,
 }
 
-_REGISTERED_MAPPINGS = {}
 
-
+# @contextmanager
 def enable_kernels(kernels: list[str]):
     device = torch.cuda.current_device()
 
     for kernel in kernels:
-        if _REGISTERED_MAPPINGS.get(kernel, False):
-            continue
-
         for search_function, replacement_function, example_inputs in _MAPPING[kernel](device):
             for trace_function in _ALL_TRACE_FUNCTIONS:
+                print("hi")
                 register_replacement(
                     search_fn=search_function,
                     replace_fn=replacement_function,
@@ -125,5 +122,3 @@ def enable_kernels(kernels: list[str]):
                     trace_fn=trace_function,
                     pass_dicts=patterns,
                 )
-
-        _REGISTERED_MAPPINGS[kernel] = True
