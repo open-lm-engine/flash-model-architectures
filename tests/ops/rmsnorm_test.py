@@ -88,22 +88,22 @@ class RMSNormTest(TestCommons):
                 rtol_float16=0.01,
             )
 
-    @parameterized.expand(TestCommons.get_dtypes())
-    def test_rmsnorm_kernel_replacement(self, dtype: torch.dtype) -> None:
+    @parameterized.expand(
+        TestCommons.make_args_matrix([(5,), (4, 5), (4, 5, 6), (4, 5, 6, 7)], TestCommons.get_dtypes(), [None, 1e-4])
+    )
+    def test_rmsnorm_kernel_replacement(self, size: tuple[int], dtype: torch.dtype, eps: float | None) -> None:
         class Model(nn.Module):
-            def __init__(self, shape: int) -> Model:
+            def __init__(self) -> Model:
                 super().__init__()
-                self.norm = nn.RMSNorm(shape)
-                self.l1 = nn.Linear(shape, shape)
-                self.l2 = nn.Linear(shape, shape)
+                self.norm = nn.RMSNorm(size[-1], eps=eps)
+                self.l1 = nn.Linear(size[-1], size[-1])
+                self.l2 = nn.Linear(size[-1], size[-1])
 
             def forward(self, x: torch.Tensor) -> torch.Tensor:
                 x = self.l1(x)
                 x = self.norm(x)
                 x = self.l2(x)
                 return x
-
-        size = (4, 7)
 
         device = torch.cuda.current_device()
 
