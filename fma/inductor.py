@@ -42,7 +42,7 @@ def partialize_and_update_signature(func: Callable, **kwargs) -> Callable:
     return wrapper
 
 
-def get_rmsnorm_replacer(device: torch.device) -> tuple[tuple[torch.Tensor, torch.Tensor], dict]:
+def get_rmsnorm_replacer(device: torch.device) -> tuple[Callable, Callable, tuple[torch.Tensor, torch.Tensor]]:
     example_inputs = (
         torch.empty(1, device=device, requires_grad=True),
         torch.empty(1, device=device, requires_grad=True),
@@ -59,8 +59,10 @@ def get_rmsnorm_replacer(device: torch.device) -> tuple[tuple[torch.Tensor, torc
     return search_function, replacement_function, example_inputs
 
 
-def _fused_residual_add_rmsnorm_inputs_0(device: torch.device) -> list[torch.Tensor, torch.Tensor, None, None, None]:
-    inputs = (
+def get_fused_residual_add_rmsnorm_replacer(
+    device: torch.device,
+) -> tuple[Callable, Callable, tuple[torch.Tensor, torch.Tensor, torch.Tensor]]:
+    example_inputs = (
         torch.empty(1, device=device, requires_grad=True),
         torch.empty(1, device=device, requires_grad=True),
         torch.empty(1, device=device, requires_grad=True),
@@ -82,24 +84,12 @@ def _fused_residual_add_rmsnorm_inputs_0(device: torch.device) -> list[torch.Ten
         kernel_backend=KernelBackend.triton,
     )
 
-
-def _fused_residual_add_rmsnorm_inputs_1(device: torch.device) -> list[torch.Tensor, torch.Tensor, None, float]:
-    return [
-        torch.empty(1, device=device, requires_grad=True),
-        torch.empty(1, device=device, requires_grad=True),
-        torch.empty(1, device=device, requires_grad=True),
-        None,
-        0.1,
-    ]
+    return search_function, replacement_function, example_inputs
 
 
 _MAPPING = {
     rmsnorm.__name__: get_rmsnorm_replacer,
-    fused_residual_add_rmsnorm.__name__: (
-        fused_residual_add_rmsnorm_torch,
-        partial(fused_residual_add_rmsnorm, kernel_backend=KernelBackend.triton),
-        [_fused_residual_add_rmsnorm_inputs_0, _fused_residual_add_rmsnorm_inputs_1],
-    ),
+    fused_residual_add_rmsnorm.__name__: get_fused_residual_add_rmsnorm_replacer,
 }
 
 
