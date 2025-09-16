@@ -2,20 +2,25 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
+from functools import partial
 from typing import Any, Callable
 
 import torch
 from torch.utils._pytree import tree_map
 
 
-def make_contiguous(x: Any) -> Any:
-    return x.contiguous() if isinstance(x, torch.Tensor) else x
+def make_contiguous(x: Any, only_last_stride: bool = False) -> Any:
+    if isinstance(x, torch.Tensor):
+        if (only_last_stride and x.stride(-1) != 1) or not only_last_stride:
+            return x.contiguous()
+
+    return x
 
 
-def ensure_contiguous(func: Callable) -> Callable:
+def ensure_contiguous(func: Callable, only_last_stride: bool = False) -> Callable:
     def inner(*args, **kwargs):
-        args = tree_map(make_contiguous, args)
-        kwargs = tree_map(make_contiguous, kwargs)
+        args = tree_map(partial(make_contiguous, only_last_stride=only_last_stride), args)
+        kwargs = tree_map(partial(make_contiguous, only_last_stride=only_last_stride), kwargs)
         return func(*args, **kwargs)
 
     return inner
