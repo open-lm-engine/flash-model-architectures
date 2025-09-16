@@ -26,6 +26,7 @@ def _rmsnorm_example_inputs(device: torch.device) -> list[tuple[torch.Tensor, to
         torch.empty(1, device=device, requires_grad=True),
         None,
         False,
+        KernelBackend.torch,
     ]
 
 
