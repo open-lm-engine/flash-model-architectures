@@ -5,13 +5,11 @@
 import torch
 import torch.nn.functional as F
 
-from ...constants import MAX_TRITON_BLOCK_SIZE
 from ...counters import increment_counter
 from ...cutotune import CutoTuneParameter
 from ...enums import KernelBackend
-from ...math import ceil_divide, get_next_power_of_2
 from ...utils import ensure_contiguous, get_num_elements_and_hidden_size, get_sm_count
-from .triton_implementation import rmsnorm_backward_triton_kernel, rmsnorm_forward_triton_kernel
+from .triton_implementation import rmsnorm_backward_triton, rmsnorm_forward_triton
 
 
 class _RMSNorm(torch.autograd.Function):
@@ -35,28 +33,12 @@ class _RMSNorm(torch.autograd.Function):
         if eps is None:
             eps = torch.finfo(x.dtype).eps
 
-        B, H = get_num_elements_and_hidden_size(x)
+        B, _ = get_num_elements_and_hidden_size(x)
 
         output = torch.empty_like(x)
         rmsnorm_denominator = None if memory_efficient else torch.empty(B, device=x.device, dtype=torch.float32)
 
-        BLOCK_SIZE_B = 1
-        BLOCK_SIZE_H = get_next_power_of_2(H)
-        assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
-        NUM_WARPS = 8
-
-        torch.library.wrap_triton(rmsnorm_forward_triton_kernel)[ceil_divide(B, BLOCK_SIZE_B),](
-            x_ptr=x,
-            weight_ptr=weight,
-            output_ptr=output,
-            eps=eps,
-            rmsnorm_denominator_ptr=rmsnorm_denominator,
-            B=B,
-            H=H,
-            BLOCK_SIZE_B=BLOCK_SIZE_B,
-            BLOCK_SIZE_H=BLOCK_SIZE_H,
-            num_warps=NUM_WARPS,
-        )
+        rmsnorm_forward_triton(x=x, weight=weight, output=output, eps=eps, rmsnorm_denominator=rmsnorm_denominator)
 
         ctx.save_for_backward(x, weight, rmsnorm_denominator)
         ctx.eps = eps
@@ -70,29 +52,14 @@ class _RMSNorm(torch.autograd.Function):
         x_grad = torch.empty_like(x)
         weight_grad = None if weight is None else torch.zeros_like(weight, dtype=torch.float32)
 
-        B, H = get_num_elements_and_hidden_size(x)
-
-        BLOCK_SIZE_B = 1
-        BLOCK_SIZE_H = get_next_power_of_2(H)
-        assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
-        NUM_WARPS = 8
-
-        sm_count = get_sm_count(x.device)
-        GRID = lambda meta: (min(sm_count, ceil_divide(B, meta["BLOCK_SIZE_B"])),)
-
-        torch.library.wrap_triton(rmsnorm_backward_triton_kernel)[GRID](
-            x_ptr=x,
-            weight_ptr=weight,
-            output_grad_ptr=output_grad,
-            x_grad_ptr=x_grad,
-            weight_grad_ptr=weight_grad,
+        rmsnorm_backward_triton(
+            x=x,
+            weight=weight,
+            output_grad=output_grad,
+            rmsnorm_denominator=rmsnorm_denominator,
+            x_grad=x_grad,
+            weight_grad=weight_grad,
             eps=ctx.eps,
-            rmsnorm_denominator_ptr=rmsnorm_denominator,
-            B=B,
-            H=H,
-            BLOCK_SIZE_B=BLOCK_SIZE_B,
-            BLOCK_SIZE_H=BLOCK_SIZE_H,
-            num_warps=NUM_WARPS,
         )
 
         if weight_grad is not None:
