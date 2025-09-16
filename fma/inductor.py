@@ -16,6 +16,9 @@ from .enums import KernelBackend
 from .ops import fused_residual_add_rmsnorm, fused_residual_add_rmsnorm_torch, rmsnorm, rmsnorm_torch
 
 
+_ALL_TRACE_FUNCTIONS = [joint_fwd_bwd, fwd_only]
+
+
 def init_inductor(cache_size_limit: int) -> None:
     torch._dynamo.config.cache_size_limit = cache_size_limit
     torch._dynamo.config.accumulated_cache_size_limit = cache_size_limit
@@ -39,8 +42,20 @@ def partialize_and_update_signature(func: Callable, **kwargs) -> Callable:
     return wrapper
 
 
-def _rmsnorm_example_inputs_0(device: torch.device) -> list[torch.Tensor, torch.Tensor, None]:
-    return [torch.empty(1, device=device, requires_grad=True), torch.empty(1, device=device, requires_grad=True), None]
+def register_rmsnorm(device: torch.device) -> tuple[tuple[torch.Tensor, torch.Tensor], dict]:
+    inputs = (torch.empty(1, device=device, requires_grad=True), torch.empty(1, device=device, requires_grad=True))
+
+    search_function = partialize_and_update_signature(rmsnorm_torch, eps=None)
+    replacement_function = partialize_and_update_signature(rmsnorm, eps=None, kernel_backend=KernelBackend.triton)
+
+    for trace_function in _ALL_TRACE_FUNCTIONS:
+        register_replacement(
+            search_fn=search_function,
+            replace_fn=replacement_function,
+            example_inputs=inputs,
+            trace_fn=trace_function,
+            pass_dicts=patterns,
+        )
 
 
 def _fused_residual_add_rmsnorm_inputs_0(device: torch.device) -> list[torch.Tensor, torch.Tensor, None, None]:
@@ -64,11 +79,7 @@ def _fused_residual_add_rmsnorm_inputs_1(device: torch.device) -> list[torch.Ten
 
 
 _MAPPING = {
-    rmsnorm.__name__: (
-        rmsnorm_torch,
-        partial(rmsnorm, kernel_backend=KernelBackend.triton),
-        [_rmsnorm_example_inputs_0],
-    ),
+    rmsnorm.__name__: register_rmsnorm,
     fused_residual_add_rmsnorm.__name__: (
         fused_residual_add_rmsnorm_torch,
         partial(fused_residual_add_rmsnorm, kernel_backend=KernelBackend.triton),
@@ -81,14 +92,4 @@ def enable_kernels(kernels: list[str]):
     device = torch.cuda.current_device()
 
     for kernel in kernels:
-        search_function, replacement_function, example_inputs_functions = _MAPPING[kernel]
-
-        for trace_function in [joint_fwd_bwd, fwd_only]:
-            for example_inputs_function in example_inputs_functions:
-                register_replacement(
-                    search_fn=search_function,
-                    replace_fn=replacement_function,
-                    example_inputs=example_inputs_function(device),
-                    trace_fn=trace_function,
-                    pass_dicts=patterns,
-                )
+        _MAPPING[kernel](device)
