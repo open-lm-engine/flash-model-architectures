@@ -68,10 +68,6 @@ class _RMSNorm(torch.autograd.Function):
         return x_grad, weight_grad, *[None] * 3
 
 
-def rmsnorm_torch(x: torch.Tensor, weight: torch.Tensor | None, eps: float | None) -> torch.Tensor:
-    return F.rms_norm(x, normalized_shape=(x.size(-1),), weight=weight, eps=eps)
-
-
 def rmsnorm(
     x: torch.Tensor,
     weight: torch.Tensor | None,
@@ -96,7 +92,7 @@ def rmsnorm(
     """
 
     if kernel_backend == KernelBackend.torch:
-        x = rmsnorm_torch(x=x, weight=weight, eps=eps)
+        x = F.rms_norm(x, normalized_shape=(x.size(-1),), weight=weight, eps=eps)
     else:
         increment_counter(rmsnorm)
         x = _RMSNorm.apply(x, weight, eps, memory_efficient, kernel_backend)
