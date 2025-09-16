@@ -17,3 +17,8 @@ def increment_counter(key: Any, value: int = 1) -> None:
 def reset_counters() -> None:
     global _COUNTERS
     _COUNTERS = defaultdict(int)
+
+
+def get_counter_value(key: Any) -> int:
+    global _COUNTERS
+    return _COUNTERS[key]
