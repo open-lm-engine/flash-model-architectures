@@ -45,7 +45,7 @@ def partialize_and_update_signature(func: Callable, **kwargs) -> Callable:
 def register_rmsnorm(device: torch.device) -> tuple[tuple[torch.Tensor, torch.Tensor], dict]:
     inputs = (torch.empty(1, device=device, requires_grad=True), torch.empty(1, device=device, requires_grad=True))
 
-    search_function = partialize_and_update_signature(rmsnorm_torch, eps=None)
+    search_function = partialize_and_update_signature(rmsnorm, eps=None, kernel_backend=KernelBackend.torch)
     replacement_function = partialize_and_update_signature(rmsnorm, eps=None, kernel_backend=KernelBackend.triton)
 
     for trace_function in _ALL_TRACE_FUNCTIONS:
