@@ -124,7 +124,7 @@ def rmsnorm(
     """
 
     if kernel_backend == KernelBackend.torch:
-        x = F.rms_norm(x, (x.size(-1),), weight=weight, eps=eps)
+        x = F.rms_norm(x, normalized_shape=x.size(-1), weight=weight, eps=eps)
     else:
         x = _RMSNorm.apply(x, weight, eps, memory_efficient, kernel_backend)
 
