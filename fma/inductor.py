@@ -4,6 +4,8 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
+from copy import deepcopy
 from functools import partial
 
 import torch
@@ -30,6 +32,8 @@ _MAPPING = {
 
 
 def enable_kernels(kernels: list[Kernel]) -> None:
+    patterns_clone = deepcopy(patterns)
+
     device = torch.cuda.current_device()
 
     for kernel in kernels:
@@ -43,3 +47,7 @@ def enable_kernels(kernels: list[Kernel]) -> None:
                 trace_fn=trace_function,
                 pass_dicts=patterns,
             )
+
+    yield
+
+    torch._inductor.fx_passes.joint_graph.patterns = patterns_clone
