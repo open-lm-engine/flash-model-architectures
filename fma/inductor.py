@@ -12,7 +12,7 @@ from torch._inductor.pattern_matcher import fwd_only, joint_fwd_bwd, register_re
 
 from .enums import Kernel
 from .kernel_backend import KernelBackend
-from .ops import rmsnorm
+from .ops import rmsnorm, rmsnorm_torch
 
 
 def init_inductor(cache_size_limit: int) -> None:
@@ -21,21 +21,11 @@ def init_inductor(cache_size_limit: int) -> None:
 
 
 def _rmsnorm_example_inputs(device: torch.device) -> list[tuple[torch.Tensor, torch.Tensor]]:
-    return [
-        torch.empty(1, device=device, requires_grad=True),
-        torch.empty(1, device=device, requires_grad=True),
-        None,
-        False,
-        "torch",
-    ]
+    return [torch.empty(1, device=device, requires_grad=True), torch.empty(1, device=device, requires_grad=True), None]
 
 
 _MAPPING = {
-    Kernel.rmsnorm: (
-        partial(rmsnorm, kernel_backend=KernelBackend.torch),
-        partial(rmsnorm, kernel_backend=KernelBackend.triton),
-        _rmsnorm_example_inputs,
-    )
+    Kernel.rmsnorm: (rmsnorm_torch, partial(rmsnorm, kernel_backend=KernelBackend.triton), _rmsnorm_example_inputs)
 }
 
 
