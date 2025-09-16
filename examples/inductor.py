@@ -13,28 +13,8 @@ import torch.nn.functional as F
 from torch._inductor.fx_passes.joint_graph import patterns
 from torch._inductor.pattern_matcher import fwd_only, joint_fwd_bwd, register_replacement
 
+from fma.inductor import partialize_and_update_signature
 from fma.ops import rmsnorm, rmsnorm_torch
-
-
-def partialize_and_update_signature(func, **kwargs):
-    """
-    Equivalent to functools.partial but also updates the signature on returned function
-    """
-    original_sig = inspect.signature(func)
-    parameters = original_sig.parameters
-
-    new_parameters = {key: value for key, value in parameters.items() if key not in kwargs}
-    new_sig = inspect.Signature(parameters=list(new_parameters.values()))
-
-    partial_func = functools.partial(func, **kwargs)
-
-    def wrapper(*args, **kwargs):
-        return partial_func(*args, **kwargs)
-
-    wrapper.__signature__ = new_sig  # type: ignore[attr-defined]
-    wrapper.__name__ = func.__name__
-
-    return wrapper
 
 
 def search_function(x: torch.Tensor, w: torch.Tensor, kwk: float | None) -> torch.Tensor:

@@ -4,7 +4,9 @@
 
 from __future__ import annotations
 
+import inspect
 from functools import partial
+from typing import Callable
 
 import torch
 from torch._inductor.fx_passes.joint_graph import patterns
@@ -17,6 +19,24 @@ from .ops import fused_residual_add_rmsnorm, fused_residual_add_rmsnorm_torch, r
 def init_inductor(cache_size_limit: int) -> None:
     torch._dynamo.config.cache_size_limit = cache_size_limit
     torch._dynamo.config.accumulated_cache_size_limit = cache_size_limit
+
+
+def partialize_and_update_signature(func: Callable, **kwargs) -> Callable:
+    original_sig = inspect.signature(func)
+    parameters = original_sig.parameters
+
+    new_parameters = {key: value for key, value in parameters.items() if key not in kwargs}
+    new_signature = inspect.Signature(parameters=list(new_parameters.values()))
+
+    partial_func = partial(func, **kwargs)
+
+    def wrapper(*args, **kwargs):
+        return partial_func(*args, **kwargs)
+
+    wrapper.__signature__ = new_signature
+    wrapper.__name__ = func.__name__
+
+    return wrapper
 
 
 def _rmsnorm_example_inputs_0(device: torch.device) -> list[torch.Tensor, torch.Tensor, None]:
