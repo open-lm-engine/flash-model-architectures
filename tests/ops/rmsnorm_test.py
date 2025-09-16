@@ -90,7 +90,7 @@ class RMSNormTest(TestCommons):
 
             def forward(self, x: torch.Tensor) -> torch.Tensor:
                 x = self.l1(x)
-                x = self.norm(x)
+                x = rmsnorm(x, weight=self.norm.weight, eps=None)
                 x = self.l2(x)
                 return x
 
