@@ -24,7 +24,7 @@ def _rmsnorm_example_inputs(device: torch.device) -> list[tuple[torch.Tensor, to
 
 
 _MAPPING = {
-    rmsnorm.__name__: (rmsnorm_torch, partial(rmsnorm, kernel_backend=KernelBackend.triton), _rmsnorm_example_inputs)
+    rmsnorm.__name__: (rmsnorm_torch, partial(rmsnorm, kernel_backend=KernelBackend.triton), [_rmsnorm_example_inputs])
 }
 
 
@@ -32,13 +32,14 @@ def enable_kernels(kernels: list[str]):
     device = torch.cuda.current_device()
 
     for kernel in kernels:
-        search_function, replacement_function, example_inputs_function = _MAPPING[kernel]
+        search_function, replacement_function, example_inputs_functions = _MAPPING[kernel]
 
         for trace_function in [joint_fwd_bwd, fwd_only]:
-            register_replacement(
-                search_fn=search_function,
-                replace_fn=replacement_function,
-                example_inputs=example_inputs_function(device),
-                trace_fn=trace_function,
-                pass_dicts=patterns,
-            )
+            for example_inputs_function in example_inputs_functions:
+                register_replacement(
+                    search_fn=search_function,
+                    replace_fn=replacement_function,
+                    example_inputs=example_inputs_function(device),
+                    trace_fn=trace_function,
+                    pass_dicts=patterns,
+                )
