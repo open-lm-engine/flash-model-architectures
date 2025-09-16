@@ -82,29 +82,30 @@ class RMSNormTest(TestCommons):
 
     def test_rmsnorm_kernel_replacement(self) -> None:
         class Model(nn.Module):
-            def __init__(self, shape: int | tuple[int]) -> Model:
+            def __init__(self, shape: int) -> Model:
                 super().__init__()
-                self.norm = nn.RMSNorm(shape)
-                shape = shape[-1] if isinstance(shape, tuple) else shape
+                self.norm = nn.RMSNorm(shape[1])
                 self.l1 = nn.Linear(shape, shape)
                 self.l2 = nn.Linear(shape, shape)
 
             def forward(self, x: torch.Tensor) -> torch.Tensor:
                 x = self.l1(x)
-                x = self.norm(x)
+                x = rmsnorm(x, weight=self.norm.weight, eps=None)
                 x = self.l2(x)
                 return x
+
+        size = (4, 7)
 
         if isinstance(size, int):
             size = (size,)
 
         device = torch.cuda.current_device()
-        dtype = torch.bfloat16
+        dtype = torch.float32
 
         with torch.device(device):
-            model = Model(size)
+            model = Model(size[-1])
 
-        x = torch.randn(size, device=device, dtype=dtype)
+        x = torch.randn(size, device=device, dtype=dtype, requires_grad=True)
 
         reset_counters()
 
