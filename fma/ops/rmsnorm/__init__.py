@@ -107,7 +107,7 @@ def rmsnorm(
     eps: float | None,
     memory_efficient: bool = False,
     *,
-    kernel_backend: KernelBackend | CutoTuneParameter = KernelBackend.triton,
+    kernel_backend: KernelBackend | CutoTuneParameter | str = KernelBackend.triton,
 ) -> torch.Tensor:
     """RMSNorm computation
 
@@ -123,6 +123,9 @@ def rmsnorm(
     Returns:
         torch.Tensor: output tensor
     """
+
+    if isinstance(kernel_backend, str):
+        kernel_backend = KernelBackend(kernel_backend)
 
     if kernel_backend == KernelBackend.torch:
         x = F.rms_norm(x, normalized_shape=(x.size(-1),), weight=weight, eps=eps)
