@@ -58,7 +58,6 @@ print(
         replacement_function(
             torch.tensor([1.0], device=device, requires_grad=True),
             torch.tensor([1.0], device=device, requires_grad=True),
-            0.1,
         ),
         torch.tensor([1.0], device=device, requires_grad=True),
     ),
