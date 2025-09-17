@@ -5,6 +5,7 @@
 import torch
 import torch.nn.functional as F
 
+from ...counters import increment_counter
 from ...cutotune import CutoTuneParameter
 from ...enums import KernelBackend
 from ...utils import ensure_contiguous, get_num_elements_and_hidden_size
@@ -91,8 +92,9 @@ def rmsnorm(
     """
 
     if kernel_backend == KernelBackend.torch:
-        x = F.rms_norm(x, (x.size(-1),), weight=weight, eps=eps)
+        x = F.rms_norm(x, normalized_shape=(x.size(-1),), weight=weight, eps=eps)
     else:
+        increment_counter(rmsnorm)
         x = _RMSNorm.apply(x, weight, eps, memory_efficient, kernel_backend)
 
     return x

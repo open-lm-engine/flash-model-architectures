@@ -2,6 +2,7 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
+from .counters import enable_counters, get_counter_value, reset_counters
 from .cutotune import (
     CutoTuneConfig,
     CutoTuneParameter,
@@ -10,7 +11,7 @@ from .cutotune import (
     get_cutotune_cache,
 )
 from .enums import KernelBackend
-from .inductor import init_inductor
+from .inductor import enable_kernels, init_inductor
 from .math import ceil_divide, divide_if_divisible, get_powers_of_2
 from .modules import GRU, RNN, MoE
 from .ops import (

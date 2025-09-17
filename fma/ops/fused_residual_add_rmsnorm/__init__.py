@@ -5,6 +5,7 @@
 import torch
 import torch.nn.functional as F
 
+from ...counters import increment_counter
 from ...cutotune import CutoTuneParameter
 from ...enums import KernelBackend
 from ...utils import ensure_contiguous, get_num_elements_and_hidden_size
@@ -95,7 +96,7 @@ def fused_residual_add_rmsnorm(
     multiplier: float | None = None,
     memory_efficient: bool = False,
     kernel_backend: KernelBackend | CutoTuneParameter = KernelBackend.triton,
-) -> tuple[torch.Tensor]:
+) -> tuple[torch.Tensor, torch.Tensor]:
     """fused residual add RMSNorm computation
 
     Args:
@@ -108,7 +109,7 @@ def fused_residual_add_rmsnorm(
             Defaults to False.
 
     Returns:
-        tuple[torch.Tensor]: output activations, updated residual stream
+        tuple[torch.Tensor, torch.Tensor]: output activations, updated residual stream
     """
 
     if kernel_backend == KernelBackend.torch:
@@ -120,6 +121,7 @@ def fused_residual_add_rmsnorm(
 
         x = F.rms_norm(x, (x.size(-1),), weight=weight, eps=eps)
     else:
+        increment_counter(fused_residual_add_rmsnorm)
         x, residual = _FusedResidualAddRMSNorm.apply(
             x, residual, weight, eps, multiplier, memory_efficient, kernel_backend
         )
