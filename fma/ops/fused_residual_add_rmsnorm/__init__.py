@@ -21,13 +21,13 @@ class _FusedResidualAddRMSNorm(torch.autograd.Function):
     def forward(
         ctx,
         x: torch.Tensor,
-        residual: torch.Tensor,
+        residual: torch.Tensor | None,
         weight: torch.Tensor | None,
         eps: float | None,
         multiplier: float | None,
         memory_efficient: bool,
         kernel_backend: KernelBackend,
-    ) -> tuple[torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor | None]:
         assert kernel_backend == KernelBackend.triton or isinstance(kernel_backend, CutoTuneParameter)
 
         if weight is not None:
@@ -41,7 +41,7 @@ class _FusedResidualAddRMSNorm(torch.autograd.Function):
         B, _ = get_num_elements_and_hidden_size(x)
 
         output = torch.empty_like(x)
-        added_x_residual = torch.empty_like(x)
+        added_x_residual = None if residual is None else torch.empty_like(x)
         rmsnorm_denominator = None if memory_efficient else torch.empty(B, device=x.device, dtype=torch.float32)
 
         fused_residual_add_rmsnorm_forward_triton(
