@@ -21,13 +21,13 @@ class _FusedResidualAddRMSNorm(torch.autograd.Function):
     def forward(
         ctx,
         x: torch.Tensor,
-        residual: torch.Tensor,
+        residual: torch.Tensor | None,
         weight: torch.Tensor | None,
         eps: float | None,
         multiplier: float | None,
         memory_efficient: bool,
         kernel_backend: KernelBackend,
-    ) -> tuple[torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor | None]:
         assert kernel_backend == KernelBackend.triton or isinstance(kernel_backend, CutoTuneParameter)
 
         if weight is not None:
@@ -39,9 +39,10 @@ class _FusedResidualAddRMSNorm(torch.autograd.Function):
             eps = torch.finfo(x.dtype).eps
 
         B, _ = get_num_elements_and_hidden_size(x)
+        has_residual = residual is not None
 
         output = torch.empty_like(x)
-        added_x_residual = torch.empty_like(x)
+        added_x_residual = torch.empty_like(x) if has_residual else None
         rmsnorm_denominator = None if memory_efficient else torch.empty(B, device=x.device, dtype=torch.float32)
 
         fused_residual_add_rmsnorm_forward_triton(
@@ -55,8 +56,13 @@ class _FusedResidualAddRMSNorm(torch.autograd.Function):
             rmsnorm_denominator=rmsnorm_denominator,
         )
 
-        ctx.save_for_backward(added_x_residual, weight, rmsnorm_denominator)
+        if residual is None:
+            ctx.save_for_backward(x, weight, rmsnorm_denominator)
+        else:
+            ctx.save_for_backward(added_x_residual, weight, rmsnorm_denominator)
+
         ctx.eps = eps
+        ctx.has_residual = has_residual
         ctx.multiplier = multiplier
 
         return output, added_x_residual
@@ -64,10 +70,15 @@ class _FusedResidualAddRMSNorm(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
     def backward(ctx, output_grad: torch.Tensor, added_x_residual_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
+        has_residual = ctx.has_residual
+
         added_x_residual, weight, rmsnorm_denominator = ctx.saved_tensors
         x_grad = torch.empty_like(added_x_residual)
-        residual_grad = torch.empty_like(added_x_residual)
+        residual_grad = torch.empty_like(added_x_residual) if has_residual else None
         weight_grad = None if weight is None else torch.zeros_like(weight, dtype=torch.float32)
+
+        if not has_residual:
+            assert added_x_residual_grad is None
 
         fused_residual_add_rmsnorm_backward_triton(
             added_x_residual=added_x_residual,
@@ -90,7 +101,7 @@ class _FusedResidualAddRMSNorm(torch.autograd.Function):
 
 def fused_residual_add_rmsnorm(
     x: torch.Tensor,
-    residual: torch.Tensor,
+    residual: torch.Tensor | None,
     weight: torch.Tensor | None,
     eps: float | None,
     multiplier: float | None = None,
@@ -116,10 +127,11 @@ def fused_residual_add_rmsnorm(
         if multiplier not in [None, 1]:
             x = x * multiplier
 
-        x = x + residual
-        residual = x
+        if residual is not None:
+            x = x + residual
+            residual = x
 
-        x = F.rms_norm(x, (x.size(-1),), weight=weight, eps=eps)
+        x = F.rms_norm(x, normalized_shape=(x.size(-1),), weight=weight, eps=eps)
     else:
         increment_counter(fused_residual_add_rmsnorm)
         x, residual = _FusedResidualAddRMSNorm.apply(
