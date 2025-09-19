@@ -32,7 +32,7 @@ def rmsnorm(
         torch.Tensor: output tensor
     """
 
-    return fused_residual_add_rmsnorm(
+    x, _ = fused_residual_add_rmsnorm(
         x=x,
         residual=None,
         weight=weight,
@@ -41,3 +41,5 @@ def rmsnorm(
         memory_efficient=memory_efficient,
         kernel_backend=kernel_backend,
     )
+
+    return x
