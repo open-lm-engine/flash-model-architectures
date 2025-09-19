@@ -9,7 +9,8 @@ from ...counters import increment_counter
 from ...cutotune import CutoTuneParameter
 from ...enums import KernelBackend
 from ...utils import ensure_contiguous, get_num_elements_and_hidden_size
-from .triton_implementation import rmsnorm_backward_triton, rmsnorm_forward_triton
+from ..fused_residual_add_rmsnorm.triton_implementation import fused_residual_add_rmsnorm_forward_triton
+from .triton_implementation import rmsnorm_backward_triton
 
 
 class _RMSNorm(torch.autograd.Function):
@@ -38,7 +39,16 @@ class _RMSNorm(torch.autograd.Function):
         output = torch.empty_like(x)
         rmsnorm_denominator = None if memory_efficient else torch.empty(B, device=x.device, dtype=torch.float32)
 
-        rmsnorm_forward_triton(x=x, weight=weight, output=output, eps=eps, rmsnorm_denominator=rmsnorm_denominator)
+        fused_residual_add_rmsnorm_forward_triton(
+            x=x,
+            residual=None,
+            weight=weight,
+            output=output,
+            eps=eps,
+            multiplier=None,
+            added_x_residual=None,
+            rmsnorm_denominator=rmsnorm_denominator,
+        )
 
         ctx.save_for_backward(x, weight, rmsnorm_denominator)
         ctx.eps = eps
