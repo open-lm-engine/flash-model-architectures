@@ -12,7 +12,7 @@ from ....utils import torch_tensor_to_cute_tensor
 
 
 @cute.jit
-def fused_residual_add_rmsnorm_cute_dsl(
+def fused_residual_add_rmsnorm_forward_cute_dsl_jit(
     x: cute.Tensor,
     residual: cute.Tensor | None,
     weight: cute.Tensor,
@@ -45,3 +45,21 @@ def fused_residual_add_rmsnorm_forward_cute_dsl(
     output = torch_tensor_to_cute_tensor(output, leading_dim=-1)
     added_x_residual = torch_tensor_to_cute_tensor(added_x_residual, leading_dim=-1)
     rmsnorm_denominator = torch_tensor_to_cute_tensor(rmsnorm_denominator, leading_dim=-1)
+
+    kernel = getattr(fused_residual_add_rmsnorm_forward_cute_dsl, "kernel", None)
+    if kernel is None:
+        kernel = cute.compile(
+            fused_residual_add_rmsnorm_forward_cute_dsl_jit,
+            x,
+            residual,
+            weight,
+            output,
+            eps,
+            multiplier,
+            added_x_residual,
+            rmsnorm_denominator,
+        )
+
+        fused_residual_add_rmsnorm_forward_cute_dsl.kernel = kernel
+
+    kernel(x, residual, weight, output, eps, multiplier, added_x_residual, rmsnorm_denominator)
