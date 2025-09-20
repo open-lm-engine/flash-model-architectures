@@ -3,9 +3,11 @@
 # **************************************************
 
 import torch
+from torch.library import custom_op
 
 import cutlass.cute as cute
 
+from ....constants import LIBRARY_NAME
 from ....utils import torch_tensor_to_cute_tensor
 
 
@@ -23,6 +25,10 @@ def fused_residual_add_rmsnorm_cute_dsl(
     print(x)
 
 
+@custom_op(
+    f"{LIBRARY_NAME}::fused_residual_add_rmsnorm_forward_cute_dsl",
+    mutates_args={"output", "added_x_residual", "rmsnorm_denominator"},
+)
 def fused_residual_add_rmsnorm_forward_cute_dsl(
     x: torch.Tensor,
     residual: torch.Tensor | None,
