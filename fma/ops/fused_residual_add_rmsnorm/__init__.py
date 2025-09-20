@@ -9,6 +9,7 @@ from ...counters import increment_counter
 from ...cutotune import CutoTuneParameter
 from ...enums import KernelBackend
 from ...utils import ensure_contiguous, get_num_elements_and_hidden_size
+from .cute_dsl_implementation import fused_residual_add_rmsnorm_cute_dsl
 from .triton_implementation import (
     fused_residual_add_rmsnorm_backward_triton,
     fused_residual_add_rmsnorm_forward_triton,
@@ -45,7 +46,7 @@ class _FusedResidualAddRMSNorm(torch.autograd.Function):
         added_x_residual = torch.empty_like(x) if has_residual else None
         rmsnorm_denominator = None if memory_efficient else torch.empty(B, device=x.device, dtype=torch.float32)
 
-        fused_residual_add_rmsnorm_forward_triton(
+        fused_residual_add_rmsnorm_cute_dsl(
             x=x,
             residual=residual,
             weight=weight,
