@@ -2,6 +2,8 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
+import torch
+
 import cutlass.cute as cute
 
 
@@ -17,3 +19,16 @@ def fused_residual_add_rmsnorm_cute_dsl(
     rmsnorm_denominator: cute.Tensor | None,
 ) -> None:
     print(x)
+
+
+@cute.jit
+def fused_residual_add_rmsnorm_forward_cute_dsl(
+    x: torch.Tensor,
+    residual: torch.Tensor | None,
+    weight: torch.Tensor,
+    output: torch.Tensor,
+    eps: float,
+    multiplier: float | None,
+    added_x_residual: torch.Tensor | None,
+    rmsnorm_denominator: torch.Tensor | None,
+) -> None: ...
