@@ -21,8 +21,8 @@ class RNNTest(TestCommons):
             [torch.float32, torch.float16],
             [4],  # batch_size
             [1024],  # sequence_length
-            [256],  # state_size
-            [4, 256],  # num_heads
+            [63],  # state_size
+            [7],  # num_heads
             [False, True],  # has_input_state
             [False, True],  # is_compiling
         )

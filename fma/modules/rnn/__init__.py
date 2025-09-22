@@ -11,10 +11,6 @@ from ...math import divide_if_divisible
 from ...torch_math import clip_gradients, tanh
 from ...utils import ensure_contiguous
 from .triton_implementation import (
-    diagonal_rnn_backward_triton,
-    diagonal_rnn_forward_triton,
-    diagonal_rnn_varlen_backward_triton,
-    diagonal_rnn_varlen_forward_triton,
     rnn_backward_triton,
     rnn_forward_triton,
     rnn_varlen_backward_triton,
@@ -46,23 +42,17 @@ class _RNN(torch.autograd.Function):
 
         if cu_seqlens is None:
             assert max_seqlen is None
-
-            if H == 1:
-                diagonal_rnn_forward_triton(**kwargs)
-            else:
-                rnn_forward_triton(**kwargs)
+            rnn_forward_triton(**kwargs)
         else:
             assert max_seqlen is not None
             is_max_seqlen_tensor = isinstance(max_seqlen, torch.Tensor)
 
-            kwargs["cu_seqlens"] = cu_seqlens
-            kwargs["max_seqlen_tensor"] = max_seqlen if is_max_seqlen_tensor else None
-            kwargs["max_seqlen"] = None if is_max_seqlen_tensor else max_seqlen
-
-            if H == 1:
-                diagonal_rnn_varlen_forward_triton(**kwargs)
-            else:
-                rnn_varlen_forward_triton(**kwargs)
+            rnn_varlen_forward_triton(
+                **kwargs,
+                cu_seqlens=cu_seqlens,
+                max_seqlen_tensor=max_seqlen if is_max_seqlen_tensor else None,
+                max_seqlen=None if is_max_seqlen_tensor else max_seqlen,
+            )
 
         ctx.save_for_backward(weight, output, input_state, cu_seqlens, max_seqlen)
         ctx.gradient_clipping = gradient_clipping
@@ -76,8 +66,6 @@ class _RNN(torch.autograd.Function):
         input_grad = torch.empty_like(output)
         weight_grad = torch.zeros_like(weight, dtype=torch.float32)
 
-        H = weight.size(-1)
-
         kwargs = {
             "weight": weight,
             "output": output,
@@ -89,21 +77,16 @@ class _RNN(torch.autograd.Function):
         }
 
         if cu_seqlens is None:
-            if H == 1:
-                diagonal_rnn_backward_triton(**kwargs)
-            else:
-                rnn_backward_triton(**kwargs)
+            rnn_backward_triton(**kwargs)
         else:
             is_max_seqlen_tensor = isinstance(max_seqlen, torch.Tensor)
 
-            kwargs["cu_seqlens"] = cu_seqlens
-            kwargs["max_seqlen_tensor"] = max_seqlen if is_max_seqlen_tensor else None
-            kwargs["max_seqlen"] = None if is_max_seqlen_tensor else max_seqlen
-
-            if H == 1:
-                diagonal_rnn_varlen_backward_triton(**kwargs)
-            else:
-                rnn_varlen_backward_triton(**kwargs)
+            rnn_varlen_backward_triton(
+                **kwargs,
+                cu_seqlens=cu_seqlens,
+                max_seqlen_tensor=max_seqlen if is_max_seqlen_tensor else None,
+                max_seqlen=None if is_max_seqlen_tensor else max_seqlen,
+            )
 
         return input_grad, weight_grad, *[None] * 8
 
