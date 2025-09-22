@@ -31,19 +31,19 @@ def rnn_varlen_forward_triton_kernel(
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
-    pid_b = tl.program_id(axis=0)
-    pid_n = tl.program_id(axis=1)
+    BLOCK_ID_B = tl.program_id(axis=0)
+    BLOCK_ID_N = tl.program_id(axis=1)
 
-    indices_b = pid_b * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
-    indices_h = tl.arange(0, BLOCK_SIZE_H)
+    BLOCK_B = BLOCK_ID_B * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
+    BLOCK_H = tl.arange(0, BLOCK_SIZE_H)
 
-    mask_b = indices_b < B
-    mask_h = indices_h < H
+    mask_b = BLOCK_B < B
+    mask_h = BLOCK_H < H
 
     mask_bh = mask_b[:, None] & mask_h[None, :]
 
     W = tl.load(
-        W_ptr + pid_n * W_stride[0] + indices_h[:, None] * W_stride[1] + indices_h[None, :] * W_stride[2],
+        W_ptr + BLOCK_ID_N * W_stride[0] + BLOCK_H[:, None] * W_stride[1] + BLOCK_H[None, :] * W_stride[2],
         mask=mask_h[:, None] & mask_h[None, :],
     )
 
@@ -51,11 +51,11 @@ def rnn_varlen_forward_triton_kernel(
         h = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=x_ptr.dtype.element_ty)
     else:
         h = tl.load(
-            h0_ptr + indices_b[:, None] * h0_stride[0] + pid_n * h0_stride[1] + indices_h[None, :] * h0_stride[2],
+            h0_ptr + BLOCK_B[:, None] * h0_stride[0] + BLOCK_ID_N * h0_stride[1] + BLOCK_H[None, :] * h0_stride[2],
             mask=mask_bh,
         )
 
-    cu_seqlens_ptrs = cu_seqlens_ptr + indices_b[:, None]
+    cu_seqlens_ptrs = cu_seqlens_ptr + BLOCK_B[:, None]
     start = tl.load(cu_seqlens_ptrs, mask=mask_b[:, None])
     end = tl.load(cu_seqlens_ptrs + 1, mask=mask_b[:, None])
 
@@ -64,18 +64,18 @@ def rnn_varlen_forward_triton_kernel(
     else:
         max_seqlen = max_seqlen_ptr
 
-    indices = start * x_stride[0] + pid_n * x_stride[1] + indices_h[None, :] * x_stride[2]
+    BLOCK = start * x_stride[0] + BLOCK_ID_N * x_stride[1] + BLOCK_H[None, :] * x_stride[2]
 
     for _ in range(max_seqlen):
         unfinished = start < end
         mask = unfinished & mask_h[None, :]
 
-        x = tl.load(x_ptr + indices, mask=mask_bh)
+        x = tl.load(x_ptr + BLOCK, mask=mask_bh)
         h = matmul(A=h, B=W, C=x, output_dtype=tl.float32)
         h = tanh(h, output_dtype=x.dtype)
-        tl.store(y_ptr + indices, h, mask=mask)
+        tl.store(y_ptr + BLOCK, h, mask=mask)
 
-        indices += x_stride[0]
+        BLOCK += x_stride[0]
         start += 1
 
 
