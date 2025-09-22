@@ -17,12 +17,11 @@ from .forward import _get_autotune_configs
 @triton.jit
 def rnn_backward_triton_kernel(
     W_ptr,
-    W_stride_n,
+    W_stride,
     y_ptr,
-    y_stride_b,
-    y_stride_s,
+    y_stride,
     h0_ptr,
-    h0_stride_b,
+    h0_stride,
     dy_ptr,
     dx_ptr,
     dW_ptr,
@@ -38,7 +37,7 @@ def rnn_backward_triton_kernel(
 
     indices_b = pid_b * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
     indices_h = tl.arange(0, BLOCK_SIZE_H)
-    indices_weight = pid_n * W_stride_n + indices_h[:, None] * H + indices_h[None, :]
+    indices_weight = pid_n * W_stride[0] + indices_h[:, None] * W_stride[1] + indices_h[None, :] * W_stride[2]
 
     mask_b = indices_b < B
     mask_h = indices_h < H
@@ -51,7 +50,12 @@ def rnn_backward_triton_kernel(
 
     W = tl.load(W_ptr + indices_weight, mask=mask_hh)
 
-    indices = indices_b[:, None] * y_stride_b + (S - 1) * y_stride_s + pid_n * H + indices_h[None, :]
+    indices = (
+        indices_b[:, None] * y_stride[0]
+        + (S - 1) * y_stride[1]
+        + pid_n * y_stride[2]
+        + indices_h[None, :] * y_stride[3]
+    )
     y = tl.load(y_ptr + indices, mask=mask_bh)
 
     # backward counting reduces 1 instruction since we need to compare s == 0, otherwise we have to compare s == S - 1
@@ -62,14 +66,18 @@ def rnn_backward_triton_kernel(
         dy = tl.load(dy_ptr + indices, mask=mask_bh) + dh
 
         dx_ptrs = dx_ptr + indices
-        indices -= y_stride_s
+        indices -= y_stride[1]
 
         if s == 0:
             if h0_ptr is None:
                 y_prev = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=W.dtype)
             else:
                 y_prev = tl.load(
-                    h0_ptr + indices_b[:, None] * h0_stride_b + pid_n * H + indices_h[None, :], mask=mask_bh
+                    h0_ptr
+                    + indices_b[:, None] * h0_stride[0]
+                    + pid_n * h0_stride[1]
+                    + indices_h[None, :] * h0_stride[2],
+                    mask=mask_bh,
                 )
         else:
             y_prev = tl.load(y_ptr + indices, mask=mask_bh)
@@ -103,10 +111,9 @@ def rnn_backward_triton(
     with torch.device(output.device):
         rnn_backward_triton_kernel[GRID](
             W_ptr=weight,
-            W_stride_n=weight.stride(0),
+            W_stride=weight.stride(),
             y_ptr=output,
-            y_stride_b=output.stride(0),
-            y_stride_s=output.stride(1),
+            y_stride=output.stride(),
             h0_ptr=input_state,
             h0_stride_b=None if input_state is None else input_state.stride(0),
             dy_ptr=output_grad,
