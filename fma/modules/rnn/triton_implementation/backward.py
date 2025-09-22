@@ -32,15 +32,15 @@ def rnn_backward_triton_kernel(
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
-    pid_b = tl.program_id(axis=0)
-    pid_n = tl.program_id(axis=1)
+    BLOCK_ID_B = tl.program_id(axis=0)
+    BLOCK_ID_N = tl.program_id(axis=1)
 
-    indices_b = pid_b * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
-    indices_h = tl.arange(0, BLOCK_SIZE_H)
-    indices_weight = pid_n * W_stride[0] + indices_h[:, None] * W_stride[1] + indices_h[None, :] * W_stride[2]
+    BLOCK_B = BLOCK_ID_B * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
+    BLOCK_H = tl.arange(0, BLOCK_SIZE_H)
+    BLOCK_weight = BLOCK_ID_N * W_stride[0] + BLOCK_H[:, None] * W_stride[1] + BLOCK_H[None, :] * W_stride[2]
 
-    mask_b = indices_b < B
-    mask_h = indices_h < H
+    mask_b = BLOCK_B < B
+    mask_h = BLOCK_H < H
 
     mask_bh = mask_b[:, None] & mask_h[None, :]
     mask_hh = mask_h[:, None] & mask_h[None, :]
@@ -48,25 +48,25 @@ def rnn_backward_triton_kernel(
     dh = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=W_ptr.dtype.element_ty)
     dW = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
 
-    W = tl.load(W_ptr + indices_weight, mask=mask_hh)
+    W = tl.load(W_ptr + BLOCK_weight, mask=mask_hh)
 
-    indices = (
-        indices_b[:, None] * y_stride[0]
+    BLOCK = (
+        BLOCK_B[:, None] * y_stride[0]
         + (S - 1) * y_stride[1]
-        + pid_n * y_stride[2]
-        + indices_h[None, :] * y_stride[3]
+        + BLOCK_ID_N * y_stride[2]
+        + BLOCK_H[None, :] * y_stride[3]
     )
-    y = tl.load(y_ptr + indices, mask=mask_bh)
+    y = tl.load(y_ptr + BLOCK, mask=mask_bh)
 
     # backward counting reduces 1 instruction since we need to compare s == 0, otherwise we have to compare s == S - 1
     for s in range(S - 1, -1, -1):
         if gradient_clipping is not None:
             dh = clamp(dh, min_value=-gradient_clipping, max_value=gradient_clipping)
 
-        dy = tl.load(dy_ptr + indices, mask=mask_bh) + dh
+        dy = tl.load(dy_ptr + BLOCK, mask=mask_bh) + dh
 
-        dx_ptrs = dx_ptr + indices
-        indices -= y_stride[1]
+        dx_ptrs = dx_ptr + BLOCK
+        BLOCK -= y_stride[1]
 
         if s == 0:
             if h0_ptr is None:
@@ -74,13 +74,13 @@ def rnn_backward_triton_kernel(
             else:
                 y_prev = tl.load(
                     h0_ptr
-                    + indices_b[:, None] * h0_stride[0]
-                    + pid_n * h0_stride[1]
-                    + indices_h[None, :] * h0_stride[2],
+                    + BLOCK_B[:, None] * h0_stride[0]
+                    + BLOCK_ID_N * h0_stride[1]
+                    + BLOCK_H[None, :] * h0_stride[2],
                     mask=mask_bh,
                 )
         else:
-            y_prev = tl.load(y_ptr + indices, mask=mask_bh)
+            y_prev = tl.load(y_ptr + BLOCK, mask=mask_bh)
 
         dx = dy * tanh_backward(y)
         dh = matmul(A=dx, B=W.T, C=None, output_dtype=dx.dtype)
@@ -89,7 +89,7 @@ def rnn_backward_triton_kernel(
         tl.store(dx_ptrs, dx, mask=mask_bh)
         y = y_prev
 
-    tl.atomic_add(dW_ptr + indices_weight, dW, mask=mask_hh, sem="relaxed")
+    tl.atomic_add(dW_ptr + BLOCK_weight, dW, mask=mask_hh, sem="relaxed")
 
 
 @custom_op(f"{LIBRARY_NAME}::rnn_backward_triton", mutates_args={"input_grad", "weight_grad"})
