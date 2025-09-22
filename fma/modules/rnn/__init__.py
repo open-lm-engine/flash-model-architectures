@@ -8,7 +8,7 @@ import torch.nn as nn
 from ...cutotune import CutoTuneParameter
 from ...enums import KernelBackend
 from ...math import divide_if_divisible
-from ...torch_math import tanh
+from ...torch_math import clip_gradients, tanh
 from ...utils import ensure_contiguous
 from .triton_implementation import (
     diagonal_rnn_backward_triton,
@@ -108,19 +108,6 @@ class _RNN(torch.autograd.Function):
         return input_grad, weight_grad, *[None] * 8
 
 
-class _GradientClipping(torch.autograd.Function):
-    @staticmethod
-    def forward(ctx, x: torch.Tensor, gradient_clipping: float) -> torch.Tensor:
-        ctx.gradient_clipping = gradient_clipping
-        return x
-
-    @staticmethod
-    def backward(ctx, x_grad: torch.Tensor) -> tuple[torch.Tensor, None]:
-        gradient_clipping = ctx.gradient_clipping
-        x_grad = x_grad.clip(-gradient_clipping, gradient_clipping)
-        return x_grad, None
-
-
 def rnn(
     input: torch.Tensor,
     weight: torch.Tensor,
@@ -174,7 +161,7 @@ def rnn(
                 input_state = input_state.squeeze(-2)
 
                 if gradient_clipping is not None:
-                    input_state = _GradientClipping.apply(input_state, gradient_clipping)
+                    input_state = clip_gradients(input_state, gradient_clipping)
 
                 output[:, s] = input_state
         else:
@@ -209,7 +196,7 @@ def rnn(
                 new_state = tanh(new_state)
 
                 if gradient_clipping is not None:
-                    new_state = _GradientClipping.apply(new_state, gradient_clipping)
+                    new_state = clip_gradients(new_state, gradient_clipping)
 
                 new_state = new_state.squeeze(-2)
 
