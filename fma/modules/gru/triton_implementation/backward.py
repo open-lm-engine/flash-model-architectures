@@ -178,7 +178,7 @@ def gru_backward_triton(
             dWr_ptr=reset_weight_grad,
             z_ptr=output_update,
             h0_ptr=input_state,
-            h0_stride_b=None if input_state is None else input_state.stride(0),
+            h0_stride=None if input_state is None else input_state.stride(),
             dy_ptr=output_grad,
             dx_ptr=input_grad,
             dW_ptr=weight_grad,
