@@ -37,7 +37,7 @@ def rnn_backward_triton_kernel(
 
     BLOCK_B = BLOCK_ID_B * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
     BLOCK_H = tl.arange(0, BLOCK_SIZE_H)
-    BLOCK_weight = BLOCK_ID_N * W_stride[0] + BLOCK_H[:, None] * W_stride[1] + BLOCK_H[None, :] * W_stride[2]
+    BLOCK_W = BLOCK_ID_N * W_stride[0] + BLOCK_H[:, None] * W_stride[1] + BLOCK_H[None, :] * W_stride[2]
 
     mask_b = BLOCK_B < B
     mask_h = BLOCK_H < H
@@ -48,7 +48,7 @@ def rnn_backward_triton_kernel(
     dh = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=W_ptr.dtype.element_ty)
     dW = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
 
-    W = tl.load(W_ptr + BLOCK_weight, mask=mask_hh)
+    W = tl.load(W_ptr + BLOCK_W, mask=mask_hh)
 
     BLOCK = (
         BLOCK_B[:, None] * y_stride[0]
@@ -89,7 +89,7 @@ def rnn_backward_triton_kernel(
         tl.store(dx_ptrs, dx, mask=mask_bh)
         y = y_prev
 
-    tl.atomic_add(dW_ptr + BLOCK_weight, dW, mask=mask_hh, sem="relaxed")
+    tl.atomic_add(dW_ptr + BLOCK_W, dW, mask=mask_hh, sem="relaxed")
 
 
 @custom_op(f"{LIBRARY_NAME}::rnn_backward_triton", mutates_args={"input_grad", "weight_grad"})
