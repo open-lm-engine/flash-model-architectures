@@ -75,12 +75,6 @@ class RNNTest(TestCommons):
             input=x_torch, input_state=input_state_torch, kernel_backend=KernelBackend.torch
         )
 
-        y_kernel.sum().backward()
-        weight_kernel_grads = self.collect_gradients_from_module_and_zero_grads(rnn)
-
-        y_torch.sum().backward()
-        weight_torch_grads = self.collect_gradients_from_module_and_zero_grads(rnn)
-
         self.assert_equal_tensors(
             y_kernel, y_torch, False, atol_float32=4e-6, rtol_float32=0, atol_float16=6.5e-5, rtol_float16=0
         )
@@ -95,9 +89,13 @@ class RNNTest(TestCommons):
             rtol_float16=0,
         )
 
-        self.assert_equal_tensors(
-            x_kernel.grad, x_torch.grad, False, atol_float32=7.1e-5, rtol_float32=0, atol_float16=1e-3, rtol_float16=0
-        )
+        y_kernel.sum().backward()
+        weight_kernel_grads = self.collect_gradients_from_module_and_zero_grads(rnn)
+
+        y_torch.sum().backward()
+        weight_torch_grads = self.collect_gradients_from_module_and_zero_grads(rnn)
+
+        self.assert_equal_tensors(x_kernel.grad, x_torch.grad, False)
 
         self.assert_equal_tensors(
             weight_kernel_grads["state_weight"],
@@ -164,9 +162,6 @@ class RNNTest(TestCommons):
             kernel_backend=KernelBackend.torch,
         )
 
-        y_kernel.sum().backward()
-        weight_kernel_grads = self.collect_gradients_from_module_and_zero_grads(rnn)
-
         y_torch = []
         for i in range(batch_size):
             y, _ = rnn(
@@ -177,10 +172,14 @@ class RNNTest(TestCommons):
             y_torch.append(y.squeeze(0))
         y_torch = torch.cat(y_torch)
 
+        self.assert_equal_tensors(y_kernel, y_torch, False)
+
+        y_kernel.sum().backward()
+        weight_kernel_grads = self.collect_gradients_from_module_and_zero_grads(rnn)
+
         y_torch.sum().backward()
         weight_torch_grads = self.collect_gradients_from_module_and_zero_grads(rnn)
 
-        self.assert_equal_tensors(y_kernel, y_torch, False)
         self.assert_equal_tensors(x_packed_kernel.grad, x_packed_torch.grad, False)
 
         self.assert_equal_tensors(
