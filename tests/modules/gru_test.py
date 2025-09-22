@@ -189,7 +189,7 @@ class GRUTest(TestCommons):
         y_torch.sum().backward()
         weight_torch_grads = self.collect_gradients_from_module_and_zero_grads(gru)
 
-        self.assert_equal_tensors(y_kernel, y_torch, False)
+        self.assert_equal_tensors(y_kernel, y_torch, False, atol_bfloat16=3.1e-5, rtol_bfloat16=0)
 
         for weight_name in weight_kernel_grads:
             self.assert_equal_tensors(
