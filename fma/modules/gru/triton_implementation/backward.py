@@ -18,10 +18,9 @@ from .forward import _get_autotune_configs
 @triton.jit
 def gru_backward_triton_kernel(
     W_ptr,
-    W_stride_n,
+    W_stride,
     y_ptr,
-    y_stride_b,
-    y_stride_s,
+    y_stride,
     Wf_ptr,
     f_ptr,
     dxf_ptr,
@@ -48,7 +47,7 @@ def gru_backward_triton_kernel(
 
     indices_b = pid_b * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
     indices_h = tl.arange(0, BLOCK_SIZE_H)
-    indices_W = pid_n * W_stride_n + indices_h[:, None] * H + indices_h[None, :]
+    BLOCK_W = pid_n * W_stride[0] + indices_h[:, None] * W_stride[1] + indices_h[None, :] * W_stride[2]
 
     mask_b = indices_b < B
     mask_h = indices_h < H
@@ -61,11 +60,16 @@ def gru_backward_triton_kernel(
     dWf = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
     dWr = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
 
-    W = tl.load(W_ptr + indices_W, mask=mask_hh)
-    Wf = tl.load(Wf_ptr + indices_W, mask=mask_hh)
-    Wr = tl.load(Wr_ptr + indices_W, mask=mask_hh)
+    W = tl.load(W_ptr + BLOCK_W, mask=mask_hh)
+    Wf = tl.load(Wf_ptr + BLOCK_W, mask=mask_hh)
+    Wr = tl.load(Wr_ptr + BLOCK_W, mask=mask_hh)
 
-    indices = indices_b[:, None] * y_stride_b + (S - 1) * y_stride_s + pid_n * H + indices_h[None, :]
+    indices = (
+        indices_b[:, None] * y_stride[0]
+        + (S - 1) * y_stride[1]
+        + pid_n * y_stride[2]
+        + indices_h[None, :] * y_stride[3]
+    )
 
     # backward counting reduces 1 instruction since we need to compare s == 0, otherwise we have to compare s == S - 1
     for s in range(S - 1, -1, -1):
@@ -81,7 +85,7 @@ def gru_backward_triton_kernel(
         dxf_ptrs = dxf_ptr + indices
         dxr_ptrs = dxr_ptr + indices
 
-        indices -= y_stride_s
+        indices -= y_stride[1]
 
         if s == 0:
             if h0_ptr is None:
@@ -114,9 +118,9 @@ def gru_backward_triton_kernel(
         dWr = matmul(A=y_prev.T, B=dxr, C=dWr, output_dtype=dW.dtype)
         tl.store(dxr_ptrs, dxr, mask=mask_bh)
 
-    tl.atomic_add(dW_ptr + indices_W, dW, mask=mask_hh, sem="relaxed")
-    tl.atomic_add(dWf_ptr + indices_W, dWf, mask=mask_hh, sem="relaxed")
-    tl.atomic_add(dWr_ptr + indices_W, dWr, mask=mask_hh, sem="relaxed")
+    tl.atomic_add(dW_ptr + BLOCK_W, dW, mask=mask_hh, sem="relaxed")
+    tl.atomic_add(dWf_ptr + BLOCK_W, dWf, mask=mask_hh, sem="relaxed")
+    tl.atomic_add(dWr_ptr + BLOCK_W, dWr, mask=mask_hh, sem="relaxed")
 
 
 @custom_op(
@@ -157,10 +161,9 @@ def gru_backward_triton(
     with torch.device(output.device):
         gru_backward_triton_kernel[GRID](
             W_ptr=weight,
-            W_stride_n=weight.stride(0),
+            W_stride=weight.stride(),
             y_ptr=output,
-            y_stride_b=output.stride(0),
-            y_stride_s=output.stride(1),
+            y_stride=output.stride(),
             Wf_ptr=forget_weight,
             f_ptr=forget_gate,
             dxf_ptr=forget_input_grad,
