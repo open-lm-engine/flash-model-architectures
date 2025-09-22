@@ -254,19 +254,17 @@ class RNN(nn.Module):
             kernel_backend=kernel_backend,
         )
 
-        del input_state
-
         if cu_seqlens is None:
-            output_state = input[:, -1]
+            input_state = input[:, -1]
         else:
-            output_state = input[cu_seqlens[1:] - 1]
+            input_state = input[cu_seqlens[1:] - 1]
 
-        output_state = output_state.view(output_state.size(0), -1)
+        input_state = input_state.view(input_state.size(0), -1)
 
         input = input.view(*input.size()[:-2], -1)
         input = self.output_projection(input)
 
-        return input, output_state
+        return input, input_state
 
     @torch.no_grad()
     def reset_parameters(self) -> None:
