@@ -17,9 +17,9 @@ from ...rnn.triton_implementation.forward import _get_autotune_configs
 @triton.jit
 def gru_varlen_forward_triton_kernel(
     x_ptr,
-    x_stride_t,
+    x_stride,
     W_ptr,
-    W_stride_n,
+    W_stride,
     xf_ptr,
     Wf_ptr,
     f_ptr,
@@ -50,7 +50,7 @@ def gru_varlen_forward_triton_kernel(
     mask_bh = mask_b[:, None] & mask_h[None, :]
     mask_hh = mask_h[:, None] & mask_h[None, :]
 
-    indices = pid_n * W_stride_n + indices_h[:, None] * H + indices_h[None, :]
+    indices = pid_n * W_stride[0] + indices_h[:, None] * W_stride[1] + indices_h[None, :] * W_stride[2]
 
     W = tl.load(W_ptr + indices, mask=mask_hh)
     Wf = tl.load(Wf_ptr + indices, mask=mask_hh)
@@ -70,7 +70,7 @@ def gru_varlen_forward_triton_kernel(
     else:
         max_seqlen = max_seqlen_ptr
 
-    indices = start * x_stride_t + pid_n * H + indices_h[None, :]
+    indices = start * x_stride[0] + pid_n * x_stride[1] + indices_h[None, :] * x_stride[2]
 
     for _ in range(max_seqlen):
         unfinished = start < end
@@ -94,7 +94,7 @@ def gru_varlen_forward_triton_kernel(
         h = f * h + (1 - f) * z
         tl.store(y_ptr + indices, h, mask=mask)
 
-        indices += x_stride_t
+        indices += x_stride[0]
         start += 1
 
 
@@ -129,9 +129,9 @@ def gru_varlen_forward_triton(
     with torch.device(input.device):
         gru_varlen_forward_triton_kernel[GRID](
             x_ptr=input,
-            x_stride_t=input.stride(0),
+            x_stride=input.stride(),
             W_ptr=weight,
-            W_stride_n=weight.stride(0),
+            W_stride=weight.stride(),
             xf_ptr=forget_input,
             Wf_ptr=forget_weight,
             f_ptr=forget_gate,
