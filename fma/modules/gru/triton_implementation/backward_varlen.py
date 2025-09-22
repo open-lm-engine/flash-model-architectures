@@ -199,7 +199,7 @@ def gru_varlen_backward_triton(
             dWr_ptr=reset_weight_grad,
             z_ptr=output_update,
             h0_ptr=input_state,
-            h0_stride_b=None if input_state is None else input_state.stride(0),
+            h0_stride=None if input_state is None else input_state.stride(),
             dy_ptr=output_grad,
             cu_seqlens_ptr=cu_seqlens,
             IS_MAX_SEQLEN_TENSOR=is_max_seqlen_tensor,
