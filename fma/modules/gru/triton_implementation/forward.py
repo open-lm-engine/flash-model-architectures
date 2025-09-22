@@ -48,7 +48,7 @@ def gru_forward_triton_kernel(
     mask_bh = mask_b[:, None] & mask_h[None, :]
     mask_hh = mask_h[:, None] & mask_h[None, :]
 
-    BLOCK = BLOCK_ID_N * W_stride + BLOCK_H[:, None] * H + BLOCK_H[None, :]
+    BLOCK = BLOCK_ID_N * W_stride[0] + BLOCK_H[:, None] * W_stride[1] + BLOCK_H[None, :] * W_stride[2]
 
     W = tl.load(W_ptr + BLOCK, mask=mask_hh)
     Wf = tl.load(Wf_ptr + BLOCK, mask=mask_hh)
