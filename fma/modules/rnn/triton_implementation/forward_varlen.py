@@ -21,7 +21,7 @@ def rnn_varlen_forward_triton_kernel(
     W_ptr,
     W_stride,
     h0_ptr,
-    h0_stride_b,
+    h0_stride,
     y_ptr,
     cu_seqlens_ptr,
     IS_MAX_SEQLEN_TENSOR: tl.constexpr,
@@ -50,7 +50,10 @@ def rnn_varlen_forward_triton_kernel(
     if h0_ptr is None:
         h = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=x_ptr.dtype.element_ty)
     else:
-        h = tl.load(h0_ptr + indices_b[:, None] * h0_stride_b + pid_n * H + indices_h[None, :], mask=mask_bh)
+        h = tl.load(
+            h0_ptr + indices_b[:, None] * h0_stride[0] + pid_n * h0_stride[1] + indices_h[None, :] * h0_stride[2],
+            mask=mask_bh,
+        )
 
     cu_seqlens_ptrs = cu_seqlens_ptr + indices_b[:, None]
     start = tl.load(cu_seqlens_ptrs, mask=mask_b[:, None])
@@ -102,7 +105,7 @@ def rnn_varlen_forward_triton(
             W_ptr=weight,
             W_stride=weight.stride(),
             h0_ptr=input_state,
-            h0_stride_b=None if input_state is None else input_state.stride(0),
+            h0_stride=None if input_state is None else input_state.stride(),
             y_ptr=output,
             cu_seqlens_ptr=cu_seqlens,
             IS_MAX_SEQLEN_TENSOR=is_max_seqlen_tensor,
