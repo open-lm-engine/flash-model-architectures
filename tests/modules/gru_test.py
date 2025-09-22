@@ -75,12 +75,6 @@ class GRUTest(TestCommons):
             input=x_torch, input_state=input_state_torch, kernel_backend=KernelBackend.torch
         )
 
-        y_kernel.sum().backward()
-        weight_kernel_grads = self.collect_gradients_from_module_and_zero_grads(gru)
-
-        y_torch.sum().backward()
-        weight_torch_grads = self.collect_gradients_from_module_and_zero_grads(gru)
-
         self.assert_equal_tensors(
             y_kernel,
             y_torch,
@@ -104,6 +98,12 @@ class GRUTest(TestCommons):
             atol_bfloat16=2e-4,
             rtol_bfloat16=0,
         )
+
+        y_kernel.sum().backward()
+        weight_kernel_grads = self.collect_gradients_from_module_and_zero_grads(gru)
+
+        y_torch.sum().backward()
+        weight_torch_grads = self.collect_gradients_from_module_and_zero_grads(gru)
 
         for weight_name in weight_kernel_grads:
             self.assert_equal_tensors(
@@ -183,13 +183,13 @@ class GRUTest(TestCommons):
             y_torch.append(y.squeeze(0))
         y_torch = torch.cat(y_torch)
 
+        self.assert_equal_tensors(y_kernel, y_torch, False, atol_bfloat16=3.1e-5, rtol_bfloat16=0)
+
         y_kernel.sum().backward()
         weight_kernel_grads = self.collect_gradients_from_module_and_zero_grads(gru)
 
         y_torch.sum().backward()
         weight_torch_grads = self.collect_gradients_from_module_and_zero_grads(gru)
-
-        self.assert_equal_tensors(y_kernel, y_torch, False, atol_bfloat16=3.1e-5, rtol_bfloat16=0)
 
         for weight_name in weight_kernel_grads:
             self.assert_equal_tensors(
