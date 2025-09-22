@@ -8,7 +8,7 @@ import torch.nn as nn
 from ...cutotune import CutoTuneParameter
 from ...enums import KernelBackend
 from ...math import divide_if_divisible
-from ...torch_math import sigmoid, tanh
+from ...torch_math import clip_gradients, sigmoid, tanh
 from ...utils import ensure_contiguous
 from .triton_implementation import (
     gru_backward_triton,
@@ -228,6 +228,9 @@ def gru(
                 input_state = forget_gate * input_state.unsqueeze(-2) + (1 - forget_gate) * possible_new_state
                 input_state = input_state.squeeze(-2)
 
+                if gradient_clipping is not None:
+                    input_state = clip_gradients(input_state, gradient_clipping)
+
                 output[:, s] = input_state
         else:
             assert max_seqlen is not None
@@ -269,6 +272,10 @@ def gru(
                 possible_new_state = tanh(possible_new_state)
 
                 new_state = forget_gate * new_state + (1 - forget_gate) * possible_new_state
+
+                if gradient_clipping is not None:
+                    new_state = clip_gradients(new_state, gradient_clipping)
+
                 new_state = new_state.squeeze(-2)
 
                 output[offset_unfinished] = new_state
