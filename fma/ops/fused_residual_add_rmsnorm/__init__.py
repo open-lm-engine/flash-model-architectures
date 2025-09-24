@@ -10,9 +10,9 @@ from ...counters import increment_counter
 from ...cutotune import CutoTuneParameter
 from ...enums import KernelBackend
 from ...math import ceil_divide, get_next_power_of_2
-from ...utils import ensure_contiguous, get_num_elements_and_hidden_size
+from ...utils import ensure_contiguous, get_num_elements_and_hidden_size, get_sm_count
 from .triton_implementation import (
-    fused_residual_add_rmsnorm_backward_triton,
+    fused_residual_add_rmsnorm_backward_triton_kernel,
     fused_residual_add_rmsnorm_forward_triton_kernel,
 )
 
@@ -92,17 +92,32 @@ class _FusedResidualAddRMSNorm(torch.autograd.Function):
         if not has_residual:
             assert added_x_residual_grad is None
 
-        fused_residual_add_rmsnorm_backward_triton(
-            added_x_residual=added_x_residual,
-            weight=weight,
-            output_grad=output_grad,
-            added_x_residual_grad=added_x_residual_grad,
-            rmsnorm_denominator=rmsnorm_denominator,
-            x_grad=x_grad,
-            residual_grad=residual_grad,
-            weight_grad=weight_grad,
+        B, H = get_num_elements_and_hidden_size(added_x_residual)
+
+        BLOCK_SIZE_B = 1
+        BLOCK_SIZE_H = get_next_power_of_2(H)
+        assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
+        NUM_WARPS = 8
+
+        sm_count = get_sm_count(added_x_residual.device)
+        num_programs = min(sm_count, ceil_divide(B, BLOCK_SIZE_B))
+
+        fused_residual_add_rmsnorm_backward_triton_kernel[num_programs,](
+            added_x_residual_ptr=added_x_residual,
+            weight_ptr=weight,
+            output_grad_ptr=output_grad,
+            added_x_residual_grad_ptr=added_x_residual_grad,
+            x_grad_ptr=x_grad,
+            residual_grad_ptr=residual_grad,
+            weight_grad_ptr=weight_grad,
             eps=ctx.eps,
             multiplier=ctx.multiplier,
+            rmsnorm_denominator_ptr=rmsnorm_denominator,
+            B=B,
+            H=H,
+            BLOCK_SIZE_B=BLOCK_SIZE_B,
+            BLOCK_SIZE_H=BLOCK_SIZE_H,
+            num_warps=NUM_WARPS,
         )
 
         if weight_grad is not None:
