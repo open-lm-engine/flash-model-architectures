@@ -41,7 +41,7 @@ def bmm_triton_kernel(
     A_ptr,
     B_ptr,
     C_ptr,
-    output_ptr,
+    D_ptr,
     alpha,
     beta,
     IS_A_TRANSPOSED: tl.constexpr,
@@ -125,4 +125,4 @@ def bmm_triton_kernel(
         C = tl.load(C_ptr + indices_lmn, mask=mask_mn)
         accumulator += beta * C
 
-    tl.store(output_ptr + indices_lmn, accumulator, mask=mask_mn)
+    tl.store(D_ptr + indices_lmn, accumulator, mask=mask_mn)
