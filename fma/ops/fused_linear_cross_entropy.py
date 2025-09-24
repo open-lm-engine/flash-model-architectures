@@ -9,7 +9,7 @@ from ..cutotune import CutoTuneParameter
 from ..enums import KernelBackend
 from ..math import ceil_divide, get_next_power_of_2
 from ..utils import ensure_contiguous
-from .cross_entropy import cross_entropy, cross_entropy_forward_backward_triton
+from .cross_entropy import cross_entropy, cross_entropy_forward_backward_triton_kernel
 
 
 class _FusedLinearCrossEntropy(torch.autograd.Function):
@@ -55,13 +55,21 @@ class _FusedLinearCrossEntropy(torch.autograd.Function):
             _logits_grad = torch.empty_like(_logits)
             _labels = labels[start:end].contiguous()
 
-            cross_entropy_forward_backward_triton(
-                x=_logits,
-                labels=_labels,
-                loss=loss,
-                x_grad=_logits_grad,
+            B, V = x.size()
+
+            BLOCK_SIZE_V = min(get_next_power_of_2(V), 4096 if x.dtype == torch.float32 else 8192)
+            GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]),)
+
+            cross_entropy_forward_backward_triton_kernel[GRID](
+                x_ptr=_logits,
+                labels_ptr=_labels,
+                loss_ptr=loss,
+                dx_ptr=_logits_grad,
                 logits_multiplier=logits_multiplier,
+                B=B,
+                V=V,
                 reduction="sum",
+                BLOCK_SIZE_V=BLOCK_SIZE_V,
             )
 
             x_grad[start:end] = _logits_grad @ weight
