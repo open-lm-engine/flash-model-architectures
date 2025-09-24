@@ -75,12 +75,6 @@ def bmm(
     elif kernel_backend == KernelBackend.triton:
         D = torch.empty(L, M, N, dtype=A.dtype, device=A.device)
 
-        L, M, K = A.size()
-        if is_A_transposed:
-            M, K = K, M
-
-        N = B.size(1 if is_B_transposed else 2)
-
         GRID = lambda meta: (L, ceil_divide(M, meta["BLOCK_SIZE_M"]) * ceil_divide(N, meta["BLOCK_SIZE_N"]))
 
         bmm_triton_kernel[GRID](
