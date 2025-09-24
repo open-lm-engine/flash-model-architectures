@@ -49,13 +49,13 @@ class _FusedLinearCrossEntropy(torch.autograd.Function):
             end = (i + 1) * chunk_size
             end = min(end, batch_size)
 
+            B = end - start
+
             _x = x[start:end]
             _logits = (_x @ weight.T).contiguous()
 
             _logits_grad = torch.empty_like(_logits)
             _labels = labels[start:end].contiguous()
-
-            B, V = _logits.size()
 
             BLOCK_SIZE_V = min(get_next_power_of_2(V), 4096 if x.dtype == torch.float32 else 8192)
             GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]),)
