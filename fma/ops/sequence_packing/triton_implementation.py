@@ -55,7 +55,6 @@ def pack_unpack_sequence_triton_kernel(
             _copy_array(x_ptr, output_ptr, b, s, start + s, S, N, PACK, BLOCK_SIZE)
 
 
-@custom_op(f"{LIBRARY_NAME}::pack_unpack_sequence_triton", mutates_args={"output"})
 def pack_unpack_sequence_triton(
     x: torch.Tensor, output: torch.Tensor, cu_seqlens: torch.Tensor, padding_side: str, pack: bool
 ) -> None:
@@ -69,15 +68,14 @@ def pack_unpack_sequence_triton(
     BLOCK_SIZE = 4096
     NUM_WARPS = 32
 
-    with torch.device(x.device):
-        pack_unpack_sequence_triton_kernel[S, B](
-            x_ptr=x,
-            output_ptr=output,
-            cu_seqlens_ptr=cu_seqlens,
-            S=S,
-            N=N,
-            PADDING_SIDE=padding_side,
-            PACK=pack,
-            BLOCK_SIZE=BLOCK_SIZE,
-            num_warps=NUM_WARPS,
-        )
+    pack_unpack_sequence_triton_kernel[S, B](
+        x_ptr=x,
+        output_ptr=output,
+        cu_seqlens_ptr=cu_seqlens,
+        S=S,
+        N=N,
+        PADDING_SIDE=padding_side,
+        PACK=pack,
+        BLOCK_SIZE=BLOCK_SIZE,
+        num_warps=NUM_WARPS,
+    )
