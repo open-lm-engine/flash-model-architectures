@@ -6,8 +6,9 @@ import torch
 
 from ...cutotune import CutoTuneParameter
 from ...enums import KernelBackend
+from ...math import ceil_divide
 from ...utils import ensure_contiguous
-from .triton_implementation import bmm_triton
+from .triton_implementation import bmm_triton_kernel
 
 
 @ensure_contiguous
@@ -39,7 +40,7 @@ def bmm(
         ValueError: if unexpected `kernel_backend` is passed
 
     Returns:
-        torch.Tensor: output tensor
+        torch.Tensor: D tensor
     """
 
     assert A.dim() == 3
@@ -66,25 +67,36 @@ def bmm(
             B = B.transpose(1, 2)
 
         if beta == 0:
-            output = torch.bmm(A, B)
+            D = torch.bmm(A, B)
             if alpha != 1:
-                output = alpha * output
+                D = alpha * D
         else:
-            output = torch.baddbmm(C, A, B, alpha=alpha, beta=beta)
+            D = torch.baddbmm(C, A, B, alpha=alpha, beta=beta)
     elif kernel_backend == KernelBackend.triton:
-        output = torch.empty(L, M, N, dtype=A.dtype, device=A.device)
+        D = torch.empty(L, M, N, dtype=A.dtype, device=A.device)
 
-        bmm_triton(
-            A=A,
-            B=B,
-            C=C,
-            output=output,
-            is_A_transposed=is_A_transposed,
-            is_B_transposed=is_B_transposed,
+        L, M, K = A.size()
+        if is_A_transposed:
+            M, K = K, M
+
+        N = B.size(1 if is_B_transposed else 2)
+
+        GRID = lambda meta: (L, ceil_divide(M, meta["BLOCK_SIZE_M"]) * ceil_divide(N, meta["BLOCK_SIZE_N"]))
+
+        bmm_triton_kernel[GRID](
+            A_ptr=A,
+            B_ptr=B,
+            C_ptr=C,
+            D_ptr=D,
             alpha=alpha,
             beta=beta,
+            IS_A_TRANSPOSED=is_A_transposed,
+            IS_B_TRANSPOSED=is_B_transposed,
+            M=M,
+            K=K,
+            N=N,
         )
     else:
         raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
-    return output
+    return D
