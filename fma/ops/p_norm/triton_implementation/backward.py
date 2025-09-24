@@ -2,14 +2,8 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
-import torch
 import triton
 import triton.language as tl
-from torch.library import custom_op
-
-from ....constants import LIBRARY_NAME, MAX_TRITON_BLOCK_SIZE
-from ....math import ceil_divide, get_next_power_of_2
-from ....utils import get_num_elements_and_hidden_size, get_sm_count
 
 
 @triton.jit
@@ -81,40 +75,3 @@ def norm_2_backward_triton_kernel(
 
     if weight_ptr is not None:
         tl.atomic_add(weight_grad_ptr + indices_h, weight_grad, mask=mask_h, sem="relaxed")
-
-
-@custom_op(f"{LIBRARY_NAME}::norm_2_backward_triton", mutates_args={"x_grad", "weight_grad"})
-def norm_2_backward_triton(
-    x: torch.Tensor,
-    weight: torch.Tensor | None,
-    output_grad: torch.Tensor,
-    p_norm_denominator: torch.Tensor | None,
-    x_grad: torch.Tensor,
-    weight_grad: torch.Tensor | None,
-    eps: float,
-) -> None:
-    B, H = get_num_elements_and_hidden_size(x)
-
-    BLOCK_SIZE_B = 1
-    BLOCK_SIZE_H = get_next_power_of_2(H)
-    assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
-    NUM_WARPS = 8
-
-    sm_count = get_sm_count(x.device)
-    GRID = lambda meta: (min(sm_count, ceil_divide(B, meta["BLOCK_SIZE_B"])),)
-
-    with torch.device(x.device):
-        norm_2_backward_triton_kernel[GRID](
-            x_ptr=x,
-            weight_ptr=weight,
-            output_grad_ptr=output_grad,
-            x_grad_ptr=x_grad,
-            weight_grad_ptr=weight_grad,
-            eps=eps,
-            p_norm_denominator_ptr=p_norm_denominator,
-            B=B,
-            H=H,
-            BLOCK_SIZE_B=BLOCK_SIZE_B,
-            BLOCK_SIZE_H=BLOCK_SIZE_H,
-            num_warps=NUM_WARPS,
-        )

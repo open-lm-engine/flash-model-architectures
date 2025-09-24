@@ -9,8 +9,8 @@ from ...constants import MAX_TRITON_BLOCK_SIZE
 from ...cutotune import CutoTuneParameter
 from ...enums import KernelBackend
 from ...math import ceil_divide, get_next_power_of_2
-from ...utils import ensure_contiguous, get_num_elements_and_hidden_size
-from .triton_implementation import norm_2_backward_triton, norm_2_forward_triton_kernel
+from ...utils import ensure_contiguous, get_num_elements_and_hidden_size, get_sm_count
+from .triton_implementation import norm_2_backward_triton_kernel, norm_2_forward_triton_kernel
 
 
 class _P_Norm(torch.autograd.Function):
@@ -72,14 +72,29 @@ class _P_Norm(torch.autograd.Function):
         x_grad = torch.empty_like(x)
         weight_grad = None if weight is None else torch.zeros_like(weight, dtype=torch.float32)
 
-        norm_2_backward_triton(
-            x=x,
-            weight=weight,
-            output_grad=output_grad,
-            p_norm_denominator=p_norm_denominator,
-            x_grad=x_grad,
-            weight_grad=weight_grad,
+        B, H = get_num_elements_and_hidden_size(x)
+
+        BLOCK_SIZE_B = 1
+        BLOCK_SIZE_H = get_next_power_of_2(H)
+        assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
+        NUM_WARPS = 8
+
+        sm_count = get_sm_count(x.device)
+        GRID = lambda meta: (min(sm_count, ceil_divide(B, meta["BLOCK_SIZE_B"])),)
+
+        norm_2_backward_triton_kernel[GRID](
+            x_ptr=x,
+            weight_ptr=weight,
+            output_grad_ptr=output_grad,
+            x_grad_ptr=x_grad,
+            weight_grad_ptr=weight_grad,
             eps=ctx.eps,
+            p_norm_denominator_ptr=p_norm_denominator,
+            B=B,
+            H=H,
+            BLOCK_SIZE_B=BLOCK_SIZE_B,
+            BLOCK_SIZE_H=BLOCK_SIZE_H,
+            num_warps=NUM_WARPS,
         )
 
         if weight_grad is not None:
