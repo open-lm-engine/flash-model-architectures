@@ -5,9 +5,7 @@
 import torch
 import triton
 import triton.language as tl
-from torch.library import custom_op
 
-from ....constants import LIBRARY_NAME
 from ....math import ceil_divide
 from ....triton_math import sigmoid
 from ....utils import get_num_elements_and_hidden_size
@@ -55,7 +53,6 @@ def swiglu_backward_triton_kernel(
     tl.store(up_grad_ptr + indices_gate, up_grad, mask=mask)
 
 
-@custom_op(f"{LIBRARY_NAME}::swiglu_backward_triton", mutates_args={"gate_grad", "up_grad"})
 def swiglu_backward_triton(
     gate: torch.Tensor,
     up: torch.Tensor,
@@ -67,17 +64,16 @@ def swiglu_backward_triton(
     BLOCK_SIZE_B = 64
     BLOCK_SIZE_H = 64
 
-    with torch.device(gate.device):
-        swiglu_backward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), ceil_divide(H, BLOCK_SIZE_H)](
-            gate_ptr=gate,
-            gate_stride_b=gate.stride(-2),
-            up_ptr=up,
-            output_grad_ptr=output_grad,
-            output_grad_stride_b=output_grad.stride(-2),
-            gate_grad_ptr=gate_grad,
-            up_grad_ptr=up_grad,
-            B=B,
-            H=H,
-            BLOCK_SIZE_B=BLOCK_SIZE_B,
-            BLOCK_SIZE_H=BLOCK_SIZE_H,
-        )
+    swiglu_backward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), ceil_divide(H, BLOCK_SIZE_H)](
+        gate_ptr=gate,
+        gate_stride_b=gate.stride(-2),
+        up_ptr=up,
+        output_grad_ptr=output_grad,
+        output_grad_stride_b=output_grad.stride(-2),
+        gate_grad_ptr=gate_grad,
+        up_grad_ptr=up_grad,
+        B=B,
+        H=H,
+        BLOCK_SIZE_B=BLOCK_SIZE_B,
+        BLOCK_SIZE_H=BLOCK_SIZE_H,
+    )
