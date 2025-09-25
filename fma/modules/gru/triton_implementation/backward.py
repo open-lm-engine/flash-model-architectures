@@ -18,10 +18,9 @@ from .forward import _get_autotune_configs
 @triton.jit
 def gru_backward_triton_kernel(
     W_ptr,
-    W_stride_n,
+    W_stride,
     y_ptr,
-    y_stride_b,
-    y_stride_s,
+    y_stride,
     Wf_ptr,
     f_ptr,
     dxf_ptr,
@@ -32,7 +31,7 @@ def gru_backward_triton_kernel(
     dWr_ptr,
     z_ptr,
     h0_ptr,
-    h0_stride_b,
+    h0_stride,
     dy_ptr,
     dx_ptr,
     dW_ptr,
@@ -43,15 +42,15 @@ def gru_backward_triton_kernel(
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
-    pid_b = tl.program_id(axis=0)
-    pid_n = tl.program_id(axis=1)
+    BLOCK_ID_B = tl.program_id(axis=0)
+    BLOCK_ID_N = tl.program_id(axis=1)
 
-    indices_b = pid_b * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
-    indices_h = tl.arange(0, BLOCK_SIZE_H)
-    indices_W = pid_n * W_stride_n + indices_h[:, None] * H + indices_h[None, :]
+    BLOCK_B = BLOCK_ID_B * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
+    BLOCK_H = tl.arange(0, BLOCK_SIZE_H)
+    BLOCK_W = BLOCK_ID_N * W_stride[0] + BLOCK_H[:, None] * W_stride[1] + BLOCK_H[None, :] * W_stride[2]
 
-    mask_b = indices_b < B
-    mask_h = indices_h < H
+    mask_b = BLOCK_B < B
+    mask_h = BLOCK_H < H
 
     mask_bh = mask_b[:, None] & mask_h[None, :]
     mask_hh = mask_h[:, None] & mask_h[None, :]
@@ -61,11 +60,16 @@ def gru_backward_triton_kernel(
     dWf = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
     dWr = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
 
-    W = tl.load(W_ptr + indices_W, mask=mask_hh)
-    Wf = tl.load(Wf_ptr + indices_W, mask=mask_hh)
-    Wr = tl.load(Wr_ptr + indices_W, mask=mask_hh)
+    W = tl.load(W_ptr + BLOCK_W, mask=mask_hh)
+    Wf = tl.load(Wf_ptr + BLOCK_W, mask=mask_hh)
+    Wr = tl.load(Wr_ptr + BLOCK_W, mask=mask_hh)
 
-    indices = indices_b[:, None] * y_stride_b + (S - 1) * y_stride_s + pid_n * H + indices_h[None, :]
+    indices = (
+        BLOCK_B[:, None] * y_stride[0]
+        + (S - 1) * y_stride[1]
+        + BLOCK_ID_N * y_stride[2]
+        + BLOCK_H[None, :] * y_stride[3]
+    )
 
     # backward counting reduces 1 instruction since we need to compare s == 0, otherwise we have to compare s == S - 1
     for s in range(S - 1, -1, -1):
@@ -81,14 +85,18 @@ def gru_backward_triton_kernel(
         dxf_ptrs = dxf_ptr + indices
         dxr_ptrs = dxr_ptr + indices
 
-        indices -= y_stride_s
+        indices -= y_stride[1]
 
         if s == 0:
             if h0_ptr is None:
                 y_prev = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=W.dtype)
             else:
                 y_prev = tl.load(
-                    h0_ptr + indices_b[:, None] * h0_stride_b + pid_n * H + indices_h[None, :], mask=mask_bh
+                    h0_ptr
+                    + BLOCK_B[:, None] * h0_stride[0]
+                    + BLOCK_ID_N * h0_stride[1]
+                    + BLOCK_H[None, :] * h0_stride[2],
+                    mask=mask_bh,
                 )
         else:
             y_prev = tl.load(y_ptr + indices, mask=mask_bh)
@@ -114,9 +122,9 @@ def gru_backward_triton_kernel(
         dWr = matmul(A=y_prev.T, B=dxr, C=dWr, output_dtype=dW.dtype)
         tl.store(dxr_ptrs, dxr, mask=mask_bh)
 
-    tl.atomic_add(dW_ptr + indices_W, dW, mask=mask_hh, sem="relaxed")
-    tl.atomic_add(dWf_ptr + indices_W, dWf, mask=mask_hh, sem="relaxed")
-    tl.atomic_add(dWr_ptr + indices_W, dWr, mask=mask_hh, sem="relaxed")
+    tl.atomic_add(dW_ptr + BLOCK_W, dW, mask=mask_hh, sem="relaxed")
+    tl.atomic_add(dWf_ptr + BLOCK_W, dWf, mask=mask_hh, sem="relaxed")
+    tl.atomic_add(dWr_ptr + BLOCK_W, dWr, mask=mask_hh, sem="relaxed")
 
 
 @custom_op(
@@ -157,10 +165,9 @@ def gru_backward_triton(
     with torch.device(output.device):
         gru_backward_triton_kernel[GRID](
             W_ptr=weight,
-            W_stride_n=weight.stride(0),
+            W_stride=weight.stride(),
             y_ptr=output,
-            y_stride_b=output.stride(0),
-            y_stride_s=output.stride(1),
+            y_stride=output.stride(),
             Wf_ptr=forget_weight,
             f_ptr=forget_gate,
             dxf_ptr=forget_input_grad,
@@ -171,7 +178,7 @@ def gru_backward_triton(
             dWr_ptr=reset_weight_grad,
             z_ptr=output_update,
             h0_ptr=input_state,
-            h0_stride_b=None if input_state is None else input_state.stride(0),
+            h0_stride=None if input_state is None else input_state.stride(),
             dy_ptr=output_grad,
             dx_ptr=input_grad,
             dW_ptr=weight_grad,

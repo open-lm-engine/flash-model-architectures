@@ -28,12 +28,11 @@ def _get_autotune_configs() -> list[triton.Config]:
 @triton.jit
 def rnn_forward_triton_kernel(
     x_ptr,
-    x_stride_b,
-    x_stride_s,
+    x_stride,
     W_ptr,
-    W_stride_n,
+    W_stride,
     h0_ptr,
-    h0_stride_b,
+    h0_stride,
     y_ptr,
     B,
     S,
@@ -41,36 +40,39 @@ def rnn_forward_triton_kernel(
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
-    pid_b = tl.program_id(axis=0)
-    pid_n = tl.program_id(axis=1)
+    BLOCK_ID_B = tl.program_id(axis=0)
+    BLOCK_ID_N = tl.program_id(axis=1)
 
-    indices_b = pid_b * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
-    indices_h = tl.arange(0, BLOCK_SIZE_H)
+    BLOCK_B = BLOCK_ID_B * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
+    BLOCK_H = tl.arange(0, BLOCK_SIZE_H)
 
-    mask_b = indices_b < B
-    mask_h = indices_h < H
+    mask_b = BLOCK_B < B
+    mask_h = BLOCK_H < H
 
     mask_bh = mask_b[:, None] & mask_h[None, :]
 
     W = tl.load(
-        W_ptr + pid_n * W_stride_n + indices_h[:, None] * H + indices_h[None, :],
+        W_ptr + BLOCK_ID_N * W_stride[0] + BLOCK_H[:, None] * W_stride[1] + BLOCK_H[None, :] * W_stride[2],
         mask=mask_h[:, None] & mask_h[None, :],
     )
 
     if h0_ptr is None:
         h = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=x_ptr.dtype.element_ty)
     else:
-        h = tl.load(h0_ptr + indices_b[:, None] * h0_stride_b + pid_n * H + indices_h[None, :], mask=mask_bh)
+        h = tl.load(
+            h0_ptr + BLOCK_B[:, None] * h0_stride[0] + BLOCK_ID_N * h0_stride[1] + BLOCK_H[None, :] * h0_stride[2],
+            mask=mask_bh,
+        )
 
-    indices = indices_b[:, None] * x_stride_b + pid_n * H + indices_h[None, :]
+    BLOCK = BLOCK_B[:, None] * x_stride[0] + BLOCK_ID_N * x_stride[2] + BLOCK_H[None, :] * x_stride[3]
 
     for _ in range(S):
-        x = tl.load(x_ptr + indices, mask=mask_bh)
+        x = tl.load(x_ptr + BLOCK, mask=mask_bh)
         h = matmul(A=h, B=W, C=x, output_dtype=tl.float32)
         h = tanh(h, output_dtype=x.dtype)
-        tl.store(y_ptr + indices, h, mask=mask_bh)
+        tl.store(y_ptr + BLOCK, h, mask=mask_bh)
 
-        indices += x_stride_s
+        BLOCK += x_stride[1]
 
 
 @custom_op(f"{LIBRARY_NAME}::rnn_forward_triton", mutates_args={"output"})
@@ -86,12 +88,11 @@ def rnn_forward_triton(
     with torch.device(input.device):
         rnn_forward_triton_kernel[GRID](
             x_ptr=input,
-            x_stride_b=input.stride(0),
-            x_stride_s=input.stride(1),
+            x_stride=input.stride(),
             W_ptr=weight,
-            W_stride_n=weight.stride(0),
+            W_stride=weight.stride(),
             h0_ptr=input_state,
-            h0_stride_b=None if input_state is None else input_state.stride(0),
+            h0_stride=None if input_state is None else input_state.stride(),
             y_ptr=output,
             B=B,
             S=S,
