@@ -2,13 +2,8 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
-import torch
 import triton
 import triton.language as tl
-from torch.library import custom_op
-
-from ...constants import LIBRARY_NAME
-from ...math import ceil_divide
 
 
 @triton.autotune(
@@ -46,7 +41,7 @@ def bmm_triton_kernel(
     A_ptr,
     B_ptr,
     C_ptr,
-    output_ptr,
+    D_ptr,
     alpha,
     beta,
     IS_A_TRANSPOSED: tl.constexpr,
@@ -130,42 +125,4 @@ def bmm_triton_kernel(
         C = tl.load(C_ptr + indices_lmn, mask=mask_mn)
         accumulator += beta * C
 
-    tl.store(output_ptr + indices_lmn, accumulator, mask=mask_mn)
-
-
-@custom_op(f"{LIBRARY_NAME}::bmm_triton", mutates_args={"output"})
-def bmm_triton(
-    A: torch.Tensor,
-    B: torch.Tensor,
-    C: torch.Tensor | None,
-    output: torch.Tensor,
-    is_A_transposed: bool,
-    is_B_transposed: bool,
-    alpha: float,
-    beta: float,
-) -> None:
-    L, M, K = A.size()
-    if is_A_transposed:
-        M, K = K, M
-
-    N = B.size(1 if is_B_transposed else 2)
-
-    GRID = lambda meta: (
-        L,
-        ceil_divide(M, meta["BLOCK_SIZE_M"]) * ceil_divide(N, meta["BLOCK_SIZE_N"]),
-    )
-
-    with torch.device(A.device):
-        bmm_triton_kernel[GRID](
-            A_ptr=A,
-            B_ptr=B,
-            C_ptr=C,
-            output_ptr=output,
-            alpha=alpha,
-            beta=beta,
-            IS_A_TRANSPOSED=is_A_transposed,
-            IS_B_TRANSPOSED=is_B_transposed,
-            M=M,
-            K=K,
-            N=N,
-        )
+    tl.store(D_ptr + indices_lmn, accumulator, mask=mask_mn)

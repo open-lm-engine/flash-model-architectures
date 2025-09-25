@@ -7,8 +7,9 @@ import torch.nn.functional as F
 
 from ...cutotune import CutoTuneParameter
 from ...enums import KernelBackend
+from ...math import ceil_divide, get_next_power_of_2
 from ...utils import ensure_contiguous, get_num_elements_and_hidden_size
-from .triton_implementation import cross_entropy_forward_backward_triton
+from .triton_implementation import cross_entropy_forward_backward_triton_kernel
 
 
 class _CrossEntropy(torch.autograd.Function):
@@ -33,8 +34,21 @@ class _CrossEntropy(torch.autograd.Function):
         loss = torch.tensor(0, device=x.device, dtype=torch.float32)
         x_grad = torch.empty_like(x)
 
-        cross_entropy_forward_backward_triton(
-            x=x, labels=labels, loss=loss, x_grad=x_grad, logits_multiplier=logits_multiplier, reduction=reduction
+        B, V = x.size()
+
+        BLOCK_SIZE_V = min(get_next_power_of_2(V), 4096 if x.dtype == torch.float32 else 8192)
+        GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]),)
+
+        cross_entropy_forward_backward_triton_kernel[GRID](
+            x_ptr=x,
+            labels_ptr=labels,
+            loss_ptr=loss,
+            dx_ptr=x_grad,
+            logits_multiplier=logits_multiplier,
+            B=B,
+            V=V,
+            reduction=reduction,
+            BLOCK_SIZE_V=BLOCK_SIZE_V,
         )
 
         ctx.save_for_backward(x_grad)
