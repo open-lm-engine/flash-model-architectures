@@ -13,21 +13,11 @@ from parameterized import parameterized
 from fma import KernelBackend, enable_counters, enable_kernels, get_counter_value, reset_counters, rmsnorm, set_seed
 
 from ..test_commons import TestCommons
+from .fused_residual_add_rmsnorm_test import _get_sizes
 
 
 _EPSILON = 1e-5
 _SEED = 42
-
-
-def _get_sizes() -> list[tuple]:
-    sizes = []
-    for size in TestCommons.get_1d_tensor_sizes(max_offset=5):
-        sizes.append((400, size))
-
-    # add extra check for 1D tensor
-    sizes.append((size,))
-
-    return sizes
 
 
 class RMSNormTest(TestCommons):
