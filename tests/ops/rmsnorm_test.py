@@ -54,9 +54,6 @@ class RMSNormTest(TestCommons):
     ) -> None:
         set_seed(_SEED)
 
-        if isinstance(size, int):
-            size = (size,)
-
         x_kernel, x_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype)
 
         if has_weight:
