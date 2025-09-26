@@ -21,7 +21,7 @@ _SEED = 42
 
 def _get_sizes() -> list[tuple]:
     sizes = []
-    for size in TestCommons.get_1d_tensor_sizes():
+    for size in TestCommons.get_1d_tensor_sizes(max_offset=5):
         sizes.append((400, size))
 
     # add extra check for 1D tensor
