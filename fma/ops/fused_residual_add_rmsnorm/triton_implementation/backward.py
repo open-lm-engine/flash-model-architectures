@@ -148,7 +148,7 @@ def fused_residual_add_rmsnorm_backward_triton(
             rmsnorm_denominator_ptr=rmsnorm_denominator,
             B=B,
             H=H,
-            ATOMIC_ADD=deterministic,
+            ATOMIC_ADD=not deterministic,
             BLOCK_SIZE_B=BLOCK_SIZE_B,
             BLOCK_SIZE_H=BLOCK_SIZE_H,
             num_warps=NUM_WARPS,
