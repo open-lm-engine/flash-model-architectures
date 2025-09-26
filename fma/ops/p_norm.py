@@ -4,9 +4,9 @@
 
 import torch
 
-from ...cutotune import CutoTuneParameter
-from ...enums import KernelBackend
-from ..fused_residual_add_rmsnorm import fused_residual_add_rmsnorm
+from ..cutotune import CutoTuneParameter
+from ..enums import KernelBackend
+from .fused_residual_add_rmsnorm import fused_residual_add_rmsnorm
 
 
 def p_norm(
