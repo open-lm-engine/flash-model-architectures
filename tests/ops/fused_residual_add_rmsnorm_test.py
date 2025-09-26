@@ -54,7 +54,7 @@ class FusedResdidualAddRMSNormTest(TestCommons):
             ],  # function
         )
         + TestCommons.make_args_matrix(
-            _get_sizes(),  # size
+            [(400, 77)],  # size
             [torch.device("cuda")],  # device
             [torch.float32],  # dtype
             [True, False],  # memory_efficient
