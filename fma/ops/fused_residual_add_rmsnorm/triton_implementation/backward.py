@@ -26,7 +26,6 @@ def fused_residual_add_rmsnorm_backward_triton_kernel(
     rmsnorm_denominator_ptr,
     B,
     H,
-    NORM_METHOD: tl.constexpr,
     ATOMIC_ADD: tl.constexpr,
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
@@ -62,9 +61,7 @@ def fused_residual_add_rmsnorm_backward_triton_kernel(
 
         if rmsnorm_denominator_ptr is None:
             squared_sum = tl.sum(added_x_residual * added_x_residual, axis=1)
-            if NORM_METHOD == "rmsnorm":
-                squared_sum /= H
-            inverse_rms = tl.rsqrt(squared_sum + eps)
+            inverse_rms = tl.rsqrt(squared_sum / H + eps)
         else:
             inverse_rms = tl.load(rmsnorm_denominator_ptr + indices_b, mask=mask_b)
 
@@ -124,7 +121,6 @@ def fused_residual_add_rmsnorm_backward_triton(
     residual_grad: torch.Tensor | None,
     weight_grad: torch.Tensor | None,
     eps: float,
-    norm_method: str,
     multiplier: float | None,
     deterministic: bool,
 ) -> None:
@@ -152,7 +148,6 @@ def fused_residual_add_rmsnorm_backward_triton(
             rmsnorm_denominator_ptr=rmsnorm_denominator,
             B=B,
             H=H,
-            NORM_METHOD=norm_method,
             ATOMIC_ADD=not deterministic,
             BLOCK_SIZE_B=BLOCK_SIZE_B,
             BLOCK_SIZE_H=BLOCK_SIZE_H,

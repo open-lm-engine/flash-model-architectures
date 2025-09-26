@@ -22,7 +22,6 @@ from .ops import (
     fused_residual_add_rmsnorm,
     gemm,
     grouped_gemm,
-    p_norm,
     pack_sequence,
     rmsnorm,
     softmax,

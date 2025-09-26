@@ -39,7 +39,6 @@ def rmsnorm(
         residual=None,
         weight=weight,
         eps=eps,
-        norm_method="rmsnorm",
         multiplier=None,
         memory_efficient=memory_efficient,
         deterministic=deterministic,

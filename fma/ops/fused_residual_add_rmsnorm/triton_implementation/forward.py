@@ -24,7 +24,6 @@ def fused_residual_add_rmsnorm_forward_triton_kernel(
     rmsnorm_denominator_ptr,
     B,
     H,
-    NORM_METHOD: tl.constexpr,
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
@@ -52,13 +51,7 @@ def fused_residual_add_rmsnorm_forward_triton_kernel(
         tl.store(added_x_residual_ptr + indices_bh, x, mask=mask_bh)
 
     r = tl.sum(x * x, axis=1)
-
-    if NORM_METHOD == "rmsnorm":
-        r = tl.rsqrt((r / H) + eps)
-    elif NORM_METHOD == "p_norm":
-        r = tl.sqrt(r)
-        r = max(r, eps)
-        r = 1 / r
+    r = tl.rsqrt((r / H) + eps)
 
     if rmsnorm_denominator_ptr is not None:
         tl.store(rmsnorm_denominator_ptr + indices_b, r, mask=mask_b)
@@ -82,7 +75,6 @@ def fused_residual_add_rmsnorm_forward_triton(
     weight: torch.Tensor | None,
     output: torch.Tensor,
     eps: float,
-    norm_method: str,
     multiplier: float | None,
     added_x_residual: torch.Tensor | None,
     rmsnorm_denominator: torch.Tensor | None,
@@ -106,7 +98,6 @@ def fused_residual_add_rmsnorm_forward_triton(
             rmsnorm_denominator_ptr=rmsnorm_denominator,
             B=B,
             H=H,
-            NORM_METHOD=norm_method,
             BLOCK_SIZE_B=BLOCK_SIZE_B,
             BLOCK_SIZE_H=BLOCK_SIZE_H,
             num_warps=NUM_WARPS,
