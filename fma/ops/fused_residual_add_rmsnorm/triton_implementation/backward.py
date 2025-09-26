@@ -104,7 +104,7 @@ def fused_residual_add_rmsnorm_backward_triton_kernel(
         if ATOMIC_ADD:
             tl.atomic_add(weight_grad_ptr + indices_h, weight_grad, mask=mask_h, sem="relaxed")
         else:
-            tl.store(weight_grad_ptr + pid * H + indices_h, weight_grad, mask=mask_h, sem="relaxed")
+            tl.store(weight_grad_ptr + pid * H + indices_h, weight_grad, mask=mask_h)
 
 
 @custom_op(
