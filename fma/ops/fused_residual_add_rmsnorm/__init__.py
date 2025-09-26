@@ -165,7 +165,7 @@ def fused_residual_add_rmsnorm(
     else:
         increment_counter(fused_residual_add_rmsnorm)
         x, residual = _FusedResidualAddRMSNorm.apply(
-            x, residual, weight, eps, multiplier, memory_efficient, deterministic, kernel_backend
+            x, residual, weight, eps, norm_method, multiplier, memory_efficient, deterministic, kernel_backend
         )
 
     return x, residual
