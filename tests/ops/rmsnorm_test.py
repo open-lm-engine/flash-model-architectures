@@ -38,7 +38,16 @@ class RMSNormTest(TestCommons):
             [torch.float32, torch.float16],  # dtype
             [True, False],  # memory_efficient
             [True, False],  # has_weight
-            [True, False],  # deterministic
+            [False],  # deterministic
+            [rmsnorm, torch.compile(rmsnorm, fullgraph=True)],  # function
+        )
+        + TestCommons.make_args_matrix(
+            [(400, 77)],  # size
+            [torch.device("cuda")],  # device
+            [torch.float32, torch.float16],  # dtype
+            [True, False],  # memory_efficient
+            [True, False],  # has_weight
+            [True],  # deterministic
             [rmsnorm, torch.compile(rmsnorm, fullgraph=True)],  # function
         )
     )
