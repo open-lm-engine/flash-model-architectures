@@ -24,6 +24,7 @@ class _FusedResidualAddRMSNorm(torch.autograd.Function):
         residual: torch.Tensor | None,
         weight: torch.Tensor | None,
         eps: float | None,
+        norm_method: str,
         multiplier: float | None,
         memory_efficient: bool,
         deterministic: bool,
@@ -52,6 +53,7 @@ class _FusedResidualAddRMSNorm(torch.autograd.Function):
             weight=weight,
             output=output,
             eps=eps,
+            norm_method=norm_method,
             multiplier=multiplier,
             added_x_residual=added_x_residual,
             rmsnorm_denominator=rmsnorm_denominator,
@@ -64,6 +66,7 @@ class _FusedResidualAddRMSNorm(torch.autograd.Function):
 
         ctx.eps = eps
         ctx.has_residual = has_residual
+        ctx.norm_method = norm_method
         ctx.multiplier = multiplier
         ctx.deterministic = deterministic
 
@@ -120,6 +123,7 @@ def fused_residual_add_rmsnorm(
     residual: torch.Tensor | None,
     weight: torch.Tensor | None,
     eps: float | None,
+    norm_method: str = "rmsnorm",
     multiplier: float | None = None,
     memory_efficient: bool = False,
     deterministic: bool = False,
@@ -132,6 +136,7 @@ def fused_residual_add_rmsnorm(
         residual (torch.Tensor): residual activation
         weight (torch.Tensor | None): RMSNorm weight
         eps (float | None): epsilon
+        norm_method (str, optional): `rmsnorm` or `p_norm`. Defaults to `rmsnorm`.
         multiplier (float | None, optional): if not None, pre-multiplies `x` with `multiplier`. Defaults to None.
         memory_efficient (bool, optional): memory efficient = False caches RMSNorm's denominator in the forward.
             Defaults to False.
@@ -149,7 +154,13 @@ def fused_residual_add_rmsnorm(
             x = x + residual
             residual = x
 
-        x = F.rms_norm(x, normalized_shape=(x.size(-1),), weight=weight, eps=eps)
+        if norm_method == "rmsnorm":
+            x = F.rms_norm(x, normalized_shape=(x.size(-1),), weight=weight, eps=eps)
+        elif norm_method == "p_norm":
+            x = F.normalize(x, p=2, dim=-1, eps=eps)
+
+            if weight is not None:
+                x = x * weight
     else:
         increment_counter(fused_residual_add_rmsnorm)
         x, residual = _FusedResidualAddRMSNorm.apply(

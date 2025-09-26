@@ -26,6 +26,7 @@ def fused_residual_add_rmsnorm_backward_triton_kernel(
     rmsnorm_denominator_ptr,
     B,
     H,
+    NORM_METHOD: tl.constexpr,
     ATOMIC_ADD: tl.constexpr,
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
