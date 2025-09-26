@@ -29,7 +29,7 @@ class TestCommons(TestCase):
     @staticmethod
     def get_1d_tensor_sizes(
         log_max_power_of_2: int = 15, max_offset: int = 10, num_not_powers_of_2: int = 50
-    ) -> list[tuple[int]]:
+    ) -> set[int]:
         sizes = set()
         # powers of 2
         for i in range(log_max_power_of_2):
@@ -44,7 +44,7 @@ class TestCommons(TestCase):
     @staticmethod
     def get_2d_tensor_sizes(
         log_max_power_of_2: int = 15, max_offset: int = 10, num_not_powers_of_2: int = 50
-    ) -> list[tuple[int]]:
+    ) -> set[int]:
         sizes = set()
         # powers of 2
         for i in range(log_max_power_of_2):
