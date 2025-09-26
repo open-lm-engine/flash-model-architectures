@@ -105,6 +105,7 @@ class _FusedResidualAddRMSNorm(torch.autograd.Function):
             residual_grad=residual_grad,
             weight_grad=weight_grad,
             eps=ctx.eps,
+            norm_method=ctx.norm_method,
             multiplier=ctx.multiplier,
             deterministic=deterministic,
         )
