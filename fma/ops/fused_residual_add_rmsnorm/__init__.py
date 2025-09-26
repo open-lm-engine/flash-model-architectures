@@ -81,7 +81,7 @@ class _FusedResidualAddRMSNorm(torch.autograd.Function):
 
         if weight is not None:
             if deterministic:
-                weight_grad = torch.zeros(
+                weight_grad = torch.empty(
                     get_sm_count(x_grad.device), *weight.size(), dtype=weight.dtype, device=weight.device
                 )
             else:
@@ -103,6 +103,7 @@ class _FusedResidualAddRMSNorm(torch.autograd.Function):
             weight_grad=weight_grad,
             eps=ctx.eps,
             multiplier=ctx.multiplier,
+            deterministic=deterministic,
         )
 
         if weight_grad is not None:

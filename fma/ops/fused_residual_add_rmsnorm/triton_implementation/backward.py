@@ -26,6 +26,7 @@ def fused_residual_add_rmsnorm_backward_triton_kernel(
     rmsnorm_denominator_ptr,
     B,
     H,
+    ATOMIC_ADD: tl.constexpr,
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
@@ -100,7 +101,10 @@ def fused_residual_add_rmsnorm_backward_triton_kernel(
             weight_grad += tl.sum(output_grad * (added_x_residual * inverse_rms[:, None]).to(x_dtype), axis=0)
 
     if weight_ptr is not None:
-        tl.atomic_add(weight_grad_ptr + indices_h, weight_grad, mask=mask_h, sem="relaxed")
+        if ATOMIC_ADD:
+            tl.atomic_add(weight_grad_ptr + indices_h, weight_grad, mask=mask_h, sem="relaxed")
+        else:
+            tl.store(weight_grad_ptr + pid * H + indices_h, weight_grad, mask=mask_h, sem="relaxed")
 
 
 @custom_op(
@@ -118,6 +122,7 @@ def fused_residual_add_rmsnorm_backward_triton(
     weight_grad: torch.Tensor | None,
     eps: float,
     multiplier: float | None,
+    deterministic: bool,
 ) -> None:
     B, H = get_num_elements_and_hidden_size(added_x_residual)
 
@@ -143,6 +148,7 @@ def fused_residual_add_rmsnorm_backward_triton(
             rmsnorm_denominator_ptr=rmsnorm_denominator,
             B=B,
             H=H,
+            ATOMIC_ADD=deterministic,
             BLOCK_SIZE_B=BLOCK_SIZE_B,
             BLOCK_SIZE_H=BLOCK_SIZE_H,
             num_warps=NUM_WARPS,
