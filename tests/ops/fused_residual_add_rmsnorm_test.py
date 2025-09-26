@@ -95,8 +95,8 @@ class FusedResdidualAddRMSNormTest(TestCommons):
             weight=weight_kernel,
             eps=_EPSILON,
             multiplier=multiplier,
-            deterministic=deterministic,
             memory_efficient=memory_efficient,
+            deterministic=deterministic,
         )
         z_kernel = z_kernel * 2 + r_kernel * 3
 
