@@ -8,7 +8,7 @@ import torch.nn.functional as F
 from ...counters import increment_counter
 from ...cutotune import CutoTuneParameter
 from ...enums import KernelBackend
-from ...utils import ensure_contiguous, get_num_elements_and_hidden_size
+from ...utils import ensure_contiguous, get_num_elements_and_hidden_size, get_sm_count
 from .triton_implementation import (
     fused_residual_add_rmsnorm_backward_triton,
     fused_residual_add_rmsnorm_forward_triton,
@@ -26,6 +26,7 @@ class _FusedResidualAddRMSNorm(torch.autograd.Function):
         eps: float | None,
         multiplier: float | None,
         memory_efficient: bool,
+        deterministic: bool,
         kernel_backend: KernelBackend,
     ) -> tuple[torch.Tensor, torch.Tensor | None]:
         assert kernel_backend == KernelBackend.triton or isinstance(kernel_backend, CutoTuneParameter)
@@ -64,6 +65,7 @@ class _FusedResidualAddRMSNorm(torch.autograd.Function):
         ctx.eps = eps
         ctx.has_residual = has_residual
         ctx.multiplier = multiplier
+        ctx.deterministic = deterministic
 
         return output, added_x_residual
 
@@ -71,11 +73,21 @@ class _FusedResidualAddRMSNorm(torch.autograd.Function):
     @ensure_contiguous
     def backward(ctx, output_grad: torch.Tensor, added_x_residual_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
         has_residual = ctx.has_residual
+        deterministic = ctx.deterministic
 
         added_x_residual, weight, rmsnorm_denominator = ctx.saved_tensors
         x_grad = torch.empty_like(added_x_residual)
         residual_grad = torch.empty_like(added_x_residual) if has_residual else None
-        weight_grad = None if weight is None else torch.zeros_like(weight, dtype=torch.float32)
+
+        if weight is not None:
+            if deterministic:
+                weight_grad = torch.empty(
+                    get_sm_count(x_grad.device), *weight.size(), dtype=weight.dtype, device=weight.device
+                )
+            else:
+                weight_grad = torch.zeros_like(weight, dtype=torch.float32)
+        else:
+            weight_grad = None
 
         if not has_residual:
             assert added_x_residual_grad is None
@@ -91,12 +103,16 @@ class _FusedResidualAddRMSNorm(torch.autograd.Function):
             weight_grad=weight_grad,
             eps=ctx.eps,
             multiplier=ctx.multiplier,
+            deterministic=deterministic,
         )
 
         if weight_grad is not None:
-            weight_grad = weight_grad.type_as(weight)
+            if deterministic:
+                weight_grad = weight_grad.sum(0)
+            else:
+                weight_grad = weight_grad.type_as(weight)
 
-        return x_grad, residual_grad, weight_grad, *[None] * 4
+        return x_grad, residual_grad, weight_grad, *[None] * 5
 
 
 def fused_residual_add_rmsnorm(
@@ -106,6 +122,7 @@ def fused_residual_add_rmsnorm(
     eps: float | None,
     multiplier: float | None = None,
     memory_efficient: bool = False,
+    deterministic: bool = False,
     kernel_backend: KernelBackend | CutoTuneParameter = KernelBackend.triton,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """fused residual add RMSNorm computation
@@ -118,6 +135,7 @@ def fused_residual_add_rmsnorm(
         multiplier (float | None, optional): if not None, pre-multiplies `x` with `multiplier`. Defaults to None.
         memory_efficient (bool, optional): memory efficient = False caches RMSNorm's denominator in the forward.
             Defaults to False.
+        deterministic (bool, optional): whether to use deterministic backward. Defaults to False.
 
     Returns:
         tuple[torch.Tensor, torch.Tensor]: output activations, updated residual stream
@@ -135,7 +153,7 @@ def fused_residual_add_rmsnorm(
     else:
         increment_counter(fused_residual_add_rmsnorm)
         x, residual = _FusedResidualAddRMSNorm.apply(
-            x, residual, weight, eps, multiplier, memory_efficient, kernel_backend
+            x, residual, weight, eps, multiplier, memory_efficient, deterministic, kernel_backend
         )
 
     return x, residual
