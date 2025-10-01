@@ -408,19 +408,23 @@ def gru(
                 output[offset_unfinished] = new_state
                 input_state[unfinished] = new_state
     else:
-        output = _GRU.apply(
-            input,
-            weight,
-            forget_input,
-            forget_weight,
-            reset_input,
-            reset_weight,
-            input_state,
-            gradient_clipping,
-            cu_seqlens,
-            max_seqlen,
-            kernel_backend,
-        )
+        if cu_seqlens is None:
+            output = _GRU.apply(
+                input, weight, forget_input, forget_weight, reset_input, reset_weight, input_state, gradient_clipping
+            )
+        else:
+            output = _GRU.apply(
+                input,
+                weight,
+                forget_input,
+                forget_weight,
+                reset_input,
+                reset_weight,
+                input_state,
+                gradient_clipping,
+                cu_seqlens,
+                max_seqlen,
+            )
 
     return output
 
