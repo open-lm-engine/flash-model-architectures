@@ -97,7 +97,6 @@ class _GRU(torch.autograd.Function):
             input_grad=input_grad,
             weight_grad=weight_grad,
             gradient_clipping=ctx.gradient_clipping,
-            output=output,
         )
 
         weight_grad = weight_grad.type_as(weight)
@@ -236,7 +235,6 @@ class _GRU_Varlen(torch.autograd.Function):
             input_grad=input_grad,
             weight_grad=weight_grad,
             gradient_clipping=ctx.gradient_clipping,
-            output=output,
             cu_seqlens=cu_seqlens,
             max_seqlen_tensor=max_seqlen if is_max_seqlen_tensor else None,
             max_seqlen=None if is_max_seqlen_tensor else max_seqlen,
