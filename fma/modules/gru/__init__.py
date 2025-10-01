@@ -75,7 +75,7 @@ class _GRU(torch.autograd.Function):
                 max_seqlen=None if is_max_seqlen_tensor else max_seqlen,
             )
 
-        ctx.save_for_backward(
+        tensors_to_save = (
             weight,
             forget_weight,
             forget_gate,
@@ -85,28 +85,51 @@ class _GRU(torch.autograd.Function):
             output,
             input_state,
             cu_seqlens,
-            max_seqlen,
         )
 
+        if is_max_seqlen_tensor:
+            ctx.save_for_backward(*tensors_to_save, max_seqlen)
+        else:
+            ctx.save_for_backward(*tensors_to_save)
+            ctx.max_seqlen = max_seqlen
+
         ctx.gradient_clipping = gradient_clipping
+        ctx.is_max_seqlen_tensor = is_max_seqlen_tensor
 
         return output
 
     @staticmethod
     @ensure_contiguous
     def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
-        (
-            weight,
-            forget_weight,
-            forget_gate,
-            reset_weight,
-            reset_gate,
-            output_update,
-            output,
-            input_state,
-            cu_seqlens,
-            max_seqlen,
-        ) = ctx.saved_tensors
+        is_max_seqlen_tensor = ctx.is_max_seqlen_tensor
+
+        if is_max_seqlen_tensor:
+            (
+                weight,
+                forget_weight,
+                forget_gate,
+                reset_weight,
+                reset_gate,
+                output_update,
+                output,
+                input_state,
+                cu_seqlens,
+                max_seqlen,
+            ) = ctx.saved_tensors
+        else:
+            (
+                weight,
+                forget_weight,
+                forget_gate,
+                reset_weight,
+                reset_gate,
+                output_update,
+                output,
+                input_state,
+                cu_seqlens,
+            ) = ctx.saved_tensors
+
+            max_seqlen = ctx.max_seqlen
 
         input_grad = torch.empty_like(output)
         forget_input_grad = torch.empty_like(output)
