@@ -70,7 +70,7 @@ def rnn_varlen_forward_triton_kernel(
         unfinished = start < end
         mask = unfinished & mask_h[None, :]
 
-        x = tl.load(x_ptr + BLOCK, mask=mask_bh)
+        x = tl.load(x_ptr + BLOCK, mask=mask)
         h = matmul(A=h, B=W, C=x, output_dtype=tl.float32)
         h = tanh(h, output_dtype=x.dtype)
         tl.store(y_ptr + BLOCK, h, mask=mask)
