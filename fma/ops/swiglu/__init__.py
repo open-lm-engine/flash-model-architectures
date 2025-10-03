@@ -41,22 +41,20 @@ class _Swiglu(torch.autograd.Function):
 
     @staticmethod
     @ensure_contiguous
-    def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
-        gate, up = ctx.saved_tensors
-        gate_grad = torch.empty_like(gate)
-        up_grad = torch.empty_like(up)
+    def backward(ctx, dy: torch.Tensor) -> tuple[torch.Tensor | None]:
+        g, u = ctx.saved_tensors
+        dg = torch.empty_like(g)
+        du = torch.empty_like(u)
         kernel_backend_backward = ctx.kernel_backend_backward
 
         if kernel_backend_backward == KernelBackend.cuda:
-            swiglu_backward_cuda(
-                gate=gate, up=up, output_grad=output_grad, gate_grad=gate_grad, up_grad=up_grad, BLOCK_SIZE=1024
-            )
+            swiglu_backward_cuda(gate=g, up=u, output_grad=dy, gate_grad=dg, up_grad=du, BLOCK_SIZE=1024)
         elif kernel_backend_backward == KernelBackend.triton:
-            swiglu_backward_triton(g=gate, up=up, output_grad=output_grad, dg=gate_grad, up_grad=up_grad)
+            swiglu_backward_triton(g=g, up=u, output_grad=dy, dg=dg, up_grad=du)
         else:
             raise ValueError("unexpected kernel_backend")
 
-        return gate_grad, up_grad, None, None
+        return dg, du, None, None
 
 
 class _SwigluPacked(torch.autograd.Function):
@@ -82,16 +80,16 @@ class _SwigluPacked(torch.autograd.Function):
 
     @staticmethod
     @ensure_contiguous
-    def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
+    def backward(ctx, dy: torch.Tensor) -> tuple[torch.Tensor | None]:
         x: torch.Tensor = ctx.saved_tensors[0]
-        x_grad = torch.empty_like(x)
+        dx = torch.empty_like(x)
 
-        up, gate = x.chunk(2, dim=-1)
-        up_grad, gate_grad = x_grad.chunk(2, dim=-1)
+        u, g = x.chunk(2, dim=-1)
+        du, dg = dx.chunk(2, dim=-1)
 
-        swiglu_backward_triton(g=gate, up=up, output_grad=output_grad, dg=gate_grad, up_grad=up_grad)
+        swiglu_backward_triton(g=g, up=u, output_grad=dy, dg=dg, up_grad=du)
 
-        return x_grad, None, None
+        return dx, None, None
 
 
 def swiglu(
