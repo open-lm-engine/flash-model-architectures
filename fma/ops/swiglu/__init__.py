@@ -52,7 +52,7 @@ class _Swiglu(torch.autograd.Function):
                 gate=gate, up=up, output_grad=output_grad, gate_grad=gate_grad, up_grad=up_grad, BLOCK_SIZE=1024
             )
         elif kernel_backend_backward == KernelBackend.triton:
-            swiglu_backward_triton(gate=gate, up=up, output_grad=output_grad, gate_grad=gate_grad, up_grad=up_grad)
+            swiglu_backward_triton(g=gate, up=up, output_grad=output_grad, dg=gate_grad, up_grad=up_grad)
         else:
             raise ValueError("unexpected kernel_backend")
 
@@ -89,7 +89,7 @@ class _SwigluPacked(torch.autograd.Function):
         up, gate = x.chunk(2, dim=-1)
         up_grad, gate_grad = x_grad.chunk(2, dim=-1)
 
-        swiglu_backward_triton(gate=gate, up=up, output_grad=output_grad, gate_grad=gate_grad, up_grad=up_grad)
+        swiglu_backward_triton(g=gate, up=up, output_grad=output_grad, dg=gate_grad, up_grad=up_grad)
 
         return x_grad, None, None
 
