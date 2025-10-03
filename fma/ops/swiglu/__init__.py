@@ -48,7 +48,7 @@ class _Swiglu(torch.autograd.Function):
         kernel_backend_backward = ctx.kernel_backend_backward
 
         if kernel_backend_backward == KernelBackend.cuda:
-            swiglu_backward_cuda(gate=g, up=u, dy=dy, gate_grad=dg, du=du, BLOCK_SIZE=1024)
+            swiglu_backward_cuda(gate=g, up=u, output_grad=dy, gate_grad=dg, up_grad=du, BLOCK_SIZE=1024)
         elif kernel_backend_backward == KernelBackend.triton:
             swiglu_backward_triton(g=g, up=u, dy=dy, dg=dg, du=du)
         else:
