@@ -18,8 +18,8 @@ def swiglu_backward_triton_kernel(
     g_ptr,
     g_stride_b,
     up_ptr,
-    output_grad_ptr,
-    output_grad_stride_b,
+    dy_ptr,
+    dy_stride_b,
     dg_ptr,
     up_grad_ptr,
     B,
@@ -38,18 +38,18 @@ def swiglu_backward_triton_kernel(
     mask = mask_b[:, None] & mask_h[None, :]
 
     indices_g = indices_b[:, None] * g_stride_b + indices_h[None, :]
-    indices_output = indices_b[:, None] * output_grad_stride_b + indices_h[None, :]
+    indices_output = indices_b[:, None] * dy_stride_b + indices_h[None, :]
 
     g = tl.load(g_ptr + indices_g, mask=mask).to(tl.float32)
     up = tl.load(up_ptr + indices_g, mask=mask)
 
-    output_grad = tl.load(output_grad_ptr + indices_output, mask=mask)
+    dy = tl.load(dy_ptr + indices_output, mask=mask)
 
     g_sigmoid = sigmoid(g)
     g_silu = g * g_sigmoid
 
-    dg = output_grad * up * (g_sigmoid + g_silu * (1 - g_sigmoid))
-    up_grad = output_grad * g_silu
+    dg = dy * up * (g_sigmoid + g_silu * (1 - g_sigmoid))
+    up_grad = dy * g_silu
 
     tl.store(dg_ptr + indices_g, dg, mask=mask)
     tl.store(up_grad_ptr + indices_g, up_grad, mask=mask)
@@ -59,7 +59,7 @@ def swiglu_backward_triton_kernel(
 def swiglu_backward_triton(
     g: torch.Tensor,
     up: torch.Tensor,
-    output_grad: torch.Tensor,
+    dy: torch.Tensor,
     dg: torch.Tensor,
     up_grad: torch.Tensor,
 ) -> None:
@@ -72,8 +72,8 @@ def swiglu_backward_triton(
             g_ptr=g,
             g_stride_b=g.stride(-2),
             up_ptr=up,
-            output_grad_ptr=output_grad,
-            output_grad_stride_b=output_grad.stride(-2),
+            dy_ptr=dy,
+            dy_stride_b=dy.stride(-2),
             dg_ptr=dg,
             up_grad_ptr=up_grad,
             B=B,
