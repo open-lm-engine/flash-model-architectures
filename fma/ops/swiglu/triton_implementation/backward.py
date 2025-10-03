@@ -21,7 +21,7 @@ def swiglu_backward_triton_kernel(
     dy_ptr,
     dy_stride_b,
     dg_ptr,
-    up_grad_ptr,
+    du_ptr,
     B,
     H,
     BLOCK_SIZE_B: tl.constexpr,
@@ -30,38 +30,38 @@ def swiglu_backward_triton_kernel(
     BLOCK_ID_B = tl.program_id(axis=0)
     BLOCK_ID_H = tl.program_id(axis=1)
 
-    indices_b = BLOCK_ID_B * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
-    indices_h = BLOCK_ID_H * BLOCK_SIZE_H + tl.arange(0, BLOCK_SIZE_H)
+    BLOCK_B = BLOCK_ID_B * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
+    BLOCK_H = BLOCK_ID_H * BLOCK_SIZE_H + tl.arange(0, BLOCK_SIZE_H)
 
-    mask_b = indices_b < B
-    mask_h = indices_h < H
-    mask = mask_b[:, None] & mask_h[None, :]
+    MASK_B = BLOCK_B < B
+    MASK_H = BLOCK_H < H
+    MASK = MASK_B[:, None] & MASK_H[None, :]
 
-    indices_g = indices_b[:, None] * g_stride_b + indices_h[None, :]
-    indices_output = indices_b[:, None] * dy_stride_b + indices_h[None, :]
+    indices_g = BLOCK_B[:, None] * g_stride_b + BLOCK_H[None, :]
+    indices_output = BLOCK_B[:, None] * dy_stride_b + BLOCK_H[None, :]
 
-    g = tl.load(g_ptr + indices_g, mask=mask).to(tl.float32)
-    up = tl.load(up_ptr + indices_g, mask=mask)
+    g = tl.load(g_ptr + indices_g, mask=MASK).to(tl.float32)
+    up = tl.load(up_ptr + indices_g, mask=MASK)
 
-    dy = tl.load(dy_ptr + indices_output, mask=mask)
+    dy = tl.load(dy_ptr + indices_output, mask=MASK)
 
     g_sigmoid = sigmoid(g)
     g_silu = g * g_sigmoid
 
     dg = dy * up * (g_sigmoid + g_silu * (1 - g_sigmoid))
-    up_grad = dy * g_silu
+    du = dy * g_silu
 
-    tl.store(dg_ptr + indices_g, dg, mask=mask)
-    tl.store(up_grad_ptr + indices_g, up_grad, mask=mask)
+    tl.store(dg_ptr + indices_g, dg, mask=MASK)
+    tl.store(du_ptr + indices_g, du, mask=MASK)
 
 
-@custom_op(f"{LIBRARY_NAME}::swiglu_backward_triton", mutates_args={"dg", "up_grad"})
+@custom_op(f"{LIBRARY_NAME}::swiglu_backward_triton", mutates_args={"dg", "du"})
 def swiglu_backward_triton(
     g: torch.Tensor,
     up: torch.Tensor,
     dy: torch.Tensor,
     dg: torch.Tensor,
-    up_grad: torch.Tensor,
+    du: torch.Tensor,
 ) -> None:
     B, H = get_num_elements_and_hidden_size(g)
     BLOCK_SIZE_B = 64
@@ -75,7 +75,7 @@ def swiglu_backward_triton(
             dy_ptr=dy,
             dy_stride_b=dy.stride(-2),
             dg_ptr=dg,
-            up_grad_ptr=up_grad,
+            du_ptr=du,
             B=B,
             H=H,
             BLOCK_SIZE_B=BLOCK_SIZE_B,
