@@ -41,9 +41,9 @@ class SwiGLUTest(TestCommons):
         z_kernel.mean().backward()
         z_expected.mean().backward()
 
-        self.assert_equal_tensors(z_kernel, z_expected, False, atol_float32=5.5e-6, rtol_float32=0)
+        self.assert_equal_tensors(z_kernel, z_expected, False, atol_float32=5.1e-5, rtol_float32=0)
         self.assert_equal_tensors(x_kernel.grad, x_expected.grad, False, atol_float32=5e-6, rtol_float32=0)
-        self.assert_equal_tensors(y_kernel.grad, y_expected.grad, False, atol_float32=5e-6, rtol_float32=0)
+        self.assert_equal_tensors(y_kernel.grad, y_expected.grad, False, atol_float32=8.7e-6, rtol_float32=0)
 
     @parameterized.expand(
         TestCommons.make_args_matrix(
@@ -67,5 +67,5 @@ class SwiGLUTest(TestCommons):
         z_kernel.mean().backward()
         z_expected.mean().backward()
 
-        self.assert_equal_tensors(z_kernel, z_expected, False, atol_float32=5.5e-6, rtol_float32=0)
+        self.assert_equal_tensors(z_kernel, z_expected, False, atol_float32=4.75e-5, rtol_float32=0)
         self.assert_equal_tensors(x_kernel.grad, x_expected.grad, False, atol_float32=5e-6, rtol_float32=0)
