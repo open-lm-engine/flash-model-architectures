@@ -18,25 +18,13 @@ def clamp(x, min_value, max_value):
 
 
 @triton.jit
-def sigmoid(
-    x,
-    MIN_EXP_FP32: tl.constexpr = -88.3762626647949,
-    MAX_EXP_FP32: tl.constexpr = 88.3762626647949,
-    output_dtype: tl.constexpr = None,
-    APPROXIMATE: tl.constexpr = False,
-):
+def sigmoid(x, output_dtype: tl.constexpr = None):
     if output_dtype is None:
         output_dtype = x.dtype
 
     x = x.to(tl.float32)
-
-    if APPROXIMATE:
-        x = tanh(0.5 * x, output_dtype=tl.float32, APPROXIMATE=True)
-        x = 0.5 * x + 0.5
-    else:
-        x = clamp(x, min_value=MIN_EXP_FP32, max_value=MAX_EXP_FP32)
-        x = 1 / (1 + tl.exp(-x))
-
+    x = tanh(0.5 * x, output_dtype=tl.float32)
+    x = 0.5 * x + 0.5
     x = x.to(output_dtype)
 
     return x
@@ -54,17 +42,12 @@ def sigmoid_backward(y):
 
 
 @triton.jit
-def tanh(x, output_dtype: tl.constexpr = None, APPROXIMATE: tl.constexpr = False):
+def tanh(x, output_dtype: tl.constexpr = None):
     if output_dtype is None:
         output_dtype = x.dtype
 
     x = x.to(tl.float32)
-
-    if APPROXIMATE:
-        x = tl.inline_asm_elementwise("tanh.approx.f32 $0, $1;", "=f,f", [x], dtype=tl.float32, is_pure=True, pack=1)
-    else:
-        x = 2 * sigmoid(2 * x, APPROXIMATE=False) - 1
-
+    x = tl.inline_asm_elementwise("tanh.approx.f32 $0, $1;", "=f,f", [x], dtype=tl.float32, is_pure=True, pack=1)
     x = x.to(output_dtype)
 
     return x
