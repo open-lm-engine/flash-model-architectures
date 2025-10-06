@@ -22,7 +22,7 @@ def sigmoid(x, output_dtype: tl.constexpr = None):
     if output_dtype is None:
         output_dtype = x.dtype
 
-    x = tanh(0.5 * x, output_dtype=x.dtype)
+    x = tanh(0.5 * x, output_dtype=tl.float32)
     x = 0.5 * x + 0.5
 
     x = x.to(output_dtype)
@@ -121,8 +121,9 @@ def matmul(A, B, C, output_dtype: tl.constexpr):
             else:
                 x = tl.dot(A, B, out_dtype=output_dtype)
         elif C.shape[0] == 1 or C.shape[1] == 1:
-            x = tl.dot(A, B, out_dtype=output_dtype)
+            x = tl.dot(A, B, out_dtype=tl.float32)
             x += C
+            x = x.to(output_dtype)
         else:
             x = tl.dot(A, B, C.to(tl.float32), out_dtype=tl.float32).to(output_dtype)
 
