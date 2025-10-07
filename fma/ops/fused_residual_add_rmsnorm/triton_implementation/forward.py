@@ -50,13 +50,13 @@ def fused_residual_add_rmsnorm_forward_triton_kernel(
     if added_x_residual_ptr is not None:
         tl.store(added_x_residual_ptr + indices_bh, x, mask=mask_bh)
 
-    squared_sum = tl.sum(x * x, axis=1)
-    inverse_rms = tl.rsqrt((squared_sum / H) + eps)
+    r = tl.sum(x * x, axis=1)
+    r = tl.rsqrt((r / H) + eps)
 
     if rmsnorm_denominator_ptr is not None:
-        tl.store(rmsnorm_denominator_ptr + indices_b, inverse_rms, mask=mask_b)
+        tl.store(rmsnorm_denominator_ptr + indices_b, r, mask=mask_b)
 
-    x *= inverse_rms[:, None]
+    x *= r[:, None]
 
     if weight_ptr is not None:
         weight = tl.load(weight_ptr + indices_h, mask=mask_h)

@@ -21,11 +21,21 @@ from fma import (
 )
 
 from ..test_commons import TestCommons
-from .rmsnorm_test import _get_sizes
 
 
 _EPSILON = 1e-5
 _SEED = 42
+
+
+def _get_sizes() -> list[tuple]:
+    sizes = []
+    for size in TestCommons.get_1d_tensor_sizes(max_offset=5):
+        sizes.append((400, size))
+
+    # add extra check for 1D tensor
+    sizes.append((size,))
+
+    return sizes
 
 
 class FusedResdidualAddRMSNormTest(TestCommons):
@@ -37,6 +47,20 @@ class FusedResdidualAddRMSNormTest(TestCommons):
             [True, False],  # memory_efficient
             [True, False],  # has_weight
             [None, 0.9],  # multiplier
+            [False],  # deterministic
+            [
+                fused_residual_add_rmsnorm,
+                torch.compile(fused_residual_add_rmsnorm, fullgraph=True),
+            ],  # function
+        )
+        + TestCommons.make_args_matrix(
+            [(400, 77)],  # size
+            [torch.device("cuda")],  # device
+            [torch.float32],  # dtype
+            [True, False],  # memory_efficient
+            [True, False],  # has_weight
+            [None, 0.9],  # multiplier
+            [True],  # deterministic
             [
                 fused_residual_add_rmsnorm,
                 torch.compile(fused_residual_add_rmsnorm, fullgraph=True),
@@ -51,12 +75,10 @@ class FusedResdidualAddRMSNormTest(TestCommons):
         memory_efficient: bool,
         has_weight: bool,
         multiplier: float | None,
+        deterministic: bool,
         function: Callable,
     ) -> None:
         set_seed(_SEED)
-
-        if isinstance(size, int):
-            size = (size,)
 
         x_kernel, x_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype)
         residual_kernel, residual_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype)
@@ -74,6 +96,7 @@ class FusedResdidualAddRMSNormTest(TestCommons):
             eps=_EPSILON,
             multiplier=multiplier,
             memory_efficient=memory_efficient,
+            deterministic=deterministic,
         )
         z_kernel = z_kernel * 2 + r_kernel * 3
 

@@ -13,18 +13,11 @@ from parameterized import parameterized
 from fma import KernelBackend, enable_counters, enable_kernels, get_counter_value, reset_counters, rmsnorm, set_seed
 
 from ..test_commons import TestCommons
+from .fused_residual_add_rmsnorm_test import _get_sizes
 
 
 _EPSILON = 1e-5
 _SEED = 42
-
-
-def _get_sizes() -> list[tuple]:
-    sizes = []
-    for size in TestCommons.get_1d_tensor_sizes():
-        sizes.append((size,))
-        sizes.append((400, size))
-    return sizes
 
 
 class RMSNormTest(TestCommons):
@@ -35,6 +28,16 @@ class RMSNormTest(TestCommons):
             [torch.float32, torch.float16],  # dtype
             [True, False],  # memory_efficient
             [True, False],  # has_weight
+            [False],  # deterministic
+            [rmsnorm, torch.compile(rmsnorm, fullgraph=True)],  # function
+        )
+        + TestCommons.make_args_matrix(
+            [(400, 77)],  # size
+            [torch.device("cuda")],  # device
+            [torch.float32, torch.float16],  # dtype
+            [True, False],  # memory_efficient
+            [True, False],  # has_weight
+            [True],  # deterministic
             [rmsnorm, torch.compile(rmsnorm, fullgraph=True)],  # function
         )
     )
@@ -45,12 +48,10 @@ class RMSNormTest(TestCommons):
         dtype: torch.dtype,
         memory_efficient: bool,
         has_weight: bool,
+        deterministic: bool,
         function: Callable,
     ) -> None:
         set_seed(_SEED)
-
-        if isinstance(size, int):
-            size = (size,)
 
         x_kernel, x_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype)
 
@@ -60,7 +61,14 @@ class RMSNormTest(TestCommons):
             weight_kernel = None
             weight_expected = None
 
-        z_kernel = function(x=x_kernel, weight=weight_kernel, eps=_EPSILON, memory_efficient=memory_efficient)
+        z_kernel = function(
+            x=x_kernel,
+            weight=weight_kernel,
+            eps=_EPSILON,
+            memory_efficient=memory_efficient,
+            deterministic=deterministic,
+        )
+
         z_expected = rmsnorm(x=x_expected, weight=weight_expected, eps=_EPSILON, kernel_backend=KernelBackend.torch)
 
         z_kernel.sum().backward()

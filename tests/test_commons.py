@@ -27,28 +27,32 @@ class TestCommons(TestCase):
         return [torch.float32, torch.float16, torch.bfloat16]
 
     @staticmethod
-    def get_1d_tensor_sizes() -> list[tuple[int]]:
+    def get_1d_tensor_sizes(
+        log_max_power_of_2: int = 15, max_offset: int = 10, num_not_powers_of_2: int = 50
+    ) -> set[int]:
         sizes = set()
         # powers of 2
-        for i in range(15):
+        for i in range(log_max_power_of_2):
             start = 2**i
-            for j in range(10):
+            for j in range(max_offset):
                 sizes.add(start + j)
         # not powers of 2
-        for _ in range(50):
+        for _ in range(num_not_powers_of_2):
             sizes.add(3000 + random.randint(-1000, 1000))
         return sizes
 
     @staticmethod
-    def get_2d_tensor_sizes() -> list[tuple[int]]:
+    def get_2d_tensor_sizes(
+        log_max_power_of_2: int = 15, max_offset: int = 10, num_not_powers_of_2: int = 50
+    ) -> set[int]:
         sizes = set()
         # powers of 2
-        for i in range(15):
+        for i in range(log_max_power_of_2):
             start = 2**i
-            for j in range(10):
+            for j in range(max_offset):
                 sizes.add((start + j, start + j))
         # not powers of 2
-        for _ in range(50):
+        for _ in range(num_not_powers_of_2):
             sizes.add((3000 + random.randint(-1000, 1000), 3000 + random.randint(-1000, 1000)))
         return sizes
 

@@ -17,9 +17,9 @@ from ...rnn.triton_implementation.forward import _get_autotune_configs
 @triton.jit
 def gru_varlen_forward_triton_kernel(
     x_ptr,
-    x_stride_t,
+    x_stride,
     W_ptr,
-    W_stride_n,
+    W_stride,
     xf_ptr,
     Wf_ptr,
     f_ptr,
@@ -28,7 +28,7 @@ def gru_varlen_forward_triton_kernel(
     r_ptr,
     z_ptr,
     h0_ptr,
-    h0_stride_b,
+    h0_stride,
     y_ptr,
     cu_seqlens_ptr,
     IS_MAX_SEQLEN_TENSOR: tl.constexpr,
@@ -38,30 +38,33 @@ def gru_varlen_forward_triton_kernel(
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
-    pid_b = tl.program_id(axis=0)
-    pid_n = tl.program_id(axis=1)
+    BLOCK_ID_B = tl.program_id(axis=0)
+    BLOCK_ID_N = tl.program_id(axis=1)
 
-    indices_b = pid_b * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
-    indices_h = tl.arange(0, BLOCK_SIZE_H)
+    BLOCK_B = BLOCK_ID_B * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
+    BLOCK_H = tl.arange(0, BLOCK_SIZE_H)
 
-    mask_b = indices_b < B
-    mask_h = indices_h < H
+    mask_b = BLOCK_B < B
+    mask_h = BLOCK_H < H
 
     mask_bh = mask_b[:, None] & mask_h[None, :]
     mask_hh = mask_h[:, None] & mask_h[None, :]
 
-    indices = pid_n * W_stride_n + indices_h[:, None] * H + indices_h[None, :]
+    BLOCK = BLOCK_ID_N * W_stride[0] + BLOCK_H[:, None] * W_stride[1] + BLOCK_H[None, :] * W_stride[2]
 
-    W = tl.load(W_ptr + indices, mask=mask_hh)
-    Wf = tl.load(Wf_ptr + indices, mask=mask_hh)
-    Wr = tl.load(Wr_ptr + indices, mask=mask_hh)
+    W = tl.load(W_ptr + BLOCK, mask=mask_hh)
+    Wf = tl.load(Wf_ptr + BLOCK, mask=mask_hh)
+    Wr = tl.load(Wr_ptr + BLOCK, mask=mask_hh)
 
     if h0_ptr is None:
         h = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=x_ptr.dtype.element_ty)
     else:
-        h = tl.load(h0_ptr + indices_b[:, None] * h0_stride_b + pid_n * H + indices_h[None, :], mask=mask_bh)
+        h = tl.load(
+            h0_ptr + BLOCK_B[:, None] * h0_stride[0] + BLOCK_ID_N * h0_stride[1] + BLOCK_H[None, :] * h0_stride[2],
+            mask=mask_bh,
+        )
 
-    cu_seqlens_ptrs = cu_seqlens_ptr + indices_b[:, None]
+    cu_seqlens_ptrs = cu_seqlens_ptr + BLOCK_B[:, None]
     start = tl.load(cu_seqlens_ptrs, mask=mask_b[:, None])
     end = tl.load(cu_seqlens_ptrs + 1, mask=mask_b[:, None])
 
@@ -70,31 +73,31 @@ def gru_varlen_forward_triton_kernel(
     else:
         max_seqlen = max_seqlen_ptr
 
-    indices = start * x_stride_t + pid_n * H + indices_h[None, :]
+    BLOCK = start * x_stride[0] + BLOCK_ID_N * x_stride[1] + BLOCK_H[None, :] * x_stride[2]
 
     for _ in range(max_seqlen):
         unfinished = start < end
         mask = unfinished & mask_h[None, :]
 
-        x = tl.load(xr_ptr + indices, mask=mask)
+        x = tl.load(xr_ptr + BLOCK, mask=mask)
         r = matmul(A=h, B=Wr, C=x, output_dtype=tl.float32)
         r = sigmoid(r, output_dtype=x.dtype)
-        tl.store(r_ptr + indices, r, mask=mask)
+        tl.store(r_ptr + BLOCK, r, mask=mask)
 
-        x = tl.load(x_ptr + indices, mask=mask)
+        x = tl.load(x_ptr + BLOCK, mask=mask)
         z = matmul(A=h * r, B=W, C=x, output_dtype=tl.float32)
         z = tanh(z, output_dtype=x.dtype)
-        tl.store(z_ptr + indices, z, mask=mask)
+        tl.store(z_ptr + BLOCK, z, mask=mask)
 
-        x = tl.load(xf_ptr + indices, mask=mask)
+        x = tl.load(xf_ptr + BLOCK, mask=mask)
         f = matmul(A=h, B=Wf, C=x, output_dtype=tl.float32)
         f = sigmoid(f, output_dtype=x.dtype)
-        tl.store(f_ptr + indices, f, mask=mask)
+        tl.store(f_ptr + BLOCK, f, mask=mask)
 
         h = f * h + (1 - f) * z
-        tl.store(y_ptr + indices, h, mask=mask)
+        tl.store(y_ptr + BLOCK, h, mask=mask)
 
-        indices += x_stride_t
+        BLOCK += x_stride[0]
         start += 1
 
 
@@ -129,9 +132,9 @@ def gru_varlen_forward_triton(
     with torch.device(input.device):
         gru_varlen_forward_triton_kernel[GRID](
             x_ptr=input,
-            x_stride_t=input.stride(0),
+            x_stride=input.stride(),
             W_ptr=weight,
-            W_stride_n=weight.stride(0),
+            W_stride=weight.stride(),
             xf_ptr=forget_input,
             Wf_ptr=forget_weight,
             f_ptr=forget_gate,
@@ -140,7 +143,7 @@ def gru_varlen_forward_triton(
             r_ptr=reset_gate,
             z_ptr=output_update,
             h0_ptr=input_state,
-            h0_stride_b=None if input_state is None else input_state.stride(0),
+            h0_stride=None if input_state is None else input_state.stride(),
             y_ptr=output,
             cu_seqlens_ptr=cu_seqlens,
             IS_MAX_SEQLEN_TENSOR=is_max_seqlen_tensor,
