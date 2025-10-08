@@ -28,7 +28,7 @@ def _load_x(x_ptr, h, H, BLOCK_SIZE_H, BLOCK_B, MASK_B, other=None):
 @triton.jit
 def softmax_forward_triton_kernel(
     x_ptr,
-    output_ptr,
+    y_ptr,
     logits_multiplier,
     B,
     H,
@@ -73,7 +73,7 @@ def softmax_forward_triton_kernel(
         x = tl.exp(x)
         x /= Z
 
-        tl.store(output_ptr + BLOCK, x, mask=MASK_BH)
+        tl.store(y_ptr + BLOCK, x, mask=MASK_BH)
 
 
 @custom_op(f"{LIBRARY_NAME}::softmax_forward_triton", mutates_args={"output"})
@@ -90,7 +90,7 @@ def softmax_forward_triton(x: torch.Tensor, output: torch.Tensor, logits_multipl
     with torch.device(x.device):
         softmax_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](
             x_ptr=x,
-            output_ptr=output,
+            y_ptr=output,
             logits_multiplier=logits_multiplier,
             B=B,
             H=H,
