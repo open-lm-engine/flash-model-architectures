@@ -48,15 +48,14 @@ def softmax_backward_triton_kernel(
     accumulator = tl.zeros((BLOCK_SIZE_B, 1), dtype=tl.float32)
     NUM_BLOCKS_H = tl.cdiv(H, BLOCK_SIZE_H)
     BLOCK_H = tl.arange(0, BLOCK_SIZE_H)
+    y_ptrs = y_ptr + BLOCK_B[:, None] * y_stride[0] + BLOCK_H[None, :] * y_stride[1]
+    dy_ptrs = dy_ptr + BLOCK_B[:, None] * dy_stride[0] + BLOCK_H[None, :] * dy_stride[1]
 
-    for h in range(NUM_BLOCKS_H):
+    for _ in range(NUM_BLOCKS_H):
         MASK_H = BLOCK_H < H
         MASK_BH = MASK_B[:, None] & MASK_H[None, :]
 
-        y_ptrs = y_ptr + BLOCK_B[:, None] * y_stride[0] + BLOCK_H[None, :] * y_stride[1]
         y = tl.load(y_ptrs, mask=MASK_BH)
-
-        dy_ptrs = dy_ptr + BLOCK_B[:, None] * dy_stride[0] + BLOCK_H[None, :] * dy_stride[1]
         dy = tl.load(dy_ptrs, mask=MASK_BH)
 
         acc = dy * y
@@ -64,24 +63,32 @@ def softmax_backward_triton_kernel(
         accumulator += tl.sum(acc, axis=1, keep_dims=True)
 
         BLOCK_H += BLOCK_SIZE_H
+        y_ptrs += BLOCK_SIZE_H * y_stride[1]
+        dy_ptrs += BLOCK_SIZE_H * dy_stride[1]
 
-    for h in range(NUM_BLOCKS_H):
-        y, dy, BLOCK, MASK_BH = _load_y_dy(
-            y_ptr=y_ptr,
-            dy_ptr=dy_ptr,
-            h=h,
-            H=H,
-            BLOCK_SIZE_H=BLOCK_SIZE_H,
-            BLOCK_B=BLOCK_B,
-            MASK_B=MASK_B,
-        )
+    BLOCK_H = tl.arange(0, BLOCK_SIZE_H)
+    y_ptrs = y_ptr + BLOCK_B[:, None] * y_stride[0] + BLOCK_H[None, :] * y_stride[1]
+    dy_ptrs = dy_ptr + BLOCK_B[:, None] * dy_stride[0] + BLOCK_H[None, :] * dy_stride[1]
+    dx_ptrs = dx_ptr + BLOCK_B[:, None] * dx_stride[0] + BLOCK_H[None, :] * dx_stride[1]
+
+    for _ in range(NUM_BLOCKS_H):
+        MASK_H = BLOCK_H < H
+        MASK_BH = MASK_B[:, None] & MASK_H[None, :]
+
+        y = tl.load(y_ptrs, mask=MASK_BH)
+        dy = tl.load(dy_ptrs, mask=MASK_BH)
 
         dy -= accumulator
         y *= dy
         if logits_multiplier is not None:
             y *= logits_multiplier
 
-        tl.store(dx_ptr + BLOCK, y, mask=MASK_BH)
+        tl.store(dx_ptrs, y, mask=MASK_BH)
+
+        BLOCK_H += BLOCK_SIZE_H
+        y_ptrs += BLOCK_SIZE_H * y_stride[1]
+        dy_ptrs += BLOCK_SIZE_H * dy_stride[1]
+        dx_ptrs += BLOCK_SIZE_H * dx_stride[1]
 
 
 @custom_op(f"{LIBRARY_NAME}::softmax_backward_triton", mutates_args={"x_grad"})
