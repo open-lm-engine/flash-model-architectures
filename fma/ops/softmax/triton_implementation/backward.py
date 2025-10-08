@@ -13,7 +13,7 @@ from ....utils import get_num_elements_and_hidden_size
 
 
 @triton.jit
-def _load_y_y_grad(y_ptr, y_grad_ptr, h, H, BLOCK_SIZE_H, BLOCK_B, MASK_B):
+def _load_y_dy(y_ptr, dy_ptr, h, H, BLOCK_SIZE_H, BLOCK_B, MASK_B):
     BLOCK_H = h * BLOCK_SIZE_H + tl.arange(0, BLOCK_SIZE_H)
     MASK_H = BLOCK_H < H
 
@@ -21,15 +21,15 @@ def _load_y_y_grad(y_ptr, y_grad_ptr, h, H, BLOCK_SIZE_H, BLOCK_B, MASK_B):
     MASK_BH = MASK_B[:, None] & MASK_H[None, :]
 
     y = tl.load(y_ptr + BLOCK, mask=MASK_BH)
-    y_grad = tl.load(y_grad_ptr + BLOCK, mask=MASK_BH)
+    dy = tl.load(dy_ptr + BLOCK, mask=MASK_BH)
 
-    return y, y_grad, BLOCK, MASK_BH
+    return y, dy, BLOCK, MASK_BH
 
 
 @triton.jit
 def softmax_backward_triton_kernel(
     y_ptr,
-    y_grad_ptr,
+    dy_ptr,
     x_grad_ptr,
     logits_multiplier,
     B,
@@ -46,9 +46,9 @@ def softmax_backward_triton_kernel(
     NUM_BLOCKS_H = tl.cdiv(H, BLOCK_SIZE_H)
 
     for h in range(NUM_BLOCKS_H):
-        y, y_grad, BLOCK, MASK_BH = _load_y_y_grad(
+        y, dy, BLOCK, MASK_BH = _load_y_dy(
             y_ptr=y_ptr,
-            y_grad_ptr=y_grad_ptr,
+            dy_ptr=dy_ptr,
             h=h,
             H=H,
             BLOCK_SIZE_H=BLOCK_SIZE_H,
@@ -56,14 +56,14 @@ def softmax_backward_triton_kernel(
             MASK_B=MASK_B,
         )
 
-        acc = y_grad * y
+        acc = dy * y
         acc = acc.to(tl.float32)
         accumulator += tl.sum(acc, axis=1, keep_dims=True)
 
     for h in range(NUM_BLOCKS_H):
-        y, y_grad, BLOCK, MASK_BH = _load_y_y_grad(
+        y, dy, BLOCK, MASK_BH = _load_y_dy(
             y_ptr=y_ptr,
-            y_grad_ptr=y_grad_ptr,
+            dy_ptr=dy_ptr,
             h=h,
             H=H,
             BLOCK_SIZE_H=BLOCK_SIZE_H,
@@ -71,8 +71,8 @@ def softmax_backward_triton_kernel(
             MASK_B=MASK_B,
         )
 
-        y_grad -= accumulator
-        y *= y_grad
+        dy -= accumulator
+        y *= dy
         if logits_multiplier is not None:
             y *= logits_multiplier
 
@@ -91,7 +91,7 @@ def softmax_backward_triton(
     with torch.device(x_grad.device):
         softmax_backward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](
             y_ptr=output,
-            y_grad_ptr=output_grad,
+            dy_ptr=output_grad,
             x_grad_ptr=x_grad,
             logits_multiplier=logits_multiplier,
             B=B,
