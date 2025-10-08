@@ -29,8 +29,11 @@ def _load_y_dy(y_ptr, dy_ptr, h, H, BLOCK_SIZE_H, BLOCK_B, MASK_B):
 @triton.jit
 def softmax_backward_triton_kernel(
     y_ptr,
+    y_stride,
     dy_ptr,
-    x_grad_ptr,
+    dy_stride,
+    dx_ptr,
+    dx_stride,
     logits_multiplier,
     B,
     H,
@@ -44,21 +47,23 @@ def softmax_backward_triton_kernel(
 
     accumulator = tl.zeros((BLOCK_SIZE_B, 1), dtype=tl.float32)
     NUM_BLOCKS_H = tl.cdiv(H, BLOCK_SIZE_H)
+    BLOCK_H = tl.arange(0, BLOCK_SIZE_H)
 
     for h in range(NUM_BLOCKS_H):
-        y, dy, BLOCK, MASK_BH = _load_y_dy(
-            y_ptr=y_ptr,
-            dy_ptr=dy_ptr,
-            h=h,
-            H=H,
-            BLOCK_SIZE_H=BLOCK_SIZE_H,
-            BLOCK_B=BLOCK_B,
-            MASK_B=MASK_B,
-        )
+        MASK_H = BLOCK_H < H
+        MASK_BH = MASK_B[:, None] & MASK_H[None, :]
+
+        y_ptrs = y_ptr + BLOCK_B[:, None] * y_stride[0] + BLOCK_H[None, :] * y_stride[1]
+        y = tl.load(y_ptrs, mask=MASK_BH)
+
+        dy_ptrs = dy_ptr + BLOCK_B[:, None] * dy_stride[0] + BLOCK_H[None, :] * dy_stride[1]
+        dy = tl.load(dy_ptrs, mask=MASK_BH)
 
         acc = dy * y
         acc = acc.to(tl.float32)
         accumulator += tl.sum(acc, axis=1, keep_dims=True)
+
+        BLOCK_H += BLOCK_SIZE_H
 
     for h in range(NUM_BLOCKS_H):
         y, dy, BLOCK, MASK_BH = _load_y_dy(
@@ -91,8 +96,11 @@ def softmax_backward_triton(
     with torch.device(x_grad.device):
         softmax_backward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](
             y_ptr=output,
+            y_stride=output.stride(),
             dy_ptr=output_grad,
-            x_grad_ptr=x_grad,
+            dy_stride=output_grad.stride(),
+            dx_ptr=x_grad,
+            dx_stride=x_grad.stride(),
             logits_multiplier=logits_multiplier,
             B=B,
             H=H,
