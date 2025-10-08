@@ -13,16 +13,16 @@ from ....utils import get_num_elements_and_hidden_size
 
 
 @triton.jit
-def _load_x(x_ptr, h, H, BLOCK_SIZE_H, indices_b, mask_b, other=None):
-    indices_h = h * BLOCK_SIZE_H + tl.arange(0, BLOCK_SIZE_H)
-    mask_h = indices_h < H
+def _load_x(x_ptr, h, H, BLOCK_SIZE_H, BLOCK_B, MASK_B, other=None):
+    BLOCK_H = h * BLOCK_SIZE_H + tl.arange(0, BLOCK_SIZE_H)
+    MASK_H = BLOCK_H < H
 
-    indices = indices_b[:, None] * H + indices_h[None, :]
-    mask_bh = mask_b[:, None] & mask_h[None, :]
+    BLOCK = BLOCK_B[:, None] * H + BLOCK_H[None, :]
+    MASK_BH = MASK_B[:, None] & MASK_H[None, :]
 
-    x = tl.load(x_ptr + indices, mask=mask_bh, other=other)
+    x = tl.load(x_ptr + BLOCK, mask=MASK_BH, other=other)
 
-    return x, indices, mask_bh
+    return x, BLOCK, MASK_BH
 
 
 @triton.jit
@@ -35,10 +35,10 @@ def softmax_forward_triton_kernel(
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
-    pid = tl.program_id(axis=0)
+    BLOCK_ID = tl.program_id(axis=0)
 
-    indices_b = pid * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
-    mask_b = indices_b < B
+    BLOCK_B = BLOCK_ID * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
+    MASK_B = BLOCK_B < B
 
     Z = tl.zeros((BLOCK_SIZE_B, 1), dtype=tl.float32)
     M = tl.full((BLOCK_SIZE_B, 1), -float("inf"), dtype=tl.float32)
@@ -46,8 +46,8 @@ def softmax_forward_triton_kernel(
     num_blocks_h = tl.cdiv(H, BLOCK_SIZE_H)
 
     for h in range(num_blocks_h):
-        x, indices, mask_bh = _load_x(
-            x_ptr=x_ptr, h=h, H=H, BLOCK_SIZE_H=BLOCK_SIZE_H, indices_b=indices_b, mask_b=mask_b, other=-float("inf")
+        x, BLOCK, MASK_BH = _load_x(
+            x_ptr=x_ptr, h=h, H=H, BLOCK_SIZE_H=BLOCK_SIZE_H, BLOCK_B=BLOCK_B, MASK_B=MASK_B, other=-float("inf")
         )
 
         x = x.to(tl.float32)
@@ -63,9 +63,7 @@ def softmax_forward_triton_kernel(
         Z = Z * tl.exp(prev_m - M) + tl.sum(x, axis=1, keep_dims=True)
 
     for h in range(num_blocks_h):
-        x, indices, mask_bh = _load_x(
-            x_ptr=x_ptr, h=h, H=H, BLOCK_SIZE_H=BLOCK_SIZE_H, indices_b=indices_b, mask_b=mask_b
-        )
+        x, BLOCK, MASK_BH = _load_x(x_ptr=x_ptr, h=h, H=H, BLOCK_SIZE_H=BLOCK_SIZE_H, BLOCK_B=BLOCK_B, MASK_B=MASK_B)
 
         x = x.to(tl.float32)
         if logits_multiplier is not None:
@@ -75,7 +73,7 @@ def softmax_forward_triton_kernel(
         x = tl.exp(x)
         x /= Z
 
-        tl.store(output_ptr + indices, x, mask=mask_bh)
+        tl.store(output_ptr + BLOCK, x, mask=MASK_BH)
 
 
 @custom_op(f"{LIBRARY_NAME}::softmax_forward_triton", mutates_args={"output"})
