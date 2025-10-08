@@ -14,11 +14,7 @@ from .triton_implementation import softmax_backward_triton, softmax_forward_trit
 class _Softmax(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
-    def forward(
-        ctx, x: torch.Tensor, logits_multiplier: float | None, kernel_backend: KernelBackend | CutoTuneParameter
-    ) -> torch.Tensor:
-        assert kernel_backend == KernelBackend.triton or isinstance(kernel_backend, CutoTuneParameter)
-
+    def forward(ctx, x: torch.Tensor, logits_multiplier: float | None) -> torch.Tensor:
         output = torch.empty_like(x)
 
         softmax_forward_triton(x=x, output=output, logits_multiplier=logits_multiplier)
@@ -38,7 +34,7 @@ class _Softmax(torch.autograd.Function):
             output=output, output_grad=output_grad, x_grad=x_grad, logits_multiplier=ctx.logits_multiplier
         )
 
-        return x_grad, None, None
+        return x_grad, None
 
 
 def softmax(
@@ -70,6 +66,7 @@ def softmax(
 
         x = x.to(dtype)
     else:
-        x = _Softmax.apply(x, logits_multiplier, kernel_backend)
+        assert kernel_backend == KernelBackend.triton
+        x = _Softmax.apply(x, logits_multiplier)
 
     return x
