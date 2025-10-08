@@ -30,6 +30,7 @@ def softmax_forward_triton_kernel(
     x_ptr,
     x_stride,
     y_ptr,
+    y_stride,
     logits_multiplier,
     B,
     H,
