@@ -81,7 +81,7 @@ def softmax_backward_triton_kernel(
         if logits_multiplier is not None:
             y *= logits_multiplier
 
-        tl.store(x_grad_ptr + BLOCK, y, mask=MASK_BH)
+        tl.store(dx_ptr + BLOCK, y, mask=MASK_BH)
 
 
 @custom_op(f"{LIBRARY_NAME}::softmax_backward_triton", mutates_args={"x_grad"})
