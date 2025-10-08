@@ -13,9 +13,8 @@ from .triton_implementation import softmax_backward_triton, softmax_forward_trit
 
 class _Softmax(torch.autograd.Function):
     @staticmethod
-    @ensure_contiguous
     def forward(ctx, x: torch.Tensor, logits_multiplier: float | None) -> torch.Tensor:
-        output = torch.empty_like(x)
+        output = torch.empty_like(x, memory_format=torch.contiguous_format)
 
         softmax_forward_triton(x=x, output=output, logits_multiplier=logits_multiplier)
 
