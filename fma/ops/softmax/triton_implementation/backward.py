@@ -13,20 +13,6 @@ from ....utils import get_num_elements_and_hidden_size
 
 
 @triton.jit
-def _load_y_dy(y_ptr, dy_ptr, h, H, BLOCK_SIZE_H, BLOCK_B, MASK_B):
-    BLOCK_H = h * BLOCK_SIZE_H + tl.arange(0, BLOCK_SIZE_H)
-    MASK_H = BLOCK_H < H
-
-    BLOCK = BLOCK_B[:, None] * H + BLOCK_H[None, :]
-    MASK_BH = MASK_B[:, None] & MASK_H[None, :]
-
-    y = tl.load(y_ptr + BLOCK, mask=MASK_BH)
-    dy = tl.load(dy_ptr + BLOCK, mask=MASK_BH)
-
-    return y, dy, BLOCK, MASK_BH
-
-
-@triton.jit
 def softmax_backward_triton_kernel(
     y_ptr,
     y_stride,
