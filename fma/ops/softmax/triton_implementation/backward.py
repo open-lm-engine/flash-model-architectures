@@ -13,70 +13,68 @@ from ....utils import get_num_elements_and_hidden_size
 
 
 @triton.jit
-def _load_output_output_grad(output_ptr, output_grad_ptr, h, H, BLOCK_SIZE_H, indices_b, mask_b):
-    indices_h = h * BLOCK_SIZE_H + tl.arange(0, BLOCK_SIZE_H)
-    mask_h = indices_h < H
-
-    indices = indices_b[:, None] * H + indices_h[None, :]
-    mask_bh = mask_b[:, None] & mask_h[None, :]
-
-    output = tl.load(output_ptr + indices, mask=mask_bh)
-    output_grad = tl.load(output_grad_ptr + indices, mask=mask_bh)
-
-    return output, output_grad, indices, mask_bh
-
-
-@triton.jit
 def softmax_backward_triton_kernel(
-    output_ptr,
-    output_grad_ptr,
-    x_grad_ptr,
+    y_ptr,
+    y_stride,
+    dy_ptr,
+    dy_stride,
+    dx_ptr,
+    dx_stride,
     logits_multiplier,
     B,
     H,
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
-    pid = tl.program_id(axis=0)
+    BLOCK_ID = tl.program_id(axis=0)
 
-    indices_b = pid * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
-    mask_b = indices_b < B
+    BLOCK_B = BLOCK_ID * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
+    MASK_B = BLOCK_B < B
 
     accumulator = tl.zeros((BLOCK_SIZE_B, 1), dtype=tl.float32)
-    num_blocks_h = tl.cdiv(H, BLOCK_SIZE_H)
+    NUM_BLOCKS_H = tl.cdiv(H, BLOCK_SIZE_H)
+    BLOCK_H = tl.arange(0, BLOCK_SIZE_H)
+    y_ptrs = y_ptr + BLOCK_B[:, None] * y_stride[0] + BLOCK_H[None, :] * y_stride[1]
+    dy_ptrs = dy_ptr + BLOCK_B[:, None] * dy_stride[0] + BLOCK_H[None, :] * dy_stride[1]
 
-    for h in range(num_blocks_h):
-        output, output_grad, indices, mask_bh = _load_output_output_grad(
-            output_ptr=output_ptr,
-            output_grad_ptr=output_grad_ptr,
-            h=h,
-            H=H,
-            BLOCK_SIZE_H=BLOCK_SIZE_H,
-            indices_b=indices_b,
-            mask_b=mask_b,
-        )
+    for _ in range(NUM_BLOCKS_H):
+        MASK_H = BLOCK_H < H
+        MASK_BH = MASK_B[:, None] & MASK_H[None, :]
 
-        acc = output_grad * output
+        y = tl.load(y_ptrs, mask=MASK_BH)
+        dy = tl.load(dy_ptrs, mask=MASK_BH)
+
+        acc = dy * y
         acc = acc.to(tl.float32)
         accumulator += tl.sum(acc, axis=1, keep_dims=True)
 
-    for h in range(num_blocks_h):
-        output, output_grad, indices, mask_bh = _load_output_output_grad(
-            output_ptr=output_ptr,
-            output_grad_ptr=output_grad_ptr,
-            h=h,
-            H=H,
-            BLOCK_SIZE_H=BLOCK_SIZE_H,
-            indices_b=indices_b,
-            mask_b=mask_b,
-        )
+        BLOCK_H += BLOCK_SIZE_H
+        y_ptrs += BLOCK_SIZE_H * y_stride[1]
+        dy_ptrs += BLOCK_SIZE_H * dy_stride[1]
 
-        output_grad -= accumulator
-        output *= output_grad
+    BLOCK_H = tl.arange(0, BLOCK_SIZE_H)
+    y_ptrs = y_ptr + BLOCK_B[:, None] * y_stride[0] + BLOCK_H[None, :] * y_stride[1]
+    dy_ptrs = dy_ptr + BLOCK_B[:, None] * dy_stride[0] + BLOCK_H[None, :] * dy_stride[1]
+    dx_ptrs = dx_ptr + BLOCK_B[:, None] * dx_stride[0] + BLOCK_H[None, :] * dx_stride[1]
+
+    for _ in range(NUM_BLOCKS_H):
+        MASK_H = BLOCK_H < H
+        MASK_BH = MASK_B[:, None] & MASK_H[None, :]
+
+        y = tl.load(y_ptrs, mask=MASK_BH)
+        dy = tl.load(dy_ptrs, mask=MASK_BH)
+
+        dy -= accumulator
+        y *= dy
         if logits_multiplier is not None:
-            output *= logits_multiplier
+            y *= logits_multiplier
 
-        tl.store(x_grad_ptr + indices, output, mask=mask_bh)
+        tl.store(dx_ptrs, y, mask=MASK_BH)
+
+        BLOCK_H += BLOCK_SIZE_H
+        y_ptrs += BLOCK_SIZE_H * y_stride[1]
+        dy_ptrs += BLOCK_SIZE_H * dy_stride[1]
+        dx_ptrs += BLOCK_SIZE_H * dx_stride[1]
 
 
 @custom_op(f"{LIBRARY_NAME}::softmax_backward_triton", mutates_args={"x_grad"})
@@ -90,9 +88,12 @@ def softmax_backward_triton(
 
     with torch.device(x_grad.device):
         softmax_backward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](
-            output_ptr=output,
-            output_grad_ptr=output_grad,
-            x_grad_ptr=x_grad,
+            y_ptr=output,
+            y_stride=output.stride(),
+            dy_ptr=output_grad,
+            dy_stride=output_grad.stride(),
+            dx_ptr=x_grad,
+            dx_stride=x_grad.stride(),
             logits_multiplier=logits_multiplier,
             B=B,
             H=H,

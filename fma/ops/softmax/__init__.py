@@ -5,21 +5,14 @@
 import torch
 import torch.nn.functional as F
 
-from ...cutotune import CutoTuneParameter
 from ...enums import KernelBackend
-from ...utils import ensure_contiguous
 from .triton_implementation import softmax_backward_triton, softmax_forward_triton
 
 
 class _Softmax(torch.autograd.Function):
     @staticmethod
-    @ensure_contiguous
-    def forward(
-        ctx, x: torch.Tensor, logits_multiplier: float | None, kernel_backend: KernelBackend | CutoTuneParameter
-    ) -> torch.Tensor:
-        assert kernel_backend == KernelBackend.triton or isinstance(kernel_backend, CutoTuneParameter)
-
-        output = torch.empty_like(x)
+    def forward(ctx, x: torch.Tensor, logits_multiplier: float | None) -> torch.Tensor:
+        output = torch.empty_like(x, memory_format=torch.contiguous_format)
 
         softmax_forward_triton(x=x, output=output, logits_multiplier=logits_multiplier)
 
@@ -29,23 +22,19 @@ class _Softmax(torch.autograd.Function):
         return output
 
     @staticmethod
-    @ensure_contiguous
     def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
         output = ctx.saved_tensors[0]
-        x_grad = torch.empty_like(output)
+        x_grad = torch.empty_like(output, memory_format=torch.contiguous_format)
 
         softmax_backward_triton(
             output=output, output_grad=output_grad, x_grad=x_grad, logits_multiplier=ctx.logits_multiplier
         )
 
-        return x_grad, None, None
+        return x_grad, None
 
 
 def softmax(
-    x: torch.Tensor,
-    logits_multiplier: float | None = None,
-    *,
-    kernel_backend: KernelBackend | CutoTuneParameter = KernelBackend.triton,
+    x: torch.Tensor, logits_multiplier: float | None = None, *, kernel_backend: KernelBackend = KernelBackend.triton
 ) -> torch.Tensor:
     """computes softmax activation
 
@@ -53,7 +42,7 @@ def softmax(
         x (torch.Tensor): input activation tensor
         logits_multiplier (float, optional): pre-multiplies `x` with `logits_multiplier` before computing softmax.
             Defaults to None.
-        kernel_backend (KernelBackend | CutoTuneParameter, optional): kernel backend to prioritize.
+        kernel_backend (KernelBackend, optional): kernel backend to prioritize.
             Defaults to KernelBackend.triton.
 
     Returns:
@@ -70,6 +59,15 @@ def softmax(
 
         x = x.to(dtype)
     else:
-        x = _Softmax.apply(x, logits_multiplier, kernel_backend)
+        assert kernel_backend == KernelBackend.triton
+
+        is_flat = x.dim() < 2
+        if is_flat:
+            x = x[None, ...]
+
+        x = _Softmax.apply(x, logits_multiplier)
+
+        if is_flat:
+            x = x.squeeze(0)
 
     return x

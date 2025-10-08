@@ -44,10 +44,11 @@ class SoftmaxTest(TestCommons):
         z_kernel = function(x_kernel, logits_multiplier)
         z_expected = softmax(x_expected, logits_multiplier, kernel_backend=KernelBackend.torch)
 
+        self.assert_equal_tensors(z_kernel, z_expected, False)
+
         z_kernel.sum().backward()
         z_expected.sum().backward()
 
-        self.assert_equal_tensors(z_kernel, z_expected, False)
         self.assert_equal_tensors(
             x_kernel.grad,
             x_expected.grad,
