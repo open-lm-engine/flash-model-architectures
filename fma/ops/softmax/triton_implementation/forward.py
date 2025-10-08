@@ -59,12 +59,13 @@ def softmax_forward_triton_kernel(
         x_ptrs += BLOCK_SIZE_H * x_stride[1]
 
     BLOCK_H = tl.arange(0, BLOCK_SIZE_H)
+    x_ptrs = x_ptr + BLOCK_B[:, None] * x_stride[0] + BLOCK_H[None, :] * x_stride[1]
+    y_ptrs = y_ptr + BLOCK_B[:, None] * y_stride[0] + BLOCK_H[None, :] * y_stride[1]
 
     for _ in range(NUM_BLOCKS_H):
         MASK_H = BLOCK_H < H
         MASK_BH = MASK_B[:, None] & MASK_H[None, :]
 
-        x_ptrs = x_ptr + BLOCK_B[:, None] * x_stride[0] + BLOCK_H[None, :] * x_stride[1]
         x = tl.load(x_ptrs, mask=MASK_BH)
 
         x = x.to(tl.float32)
@@ -75,10 +76,11 @@ def softmax_forward_triton_kernel(
         x = tl.exp(x)
         x /= Z
 
-        y_ptrs = y_ptr + BLOCK_B[:, None] * y_stride[0] + BLOCK_H[None, :] * y_stride[1]
         tl.store(y_ptrs, x, mask=MASK_BH)
 
         BLOCK_H += BLOCK_SIZE_H
+        x_ptrs += BLOCK_SIZE_H * x_stride[1]
+        y_ptrs += BLOCK_SIZE_H * y_stride[1]
 
 
 @custom_op(f"{LIBRARY_NAME}::softmax_forward_triton", mutates_args={"output"})
