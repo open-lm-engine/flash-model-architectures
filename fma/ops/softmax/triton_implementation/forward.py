@@ -47,8 +47,7 @@ def softmax_forward_triton_kernel(
     num_blocks_h = tl.cdiv(H, BLOCK_SIZE_H)
     BLOCK_H = tl.arange(0, BLOCK_SIZE_H)
 
-    for h in range(num_blocks_h):
-        BLOCK_H += BLOCK_SIZE_H
+    for _ in range(num_blocks_h):
         MASK_H = BLOCK_H < H
         MASK_BH = MASK_B[:, None] & MASK_H[None, :]
 
@@ -66,6 +65,8 @@ def softmax_forward_triton_kernel(
         x -= M
         x = tl.exp(x)
         Z = Z * tl.exp(prev_m - M) + tl.sum(x, axis=1, keep_dims=True)
+
+        BLOCK_H += BLOCK_SIZE_H
 
     for h in range(num_blocks_h):
         x, BLOCK, MASK_BH = _load_x(x_ptr=x_ptr, h=h, H=H, BLOCK_SIZE_H=BLOCK_SIZE_H, BLOCK_B=BLOCK_B, MASK_B=MASK_B)
