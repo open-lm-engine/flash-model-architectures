@@ -105,6 +105,7 @@ def softmax_forward_triton(x: torch.Tensor, output: torch.Tensor, logits_multipl
             x_ptr=x,
             x_stride=x.stride(),
             y_ptr=output,
+            y_stride=output.stride(),
             logits_multiplier=logits_multiplier,
             B=B,
             H=H,
