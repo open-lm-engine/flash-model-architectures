@@ -28,6 +28,7 @@ def _load_x(x_ptr, h, H, BLOCK_SIZE_H, BLOCK_B, MASK_B, other=None):
 @triton.jit
 def softmax_forward_triton_kernel(
     x_ptr,
+    x_stride,
     y_ptr,
     logits_multiplier,
     B,
@@ -44,11 +45,15 @@ def softmax_forward_triton_kernel(
     M = tl.full((BLOCK_SIZE_B, 1), -float("inf"), dtype=tl.float32)
 
     num_blocks_h = tl.cdiv(H, BLOCK_SIZE_H)
+    BLOCK_H = tl.arange(0, BLOCK_SIZE_H)
 
     for h in range(num_blocks_h):
-        x, BLOCK, MASK_BH = _load_x(
-            x_ptr=x_ptr, h=h, H=H, BLOCK_SIZE_H=BLOCK_SIZE_H, BLOCK_B=BLOCK_B, MASK_B=MASK_B, other=-float("inf")
-        )
+        BLOCK_H += BLOCK_SIZE_H
+        MASK_H = BLOCK_H < H
+        MASK_BH = MASK_B[:, None] & MASK_H[None, :]
+
+        x_ptrs = x_ptr + BLOCK_B[:, None] * x_stride[0] + BLOCK_H[None, :] * x_stride[1]
+        x = tl.load(x_ptrs, mask=MASK_BH, other=-float("inf"))
 
         x = x.to(tl.float32)
         if logits_multiplier is not None:
@@ -90,6 +95,7 @@ def softmax_forward_triton(x: torch.Tensor, output: torch.Tensor, logits_multipl
     with torch.device(x.device):
         softmax_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](
             x_ptr=x,
+            x_stride=x.stride(),
             y_ptr=output,
             logits_multiplier=logits_multiplier,
             B=B,
