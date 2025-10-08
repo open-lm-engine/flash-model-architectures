@@ -13,19 +13,6 @@ from ....utils import get_num_elements_and_hidden_size
 
 
 @triton.jit
-def _load_x(x_ptr, h, H, BLOCK_SIZE_H, BLOCK_B, MASK_B, other=None):
-    BLOCK_H = h * BLOCK_SIZE_H + tl.arange(0, BLOCK_SIZE_H)
-    MASK_H = BLOCK_H < H
-
-    BLOCK = BLOCK_B[:, None] * H + BLOCK_H[None, :]
-    MASK_BH = MASK_B[:, None] & MASK_H[None, :]
-
-    x = tl.load(x_ptr + BLOCK, mask=MASK_BH, other=other)
-
-    return x, BLOCK, MASK_BH
-
-
-@triton.jit
 def softmax_forward_triton_kernel(
     x_ptr,
     x_stride,
@@ -48,11 +35,12 @@ def softmax_forward_triton_kernel(
     NUM_BLOCKS_H = tl.cdiv(H, BLOCK_SIZE_H)
     BLOCK_H = tl.arange(0, BLOCK_SIZE_H)
 
+    x_ptrs = x_ptr + BLOCK_B[:, None] * x_stride[0] + BLOCK_H[None, :] * x_stride[1]
+
     for _ in range(NUM_BLOCKS_H):
         MASK_H = BLOCK_H < H
         MASK_BH = MASK_B[:, None] & MASK_H[None, :]
 
-        x_ptrs = x_ptr + BLOCK_B[:, None] * x_stride[0] + BLOCK_H[None, :] * x_stride[1]
         x = tl.load(x_ptrs, mask=MASK_BH, other=-float("inf"))
 
         x = x.to(tl.float32)
@@ -68,6 +56,7 @@ def softmax_forward_triton_kernel(
         Z = Z * tl.exp(prev_m - M) + tl.sum(x, axis=1, keep_dims=True)
 
         BLOCK_H += BLOCK_SIZE_H
+        x_ptrs += BLOCK_SIZE_H * x_stride[1]
 
     BLOCK_H = tl.arange(0, BLOCK_SIZE_H)
 
