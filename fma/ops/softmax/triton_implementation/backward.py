@@ -13,17 +13,17 @@ from ....utils import get_num_elements_and_hidden_size
 
 
 @triton.jit
-def _load_output_output_grad(output_ptr, output_grad_ptr, h, H, BLOCK_SIZE_H, indices_b, mask_b):
-    indices_h = h * BLOCK_SIZE_H + tl.arange(0, BLOCK_SIZE_H)
-    mask_h = indices_h < H
+def _load_output_output_grad(output_ptr, output_grad_ptr, h, H, BLOCK_SIZE_H, BLOCK_B, MASK_B):
+    BLOCK_H = h * BLOCK_SIZE_H + tl.arange(0, BLOCK_SIZE_H)
+    MASK_H = BLOCK_H < H
 
-    indices = indices_b[:, None] * H + indices_h[None, :]
-    mask_bh = mask_b[:, None] & mask_h[None, :]
+    BLOCK = BLOCK_B[:, None] * H + BLOCK_H[None, :]
+    MASK_BH = MASK_B[:, None] & MASK_H[None, :]
 
-    output = tl.load(output_ptr + indices, mask=mask_bh)
-    output_grad = tl.load(output_grad_ptr + indices, mask=mask_bh)
+    output = tl.load(output_ptr + BLOCK, mask=MASK_BH)
+    output_grad = tl.load(output_grad_ptr + BLOCK, mask=MASK_BH)
 
-    return output, output_grad, indices, mask_bh
+    return output, output_grad, BLOCK, MASK_BH
 
 
 @triton.jit
@@ -37,38 +37,38 @@ def softmax_backward_triton_kernel(
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
-    pid = tl.program_id(axis=0)
+    BLOCK_ID = tl.program_id(axis=0)
 
-    indices_b = pid * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
-    mask_b = indices_b < B
+    BLOCK_B = BLOCK_ID * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
+    MASK_B = BLOCK_B < B
 
     accumulator = tl.zeros((BLOCK_SIZE_B, 1), dtype=tl.float32)
-    num_blocks_h = tl.cdiv(H, BLOCK_SIZE_H)
+    NUM_BLOCKS_H = tl.cdiv(H, BLOCK_SIZE_H)
 
-    for h in range(num_blocks_h):
-        output, output_grad, indices, mask_bh = _load_output_output_grad(
+    for h in range(NUM_BLOCKS_H):
+        output, output_grad, BLOCK, MASK_BH = _load_output_output_grad(
             output_ptr=output_ptr,
             output_grad_ptr=output_grad_ptr,
             h=h,
             H=H,
             BLOCK_SIZE_H=BLOCK_SIZE_H,
-            indices_b=indices_b,
-            mask_b=mask_b,
+            BLOCK_B=BLOCK_B,
+            MASK_B=MASK_B,
         )
 
         acc = output_grad * output
         acc = acc.to(tl.float32)
         accumulator += tl.sum(acc, axis=1, keep_dims=True)
 
-    for h in range(num_blocks_h):
-        output, output_grad, indices, mask_bh = _load_output_output_grad(
+    for h in range(NUM_BLOCKS_H):
+        output, output_grad, BLOCK, MASK_BH = _load_output_output_grad(
             output_ptr=output_ptr,
             output_grad_ptr=output_grad_ptr,
             h=h,
             H=H,
             BLOCK_SIZE_H=BLOCK_SIZE_H,
-            indices_b=indices_b,
-            mask_b=mask_b,
+            BLOCK_B=BLOCK_B,
+            MASK_B=MASK_B,
         )
 
         output_grad -= accumulator
@@ -76,7 +76,7 @@ def softmax_backward_triton_kernel(
         if logits_multiplier is not None:
             output *= logits_multiplier
 
-        tl.store(x_grad_ptr + indices, output, mask=mask_bh)
+        tl.store(x_grad_ptr + BLOCK, output, mask=MASK_BH)
 
 
 @custom_op(f"{LIBRARY_NAME}::softmax_backward_triton", mutates_args={"x_grad"})
