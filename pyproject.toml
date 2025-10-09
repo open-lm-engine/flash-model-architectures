@@ -11,4 +11,5 @@ dependencies = [
     "pybind11>=3.0.1",
     "pytest>=8.4.2",
     "torch>=2.8.0",
+    "tqdm>=4.67.1",
 ]
