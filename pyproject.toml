@@ -13,3 +13,6 @@ dependencies = [
     "torch>=2.8.0",
     "tqdm>=4.67.1",
 ]
+
+[tool.setuptools]
+packages = ["fma"]
