@@ -25,10 +25,7 @@ jobs:
       - name: install dependencies
         run: |
           git submodule update --init --recursive
-          python -m pip install --upgrade pip
-          pip install isort black pre-commit
 
       - name: run formatting tests
         run: |
-          pre-commit install
           make style
