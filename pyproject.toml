@@ -1,7 +1,7 @@
 [project]
 name = "flash-model-architectures"
 version = "0.1.0"
-description = "Add your description here"
+description = "A collection of high-performance model architectures."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
