@@ -6,6 +6,10 @@ install:
 	git submodule update --init --recursive
 	uv pip install .
 
+install-dev:
+	git submodule update --init --recursive
+	uv pip install -e .
+
 test:
 	uv run pytest tests
 
