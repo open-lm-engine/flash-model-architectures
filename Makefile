@@ -2,12 +2,6 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
-install:
-	git submodule update --init --recursive
-
-install-dev:
-	git submodule update --init --recursive
-
 test:
 	uv run pytest tests
 

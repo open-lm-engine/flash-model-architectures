@@ -24,6 +24,7 @@ jobs:
 
       - name: install dependencies
         run: |
+          wget -qO- https://astral.sh/uv/install.sh | sh
           git submodule update --init --recursive
 
       - name: run formatting tests
