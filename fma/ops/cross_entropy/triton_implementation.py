@@ -27,7 +27,7 @@ def cross_entropy_forward_backward_triton_kernel(
     x_stride,
     y_ptr,
     y_stride,
-    loss_ptr,
+    l_ptr,
     dx_ptr,
     dx_stride,
     logits_multiplier,
@@ -103,14 +103,14 @@ def cross_entropy_forward_backward_triton_kernel(
     if logits_multiplier is not None:
         x *= logits_multiplier
 
-    loss = M + tl.log(Z) - x[:, None]
-    loss = tl.where(MASK_B[:, None], loss, 0)
-    loss = tl.sum(loss, axis=0)
+    l = M + tl.log(Z) - x[:, None]
+    l = tl.where(MASK_B[:, None], l, 0)
+    l = tl.sum(l, axis=0)
 
     if reduction == "mean":
-        loss /= B
+        l /= B
 
-    tl.atomic_add(loss_ptr + tl.arange(0, 1), loss, sem="relaxed")
+    tl.atomic_add(l_ptr + tl.arange(0, 1), l, sem="relaxed")
 
 
 @custom_op(f"{LIBRARY_NAME}::cross_entropy_forward_backward_triton", mutates_args={"loss", "x_grad"})
@@ -133,7 +133,7 @@ def cross_entropy_forward_backward_triton(
             x_stride=x.stride(),
             y_ptr=labels,
             y_stride=labels.stride(),
-            loss_ptr=loss,
+            l_ptr=loss,
             dx_ptr=x_grad,
             dx_stride=x_grad.stride(),
             logits_multiplier=logits_multiplier,
