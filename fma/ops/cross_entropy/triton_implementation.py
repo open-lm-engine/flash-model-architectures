@@ -96,7 +96,7 @@ def cross_entropy_forward_backward_triton_kernel(
         tl.store(dx_ptrs, x, mask=MASK_BV)
 
         BLOCK_V += BLOCK_SIZE_V
-        x_ptrs += BLOCK_V * x_stride[1]
+        x_ptrs += BLOCK_SIZE_V * x_stride[1]
         dx_ptrs += BLOCK_SIZE_V * dx_stride[1]
 
     x = tl.load(x_ptr + BLOCK_B * x_stride[0] + labels * x_stride[1], mask=MASK_B).to(tl.float32)
