@@ -25,8 +25,8 @@ def _get_autotune_configs() -> list[triton.Config]:
 def cross_entropy_forward_backward_triton_kernel(
     x_ptr,
     x_stride,
-    labels_ptr,
-    labels_stride,
+    y_ptr,
+    y_stride,
     loss_ptr,
     dx_ptr,
     dx_stride,
@@ -68,7 +68,7 @@ def cross_entropy_forward_backward_triton_kernel(
         BLOCK_V += BLOCK_SIZE_V
         x_ptrs += BLOCK_SIZE_V * x_stride[1]
 
-    labels = tl.load(labels_ptr + BLOCK_B * labels_stride[0], mask=MASK_B)
+    labels = tl.load(y_ptr + BLOCK_B * y_stride[0], mask=MASK_B)
 
     BLOCK_V = tl.arange(0, BLOCK_SIZE_V)
     x_ptrs = x_ptr + BLOCK_B[:, None] * x_stride[0] + BLOCK_V[None, :] * x_stride[1]
@@ -131,8 +131,8 @@ def cross_entropy_forward_backward_triton(
         cross_entropy_forward_backward_triton_kernel[GRID](
             x_ptr=x,
             x_stride=x.stride(),
-            labels_ptr=labels,
-            labels_stride=labels.stride(),
+            y_ptr=labels,
+            y_stride=labels.stride(),
             loss_ptr=loss,
             dx_ptr=x_grad,
             dx_stride=x_grad.stride(),
