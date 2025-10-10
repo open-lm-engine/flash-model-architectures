@@ -20,7 +20,7 @@ def _get_autotune_configs() -> list[triton.Config]:
     return configs
 
 
-@triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_V"], reset_to_zero=["loss_ptr"])
+@triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_V"], reset_to_zero=["l_ptr"])
 @triton.jit
 def cross_entropy_forward_backward_triton_kernel(
     x_ptr,
