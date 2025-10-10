@@ -22,7 +22,7 @@ class _CrossEntropy(torch.autograd.Function):
             labels.size(0) == get_num_elements_and_hidden_size(x)[0]
         ), "x and labels have different number of elements along batch dimension"
 
-        loss = torch.zeros((1,), device=x.device, dtype=torch.float32)
+        loss = torch.zeros((), device=x.device, dtype=torch.float32)
         x_grad = torch.empty_like(x, memory_format=torch.contiguous_format)
 
         cross_entropy_forward_backward_triton(
