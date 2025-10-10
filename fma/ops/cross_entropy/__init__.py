@@ -5,22 +5,15 @@
 import torch
 import torch.nn.functional as F
 
-from ...cutotune import CutoTuneParameter
 from ...enums import KernelBackend
-from ...utils import ensure_contiguous, get_num_elements_and_hidden_size
+from ...utils import get_num_elements_and_hidden_size
 from .triton_implementation import cross_entropy_forward_backward_triton
 
 
 class _CrossEntropy(torch.autograd.Function):
     @staticmethod
-    @ensure_contiguous
     def forward(
-        ctx,
-        x: torch.Tensor,
-        labels: torch.Tensor,
-        reduction: str,
-        logits_multiplier: float | None,
-        kernel_backend: KernelBackend | CutoTuneParameter,
+        ctx, x: torch.Tensor, labels: torch.Tensor, reduction: str, logits_multiplier: float | None
     ) -> torch.Tensor:
         assert reduction in ["sum", "mean"]
         assert x.dim() == 2, "x should be 2 dimensional"
@@ -28,10 +21,9 @@ class _CrossEntropy(torch.autograd.Function):
         assert (
             labels.size(0) == get_num_elements_and_hidden_size(x)[0]
         ), "x and labels have different number of elements along batch dimension"
-        assert kernel_backend == KernelBackend.triton or isinstance(kernel_backend, CutoTuneParameter)
 
-        loss = torch.tensor(0, device=x.device, dtype=torch.float32)
-        x_grad = torch.empty_like(x)
+        loss = torch.zeros((), device=x.device, dtype=torch.float32)
+        x_grad = torch.empty_like(x, memory_format=torch.contiguous_format)
 
         cross_entropy_forward_backward_triton(
             x=x, labels=labels, loss=loss, x_grad=x_grad, logits_multiplier=logits_multiplier, reduction=reduction
@@ -46,7 +38,7 @@ class _CrossEntropy(torch.autograd.Function):
         x_grad = ctx.saved_tensors[0]
         x_grad *= output_grad
 
-        return x_grad, *[None] * 4
+        return x_grad, *[None] * 3
 
 
 def cross_entropy(
@@ -55,7 +47,7 @@ def cross_entropy(
     reduction: str = "mean",
     logits_multiplier: float | None = None,
     *,
-    kernel_backend: KernelBackend | CutoTuneParameter = KernelBackend.triton,
+    kernel_backend: KernelBackend = KernelBackend.triton,
 ) -> torch.Tensor:
     """compute cross entropy loss
 
@@ -65,7 +57,7 @@ def cross_entropy(
         reduction (str, optional): reduction should be either sum or mean. Defaults to "mean".
         logits_multiplier (float | None, optional): logits multiplier pre-multiplies logits, None implies 1.
             Defaults to None.
-        kernel_backend (KernelBackend | CutoTuneParameter, optional): kernel backend to prioritize.
+        kernel_backend (KernelBackend, optional): kernel backend to prioritize.
             Defaults to KernelBackend.triton.
 
     Returns:
@@ -80,6 +72,6 @@ def cross_entropy(
 
         x = F.cross_entropy(x, labels, reduction=reduction)
     else:
-        x = _CrossEntropy.apply(x, labels, reduction, logits_multiplier, kernel_backend)
+        x = _CrossEntropy.apply(x, labels, reduction, logits_multiplier)
 
     return x
