@@ -24,9 +24,12 @@ def _get_autotune_configs() -> list[triton.Config]:
 @triton.jit
 def cross_entropy_forward_backward_triton_kernel(
     x_ptr,
+    x_stride,
     labels_ptr,
+    labels_stride,
     loss_ptr,
     dx_ptr,
+    dx_stride,
     logits_multiplier,
     B,
     V,
@@ -37,21 +40,20 @@ def cross_entropy_forward_backward_triton_kernel(
     BLOCK_ID = tl.program_id(axis=0)
 
     BLOCK_B = BLOCK_ID * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
-    mask_b = BLOCK_B < B
+    MASK_B = BLOCK_B < B
 
     Z = tl.zeros((BLOCK_SIZE_B, 1), dtype=tl.float32)
     M = tl.full((BLOCK_SIZE_B, 1), -float("inf"), dtype=tl.float32)
 
     NUM_BLOCKS_V = tl.cdiv(V, BLOCK_SIZE_V)
+    BLOCK_V = tl.arange(0, BLOCK_SIZE_V)
+    x_ptrs = x_ptr + BLOCK_B[:, None] * x_stride[0] + BLOCK_V[None, :] * x_stride[1]
 
-    for v in range(NUM_BLOCKS_V):
-        BLOCK_V = v * BLOCK_SIZE_V + tl.arange(0, BLOCK_SIZE_V)
-        mask_v = BLOCK_V < V
+    for _ in range(NUM_BLOCKS_V):
+        MASK_V = BLOCK_V < V
+        MASK_BV = MASK_B[:, None] & MASK_V[None, :]
 
-        BLOCK = BLOCK_B[:, None] * V + BLOCK_V[None, :]
-        mask_bv = mask_b[:, None] & mask_v[None, :]
-
-        x = tl.load(x_ptr + BLOCK, mask=mask_bv, other=-float("inf")).to(tl.float32)
+        x = tl.load(x_ptrs, mask=MASK_BV, other=-float("inf")).to(tl.float32)
         if logits_multiplier is not None:
             x *= logits_multiplier
 
@@ -63,36 +65,46 @@ def cross_entropy_forward_backward_triton_kernel(
         x = tl.exp(x)
         Z = Z * tl.exp(prev_m - M) + tl.sum(x, axis=1, keep_dims=True)
 
-    labels = tl.load(labels_ptr + BLOCK_B, mask=mask_b)
+        BLOCK_V += BLOCK_SIZE_V
+        x_ptrs += BLOCK_SIZE_V * x_stride[1]
 
-    for v in range(NUM_BLOCKS_V):
-        BLOCK_V = v * BLOCK_SIZE_V + tl.arange(0, BLOCK_SIZE_V)
-        mask_v = BLOCK_V < V
+    labels = tl.load(labels_ptr + BLOCK_B * labels_stride[0], mask=MASK_B)
 
-        BLOCK = BLOCK_B[:, None] * V + BLOCK_V[None, :]
-        mask_bv = mask_b[:, None] & mask_v[None, :]
+    BLOCK_V = tl.arange(0, BLOCK_SIZE_V)
+    x_ptrs = x_ptr + BLOCK_B[:, None] * x_stride[0] + BLOCK_V[None, :] * x_stride[1]
+    dx_ptrs = dx_ptr + BLOCK_B[:, None] * dx_stride[0] + BLOCK_V[None, :] * dx_stride[1]
 
-        x = tl.load(x_ptr + BLOCK, mask=mask_bv).to(tl.float32)
+    for _ in range(NUM_BLOCKS_V):
+        MASK_V = BLOCK_V < V
+        MASK_BV = MASK_B[:, None] & MASK_V[None, :]
+
+        x = tl.load(x_ptrs, mask=MASK_BV).to(tl.float32)
         if logits_multiplier is not None:
             x *= logits_multiplier
+
         x -= M
         x = tl.exp(x)
         x /= Z
 
         x -= tl.where(BLOCK_V[None, :] == labels[:, None], 1, 0)
+
         if logits_multiplier is not None:
             x *= logits_multiplier
         if reduction == "mean":
             x /= B
 
-        tl.store(dx_ptr + BLOCK, x, mask=mask_bv)
+        tl.store(dx_ptrs, x, mask=MASK_BV)
 
-    x = tl.load(x_ptr + BLOCK_B * V + labels, mask=mask_b).to(tl.float32)
+        BLOCK_V += BLOCK_SIZE_V
+        x_ptrs += BLOCK_V * x_stride[1]
+        dx_ptrs += BLOCK_SIZE_V * dx_stride[1]
+
+    x = tl.load(x_ptr + BLOCK_B * x_stride[0] + labels * x_stride[1], mask=MASK_B).to(tl.float32)
     if logits_multiplier is not None:
         x *= logits_multiplier
 
     loss = M + tl.log(Z) - x[:, None]
-    loss = tl.where(mask_b[:, None], loss, 0)
+    loss = tl.where(MASK_B[:, None], loss, 0)
     loss = tl.sum(loss, axis=0)
 
     if reduction == "mean":
@@ -118,9 +130,12 @@ def cross_entropy_forward_backward_triton(
     with torch.device(x.device):
         cross_entropy_forward_backward_triton_kernel[GRID](
             x_ptr=x,
+            x_stride=x.stride(),
             labels_ptr=labels,
+            labels_stride=labels.stride(),
             loss_ptr=loss,
             dx_ptr=x_grad,
+            dx_stride=x_grad.stride(),
             logits_multiplier=logits_multiplier,
             B=B,
             V=V,
