@@ -116,6 +116,6 @@ def fused_linear_cross_entropy(
             kernel_backend=kernel_backend,
         )
     else:
-        x = _FusedLinearCrossEntropy.apply(x, weight, labels, reduction, logits_multiplier, kernel_backend)
+        x = _FusedLinearCrossEntropy.apply(x, weight, labels, reduction, logits_multiplier)
 
     return x
