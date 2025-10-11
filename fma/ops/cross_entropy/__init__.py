@@ -15,13 +15,6 @@ class _CrossEntropy(torch.autograd.Function):
     def forward(
         ctx, x: torch.Tensor, labels: torch.Tensor, reduction: str, logits_multiplier: float | None
     ) -> torch.Tensor:
-        assert reduction in ["sum", "mean"]
-        assert x.dim() == 2, "x should be 2 dimensional"
-        assert labels.dim() == 1, "labels should be 1 dimensional"
-        assert (
-            labels.size(0) == get_num_elements_and_hidden_size(x)[0]
-        ), "x and labels have different number of elements along batch dimension"
-
         loss = torch.zeros((), device=x.device, dtype=torch.float32)
         x_grad = torch.empty_like(x, memory_format=torch.contiguous_format)
 
@@ -63,6 +56,13 @@ def cross_entropy(
     Returns:
         torch.Tensor: loss
     """
+
+    assert reduction in ["sum", "mean"]
+    assert x.dim() == 2, "x should be 2 dimensional"
+    assert labels.dim() == 1, "labels should be 1 dimensional"
+    assert (
+        labels.size(0) == get_num_elements_and_hidden_size(x)[0]
+    ), "x and labels have different number of elements along batch dimension"
 
     if kernel_backend == KernelBackend.torch:
         x = x.float()

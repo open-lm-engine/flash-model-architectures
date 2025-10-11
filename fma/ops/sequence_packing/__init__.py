@@ -64,10 +64,6 @@ class _PackSequence(torch.autograd.Function):
         kernel_backend_forward: KernelBackend,
         kernel_backend_backward: KernelBackend,
     ) -> torch.Tensor:
-        assert padding_side in ["left", "right"]
-        assert x.dim() >= 2
-        assert x.size(0) == cu_seqlens.size(0) - 1
-
         ctx.save_for_backward(cu_seqlens)
         ctx.padding_side = padding_side
         ctx.x_shape = x.size()
@@ -109,11 +105,6 @@ class _UnpackSequence(torch.autograd.Function):
         kernel_backend_forward: KernelBackend,
         kernel_backend_backward: KernelBackend,
     ) -> torch.Tensor:
-        assert padding_side in ["left", "right"]
-        assert x.dim() >= 2
-        assert output_shape[0] == cu_seqlens.size(0) - 1
-        assert output_shape[2:] == x.size()[1:]
-
         ctx.save_for_backward(cu_seqlens)
         ctx.padding_side = padding_side
         ctx.kernel_backend_backward = kernel_backend_backward
@@ -154,6 +145,8 @@ def pack_sequence(
     kernel_backend_forward: KernelBackend = KernelBackend.cuda,
     kernel_backend_backward: KernelBackend = KernelBackend.cuda,
 ) -> torch.Tensor | list[torch.Tensor]:
+    assert padding_side in ["left", "right"]
+
     is_list = isinstance(inputs, (list, tuple))
     if not is_list:
         inputs = [inputs]
@@ -161,6 +154,9 @@ def pack_sequence(
     outputs = []
 
     for x in inputs:
+        assert x.dim() >= 2
+        assert x.size(0) == cu_seqlens.size(0) - 1
+
         if kernel_backend_forward == KernelBackend.torch:
             assert kernel_backend_backward == KernelBackend.torch
 
@@ -207,6 +203,8 @@ def unpack_sequence(
     kernel_backend_forward: KernelBackend = KernelBackend.cuda,
     kernel_backend_backward: KernelBackend = KernelBackend.cuda,
 ) -> torch.Tensor | list[torch.Tensor]:
+    assert padding_side in ["left", "right"]
+
     is_list = isinstance(inputs, (list, tuple))
     if not is_list:
         inputs = [inputs]
@@ -235,6 +233,10 @@ def unpack_sequence(
             padded = torch.zeros(output_shape, dtype=x.dtype, device=x.device)
             padded[batch_indices, seq_indices] = x
         else:
+            assert x.dim() >= 2
+            assert output_shape[0] == cu_seqlens.size(0) - 1
+            assert output_shape[2:] == x.size()[1:]
+
             padded = _UnpackSequence.apply(
                 x, cu_seqlens, output_shape, padding_side, kernel_backend_forward, kernel_backend_backward
             )
