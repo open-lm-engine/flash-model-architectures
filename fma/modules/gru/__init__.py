@@ -5,8 +5,7 @@
 import torch
 import torch.nn as nn
 
-from ...cutotune import CutoTuneParameter
-from ...enums import KernelBackend
+from ...kernel_backend import KernelBackend
 from ...math import divide_if_divisible
 from ...torch_math import clip_gradients, sigmoid, tanh
 from ...utils import ensure_contiguous
@@ -266,8 +265,6 @@ def gru(
     gradient_clipping: float | None = None,
     cu_seqlens: torch.Tensor | None = None,
     max_seqlen: torch.Tensor | int | None = None,
-    *,
-    kernel_backend: KernelBackend | CutoTuneParameter = KernelBackend.triton,
 ) -> torch.Tensor:
     """computes multihead RNN: tanh(`input_state` @ `weight` + `input`)
 
@@ -294,6 +291,8 @@ def gru(
 
     if gradient_clipping is not None and gradient_clipping < 0:
         gradient_clipping = -gradient_clipping
+
+    kernel_backend = KernelBackend.get_kernel_backend_from_device(input)
 
     if kernel_backend == KernelBackend.torch:
         output = torch.empty_like(input)
@@ -431,7 +430,6 @@ class GRU(nn.Module):
         input_state: torch.Tensor | None = None,
         cu_seqlens: torch.Tensor | None = None,
         max_seqlen: int | None = None,
-        kernel_backend: KernelBackend = KernelBackend.triton,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         input = self.input_projection(input)
         input, forget_gate, reset_gate = input.chunk(3, dim=-1)
@@ -454,7 +452,6 @@ class GRU(nn.Module):
             gradient_clipping=self.gradient_clipping,
             cu_seqlens=cu_seqlens,
             max_seqlen=max_seqlen,
-            kernel_backend=kernel_backend,
         )
 
         del forget_gate, reset_gate
