@@ -4,9 +4,9 @@
 
 import torch
 
-from ...enums import KernelBackend
-from ...utils import ensure_contiguous
-from ..bmm.triton_implementation import bmm_triton
+from ..enums import KernelBackend
+from ..utils import ensure_contiguous
+from .bmm.triton_implementation import bmm_triton
 
 
 @ensure_contiguous
