@@ -20,5 +20,5 @@ update-precommit:
 	uv run pre-commit autoupdate
 
 style:
-	python copyright/copyright.py --repo ./ --exclude copyright-exclude.txt --header "Copyright (c) 2025, Mayank Mishra"
+	uv run python copyright/copyright.py --repo ./ --exclude copyright-exclude.txt --header "Copyright (c) 2025, Mayank Mishra"
 	uv run pre-commit run --all-files
