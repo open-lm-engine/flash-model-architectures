@@ -6,6 +6,7 @@ import torch
 import torch.nn.functional as F
 
 from ...counters import increment_counter
+from ...custom_op import CustomOp
 from ...cutotune import CutoTuneParameter
 from ...enums import KernelBackend
 from ...utils import ensure_contiguous, get_num_elements_and_hidden_size, get_sm_count
@@ -13,6 +14,75 @@ from .triton_implementation import (
     fused_residual_add_rmsnorm_backward_triton,
     fused_residual_add_rmsnorm_forward_triton,
 )
+
+
+@CustomOp.register("_FusedResdiualAddRMSNormForwardOp")
+class _FusedResdiualAddRMSNormForwardOp(CustomOp):
+    def forward(
+        self,
+        x: torch.Tensor,
+        residual: torch.Tensor | None,
+        weight: torch.Tensor | None,
+        eps: float | None,
+        multiplier: float | None = None,
+        memory_efficient: bool = False,
+        deterministic: bool = False,
+    ) -> torch.Tensor:
+        if weight is not None:
+            assert weight.dim() == 1, "weight should be 1D"
+            assert weight.size(-1) == x.size(-1), "hidden size for x and weight tensor is different"
+            assert weight.type() == x.type(), "tensors weight and y should have same dtype"
+
+        return super().forward(
+            residual=residual,
+            weight=weight,
+            eps=eps,
+            multiplier=multiplier,
+            memory_efficient=memory_efficient,
+            deterministic=deterministic,
+        )
+
+    def _forward_triton(
+        self,
+        x: torch.Tensor,
+        residual: torch.Tensor | None,
+        weight: torch.Tensor | None,
+        output: torch.Tensor,
+        eps: float,
+        multiplier: float | None,
+        added_x_residual: torch.Tensor | None,
+        rmsnorm_denominator: torch.Tensor | None,
+    ) -> None:
+        fused_residual_add_rmsnorm_forward_triton(
+            x=x,
+            residual=residual,
+            weight=weight,
+            output=output,
+            eps=eps,
+            multiplier=multiplier,
+            added_x_residual=added_x_residual,
+            rmsnorm_denominator=rmsnorm_denominator,
+        )
+
+    def _forward_torch(
+        self,
+        residual: torch.Tensor | None,
+        weight: torch.Tensor | None,
+        eps: float | None,
+        multiplier: float | None = None,
+        memory_efficient: bool = False,
+        deterministic: bool = False,
+    ) -> torch.Tensor:
+        if multiplier not in [None, 1]:
+            x = x * multiplier
+
+        if residual is not None:
+            x = x + residual
+            residual = x
+
+        x = F.rms_norm(x, normalized_shape=(x.size(-1),), weight=weight, eps=eps)
+
+        return x
 
 
 class _FusedResidualAddRMSNorm(torch.autograd.Function):
