@@ -27,15 +27,7 @@ class _FusedResidualAddRMSNorm(torch.autograd.Function):
         multiplier: float | None,
         memory_efficient: bool,
         deterministic: bool,
-        kernel_backend: KernelBackend,
     ) -> tuple[torch.Tensor, torch.Tensor | None]:
-        assert kernel_backend == KernelBackend.triton or isinstance(kernel_backend, CutoTuneParameter)
-
-        if weight is not None:
-            assert weight.dim() == 1, "weight should be 1D"
-            assert weight.size(-1) == x.size(-1), "hidden size for x and weight tensor is different"
-            assert weight.type() == x.type(), "tensors weight and y should have same dtype"
-
         if eps is None:
             eps = torch.finfo(x.dtype).eps
 
@@ -112,7 +104,7 @@ class _FusedResidualAddRMSNorm(torch.autograd.Function):
             else:
                 weight_grad = weight_grad.type_as(weight)
 
-        return x_grad, residual_grad, weight_grad, *[None] * 5
+        return x_grad, residual_grad, weight_grad, *[None] * 4
 
 
 def fused_residual_add_rmsnorm(
@@ -140,6 +132,13 @@ def fused_residual_add_rmsnorm(
     Returns:
         tuple[torch.Tensor, torch.Tensor]: output activations, updated residual stream
     """
+
+    assert kernel_backend == KernelBackend.triton or isinstance(kernel_backend, CutoTuneParameter)
+
+    if weight is not None:
+        assert weight.dim() == 1, "weight should be 1D"
+        assert weight.size(-1) == x.size(-1), "hidden size for x and weight tensor is different"
+        assert weight.type() == x.type(), "tensors weight and y should have same dtype"
 
     if kernel_backend == KernelBackend.torch:
         if multiplier not in [None, 1]:

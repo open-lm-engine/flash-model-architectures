@@ -22,32 +22,24 @@ class _FusedLinearCrossEntropy(torch.autograd.Function):
         labels: torch.Tensor,
         reduction: str,
         logits_multiplier: float | None,
-        kernel_backend: KernelBackend | CutoTuneParameter,
     ) -> torch.Tensor:
-        assert reduction in ["sum", "mean"]
-        assert x.dim() == 2, "x should be 2 dimensional"
-        assert labels.dim() == 1, "labels should be 1 dimensional"
-        assert x.size(0) == labels.size(0), "x and labels have different number of elements along dim 0"
-        assert x.size(-1) == weight.size(-1)
-        assert kernel_backend == KernelBackend.triton or isinstance(kernel_backend, CutoTuneParameter)
-
-        batch_size, hidden_size = x.size()
+        B, H = x.size()
         V = weight.size(0)
 
         # NOTE chunking is copied from liger kernel
-        memory_increase_factor = ceil_divide(V, hidden_size)
+        memory_increase_factor = ceil_divide(V, H)
         # chunk_size needed to reduce memory increase back to 1
-        chunk_size = get_next_power_of_2(ceil_divide(batch_size, memory_increase_factor))
-        num_chunks = ceil_divide(batch_size, chunk_size)
+        chunk_size = get_next_power_of_2(ceil_divide(B, memory_increase_factor))
+        num_chunks = ceil_divide(B, chunk_size)
 
-        loss = torch.tensor(0, device=x.device, dtype=torch.float32)
+        loss = torch.zeros((), device=x.device, dtype=torch.float32)
         x_grad = torch.empty_like(x)
         weight_grad = torch.zeros_like(weight)
 
         for i in range(num_chunks):
             start = i * chunk_size
             end = (i + 1) * chunk_size
-            end = min(end, batch_size)
+            end = min(end, B)
 
             _x = x[start:end]
             _logits = (_x @ weight.T).contiguous()
@@ -68,9 +60,9 @@ class _FusedLinearCrossEntropy(torch.autograd.Function):
             torch.addmm(weight_grad, _logits_grad.T, _x, alpha=1, beta=1, out=weight_grad)
 
         if reduction == "mean":
-            loss /= batch_size
-            x_grad /= batch_size
-            weight_grad /= batch_size
+            loss /= B
+            x_grad /= B
+            weight_grad /= B
 
         ctx.save_for_backward(x_grad, weight_grad)
 
@@ -83,7 +75,7 @@ class _FusedLinearCrossEntropy(torch.autograd.Function):
         x_grad *= output_grad
         weight_grad *= output_grad
 
-        return x_grad, weight_grad, *[None] * 4
+        return x_grad, weight_grad, *[None] * 3
 
 
 def fused_linear_cross_entropy(
@@ -107,6 +99,12 @@ def fused_linear_cross_entropy(
     Returns:
         torch.Tensor: loss
     """
+
+    assert reduction in ["sum", "mean"]
+    assert x.dim() == 2, "x should be 2 dimensional"
+    assert labels.dim() == 1, "labels should be 1 dimensional"
+    assert x.size(0) == labels.size(0), "x and labels have different number of elements along dim 0"
+    assert x.size(-1) == weight.size(-1)
 
     if kernel_backend == KernelBackend.torch:
         x = F.linear(x, weight)
