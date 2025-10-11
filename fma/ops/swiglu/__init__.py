@@ -141,9 +141,6 @@ def swiglu_packed(
         torch.Tensor: output tensor
     """
 
-    assert kernel_backend_forward == KernelBackend.triton
-    assert kernel_backend_backward == KernelBackend.triton
-
     if kernel_backend_forward == KernelBackend.torch:
         up, gate = x.chunk(2, dim=-1)
 
@@ -154,6 +151,9 @@ def swiglu_packed(
             kernel_backend_backward=kernel_backend_backward,
         )
     else:
-        output = _SwigluPacked.apply(x, kernel_backend_forward, kernel_backend_backward)
+        assert kernel_backend_forward == KernelBackend.triton
+        assert kernel_backend_backward == KernelBackend.triton
+
+        output = _SwigluPacked.apply(x)
 
     return output
