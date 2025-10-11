@@ -4,14 +4,36 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
+
 import torch
 import torch.nn as nn
 
 from .accelerator import Accelerator
 
 
+_IS_CUSTOM_OP_ENABLED = True
+
+
+@contextmanager
+def enable_custom_op(enable: bool = True):
+    global _IS_CUSTOM_OP_ENABLED
+
+    original_value = _IS_CUSTOM_OP_ENABLED
+    _IS_CUSTOM_OP_ENABLED = enable
+
+    yield
+
+    _IS_CUSTOM_OP_ENABLED = original_value
+
+
 class CustomOp(nn.Module):
     def forward(self, *args, **kwargs):
+        global _IS_CUSTOM_OP_ENABLED
+
+        if not _IS_CUSTOM_OP_ENABLED:
+            return self._forward_torch(*args, **kwargs)
+
         accelerator = self._get_accelerator_from_args_kwargs(*args, **kwargs)
 
         if accelerator == Accelerator.cpu:
@@ -25,7 +47,7 @@ class CustomOp(nn.Module):
         elif accelerator == Accelerator.xpu:
             output = self._forward_xpu(*args, **kwargs)
         else:
-            output = self._forward_torch(*args, **kwargs)
+            output = self._forward_triton(*args, **kwargs)
 
         return output
 
@@ -39,6 +61,9 @@ class CustomOp(nn.Module):
         raise NotImplementedError
 
     def _forward_torch(self, *args, **kwargs):
+        raise NotImplementedError
+
+    def _forward_triton(self, *args, **kwargs):
         raise NotImplementedError
 
     def _forward_tpu(self, *args, **kwargs):
@@ -67,7 +92,7 @@ class CustomOp(nn.Module):
                 accelerator = Accelerator.get_device(arg)
                 break
 
-        for key, arg in kwargs.items():
+        for arg in kwargs.values():
             if isinstance(arg, torch.Tensor):
                 accelerator = Accelerator.get_device(arg)
                 break
