@@ -11,31 +11,6 @@ from .accelerator import Accelerator
 
 
 class CustomOp(nn.Module):
-    def __new__(cls, *args, **kwargs):
-        try:
-            op_name = cls.__name__
-        except AttributeError:
-            raise TypeError(
-                f"Cannot instantiate '{cls.__name__}': its 'name' attribute "
-                f"was not set, possibly because it was not decorated with "
-                f"@CustomOp.register, or it's the CustomOp base class itself."
-            ) from None
-
-        if op_name not in cls.op_registry_oot:
-            op_cls_to_instantiate = cls
-        else:
-            op_cls_to_instantiate = cls.op_registry_oot[op_name]
-            logger.debug(
-                "Instantiating custom op: %s using %s",
-                op_name,
-                str(op_cls_to_instantiate),
-            )
-        return super().__new__(op_cls_to_instantiate)
-
-    def __init__(self):
-        super().__init__()
-        self._forward_method = self.dispatch_forward()
-
     def forward(self, *args, **kwargs):
         accelerator = self._get_accelerator_from_args_kwargs(*args, **kwargs)
 
