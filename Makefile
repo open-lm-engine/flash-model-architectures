@@ -22,6 +22,3 @@ update-precommit:
 style:
 	python copyright/copyright.py --repo ./ --exclude copyright-exclude.txt --header "Copyright (c) 2025, Mayank Mishra"
 	uv run pre-commit run --all-files
-
-cutotune-cache:
-	DEBUG_CUTOTUNE=1 LOAD_CUTOTUNE_CACHE=1 TORCH_CUDA_ARCH_LIST=9.0 python tools/build_cutotune_cache.py
