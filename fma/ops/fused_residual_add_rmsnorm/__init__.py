@@ -133,8 +133,6 @@ def fused_residual_add_rmsnorm(
         tuple[torch.Tensor, torch.Tensor]: output activations, updated residual stream
     """
 
-    assert kernel_backend == KernelBackend.triton or isinstance(kernel_backend, CutoTuneParameter)
-
     if weight is not None:
         assert weight.dim() == 1, "weight should be 1D"
         assert weight.size(-1) == x.size(-1), "hidden size for x and weight tensor is different"
@@ -150,7 +148,9 @@ def fused_residual_add_rmsnorm(
 
         x = F.rms_norm(x, normalized_shape=(x.size(-1),), weight=weight, eps=eps)
     else:
+        assert kernel_backend == KernelBackend.triton
         increment_counter(fused_residual_add_rmsnorm)
+
         x, residual = _FusedResidualAddRMSNorm.apply(
             x, residual, weight, eps, multiplier, memory_efficient, deterministic
         )
