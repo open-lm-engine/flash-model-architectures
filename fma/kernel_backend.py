@@ -15,11 +15,11 @@ _FORCE_TRITON_BACKEND = False
 
 
 @contextmanager
-def force_torch_backend(enable: bool = True):
+def force_torch_backend():
     global _FORCE_TORCH_BACKEND
 
     original_value = _FORCE_TORCH_BACKEND
-    _FORCE_TORCH_BACKEND = enable
+    _FORCE_TORCH_BACKEND = True
 
     yield
 
@@ -27,11 +27,11 @@ def force_torch_backend(enable: bool = True):
 
 
 @contextmanager
-def force_triton_backend(enable: bool = True):
+def force_triton_backend():
     global _FORCE_TRITON_BACKEND
 
     original_value = _FORCE_TRITON_BACKEND
-    _FORCE_TRITON_BACKEND = enable
+    _FORCE_TRITON_BACKEND = True
 
     yield
 
