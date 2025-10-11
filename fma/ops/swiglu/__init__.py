@@ -22,9 +22,6 @@ class _Swiglu(torch.autograd.Function):
         kernel_backend_forward: KernelBackend,
         kernel_backend_backward: KernelBackend,
     ) -> torch.Tensor:
-        assert gate.size() == up.size(), "tensors gate and up should have same shape"
-        assert gate.type() == up.type(), "tensors gate and up should have same dtype"
-
         output = torch.empty_like(gate)
 
         if kernel_backend_forward == KernelBackend.cuda:
@@ -62,15 +59,7 @@ class _Swiglu(torch.autograd.Function):
 class _SwigluPacked(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
-    def forward(
-        ctx,
-        x: torch.Tensor,
-        kernel_backend_forward: KernelBackend = KernelBackend.cuda,
-        kernel_backend_backward: KernelBackend = KernelBackend.cuda,
-    ) -> torch.Tensor:
-        assert kernel_backend_forward == KernelBackend.triton
-        assert kernel_backend_backward == KernelBackend.triton
-
+    def forward(ctx, x: torch.Tensor) -> torch.Tensor:
         ctx.save_for_backward(x)
 
         output = torch.empty(*x.size()[:-1], divide_if_divisible(x.size(-1), 2), device=x.device, dtype=x.dtype)
@@ -91,7 +80,7 @@ class _SwigluPacked(torch.autograd.Function):
 
         swiglu_backward_triton(gate=gate, up=up, output_grad=output_grad, gate_grad=gate_grad, up_grad=up_grad)
 
-        return x_grad, None, None
+        return x_grad
 
 
 def swiglu(
@@ -114,6 +103,9 @@ def swiglu(
     Returns:
         torch.Tensor: output tensor
     """
+
+    assert gate.size() == up.size(), "tensors gate and up should have same shape"
+    assert gate.type() == up.type(), "tensors gate and up should have same dtype"
 
     if kernel_backend_forward == KernelBackend.torch:
         assert kernel_backend_backward == KernelBackend.torch
@@ -148,6 +140,9 @@ def swiglu_packed(
     Returns:
         torch.Tensor: output tensor
     """
+
+    assert kernel_backend_forward == KernelBackend.triton
+    assert kernel_backend_backward == KernelBackend.triton
 
     if kernel_backend_forward == KernelBackend.torch:
         up, gate = x.chunk(2, dim=-1)
