@@ -13,7 +13,7 @@ import torch
 from torch._inductor.fx_passes.joint_graph import patterns
 from torch._inductor.pattern_matcher import fwd_only, joint_fwd_bwd, register_replacement
 
-from .enums import KernelBackend
+from .kernel_backend import KernelBackend
 from .ops import fused_residual_add_rmsnorm, rmsnorm
 
 
