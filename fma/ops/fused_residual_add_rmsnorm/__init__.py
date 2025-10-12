@@ -6,8 +6,7 @@ import torch
 import torch.nn.functional as F
 
 from ...counters import increment_counter
-from ...cutotune import CutoTuneParameter
-from ...enums import KernelBackend
+from ...kernel_backend import KernelBackend
 from ...utils import ensure_contiguous, get_num_elements_and_hidden_size, get_sm_count
 from .triton_implementation import (
     fused_residual_add_rmsnorm_backward_triton,
@@ -115,7 +114,6 @@ def fused_residual_add_rmsnorm(
     multiplier: float | None = None,
     memory_efficient: bool = False,
     deterministic: bool = False,
-    kernel_backend: KernelBackend | CutoTuneParameter = KernelBackend.triton,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """fused residual add RMSNorm computation
 
@@ -137,6 +135,8 @@ def fused_residual_add_rmsnorm(
         assert weight.dim() == 1, "weight should be 1D"
         assert weight.size(-1) == x.size(-1), "hidden size for x and weight tensor is different"
         assert weight.type() == x.type(), "tensors weight and y should have same dtype"
+
+    kernel_backend = KernelBackend.get_kernel_backend_from_device(x)
 
     if kernel_backend == KernelBackend.torch:
         if multiplier not in [None, 1]:

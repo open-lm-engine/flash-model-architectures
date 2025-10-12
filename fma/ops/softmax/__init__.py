@@ -5,7 +5,7 @@
 import torch
 import torch.nn.functional as F
 
-from ...enums import KernelBackend
+from ...kernel_backend import KernelBackend
 from .triton_implementation import softmax_backward_triton, softmax_forward_triton
 
 
@@ -33,21 +33,19 @@ class _Softmax(torch.autograd.Function):
         return x_grad, None
 
 
-def softmax(
-    x: torch.Tensor, logits_multiplier: float | None = None, *, kernel_backend: KernelBackend = KernelBackend.triton
-) -> torch.Tensor:
+def softmax(x: torch.Tensor, logits_multiplier: float | None = None) -> torch.Tensor:
     """computes softmax activation
 
     Args:
         x (torch.Tensor): input activation tensor
         logits_multiplier (float, optional): pre-multiplies `x` with `logits_multiplier` before computing softmax.
             Defaults to None.
-        kernel_backend (KernelBackend, optional): kernel backend to prioritize.
-            Defaults to KernelBackend.triton.
 
     Returns:
         torch.Tensor: output tensor
     """
+
+    kernel_backend = KernelBackend.get_kernel_backend_from_device(x)
 
     if kernel_backend == KernelBackend.torch:
         dtype = x.dtype
