@@ -41,6 +41,8 @@ def gru_backward_triton_kernel(
     H,
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
+    NEEDS_MASK_B: tl.constexpr,
+    NEEDS_MASK_H: tl.constexpr,
 ):
     BLOCK_ID_B = tl.program_id(axis=0)
     BLOCK_ID_N = tl.program_id(axis=1)
@@ -49,20 +51,35 @@ def gru_backward_triton_kernel(
     BLOCK_H = tl.arange(0, BLOCK_SIZE_H)
     BLOCK_W = BLOCK_ID_N * W_stride[0] + BLOCK_H[:, None] * W_stride[1] + BLOCK_H[None, :] * W_stride[2]
 
-    mask_b = BLOCK_B < B
-    mask_h = BLOCK_H < H
+    if NEEDS_MASK_B:
+        MASK_B = BLOCK_B < B
+    else:
+        MASK_B = None
 
-    mask_bh = mask_b[:, None] & mask_h[None, :]
-    mask_hh = mask_h[:, None] & mask_h[None, :]
+    if NEEDS_MASK_H:
+        MASK_H = BLOCK_H < H
+        MASK_HH = MASK_H[:, None] & MASK_H[None, :]
+    else:
+        MASK_H = None
+        MASK_HH = None
+
+    if NEEDS_MASK_B and NEEDS_MASK_H:
+        MASK_BH = MASK_B[:, None] & MASK_H[None, :]
+    elif NEEDS_MASK_B:
+        MASK_BH = MASK_B[:, None]
+    elif NEEDS_MASK_H:
+        MASK_BH = MASK_H[None, :]
+    else:
+        MASK_BH = None
 
     dh = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=W_ptr.dtype.element_ty)
     dW = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
     dWf = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
     dWr = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
 
-    W = tl.load(W_ptr + BLOCK_W, mask=mask_hh)
-    Wf = tl.load(Wf_ptr + BLOCK_W, mask=mask_hh)
-    Wr = tl.load(Wr_ptr + BLOCK_W, mask=mask_hh)
+    W = tl.load(W_ptr + BLOCK_W, mask=MASK_HH)
+    Wf = tl.load(Wf_ptr + BLOCK_W, mask=MASK_HH)
+    Wr = tl.load(Wr_ptr + BLOCK_W, mask=MASK_HH)
 
     indices = (
         BLOCK_B[:, None] * y_stride[0]
@@ -76,10 +93,10 @@ def gru_backward_triton_kernel(
         if gradient_clipping is not None:
             dh = clamp(dh, min_value=-gradient_clipping, max_value=gradient_clipping)
 
-        dy = tl.load(dy_ptr + indices, mask=mask_bh) + dh
-        f = tl.load(f_ptr + indices, mask=mask_bh)
-        r = tl.load(r_ptr + indices, mask=mask_bh)
-        z = tl.load(z_ptr + indices, mask=mask_bh)
+        dy = tl.load(dy_ptr + indices, mask=MASK_BH) + dh
+        f = tl.load(f_ptr + indices, mask=MASK_BH)
+        r = tl.load(r_ptr + indices, mask=MASK_BH)
+        z = tl.load(z_ptr + indices, mask=MASK_BH)
 
         dx_ptrs = dx_ptr + indices
         dxf_ptrs = dxf_ptr + indices
@@ -96,10 +113,10 @@ def gru_backward_triton_kernel(
                     + BLOCK_B[:, None] * h0_stride[0]
                     + BLOCK_ID_N * h0_stride[1]
                     + BLOCK_H[None, :] * h0_stride[2],
-                    mask=mask_bh,
+                    mask=MASK_BH,
                 )
         else:
-            y_prev = tl.load(y_ptr + indices, mask=mask_bh)
+            y_prev = tl.load(y_ptr + indices, mask=MASK_BH)
 
         dh = f * dy
         dz = dy * (1 - f)
@@ -108,23 +125,23 @@ def gru_backward_triton_kernel(
         dx = dz * tanh_backward(z)
         drh = matmul(A=dx, B=W.T, C=None, output_dtype=dx.dtype)
         dW = matmul(A=(r * y_prev).T, B=dx, C=dW, output_dtype=dW.dtype)
-        tl.store(dx_ptrs, dx, mask=mask_bh)
+        tl.store(dx_ptrs, dx, mask=MASK_BH)
 
         dh += drh * r
 
         dxf = df * sigmoid_backward(f)
         dh = matmul(A=dxf, B=Wf.T, C=dh, output_dtype=dx.dtype)
         dWf = matmul(A=y_prev.T, B=dxf, C=dWf, output_dtype=dW.dtype)
-        tl.store(dxf_ptrs, dxf, mask=mask_bh)
+        tl.store(dxf_ptrs, dxf, mask=MASK_BH)
 
         dxr = drh * y_prev * sigmoid_backward(r)
         dh = matmul(A=dxr, B=Wr.T, C=dh, output_dtype=dx.dtype)
         dWr = matmul(A=y_prev.T, B=dxr, C=dWr, output_dtype=dW.dtype)
-        tl.store(dxr_ptrs, dxr, mask=mask_bh)
+        tl.store(dxr_ptrs, dxr, mask=MASK_BH)
 
-    tl.atomic_add(dW_ptr + BLOCK_W, dW, mask=mask_hh, sem="relaxed")
-    tl.atomic_add(dWf_ptr + BLOCK_W, dWf, mask=mask_hh, sem="relaxed")
-    tl.atomic_add(dWr_ptr + BLOCK_W, dWr, mask=mask_hh, sem="relaxed")
+    tl.atomic_add(dW_ptr + BLOCK_W, dW, mask=MASK_HH, sem="relaxed")
+    tl.atomic_add(dWf_ptr + BLOCK_W, dWf, mask=MASK_HH, sem="relaxed")
+    tl.atomic_add(dWr_ptr + BLOCK_W, dWr, mask=MASK_HH, sem="relaxed")
 
 
 @custom_op(
