@@ -13,6 +13,32 @@ from ....triton_math import matmul, sigmoid, tanh
 from ...rnn.triton_implementation.forward import _get_autotune_configs
 
 
+@triton.jit
+def _get_masks(BLOCK_B, BLOCK_H, NEEDS_MASK_B, NEEDS_MASK_H, B, H):
+    if NEEDS_MASK_B:
+        MASK_B = BLOCK_B < B
+    else:
+        MASK_B = None
+
+    if NEEDS_MASK_H:
+        MASK_H = BLOCK_H < H
+        MASK_HH = MASK_H[:, None] & MASK_H[None, :]
+    else:
+        MASK_H = None
+        MASK_HH = None
+
+    if NEEDS_MASK_B and NEEDS_MASK_H:
+        MASK_BH = MASK_B[:, None] & MASK_H[None, :]
+    elif NEEDS_MASK_B:
+        MASK_BH = MASK_B[:, None]
+    elif NEEDS_MASK_H:
+        MASK_BH = MASK_H[None, :]
+    else:
+        MASK_BH = None
+
+    return MASK_B, MASK_H, MASK_HH, MASK_BH
+
+
 @triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_H"])
 @triton.heuristics({"NEEDS_MASK_B": lambda args: args["B"] % args["BLOCK_SIZE_B"] != 0})
 @triton.jit
@@ -45,26 +71,7 @@ def gru_forward_triton_kernel(
     BLOCK_B = BLOCK_ID_B * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
     BLOCK_H = tl.arange(0, BLOCK_SIZE_H)
 
-    if NEEDS_MASK_B:
-        MASK_B = BLOCK_B < B
-    else:
-        MASK_B = None
-
-    if NEEDS_MASK_H:
-        MASK_H = BLOCK_H < H
-        MASK_HH = MASK_H[:, None] & MASK_H[None, :]
-    else:
-        MASK_H = None
-        MASK_HH = None
-
-    if NEEDS_MASK_B and NEEDS_MASK_H:
-        MASK_BH = MASK_B[:, None] & MASK_H[None, :]
-    elif NEEDS_MASK_B:
-        MASK_BH = MASK_B[:, None]
-    elif NEEDS_MASK_H:
-        MASK_BH = MASK_H[None, :]
-    else:
-        MASK_BH = None
+    _, _, MASK_HH, MASK_BH = _get_masks(BLOCK_B, BLOCK_H, NEEDS_MASK_B, NEEDS_MASK_H, B, H)
 
     BLOCK = BLOCK_ID_N * W_stride[0] + BLOCK_H[:, None] * W_stride[1] + BLOCK_H[None, :] * W_stride[2]
 
