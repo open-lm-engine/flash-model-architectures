@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 from parameterized import parameterized
 
-from fma import GRU, KernelBackend, force_torch_backend, set_seed
+from fma import GRU, force_torch_backend, set_seed
 
 from ..test_commons import TestCommons
 
