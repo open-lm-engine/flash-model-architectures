@@ -4,7 +4,7 @@
 
 import torch
 
-from ...enums import KernelBackend
+from ...kernel_backend import KernelBackend
 from ...utils import ensure_contiguous
 from .cuda_implementation import pack_unpack_sequence_cuda
 from .triton_implementation import pack_unpack_sequence_triton
@@ -199,9 +199,6 @@ def unpack_sequence(
     cu_seqlens: torch.Tensor,
     output_shape: tuple[int],
     padding_side: str = "left",
-    *,
-    kernel_backend_forward: KernelBackend = KernelBackend.cuda,
-    kernel_backend_backward: KernelBackend = KernelBackend.cuda,
 ) -> torch.Tensor | list[torch.Tensor]:
     assert padding_side in ["left", "right"]
 

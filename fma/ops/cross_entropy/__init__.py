@@ -5,7 +5,7 @@
 import torch
 import torch.nn.functional as F
 
-from ...enums import KernelBackend
+from ...kernel_backend import KernelBackend
 from ...utils import get_num_elements_and_hidden_size
 from .triton_implementation import cross_entropy_forward_backward_triton
 
@@ -35,12 +35,7 @@ class _CrossEntropy(torch.autograd.Function):
 
 
 def cross_entropy(
-    x: torch.Tensor,
-    labels: torch.Tensor,
-    reduction: str = "mean",
-    logits_multiplier: float | None = None,
-    *,
-    kernel_backend: KernelBackend = KernelBackend.triton,
+    x: torch.Tensor, labels: torch.Tensor, reduction: str = "mean", logits_multiplier: float | None = None
 ) -> torch.Tensor:
     """compute cross entropy loss
 
@@ -50,8 +45,6 @@ def cross_entropy(
         reduction (str, optional): reduction should be either sum or mean. Defaults to "mean".
         logits_multiplier (float | None, optional): logits multiplier pre-multiplies logits, None implies 1.
             Defaults to None.
-        kernel_backend (KernelBackend, optional): kernel backend to prioritize.
-            Defaults to KernelBackend.triton.
 
     Returns:
         torch.Tensor: loss
@@ -63,6 +56,8 @@ def cross_entropy(
     assert (
         labels.size(0) == get_num_elements_and_hidden_size(x)[0]
     ), "x and labels have different number of elements along batch dimension"
+
+    kernel_backend = KernelBackend.get_kernel_backend_from_device(x)
 
     if kernel_backend == KernelBackend.torch:
         x = x.float()

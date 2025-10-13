@@ -5,8 +5,7 @@
 import torch
 import torch.nn as nn
 
-from ...cutotune import CutoTuneParameter
-from ...enums import KernelBackend
+from ...kernel_backend import KernelBackend
 from ...math import divide_if_divisible
 from ...torch_math import clip_gradients, tanh
 from ...utils import ensure_contiguous
@@ -132,8 +131,6 @@ def rnn(
     gradient_clipping: float | None = None,
     cu_seqlens: torch.Tensor | None = None,
     max_seqlen: torch.Tensor | int | None = None,
-    *,
-    kernel_backend: KernelBackend | CutoTuneParameter = KernelBackend.triton,
 ) -> torch.Tensor:
     """computes multihead RNN recurrent update over the sequence length: tanh(`input_state` @ `weight` + `input`)
 
@@ -147,8 +144,6 @@ def rnn(
             implies no clipping. Defaults to None.
         cu_seqlens (torch.Tensor | None, optional): cumulative sequence length (must contain 0 as first element). Defaults to None.
         max_seqlen (torch.Tensor | int | None, optional): max sequence length in the batch. Defaults to None.
-        kernel_backend (KernelBackend | CutoTuneParameter, optional): kernel backend to prioritize.
-            Defaults to KernelBackend.triton.
 
     Returns:
         torch.Tensor: output tensor of shape (B, S, N, H)
@@ -162,6 +157,8 @@ def rnn(
 
     if gradient_clipping is not None and gradient_clipping < 0:
         gradient_clipping = -gradient_clipping
+
+    kernel_backend = KernelBackend.get_kernel_backend_from_device(input)
 
     if kernel_backend == KernelBackend.torch:
         output = torch.empty_like(input)
@@ -262,7 +259,6 @@ class RNN(nn.Module):
         input_state: torch.Tensor | None = None,
         cu_seqlens: torch.Tensor | None = None,
         max_seqlen: int | None = None,
-        kernel_backend: KernelBackend = KernelBackend.triton,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         input = self.input_projection(input)
         input = input.view(*input.size()[:-1], self.num_heads, self.state_head_dim)
@@ -277,7 +273,6 @@ class RNN(nn.Module):
             gradient_clipping=self.gradient_clipping,
             cu_seqlens=cu_seqlens,
             max_seqlen=max_seqlen,
-            kernel_backend=kernel_backend,
         )
 
         if cu_seqlens is None:

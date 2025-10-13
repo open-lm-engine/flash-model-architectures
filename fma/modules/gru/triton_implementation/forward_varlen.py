@@ -14,6 +14,7 @@ from ...rnn.triton_implementation.forward import _get_autotune_configs
 
 
 @triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_H"])
+@triton.heuristics({"NEEDS_MASK_B": lambda args: args["B"] % args["BLOCK_SIZE_B"] != 0})
 @triton.jit
 def gru_varlen_forward_triton_kernel(
     x_ptr,
@@ -37,6 +38,8 @@ def gru_varlen_forward_triton_kernel(
     H,
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
+    NEEDS_MASK_B: tl.constexpr,
+    NEEDS_MASK_H: tl.constexpr,
 ):
     BLOCK_ID_B = tl.program_id(axis=0)
     BLOCK_ID_N = tl.program_id(axis=1)
@@ -44,29 +47,44 @@ def gru_varlen_forward_triton_kernel(
     BLOCK_B = BLOCK_ID_B * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
     BLOCK_H = tl.arange(0, BLOCK_SIZE_H)
 
-    mask_b = BLOCK_B < B
-    mask_h = BLOCK_H < H
+    if NEEDS_MASK_B:
+        MASK_B = BLOCK_B < B
+    else:
+        MASK_B = None
 
-    mask_bh = mask_b[:, None] & mask_h[None, :]
-    mask_hh = mask_h[:, None] & mask_h[None, :]
+    if NEEDS_MASK_H:
+        MASK_H = BLOCK_H < H
+        MASK_HH = MASK_H[:, None] & MASK_H[None, :]
+    else:
+        MASK_H = None
+        MASK_HH = None
+
+    if NEEDS_MASK_B and NEEDS_MASK_H:
+        MASK_BH = MASK_B[:, None] & MASK_H[None, :]
+    elif NEEDS_MASK_B:
+        MASK_BH = MASK_B[:, None]
+    elif NEEDS_MASK_H:
+        MASK_BH = MASK_H[None, :]
+    else:
+        MASK_BH = None
 
     BLOCK = BLOCK_ID_N * W_stride[0] + BLOCK_H[:, None] * W_stride[1] + BLOCK_H[None, :] * W_stride[2]
 
-    W = tl.load(W_ptr + BLOCK, mask=mask_hh)
-    Wf = tl.load(Wf_ptr + BLOCK, mask=mask_hh)
-    Wr = tl.load(Wr_ptr + BLOCK, mask=mask_hh)
+    W = tl.load(W_ptr + BLOCK, mask=MASK_HH)
+    Wf = tl.load(Wf_ptr + BLOCK, mask=MASK_HH)
+    Wr = tl.load(Wr_ptr + BLOCK, mask=MASK_HH)
 
     if h0_ptr is None:
         h = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=x_ptr.dtype.element_ty)
     else:
         h = tl.load(
             h0_ptr + BLOCK_B[:, None] * h0_stride[0] + BLOCK_ID_N * h0_stride[1] + BLOCK_H[None, :] * h0_stride[2],
-            mask=mask_bh,
+            mask=MASK_BH,
         )
 
     cu_seqlens_ptrs = cu_seqlens_ptr + BLOCK_B[:, None]
-    start = tl.load(cu_seqlens_ptrs, mask=mask_b[:, None])
-    end = tl.load(cu_seqlens_ptrs + 1, mask=mask_b[:, None])
+    start = tl.load(cu_seqlens_ptrs, mask=MASK_B[:, None])
+    end = tl.load(cu_seqlens_ptrs + 1, mask=MASK_B[:, None])
 
     if IS_MAX_SEQLEN_TENSOR:
         max_seqlen = tl.load(max_seqlen_ptr)
@@ -76,26 +94,25 @@ def gru_varlen_forward_triton_kernel(
     BLOCK = start * x_stride[0] + BLOCK_ID_N * x_stride[1] + BLOCK_H[None, :] * x_stride[2]
 
     for _ in range(max_seqlen):
-        unfinished = start < end
-        mask = unfinished & mask_h[None, :]
+        MASK = (start < end) & MASK_H[None, :]
 
-        x = tl.load(xr_ptr + BLOCK, mask=mask)
+        x = tl.load(xr_ptr + BLOCK, mask=MASK)
         r = matmul(A=h, B=Wr, C=x, output_dtype=tl.float32)
         r = sigmoid(r, output_dtype=x.dtype)
-        tl.store(r_ptr + BLOCK, r, mask=mask)
+        tl.store(r_ptr + BLOCK, r, mask=MASK)
 
-        x = tl.load(x_ptr + BLOCK, mask=mask)
+        x = tl.load(x_ptr + BLOCK, mask=MASK)
         z = matmul(A=h * r, B=W, C=x, output_dtype=tl.float32)
         z = tanh(z, output_dtype=x.dtype)
-        tl.store(z_ptr + BLOCK, z, mask=mask)
+        tl.store(z_ptr + BLOCK, z, mask=MASK)
 
-        x = tl.load(xf_ptr + BLOCK, mask=mask)
+        x = tl.load(xf_ptr + BLOCK, mask=MASK)
         f = matmul(A=h, B=Wf, C=x, output_dtype=tl.float32)
         f = sigmoid(f, output_dtype=x.dtype)
-        tl.store(f_ptr + BLOCK, f, mask=mask)
+        tl.store(f_ptr + BLOCK, f, mask=MASK)
 
         h = f * h + (1 - f) * z
-        tl.store(y_ptr + BLOCK, h, mask=mask)
+        tl.store(y_ptr + BLOCK, h, mask=MASK)
 
         BLOCK += x_stride[0]
         start += 1
@@ -151,4 +168,5 @@ def gru_varlen_forward_triton(
             B=B,
             H=H,
             BLOCK_SIZE_H=BLOCK_SIZE_H,
+            NEEDS_MASK_H=H % BLOCK_SIZE_H != 0,
         )

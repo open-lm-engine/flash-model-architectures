@@ -5,7 +5,7 @@
 import torch
 
 from ...cutotune import CutoTuneParameter
-from ...enums import KernelBackend
+from ...kernel_backend import KernelBackend
 from ...utils import ensure_contiguous
 from .triton_implementation import bmm_triton
 
@@ -19,8 +19,6 @@ def bmm(
     is_B_transposed: bool = False,
     alpha: float = 1,
     beta: float = 1,
-    *,
-    kernel_backend: KernelBackend | CutoTuneParameter = KernelBackend.triton,
 ) -> torch.Tensor:
     """computes `alpha` * (`A` @ `B`) + `beta` * `C`
 
@@ -32,8 +30,6 @@ def bmm(
         is_B_transposed (bool, optional): whether B has shape N x K. Defaults to False.
         alpha (float, optional): alpha. Defaults to 1.
         beta (float, optional): beta. Defaults to 1.
-        kernel_backend (KernelBackend | CutoTuneParameter, optional): kernel backend to prioritize.
-            Defaults to KernelBackend.triton.
 
     Raises:
         ValueError: if unexpected `kernel_backend` is passed
@@ -57,6 +53,8 @@ def bmm(
     else:
         assert C is not None
         assert C.size() == (L, M, N)
+
+    kernel_backend = KernelBackend.get_kernel_backend_from_device(A)
 
     if kernel_backend == KernelBackend.torch:
         if is_A_transposed:
