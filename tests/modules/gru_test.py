@@ -254,20 +254,12 @@ class GRUTest(TestCommons):
             gru_kernel = torch.compile(gru_kernel, fullgraph=True)
 
         y_kernel, _ = gru_kernel(
-            input=x_kernel,
-            input_state=input_state_kernel,
-            cu_seqlens=cu_seqlens,
-            max_seqlen=max_seqlen,
-            kernel_backend=KernelBackend.triton,
+            input=x_kernel, input_state=input_state_kernel, cu_seqlens=cu_seqlens, max_seqlen=max_seqlen
         )
 
         with force_torch_backend():
             y_torch, _ = gru_torch(
-                input=x_torch,
-                input_state=input_state_torch,
-                cu_seqlens=cu_seqlens,
-                max_seqlen=max_seqlen,
-                kernel_backend=KernelBackend.torch,
+                input=x_torch, input_state=input_state_torch, cu_seqlens=cu_seqlens, max_seqlen=max_seqlen
             )
 
         y_kernel.sum().backward()
