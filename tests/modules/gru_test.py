@@ -163,23 +163,19 @@ class GRUTest(TestCommons):
 
             nn.init.normal_(gru.state_weight, std=0.01)
 
-        y_kernel, _ = gru(
-            input=x_packed_kernel,
-            input_state=input_state_kernel,
-            cu_seqlens=cu_seqlens,
-            max_seqlen=max_seqlen,
-            kernel_backend=KernelBackend.torch,
-        )
-
-        y_torch = []
-        for i in range(batch_size):
-            y, _ = gru(
-                input=x_packed_torch[cu_seqlens[i] : cu_seqlens[i + 1]].unsqueeze(0),
-                input_state=input_state_torch[i].unsqueeze(0) if has_input_state else None,
-                kernel_backend=KernelBackend.torch,
+        with force_torch_backend():
+            y_kernel, _ = gru(
+                input=x_packed_kernel, input_state=input_state_kernel, cu_seqlens=cu_seqlens, max_seqlen=max_seqlen
             )
-            y_torch.append(y.squeeze(0))
-        y_torch = torch.cat(y_torch)
+
+            y_torch = []
+            for i in range(batch_size):
+                y, _ = gru(
+                    input=x_packed_torch[cu_seqlens[i] : cu_seqlens[i + 1]].unsqueeze(0),
+                    input_state=input_state_torch[i].unsqueeze(0) if has_input_state else None,
+                )
+                y_torch.append(y.squeeze(0))
+            y_torch = torch.cat(y_torch)
 
         self.assert_equal_tensors(y_kernel, y_torch, False, atol_bfloat16=3.1e-5, rtol_bfloat16=0)
 
@@ -265,13 +261,14 @@ class GRUTest(TestCommons):
             kernel_backend=KernelBackend.triton,
         )
 
-        y_torch, _ = gru_torch(
-            input=x_torch,
-            input_state=input_state_torch,
-            cu_seqlens=cu_seqlens,
-            max_seqlen=max_seqlen,
-            kernel_backend=KernelBackend.torch,
-        )
+        with force_torch_backend():
+            y_torch, _ = gru_torch(
+                input=x_torch,
+                input_state=input_state_torch,
+                cu_seqlens=cu_seqlens,
+                max_seqlen=max_seqlen,
+                kernel_backend=KernelBackend.torch,
+            )
 
         y_kernel.sum().backward()
         weight_kernel_grads = self.collect_gradients_from_module_and_zero_grads(gru)
