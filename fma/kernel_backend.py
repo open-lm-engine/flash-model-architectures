@@ -11,6 +11,7 @@ import torch
 
 
 _IS_ROCM_AVAILABLE = torch.version.hip is not None
+_FORCE_TORCH_BACKEND = False
 _FORCE_TRITON_BACKEND = False
 
 
