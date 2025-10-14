@@ -13,106 +13,6 @@ from ...utils import ensure_contiguous
 from .triton_implementation import gru_backward_triton, gru_forward_triton
 
 
-class _GRU(torch.autograd.Function):
-    @staticmethod
-    @ensure_contiguous
-    def forward(
-        ctx,
-        input: torch.Tensor,
-        weight: torch.Tensor,
-        forget_input: torch.Tensor,
-        forget_weight: torch.Tensor,
-        reset_input: torch.Tensor,
-        reset_weight: torch.Tensor,
-        input_state: torch.Tensor | None,
-        gradient_clipping: float | None,
-    ) -> torch.Tensor:
-        output = torch.empty_like(input)
-        forget_gate = torch.empty_like(input)
-        reset_gate = torch.empty_like(input)
-        output_update = torch.empty_like(input)
-
-        gru_forward_triton(
-            input=input,
-            weight=weight,
-            forget_input=forget_input,
-            forget_weight=forget_weight,
-            forget_gate=forget_gate,
-            reset_input=reset_input,
-            reset_weight=reset_weight,
-            reset_gate=reset_gate,
-            output_update=output_update,
-            input_state=input_state,
-            output=output,
-            cu_seqlens=None,
-            max_seqlen_tensor=None,
-            max_seqlen=None,
-        )
-
-        ctx.save_for_backward(
-            weight, forget_weight, forget_gate, reset_weight, reset_gate, output_update, output, input_state
-        )
-
-        ctx.gradient_clipping = gradient_clipping
-
-        return output
-
-    @staticmethod
-    @ensure_contiguous
-    def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
-        (
-            weight,
-            forget_weight,
-            forget_gate,
-            reset_weight,
-            reset_gate,
-            output_update,
-            output,
-            input_state,
-        ) = ctx.saved_tensors
-
-        input_grad = torch.empty_like(output)
-        forget_input_grad = torch.empty_like(output)
-        reset_input_grad = torch.empty_like(output)
-        weight_grad = torch.zeros_like(weight, dtype=torch.float32)
-        forget_weight_grad = torch.zeros_like(weight, dtype=torch.float32)
-        reset_weight_grad = torch.zeros_like(weight, dtype=torch.float32)
-
-        gru_backward_triton(
-            weight=weight,
-            output=output,
-            forget_weight=forget_weight,
-            forget_gate=forget_gate,
-            forget_input_grad=forget_input_grad,
-            forget_weight_grad=forget_weight_grad,
-            reset_weight=reset_weight,
-            reset_gate=reset_gate,
-            reset_input_grad=reset_input_grad,
-            reset_weight_grad=reset_weight_grad,
-            output_update=output_update,
-            input_state=input_state,
-            output_grad=output_grad,
-            input_grad=input_grad,
-            weight_grad=weight_grad,
-            gradient_clipping=ctx.gradient_clipping,
-        )
-
-        weight_grad = weight_grad.type_as(weight)
-        forget_weight_grad = forget_weight_grad.type_as(forget_weight)
-        reset_weight_grad = reset_weight_grad.type_as(reset_weight)
-
-        return (
-            input_grad,
-            weight_grad,
-            forget_input_grad,
-            forget_weight_grad,
-            reset_input_grad,
-            reset_weight_grad,
-            None,
-            None,
-        )
-
-
 class _GRU_Varlen(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
@@ -378,23 +278,18 @@ def gru(
                 output[offset_unfinished] = new_state
                 input_state[unfinished] = new_state
     else:
-        if cu_seqlens is None:
-            output = _GRU.apply(
-                input, weight, forget_input, forget_weight, reset_input, reset_weight, input_state, gradient_clipping
-            )
-        else:
-            output = _GRU_Varlen.apply(
-                input,
-                weight,
-                forget_input,
-                forget_weight,
-                reset_input,
-                reset_weight,
-                input_state,
-                gradient_clipping,
-                cu_seqlens,
-                max_seqlen,
-            )
+        output = _GRU_Varlen.apply(
+            input,
+            weight,
+            forget_input,
+            forget_weight,
+            reset_input,
+            reset_weight,
+            input_state,
+            gradient_clipping,
+            cu_seqlens,
+            max_seqlen,
+        )
 
     return output
 

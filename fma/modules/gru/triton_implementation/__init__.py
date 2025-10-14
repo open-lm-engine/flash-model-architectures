@@ -3,5 +3,4 @@
 # **************************************************
 
 from .backward import gru_backward_triton
-from .backward_varlen import gru_varlen_backward_triton
 from .forward import gru_forward_triton
