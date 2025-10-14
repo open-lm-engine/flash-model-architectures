@@ -38,6 +38,11 @@ def gru_forward_triton_kernel(
     h0_stride,
     y_ptr,
     y_stride,
+    IS_VARLEN: tl.constexpr,
+    cu_seqlens_ptr,
+    cu_seqlens_stride,
+    IS_MAX_SEQLEN_TENSOR: tl.constexpr,
+    max_seqlen_ptr,
     B,
     S,
     H,
@@ -77,44 +82,76 @@ def gru_forward_triton_kernel(
             mask=MASK_BH,
         )
 
-    x_ptrs = x_ptr + BLOCK_B[:, None] * x_stride[0] + BLOCK_ID_N * x_stride[2] + BLOCK_H[None, :] * x_stride[3]
-    xr_ptrs = xr_ptr + BLOCK_B[:, None] * xr_stride[0] + BLOCK_ID_N * xr_stride[2] + BLOCK_H[None, :] * xr_stride[3]
-    xf_ptrs = xf_ptr + BLOCK_B[:, None] * xf_stride[0] + BLOCK_ID_N * xf_stride[2] + BLOCK_H[None, :] * xf_stride[3]
+    if IS_VARLEN:
+        cu_seqlens_ptrs = cu_seqlens_ptr + BLOCK_B[:, None] * cu_seqlens_stride[0]
+        start = tl.load(cu_seqlens_ptrs, mask=MASK_B[:, None])
+        end = tl.load(cu_seqlens_ptrs + cu_seqlens_stride[0], mask=MASK_B[:, None])
 
-    z_ptrs = z_ptr + BLOCK_B[:, None] * z_stride[0] + BLOCK_ID_N * z_stride[2] + BLOCK_H[None, :] * z_stride[3]
-    r_ptrs = r_ptr + BLOCK_B[:, None] * r_stride[0] + BLOCK_ID_N * r_stride[2] + BLOCK_H[None, :] * r_stride[3]
-    f_ptrs = f_ptr + BLOCK_B[:, None] * f_stride[0] + BLOCK_ID_N * f_stride[2] + BLOCK_H[None, :] * f_stride[3]
+        if IS_MAX_SEQLEN_TENSOR:
+            max_seqlen = tl.load(max_seqlen_ptr)
+        else:
+            max_seqlen = max_seqlen_ptr
 
-    y_ptrs = y_ptr + BLOCK_B[:, None] * y_stride[0] + BLOCK_ID_N * y_stride[2] + BLOCK_H[None, :] * y_stride[3]
+        x_ptrs = x_ptr + start * x_stride[0] + BLOCK_ID_N * x_stride[1] + BLOCK_H[None, :] * x_stride[2]
+        xr_ptrs = xr_ptr + start * xr_stride[0] + BLOCK_ID_N * xr_stride[1] + BLOCK_H[None, :] * xr_stride[2]
+        xf_ptrs = xf_ptr + start * xf_stride[0] + BLOCK_ID_N * xf_stride[1] + BLOCK_H[None, :] * xf_stride[2]
+
+        z_ptrs = z_ptr + start * z_stride[0] + BLOCK_ID_N * z_stride[1] + BLOCK_H[None, :] * z_stride[2]
+        r_ptrs = r_ptr + start * r_stride[0] + BLOCK_ID_N * r_stride[1] + BLOCK_H[None, :] * r_stride[2]
+        f_ptrs = f_ptr + start * f_stride[0] + BLOCK_ID_N * f_stride[1] + BLOCK_H[None, :] * f_stride[2]
+
+        y_ptrs = y_ptr + start * y_stride[0] + BLOCK_ID_N * y_stride[1] + BLOCK_H[None, :] * y_stride[2]
+    else:
+        x_ptrs = x_ptr + BLOCK_B[:, None] * x_stride[0] + BLOCK_ID_N * x_stride[2] + BLOCK_H[None, :] * x_stride[3]
+        xr_ptrs = (
+            xr_ptr + BLOCK_B[:, None] * xr_stride[0] + BLOCK_ID_N * xr_stride[2] + BLOCK_H[None, :] * xr_stride[3]
+        )
+        xf_ptrs = (
+            xf_ptr + BLOCK_B[:, None] * xf_stride[0] + BLOCK_ID_N * xf_stride[2] + BLOCK_H[None, :] * xf_stride[3]
+        )
+
+        z_ptrs = z_ptr + BLOCK_B[:, None] * z_stride[0] + BLOCK_ID_N * z_stride[2] + BLOCK_H[None, :] * z_stride[3]
+        r_ptrs = r_ptr + BLOCK_B[:, None] * r_stride[0] + BLOCK_ID_N * r_stride[2] + BLOCK_H[None, :] * r_stride[3]
+        f_ptrs = f_ptr + BLOCK_B[:, None] * f_stride[0] + BLOCK_ID_N * f_stride[2] + BLOCK_H[None, :] * f_stride[3]
+
+        y_ptrs = y_ptr + BLOCK_B[:, None] * y_stride[0] + BLOCK_ID_N * y_stride[2] + BLOCK_H[None, :] * y_stride[3]
 
     for _ in range(S):
-        x = tl.load(xr_ptrs, mask=MASK_BH)
+        if IS_VARLEN:
+            MASK = (start < end) & MASK_H[None, :]
+        else:
+            MASK = MASK_BH
+
+        x = tl.load(xr_ptrs, mask=MASK)
         r = matmul(A=h, B=Wr, C=x, output_dtype=tl.float32)
         r = sigmoid(r, output_dtype=x.dtype)
-        tl.store(r_ptrs, r, mask=MASK_BH)
+        tl.store(r_ptrs, r, mask=MASK)
 
-        x = tl.load(x_ptrs, mask=MASK_BH)
+        x = tl.load(x_ptrs, mask=MASK)
         z = matmul(A=h * r, B=W, C=x, output_dtype=tl.float32)
         z = tanh(z, output_dtype=x.dtype)
-        tl.store(z_ptrs, z, mask=MASK_BH)
+        tl.store(z_ptrs, z, mask=MASK)
 
-        x = tl.load(xf_ptrs, mask=MASK_BH)
+        x = tl.load(xf_ptrs, mask=MASK)
         f = matmul(A=h, B=Wf, C=x, output_dtype=tl.float32)
         f = sigmoid(f, output_dtype=x.dtype)
-        tl.store(f_ptrs, f, mask=MASK_BH)
+        tl.store(f_ptrs, f, mask=MASK)
 
         h = f * h + (1 - f) * z
-        tl.store(y_ptrs, h, mask=MASK_BH)
+        tl.store(y_ptrs, h, mask=MASK)
 
-        x_ptrs += x_stride[1]
-        xr_ptrs += xr_stride[1]
-        xf_ptrs += xf_stride[1]
+        x_ptrs += x_stride[1 - IS_VARLEN]
+        xr_ptrs += xr_stride[1 - IS_VARLEN]
+        xf_ptrs += xf_stride[1 - IS_VARLEN]
 
-        z_ptrs += z_stride[1]
-        r_ptrs += r_stride[1]
-        f_ptrs += f_stride[1]
+        z_ptrs += z_stride[1 - IS_VARLEN]
+        r_ptrs += r_stride[1 - IS_VARLEN]
+        f_ptrs += f_stride[1 - IS_VARLEN]
 
-        y_ptrs += y_stride[1]
+        y_ptrs += y_stride[1 - IS_VARLEN]
+
+        if IS_VARLEN:
+            start += 1
 
 
 @custom_op(
@@ -132,8 +169,20 @@ def gru_forward_triton(
     output_update: torch.Tensor,
     input_state: torch.Tensor | None,
     output: torch.Tensor,
+    cu_seqlens: torch.Tensor | None,
+    max_seqlen_tensor: torch.Tensor | None,
+    max_seqlen: int | None,
 ) -> None:
-    B, S, N, H = input.size()
+    is_varlen = cu_seqlens is not None
+
+    if is_varlen:
+        B = cu_seqlens.size(0) - 1
+        S = None
+        _, N, H = input.size()
+    else:
+        B, S, N, H = input.size()
+
+    is_max_seqlen_tensor = max_seqlen_tensor is not None
 
     BLOCK_SIZE_H = get_next_power_of_2(H)
     BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
@@ -163,6 +212,11 @@ def gru_forward_triton(
             h0_stride=None if input_state is None else input_state.stride(),
             y_ptr=output,
             y_stride=output.stride(),
+            IS_VARLEN=is_varlen,
+            cu_seqlens_ptr=cu_seqlens,
+            cu_seqlens_stride=None if cu_seqlens is None else cu_seqlens.stride(),
+            IS_MAX_SEQLEN_TENSOR=is_max_seqlen_tensor,
+            max_seqlen_ptr=max_seqlen_tensor if is_max_seqlen_tensor else max_seqlen,
             B=B,
             S=S,
             H=H,

@@ -186,6 +186,7 @@ def gru_varlen_forward_triton(
             y_ptr=output,
             y_stride=output.stride(),
             cu_seqlens_ptr=cu_seqlens,
+            cu_seqlens_stride=None if cu_seqlens is None else cu_seqlens.stride(),
             IS_MAX_SEQLEN_TENSOR=is_max_seqlen_tensor,
             max_seqlen_ptr=max_seqlen_tensor if is_max_seqlen_tensor else max_seqlen,
             B=B,
