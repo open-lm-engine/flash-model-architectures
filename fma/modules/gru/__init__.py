@@ -49,6 +49,9 @@ class _GRU(torch.autograd.Function):
             output_update=output_update,
             input_state=input_state,
             output=output,
+            cu_seqlens=None,
+            max_seqlen_tensor=None,
+            max_seqlen=None,
         )
 
         ctx.save_for_backward(
