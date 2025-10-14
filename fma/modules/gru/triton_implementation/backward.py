@@ -64,7 +64,7 @@ def gru_backward_triton_kernel(
     Wf = tl.load(Wf_ptr + BLOCK_W, mask=mask_hh)
     Wr = tl.load(Wr_ptr + BLOCK_W, mask=mask_hh)
 
-    indices = (
+    BLOCK = (
         BLOCK_B[:, None] * y_stride[0]
         + (S - 1) * y_stride[1]
         + BLOCK_ID_N * y_stride[2]
@@ -76,16 +76,16 @@ def gru_backward_triton_kernel(
         if gradient_clipping is not None:
             dh = clamp(dh, min_value=-gradient_clipping, max_value=gradient_clipping)
 
-        dy = tl.load(dy_ptr + indices, mask=mask_bh) + dh
-        f = tl.load(f_ptr + indices, mask=mask_bh)
-        r = tl.load(r_ptr + indices, mask=mask_bh)
-        z = tl.load(z_ptr + indices, mask=mask_bh)
+        dy = tl.load(dy_ptr + BLOCK, mask=mask_bh) + dh
+        f = tl.load(f_ptr + BLOCK, mask=mask_bh)
+        r = tl.load(r_ptr + BLOCK, mask=mask_bh)
+        z = tl.load(z_ptr + BLOCK, mask=mask_bh)
 
-        dx_ptrs = dx_ptr + indices
-        dxf_ptrs = dxf_ptr + indices
-        dxr_ptrs = dxr_ptr + indices
+        dx_ptrs = dx_ptr + BLOCK
+        dxf_ptrs = dxf_ptr + BLOCK
+        dxr_ptrs = dxr_ptr + BLOCK
 
-        indices -= y_stride[1]
+        BLOCK -= y_stride[1]
 
         if s == 0:
             if h0_ptr is None:
@@ -99,7 +99,7 @@ def gru_backward_triton_kernel(
                     mask=mask_bh,
                 )
         else:
-            y_prev = tl.load(y_ptr + indices, mask=mask_bh)
+            y_prev = tl.load(y_ptr + BLOCK, mask=mask_bh)
 
         dh = f * dy
         dz = dy * (1 - f)

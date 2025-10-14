@@ -38,7 +38,6 @@ def gru_forward_triton_kernel(
     h0_stride,
     y_ptr,
     y_stride,
-    IS_VARLEN: tl.constexpr,
     cu_seqlens_ptr,
     cu_seqlens_stride,
     IS_MAX_SEQLEN_TENSOR: tl.constexpr,
@@ -81,6 +80,8 @@ def gru_forward_triton_kernel(
             h0_ptr + BLOCK_B[:, None] * h0_stride[0] + BLOCK_ID_N * h0_stride[1] + BLOCK_H[None, :] * h0_stride[2],
             mask=MASK_BH,
         )
+
+    IS_VARLEN = cu_seqlens_ptr is not None
 
     if IS_VARLEN:
         cu_seqlens_ptrs = cu_seqlens_ptr + BLOCK_B[:, None] * cu_seqlens_stride[0]
@@ -175,17 +176,15 @@ def gru_forward_triton(
     max_seqlen_tensor: torch.Tensor | None,
     max_seqlen: int | None,
 ) -> None:
-    is_varlen = cu_seqlens is not None
-
-    if is_varlen:
-        B = cu_seqlens.size(0) - 1
-        S = None
-        _, N, H = input.size()
-    else:
+    if cu_seqlens is None:
         assert max_seqlen is None
         assert max_seqlen_tensor is None
 
         B, S, N, H = input.size()
+    else:
+        B = cu_seqlens.size(0) - 1
+        S = None
+        _, N, H = input.size()
 
     is_max_seqlen_tensor = max_seqlen_tensor is not None
 
@@ -217,7 +216,6 @@ def gru_forward_triton(
             h0_stride=None if input_state is None else input_state.stride(),
             y_ptr=output,
             y_stride=output.stride(),
-            IS_VARLEN=is_varlen,
             cu_seqlens_ptr=cu_seqlens,
             cu_seqlens_stride=None if cu_seqlens is None else cu_seqlens.stride(),
             IS_MAX_SEQLEN_TENSOR=is_max_seqlen_tensor,
