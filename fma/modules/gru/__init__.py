@@ -10,12 +10,7 @@ from ...enums import KernelBackend
 from ...math import divide_if_divisible
 from ...torch_math import clip_gradients, sigmoid, tanh
 from ...utils import ensure_contiguous
-from .triton_implementation import (
-    gru_backward_triton,
-    gru_forward_triton,
-    gru_varlen_backward_triton,
-    gru_varlen_forward_triton,
-)
+from .triton_implementation import gru_backward_triton, gru_forward_triton, gru_varlen_backward_triton
 
 
 class _GRU(torch.autograd.Function):
@@ -141,7 +136,7 @@ class _GRU_Varlen(torch.autograd.Function):
 
         is_max_seqlen_tensor = isinstance(max_seqlen, torch.Tensor)
 
-        gru_varlen_forward_triton(
+        gru_forward_triton(
             input=input,
             weight=weight,
             forget_input=forget_input,
