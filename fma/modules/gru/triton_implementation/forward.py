@@ -18,18 +18,26 @@ from ...rnn.triton_implementation.forward import _get_autotune_configs
 def gru_forward_triton_kernel(
     x_ptr,
     x_stride,
+    xf_ptr,
+    xf_stride,
+    xr_ptr,
+    xr_stride,
     W_ptr,
     W_stride,
-    xf_ptr,
     Wf_ptr,
-    f_ptr,
-    xr_ptr,
+    Wf_stride,
     Wr_ptr,
-    r_ptr,
+    Wr_stride,
     z_ptr,
+    z_stride,
+    f_ptr,
+    f_stride,
+    r_ptr,
+    r_stride,
     h0_ptr,
     h0_stride,
     y_ptr,
+    y_stride,
     B,
     S,
     H,
@@ -42,48 +50,71 @@ def gru_forward_triton_kernel(
     BLOCK_B = BLOCK_ID_B * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
     BLOCK_H = tl.arange(0, BLOCK_SIZE_H)
 
-    mask_b = BLOCK_B < B
-    mask_h = BLOCK_H < H
+    MASK_B = BLOCK_B < B
+    MASK_H = BLOCK_H < H
 
-    mask_bh = mask_b[:, None] & mask_h[None, :]
-    mask_hh = mask_h[:, None] & mask_h[None, :]
+    MASK_BH = MASK_B[:, None] & MASK_H[None, :]
+    MASK_HH = MASK_H[:, None] & MASK_H[None, :]
 
-    BLOCK = BLOCK_ID_N * W_stride[0] + BLOCK_H[:, None] * W_stride[1] + BLOCK_H[None, :] * W_stride[2]
-
-    W = tl.load(W_ptr + BLOCK, mask=mask_hh)
-    Wf = tl.load(Wf_ptr + BLOCK, mask=mask_hh)
-    Wr = tl.load(Wr_ptr + BLOCK, mask=mask_hh)
+    W = tl.load(
+        W_ptr + BLOCK_ID_N * W_stride[0] + BLOCK_H[:, None] * W_stride[1] + BLOCK_H[None, :] * W_stride[2],
+        mask=MASK_HH,
+    )
+    Wf = tl.load(
+        Wf_ptr + BLOCK_ID_N * Wf_stride[0] + BLOCK_H[:, None] * Wf_stride[1] + BLOCK_H[None, :] * Wf_stride[2],
+        mask=MASK_HH,
+    )
+    Wr = tl.load(
+        Wr_ptr + BLOCK_ID_N * Wr_stride[0] + BLOCK_H[:, None] * Wr_stride[1] + BLOCK_H[None, :] * Wr_stride[2],
+        mask=MASK_HH,
+    )
 
     if h0_ptr is None:
         h = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=x_ptr.dtype.element_ty)
     else:
         h = tl.load(
             h0_ptr + BLOCK_B[:, None] * h0_stride[0] + BLOCK_ID_N * h0_stride[1] + BLOCK_H[None, :] * h0_stride[2],
-            mask=mask_bh,
+            mask=MASK_BH,
         )
 
-    BLOCK = BLOCK_B[:, None] * x_stride[0] + BLOCK_ID_N * x_stride[2] + BLOCK_H[None, :] * x_stride[3]
+    x_ptrs = x_ptr + BLOCK_B[:, None] * x_stride[0] + BLOCK_ID_N * x_stride[2] + BLOCK_H[None, :] * x_stride[3]
+    xr_ptrs = xr_ptr + BLOCK_B[:, None] * xr_stride[0] + BLOCK_ID_N * xr_stride[2] + BLOCK_H[None, :] * xr_stride[3]
+    xf_ptrs = xf_ptr + BLOCK_B[:, None] * xf_stride[0] + BLOCK_ID_N * xf_stride[2] + BLOCK_H[None, :] * xf_stride[3]
+
+    z_ptrs = z_ptr + BLOCK_B[:, None] * z_stride[0] + BLOCK_ID_N * z_stride[2] + BLOCK_H[None, :] * z_stride[3]
+    r_ptrs = r_ptr + BLOCK_B[:, None] * r_stride[0] + BLOCK_ID_N * r_stride[2] + BLOCK_H[None, :] * r_stride[3]
+    f_ptrs = f_ptr + BLOCK_B[:, None] * f_stride[0] + BLOCK_ID_N * f_stride[2] + BLOCK_H[None, :] * f_stride[3]
+
+    y_ptrs = y_ptr + BLOCK_B[:, None] * y_stride[0] + BLOCK_ID_N * y_stride[2] + BLOCK_H[None, :] * y_stride[3]
 
     for _ in range(S):
-        x = tl.load(xr_ptr + BLOCK, mask=mask_bh)
+        x = tl.load(xr_ptrs, mask=MASK_BH)
         r = matmul(A=h, B=Wr, C=x, output_dtype=tl.float32)
         r = sigmoid(r, output_dtype=x.dtype)
-        tl.store(r_ptr + BLOCK, r, mask=mask_bh)
+        tl.store(r_ptrs, r, mask=MASK_BH)
 
-        x = tl.load(x_ptr + BLOCK, mask=mask_bh)
+        x = tl.load(x_ptrs, mask=MASK_BH)
         z = matmul(A=h * r, B=W, C=x, output_dtype=tl.float32)
         z = tanh(z, output_dtype=x.dtype)
-        tl.store(z_ptr + BLOCK, z, mask=mask_bh)
+        tl.store(z_ptrs, z, mask=MASK_BH)
 
-        x = tl.load(xf_ptr + BLOCK, mask=mask_bh)
+        x = tl.load(xf_ptrs, mask=MASK_BH)
         f = matmul(A=h, B=Wf, C=x, output_dtype=tl.float32)
         f = sigmoid(f, output_dtype=x.dtype)
-        tl.store(f_ptr + BLOCK, f, mask=mask_bh)
+        tl.store(f_ptrs, f, mask=MASK_BH)
 
         h = f * h + (1 - f) * z
-        tl.store(y_ptr + BLOCK, h, mask=mask_bh)
+        tl.store(y_ptrs, h, mask=MASK_BH)
 
-        BLOCK += x_stride[1]
+        x_ptrs += x_stride[1]
+        xr_ptrs += xr_stride[1]
+        xf_ptrs += xf_stride[1]
+
+        z_ptrs += z_stride[1]
+        r_ptrs += r_stride[1]
+        f_ptrs += f_stride[1]
+
+        y_ptrs += y_stride[1]
 
 
 @custom_op(
@@ -112,18 +143,26 @@ def gru_forward_triton(
         gru_forward_triton_kernel[GRID](
             x_ptr=input,
             x_stride=input.stride(),
+            xf_ptr=forget_input,
+            xf_stride=forget_input.stride(),
+            xr_ptr=reset_input,
+            xr_stride=reset_input.stride(),
             W_ptr=weight,
             W_stride=weight.stride(),
-            xf_ptr=forget_input,
             Wf_ptr=forget_weight,
-            f_ptr=forget_gate,
-            xr_ptr=reset_input,
+            Wf_stride=forget_weight.stride(),
             Wr_ptr=reset_weight,
-            r_ptr=reset_gate,
+            Wr_stride=reset_weight.stride(),
             z_ptr=output_update,
+            z_stride=output_update.stride(),
+            f_ptr=forget_gate,
+            f_stride=forget_gate.stride(),
+            r_ptr=reset_gate,
+            r_stride=reset_gate.stride(),
             h0_ptr=input_state,
             h0_stride=None if input_state is None else input_state.stride(),
             y_ptr=output,
+            y_stride=output.stride(),
             B=B,
             S=S,
             H=H,
