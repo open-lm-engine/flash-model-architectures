@@ -182,6 +182,9 @@ def gru_forward_triton(
         S = None
         _, N, H = input.size()
     else:
+        assert max_seqlen is None
+        assert max_seqlen_tensor is None
+
         B, S, N, H = input.size()
 
     is_max_seqlen_tensor = max_seqlen_tensor is not None
