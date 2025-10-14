@@ -10,7 +10,7 @@ from ...enums import KernelBackend
 from ...math import divide_if_divisible
 from ...torch_math import clip_gradients, sigmoid, tanh
 from ...utils import ensure_contiguous
-from .triton_implementation import gru_backward_triton, gru_forward_triton, gru_varlen_backward_triton
+from .triton_implementation import gru_backward_triton, gru_forward_triton
 
 
 class _GRU(torch.autograd.Function):
@@ -216,7 +216,7 @@ class _GRU_Varlen(torch.autograd.Function):
         forget_weight_grad = torch.zeros_like(weight, dtype=torch.float32)
         reset_weight_grad = torch.zeros_like(weight, dtype=torch.float32)
 
-        gru_varlen_backward_triton(
+        gru_backward_triton(
             weight=weight,
             output=output,
             forget_weight=forget_weight,

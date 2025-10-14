@@ -11,6 +11,7 @@ from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
 from ....triton_math import clamp, matmul, sigmoid_backward, tanh_backward
 from ...rnn.triton_implementation.backward import _get_autotune_configs
+from ...rnn.triton_implementation.backward_varlen import _load_input_state
 from .forward import _get_autotune_configs
 
 
@@ -33,6 +34,9 @@ def gru_backward_triton_kernel(
     h0_ptr,
     h0_stride,
     dy_ptr,
+    cu_seqlens_ptr,
+    IS_MAX_SEQLEN_TENSOR: tl.constexpr,
+    max_seqlen_ptr,
     dx_ptr,
     dW_ptr,
     gradient_clipping,
@@ -64,30 +68,68 @@ def gru_backward_triton_kernel(
     Wf = tl.load(Wf_ptr + BLOCK_W, mask=mask_hh)
     Wr = tl.load(Wr_ptr + BLOCK_W, mask=mask_hh)
 
-    BLOCK = (
-        BLOCK_B[:, None] * y_stride[0]
-        + (S - 1) * y_stride[1]
-        + BLOCK_ID_N * y_stride[2]
-        + BLOCK_H[None, :] * y_stride[3]
-    )
+    IS_VARLEN = cu_seqlens_ptr is not None
+
+    if IS_VARLEN:
+        cu_seqlens_ptrs = cu_seqlens_ptr + BLOCK_B[:, None]
+        start = tl.load(cu_seqlens_ptrs, mask=mask_b[:, None])
+        end = tl.load(cu_seqlens_ptrs + 1, mask=mask_b[:, None])
+
+        if IS_MAX_SEQLEN_TENSOR:
+            S = tl.load(max_seqlen_ptr)
+        else:
+            S = max_seqlen_ptr
+
+        end -= 1
+
+        BLOCK = end * y_stride[0] + BLOCK_ID_N * y_stride[1] + BLOCK_H[None, :] * y_stride[2]
+    else:
+        BLOCK = (
+            BLOCK_B[:, None] * y_stride[0]
+            + (S - 1) * y_stride[1]
+            + BLOCK_ID_N * y_stride[2]
+            + BLOCK_H[None, :] * y_stride[3]
+        )
 
     # backward counting reduces 1 instruction since we need to compare s == 0, otherwise we have to compare s == S - 1
     for s in range(S - 1, -1, -1):
         if gradient_clipping is not None:
             dh = clamp(dh, min_value=-gradient_clipping, max_value=gradient_clipping)
 
-        dy = tl.load(dy_ptr + BLOCK, mask=mask_bh) + dh
-        f = tl.load(f_ptr + BLOCK, mask=mask_bh)
-        r = tl.load(r_ptr + BLOCK, mask=mask_bh)
-        z = tl.load(z_ptr + BLOCK, mask=mask_bh)
+        if IS_VARLEN:
+            unfinished = end >= start
+            mask = unfinished & mask_h[None, :]
+        else:
+            mask = mask_bh
+
+        dy = tl.load(dy_ptr + BLOCK, mask=mask) + dh
+        f = tl.load(f_ptr + BLOCK, mask=mask)
+        r = tl.load(r_ptr + BLOCK, mask=mask)
+        z = tl.load(z_ptr + BLOCK, mask=mask)
 
         dx_ptrs = dx_ptr + BLOCK
         dxf_ptrs = dxf_ptr + BLOCK
         dxr_ptrs = dxr_ptr + BLOCK
 
-        BLOCK -= y_stride[1]
+        BLOCK -= y_stride[1 - IS_VARLEN]
 
-        if s == 0:
+        if IS_VARLEN:
+            y_prev = tl.where(
+                start == end,
+                _load_input_state(
+                    h0_ptr=h0_ptr,
+                    h0_stride=h0_stride,
+                    BLOCK_ID_N=BLOCK_ID_N,
+                    BLOCK_B=BLOCK_B,
+                    BLOCK_H=BLOCK_H,
+                    mask_bh=mask_bh,
+                    BLOCK_SIZE_B=BLOCK_SIZE_B,
+                    BLOCK_SIZE_H=BLOCK_SIZE_H,
+                    dtype=W.dtype,
+                ),
+                tl.load(y_ptr + BLOCK, mask=mask & (BLOCK >= 0)),
+            )
+        elif s == 0:
             if h0_ptr is None:
                 y_prev = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=W.dtype)
             else:
@@ -96,10 +138,10 @@ def gru_backward_triton_kernel(
                     + BLOCK_B[:, None] * h0_stride[0]
                     + BLOCK_ID_N * h0_stride[1]
                     + BLOCK_H[None, :] * h0_stride[2],
-                    mask=mask_bh,
+                    mask=mask,
                 )
         else:
-            y_prev = tl.load(y_ptr + BLOCK, mask=mask_bh)
+            y_prev = tl.load(y_ptr + BLOCK, mask=mask)
 
         dh = f * dy
         dz = dy * (1 - f)
@@ -108,19 +150,22 @@ def gru_backward_triton_kernel(
         dx = dz * tanh_backward(z)
         drh = matmul(A=dx, B=W.T, C=None, output_dtype=dx.dtype)
         dW = matmul(A=(r * y_prev).T, B=dx, C=dW, output_dtype=dW.dtype)
-        tl.store(dx_ptrs, dx, mask=mask_bh)
+        tl.store(dx_ptrs, dx, mask=mask)
 
         dh += drh * r
 
         dxf = df * sigmoid_backward(f)
         dh = matmul(A=dxf, B=Wf.T, C=dh, output_dtype=dx.dtype)
         dWf = matmul(A=y_prev.T, B=dxf, C=dWf, output_dtype=dW.dtype)
-        tl.store(dxf_ptrs, dxf, mask=mask_bh)
+        tl.store(dxf_ptrs, dxf, mask=mask)
 
         dxr = drh * y_prev * sigmoid_backward(r)
         dh = matmul(A=dxr, B=Wr.T, C=dh, output_dtype=dx.dtype)
         dWr = matmul(A=y_prev.T, B=dxr, C=dWr, output_dtype=dW.dtype)
-        tl.store(dxr_ptrs, dxr, mask=mask_bh)
+        tl.store(dxr_ptrs, dxr, mask=mask)
+
+        if IS_VARLEN:
+            end -= 1
 
     tl.atomic_add(dW_ptr + BLOCK_W, dW, mask=mask_hh, sem="relaxed")
     tl.atomic_add(dWf_ptr + BLOCK_W, dWf, mask=mask_hh, sem="relaxed")
@@ -154,9 +199,22 @@ def gru_backward_triton(
     output_grad: torch.Tensor,
     input_grad: torch.Tensor,
     weight_grad: torch.Tensor,
+    cu_seqlens: torch.Tensor | None,
+    max_seqlen_tensor: torch.Tensor | None,
+    max_seqlen: int | None,
     gradient_clipping: float | None,
 ) -> None:
-    B, S, N, H = output.size()
+    if cu_seqlens is None:
+        assert max_seqlen is None
+        assert max_seqlen_tensor is None
+
+        B, S, N, H = input.size()
+    else:
+        B = cu_seqlens.size(0) - 1
+        S = None
+        _, N, H = input.size()
+
+    is_max_seqlen_tensor = max_seqlen_tensor is not None
 
     BLOCK_SIZE_H = get_next_power_of_2(H)
     BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
@@ -180,6 +238,9 @@ def gru_backward_triton(
             h0_ptr=input_state,
             h0_stride=None if input_state is None else input_state.stride(),
             dy_ptr=output_grad,
+            cu_seqlens_ptr=cu_seqlens,
+            IS_MAX_SEQLEN_TENSOR=is_max_seqlen_tensor,
+            max_seqlen_ptr=max_seqlen_tensor if is_max_seqlen_tensor else max_seqlen,
             dx_ptr=input_grad,
             dW_ptr=weight_grad,
             gradient_clipping=gradient_clipping,
