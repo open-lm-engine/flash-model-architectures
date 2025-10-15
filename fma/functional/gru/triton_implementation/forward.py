@@ -81,7 +81,7 @@ def gru_forward_triton_kernel(
             mask=MASK_BH,
         )
 
-    IS_VARLEN = cu_seqlens_ptr is not None
+    IS_VARLEN: tl.constexpr = cu_seqlens_ptr is not None
 
     if IS_VARLEN:
         cu_seqlens_ptrs = cu_seqlens_ptr + BLOCK_B[:, None] * cu_seqlens_stride[0]

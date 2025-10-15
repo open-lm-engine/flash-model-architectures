@@ -9,7 +9,6 @@ from ...cutotune import CutoTuneParameter
 from ...enums import KernelBackend
 from ...math import divide_if_divisible
 from ...torch_math import clip_gradients, sigmoid, tanh
-from ...utils import ensure_contiguous
 from .triton_implementation import gru_backward_triton, gru_forward_triton
 
 
@@ -24,7 +23,6 @@ def get_max_seqlen_and_max_seqlen_tensor(
 
 class _GRU(torch.autograd.Function):
     @staticmethod
-    @ensure_contiguous
     def forward(
         ctx,
         input: torch.Tensor,
@@ -81,7 +79,6 @@ class _GRU(torch.autograd.Function):
         return output
 
     @staticmethod
-    @ensure_contiguous
     def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
         (
             weight,

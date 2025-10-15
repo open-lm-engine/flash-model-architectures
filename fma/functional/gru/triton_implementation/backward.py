@@ -68,7 +68,7 @@ def gru_backward_triton_kernel(
     Wf = tl.load(Wf_ptr + BLOCK_W, mask=MASK_HH)
     Wr = tl.load(Wr_ptr + BLOCK_W, mask=MASK_HH)
 
-    IS_VARLEN = cu_seqlens_ptr is not None
+    IS_VARLEN: tl.constexpr = cu_seqlens_ptr is not None
 
     if IS_VARLEN:
         cu_seqlens_ptrs = cu_seqlens_ptr + BLOCK_B[:, None]
@@ -208,11 +208,11 @@ def gru_backward_triton(
         assert max_seqlen is None
         assert max_seqlen_tensor is None
 
-        B, S, N, H = input.size()
+        B, S, N, H = output.size()
     else:
         B = cu_seqlens.size(0) - 1
         S = None
-        _, N, H = input.size()
+        _, N, H = output.size()
 
     is_max_seqlen_tensor = max_seqlen_tensor is not None
 

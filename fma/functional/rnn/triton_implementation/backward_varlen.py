@@ -20,7 +20,7 @@ def _load_input_state(
     BLOCK_ID_N,
     BLOCK_B,
     BLOCK_H,
-    mask_bh,
+    MASK_BH,
     BLOCK_SIZE_B,
     BLOCK_SIZE_H,
     dtype,
@@ -29,7 +29,7 @@ def _load_input_state(
         y_prev = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=dtype)
     else:
         y_ptrs = h0_ptr + BLOCK_B[:, None] * h0_stride[0] + BLOCK_ID_N * h0_stride[1] + BLOCK_H[None, :] * h0_stride[2]
-        y_prev = tl.load(y_ptrs, mask=mask_bh)
+        y_prev = tl.load(y_ptrs, mask=MASK_BH)
 
     return y_prev
 
