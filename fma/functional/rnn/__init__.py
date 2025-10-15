@@ -6,6 +6,7 @@ import torch
 
 from ...enums import KernelBackend
 from ...torch_math import clip_gradients, tanh
+from ...utils import empty_like_contiguous, zeros_like_contiguous
 from .triton_implementation import rnn_backward_triton, rnn_forward_triton
 
 
@@ -29,7 +30,7 @@ class _RNN(torch.autograd.Function):
         cu_seqlens: torch.Tensor | None,
         max_seqlen: torch.Tensor | int | None,
     ) -> torch.Tensor:
-        output = torch.empty_like(input, memory_format=torch.contiguous_format)
+        output = empty_like_contiguous(input)
 
         max_seqlen_tensor, max_seqlen = get_max_seqlen_and_max_seqlen_tensor(max_seqlen)
 
@@ -53,8 +54,8 @@ class _RNN(torch.autograd.Function):
     def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor]:
         weight, output, input_state, cu_seqlens, max_seqlen_tensor = ctx.saved_tensors
 
-        input_grad = torch.empty_like(output, memory_format=torch.contiguous_format)
-        weight_grad = torch.zeros_like(weight, dtype=torch.float32, memory_format=torch.contiguous_format)
+        input_grad = empty_like_contiguous(output)
+        weight_grad = zeros_like_contiguous(weight, dtype=torch.float32)
 
         rnn_backward_triton(
             weight=weight,

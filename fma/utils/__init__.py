@@ -9,4 +9,4 @@ from .env import get_boolean_env_variable
 from .ptx import get_ptx_from_triton_kernel
 from .random import set_seed
 from .settings import get_triton_num_warps
-from .tensor import get_num_elements_and_hidden_size
+from .tensor import empty_like_contiguous, get_num_elements_and_hidden_size, zeros_like_contiguous
