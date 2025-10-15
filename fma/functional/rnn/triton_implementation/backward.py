@@ -98,6 +98,8 @@ def rnn_backward_triton_kernel(
 
         dx_ptrs = dx_ptr + end * dx_stride[0] + BLOCK_ID_N * dx_stride[1] + BLOCK_H[None, :] * dx_stride[2]
         dy_ptrs = dy_ptr + end * dy_stride[0] + BLOCK_ID_N * dy_stride[1] + BLOCK_H[None, :] * dy_stride[2]
+
+        MASK = (end >= start) & MASK_H[None, :]
     else:
         y_ptrs = (
             y_ptr
@@ -123,9 +125,6 @@ def rnn_backward_triton_kernel(
             + BLOCK_H[None, :] * dy_stride[3]
         )
 
-    if IS_VARLEN:
-        MASK = (end >= start) & MASK_H[None, :]
-    else:
         MASK = MASK_BH
 
     y = tl.load(y_ptrs, mask=MASK)
