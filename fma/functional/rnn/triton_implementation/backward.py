@@ -222,7 +222,7 @@ def rnn_backward_triton(
             W_ptr=weight,
             W_stride=weight.stride(),
             h0_ptr=input_state,
-            h0_stride=input_state.stride(),
+            h0_stride=None if input_state is None else input_state.stride(),
             y_ptr=output,
             y_stride=output.stride(),
             dx_ptr=input_grad,
