@@ -11,10 +11,7 @@ from .cutotune import (
     get_cutotune_cache,
 )
 from .enums import KernelBackend
-from .inductor import enable_kernels, init_inductor
-from .math import ceil_divide, divide_if_divisible, get_powers_of_2
-from .modules import GRU, RNN, MoE
-from .ops import (
+from .functional import (
     bmm,
     continuous_count,
     cross_entropy,
@@ -29,4 +26,7 @@ from .ops import (
     swiglu_packed,
     unpack_sequence,
 )
+from .inductor import enable_kernels, init_inductor
+from .math import ceil_divide, divide_if_divisible, get_powers_of_2
+from .modules import GRU, RNN, MoE
 from .utils import device_synchronize, get_ptx_from_triton_kernel, get_triton_num_warps, set_seed
