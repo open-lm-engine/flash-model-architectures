@@ -13,6 +13,27 @@ from ....triton_math import clamp, matmul, tanh_backward
 from .forward import _get_autotune_configs
 
 
+@triton.jit
+def _load_input_state(
+    h0_ptr,
+    h0_stride,
+    BLOCK_ID_N,
+    BLOCK_B,
+    BLOCK_H,
+    MASK_BH,
+    BLOCK_SIZE_B,
+    BLOCK_SIZE_H,
+    dtype,
+):
+    if h0_ptr is None:
+        y_prev = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=dtype)
+    else:
+        y_ptrs = h0_ptr + BLOCK_B[:, None] * h0_stride[0] + BLOCK_ID_N * h0_stride[1] + BLOCK_H[None, :] * h0_stride[2]
+        y_prev = tl.load(y_ptrs, mask=MASK_BH)
+
+    return y_prev
+
+
 @triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_H"], reset_to_zero=["dW_ptr"])
 @triton.jit
 def rnn_backward_triton_kernel(
