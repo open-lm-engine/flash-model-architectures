@@ -10,12 +10,16 @@ from ...enums import KernelBackend
 from ...math import divide_if_divisible
 from ...torch_math import clip_gradients, tanh
 from ...utils import ensure_contiguous
-from .triton_implementation import (
-    rnn_backward_triton,
-    rnn_forward_triton,
-    rnn_varlen_backward_triton,
-    rnn_varlen_forward_triton,
-)
+from .triton_implementation import rnn_backward_triton, rnn_forward_triton, rnn_varlen_backward_triton
+
+
+def get_max_seqlen_and_max_seqlen_tensor(
+    max_seqlen: torch.Tensor | int | None,
+) -> tuple[torch.Tensor | None, int | None]:
+    if isinstance(max_seqlen, torch.Tensor):
+        return max_seqlen, None
+    else:
+        return None, max_seqlen
 
 
 class _RNN(torch.autograd.Function):
@@ -30,7 +34,15 @@ class _RNN(torch.autograd.Function):
     ) -> torch.Tensor:
         output = torch.empty_like(input)
 
-        rnn_forward_triton(input=input, weight=weight, input_state=input_state, output=output)
+        rnn_forward_triton(
+            input=input,
+            weight=weight,
+            input_state=input_state,
+            output=output,
+            cu_seqlens=None,
+            max_seqlen_tensor=None,
+            max_seqlen=None,
+        )
 
         ctx.save_for_backward(weight, output, input_state)
         ctx.gradient_clipping = gradient_clipping
@@ -72,39 +84,28 @@ class _RNN_Varlen(torch.autograd.Function):
     ) -> torch.Tensor:
         output = torch.empty_like(input)
 
-        is_max_seqlen_tensor = isinstance(max_seqlen, torch.Tensor)
+        max_seqlen_tensor, max_seqlen = get_max_seqlen_and_max_seqlen_tensor(max_seqlen)
 
-        rnn_varlen_forward_triton(
+        rnn_forward_triton(
             input=input,
             weight=weight,
             input_state=input_state,
             output=output,
             cu_seqlens=cu_seqlens,
-            max_seqlen_tensor=max_seqlen if is_max_seqlen_tensor else None,
-            max_seqlen=None if is_max_seqlen_tensor else max_seqlen,
+            max_seqlen_tensor=max_seqlen_tensor,
+            max_seqlen=max_seqlen,
         )
 
-        if is_max_seqlen_tensor:
-            ctx.save_for_backward(weight, output, input_state, cu_seqlens, max_seqlen)
-        else:
-            ctx.save_for_backward(weight, output, input_state, cu_seqlens)
-            ctx.max_seqlen = max_seqlen
-
+        ctx.save_for_backward(weight, output, input_state, cu_seqlens, max_seqlen_tensor)
+        ctx.max_seqlen = max_seqlen
         ctx.gradient_clipping = gradient_clipping
-        ctx.is_max_seqlen_tensor = is_max_seqlen_tensor
 
         return output
 
     @staticmethod
     @ensure_contiguous
     def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor]:
-        is_max_seqlen_tensor = ctx.is_max_seqlen_tensor
-
-        if is_max_seqlen_tensor:
-            weight, output, input_state, cu_seqlens, max_seqlen = ctx.saved_tensors
-        else:
-            weight, output, input_state, cu_seqlens = ctx.saved_tensors
-            max_seqlen = ctx.max_seqlen
+        weight, output, input_state, cu_seqlens, max_seqlen_tensor = ctx.saved_tensors
 
         input_grad = torch.empty_like(output)
         weight_grad = torch.zeros_like(weight, dtype=torch.float32)
@@ -117,8 +118,8 @@ class _RNN_Varlen(torch.autograd.Function):
             input_grad=input_grad,
             weight_grad=weight_grad,
             cu_seqlens=cu_seqlens,
-            max_seqlen_tensor=max_seqlen if is_max_seqlen_tensor else None,
-            max_seqlen=None if is_max_seqlen_tensor else max_seqlen,
+            max_seqlen_tensor=max_seqlen_tensor,
+            max_seqlen=ctx.max_seqlen,
             gradient_clipping=ctx.gradient_clipping,
         )
 

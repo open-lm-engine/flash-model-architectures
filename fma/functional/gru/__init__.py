@@ -7,18 +7,9 @@ import torch.nn as nn
 
 from ...cutotune import CutoTuneParameter
 from ...enums import KernelBackend
-from ...math import divide_if_divisible
 from ...torch_math import clip_gradients, sigmoid, tanh
+from ..rnn import get_max_seqlen_and_max_seqlen_tensor
 from .triton_implementation import gru_backward_triton, gru_forward_triton
-
-
-def get_max_seqlen_and_max_seqlen_tensor(
-    max_seqlen: torch.Tensor | int | None,
-) -> tuple[torch.Tensor | None, int | None]:
-    if isinstance(max_seqlen, torch.Tensor):
-        return max_seqlen, None
-    else:
-        return None, max_seqlen
 
 
 class _GRU(torch.autograd.Function):
