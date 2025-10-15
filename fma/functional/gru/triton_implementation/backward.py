@@ -106,7 +106,9 @@ def gru_backward_triton_kernel(
         end -= 1
 
         BLOCK = end * y_stride[0] + BLOCK_ID_N * y_stride[1] + BLOCK_H[None, :] * y_stride[2]
+
         y_ptrs = y_ptr + end * y_stride[0] + BLOCK_ID_N * y_stride[1] + BLOCK_H[None, :] * y_stride[2]
+        dy_ptrs = dy_ptr + end * dy_stride[0] + BLOCK_ID_N * dy_stride[1] + BLOCK_H[None, :] * dy_stride[2]
     else:
         BLOCK = (
             BLOCK_B[:, None] * y_stride[0]
@@ -123,6 +125,14 @@ def gru_backward_triton_kernel(
             + BLOCK_H[None, :] * y_stride[2]
         )
 
+        dy_ptrs = (
+            dy_ptr
+            + BLOCK_B[:, None] * dy_stride[0]
+            + (S - 1) * dy_stride[1]
+            + BLOCK_ID_N * dy_stride[1]
+            + BLOCK_H[None, :] * dy_stride[2]
+        )
+
     # backward counting reduces 1 instruction since we need to compare s == 0, otherwise we have to compare s == S - 1
     for s in range(S - 1, -1, -1):
         if gradient_clipping is not None:
@@ -133,7 +143,7 @@ def gru_backward_triton_kernel(
         else:
             MASK = MASK_BH
 
-        dy = tl.load(dy_ptr + BLOCK, mask=MASK) + dh
+        dy = tl.load(dy_ptrs, mask=MASK) + dh
         f = tl.load(f_ptr + BLOCK, mask=MASK)
         r = tl.load(r_ptr + BLOCK, mask=MASK)
         z = tl.load(z_ptr + BLOCK, mask=MASK)
@@ -195,6 +205,8 @@ def gru_backward_triton_kernel(
         dh = matmul(A=dxr, B=Wr.T, C=dh, output_dtype=dx.dtype)
         dWr = matmul(A=y_prev.T, B=dxr, C=dWr, output_dtype=dW.dtype)
         tl.store(dxr_ptrs, dxr, mask=MASK)
+
+        dy_ptrs -= dy_stride[1 - IS_VARLEN]
 
         if IS_VARLEN:
             end -= 1
