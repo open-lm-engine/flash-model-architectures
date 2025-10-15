@@ -140,6 +140,14 @@ def gru_backward_triton_kernel(
             + BLOCK_H[None, :] * r_stride[3]
         )
 
+        y_ptrs = (
+            y_ptr
+            + BLOCK_B[:, None] * y_stride[0]
+            + (S - 1) * y_stride[1]
+            + BLOCK_ID_N * y_stride[2]
+            + BLOCK_H[None, :] * y_stride[3]
+        )
+
         dx_ptrs = (
             dx_ptr
             + BLOCK_B[:, None] * dx_stride[0]
