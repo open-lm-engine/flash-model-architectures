@@ -94,9 +94,9 @@ def gru_backward_triton_kernel(
     IS_VARLEN: tl.constexpr = cu_seqlens_ptr is not None
 
     if IS_VARLEN:
-        cu_seqlens_ptrs = cu_seqlens_ptr + BLOCK_B[:, None]
+        cu_seqlens_ptrs = cu_seqlens_ptr + BLOCK_B[:, None] * cu_seqlens_stride[0]
         start = tl.load(cu_seqlens_ptrs, mask=MASK_B[:, None])
-        end = tl.load(cu_seqlens_ptrs + 1, mask=MASK_B[:, None])
+        end = tl.load(cu_seqlens_ptrs + cu_seqlens_stride[0], mask=MASK_B[:, None])
 
         if IS_MAX_SEQLEN_TENSOR:
             S = tl.load(max_seqlen_ptr)
@@ -105,31 +105,70 @@ def gru_backward_triton_kernel(
 
         end -= 1
 
-        BLOCK = end * y_stride[0] + BLOCK_ID_N * y_stride[1] + BLOCK_H[None, :] * y_stride[2]
-
+        z_ptrs = z_ptr + end * z_stride[0] + BLOCK_ID_N * z_stride[1] + BLOCK_H[None, :] * z_stride[2]
+        f_ptrs = f_ptr + end * f_stride[0] + BLOCK_ID_N * f_stride[1] + BLOCK_H[None, :] * f_stride[2]
+        r_ptrs = r_ptr + end * r_stride[0] + BLOCK_ID_N * r_stride[1] + BLOCK_H[None, :] * r_stride[2]
         y_ptrs = y_ptr + end * y_stride[0] + BLOCK_ID_N * y_stride[1] + BLOCK_H[None, :] * y_stride[2]
+
+        dx_ptrs = dx_ptr + end * dx_stride[0] + BLOCK_ID_N * dx_stride[1] + BLOCK_H[None, :] * dx_stride[2]
+        dxf_ptrs = dxf_ptr + end * dxf_stride[0] + BLOCK_ID_N * dxf_stride[1] + BLOCK_H[None, :] * dxf_stride[2]
+        dxr_ptrs = dxr_ptr + end * dxr_stride[0] + BLOCK_ID_N * dxr_stride[1] + BLOCK_H[None, :] * dxr_stride[2]
+
         dy_ptrs = dy_ptr + end * dy_stride[0] + BLOCK_ID_N * dy_stride[1] + BLOCK_H[None, :] * dy_stride[2]
     else:
-        BLOCK = (
-            BLOCK_B[:, None] * y_stride[0]
-            + (S - 1) * y_stride[1]
-            + BLOCK_ID_N * y_stride[2]
-            + BLOCK_H[None, :] * y_stride[3]
+        z_ptrs = (
+            z_ptr
+            + BLOCK_B[:, None] * z_stride[0]
+            + (S - 1) * z_stride[1]
+            + BLOCK_ID_N * z_stride[2]
+            + BLOCK_H[None, :] * z_stride[3]
         )
 
-        y_ptrs = (
-            y_ptr
-            + BLOCK_B[:, None] * y_stride[0]
-            + (S - 1) * y_stride[1]
-            + BLOCK_ID_N * y_stride[1]
-            + BLOCK_H[None, :] * y_stride[2]
+        f_ptrs = (
+            f_ptr
+            + BLOCK_B[:, None] * f_stride[0]
+            + (S - 1) * f_stride[1]
+            + BLOCK_ID_N * f_stride[2]
+            + BLOCK_H[None, :] * f_stride[3]
+        )
+
+        r_ptrs = (
+            r_ptr
+            + BLOCK_B[:, None] * r_stride[0]
+            + (S - 1) * r_stride[1]
+            + BLOCK_ID_N * r_stride[2]
+            + BLOCK_H[None, :] * r_stride[3]
+        )
+
+        dx_ptrs = (
+            dx_ptr
+            + BLOCK_B[:, None] * dx_stride[0]
+            + (S - 1) * dx_stride[1]
+            + BLOCK_ID_N * dx_stride[2]
+            + BLOCK_H[None, :] * dx_stride[3]
+        )
+
+        dxf_ptrs = (
+            dxf_ptr
+            + BLOCK_B[:, None] * dxf_stride[0]
+            + (S - 1) * dxf_stride[1]
+            + BLOCK_ID_N * dxf_stride[2]
+            + BLOCK_H[None, :] * dxf_stride[3]
+        )
+
+        dxr_ptrs = (
+            dxr_ptr
+            + BLOCK_B[:, None] * dxr_stride[0]
+            + (S - 1) * dxr_stride[1]
+            + BLOCK_ID_N * dxr_stride[2]
+            + BLOCK_H[None, :] * dxr_stride[3]
         )
 
         dy_ptrs = (
             dy_ptr
             + BLOCK_B[:, None] * dy_stride[0]
             + (S - 1) * dy_stride[1]
-            + BLOCK_ID_N * dy_stride[1]
+            + BLOCK_ID_N * dy_stride[2]
             + BLOCK_H[None, :] * dy_stride[2]
         )
 
@@ -144,15 +183,11 @@ def gru_backward_triton_kernel(
             MASK = MASK_BH
 
         dy = tl.load(dy_ptrs, mask=MASK) + dh
-        f = tl.load(f_ptr + BLOCK, mask=MASK)
-        r = tl.load(r_ptr + BLOCK, mask=MASK)
-        z = tl.load(z_ptr + BLOCK, mask=MASK)
 
-        dx_ptrs = dx_ptr + BLOCK
-        dxf_ptrs = dxf_ptr + BLOCK
-        dxr_ptrs = dxr_ptr + BLOCK
+        z = tl.load(z_ptrs, mask=MASK)
+        f = tl.load(f_ptrs, mask=MASK)
+        r = tl.load(r_ptrs, mask=MASK)
 
-        BLOCK -= y_stride[1 - IS_VARLEN]
         y_ptrs -= y_stride[1 - IS_VARLEN]
 
         if IS_VARLEN:
@@ -169,7 +204,7 @@ def gru_backward_triton_kernel(
                     BLOCK_SIZE_H=BLOCK_SIZE_H,
                     dtype=W.dtype,
                 ),
-                tl.load(y_ptrs, mask=MASK & (BLOCK >= 0)),
+                tl.load(y_ptrs, mask=MASK & (s >= 0)),
             )
         elif s == 0:
             if h0_ptr is None:
@@ -205,6 +240,14 @@ def gru_backward_triton_kernel(
         dh = matmul(A=dxr, B=Wr.T, C=dh, output_dtype=dx.dtype)
         dWr = matmul(A=y_prev.T, B=dxr, C=dWr, output_dtype=dW.dtype)
         tl.store(dxr_ptrs, dxr, mask=MASK)
+
+        z_ptrs -= z_stride[1 - IS_VARLEN]
+        f_ptrs -= f_stride[1 - IS_VARLEN]
+        r_ptrs -= r_stride[1 - IS_VARLEN]
+
+        dx_ptrs -= dx_stride[1 - IS_VARLEN]
+        dxf_ptrs -= dxf_stride[1 - IS_VARLEN]
+        dxr_ptrs -= dxr_stride[1 - IS_VARLEN]
 
         dy_ptrs -= dy_stride[1 - IS_VARLEN]
 
