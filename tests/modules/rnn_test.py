@@ -95,7 +95,7 @@ class RNNTest(TestCommons):
         y_torch.sum().backward()
         weight_torch_grads = self.collect_gradients_from_module_and_zero_grads(rnn)
 
-        self.assert_equal_tensors(x_kernel.grad, x_torch.grad, False)
+        self.assert_equal_tensors(x_kernel.grad, x_torch.grad, False, atol_float16=2.5e-4, rtol_float16=0)
 
         self.assert_equal_tensors(
             weight_kernel_grads["state_weight"],
