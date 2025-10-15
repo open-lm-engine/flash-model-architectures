@@ -10,8 +10,8 @@ import torch.nn.functional as F
 from torch._inductor.fx_passes.joint_graph import patterns
 from torch._inductor.pattern_matcher import fwd_only, joint_fwd_bwd, register_replacement
 
+from fma.functional import rmsnorm, rmsnorm_torch
 from fma.inductor import partialize_and_update_signature
-from fma.ops import rmsnorm, rmsnorm_torch
 
 
 def search_function(x: torch.Tensor, w: torch.Tensor, eps: float | None) -> torch.Tensor:
