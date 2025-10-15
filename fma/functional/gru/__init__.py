@@ -7,6 +7,7 @@ import torch
 from ...cutotune import CutoTuneParameter
 from ...enums import KernelBackend
 from ...torch_math import clip_gradients, sigmoid, tanh
+from ...utils import empty_like_contiguous, zeros_like_contiguous
 from ..rnn import get_max_seqlen_and_max_seqlen_tensor
 from .triton_implementation import gru_backward_triton, gru_forward_triton
 
@@ -26,11 +27,10 @@ class _GRU(torch.autograd.Function):
         cu_seqlens: torch.Tensor | None,
         max_seqlen: torch.Tensor | int | None,
     ) -> torch.Tensor:
-        output = torch.empty_like(input, memory_format=torch.contiguous_format)
-        forget_gate = torch.empty_like(input, memory_format=torch.contiguous_format)
-        reset_gate = torch.empty_like(input, memory_format=torch.contiguous_format)
-        output_update = torch.empty_like(input, memory_format=torch.contiguous_format)
-
+        output = empty_like_contiguous(input)
+        forget_gate = empty_like_contiguous(input)
+        reset_gate = empty_like_contiguous(input)
+        output_update = empty_like_contiguous(input)
         max_seqlen_tensor, max_seqlen = get_max_seqlen_and_max_seqlen_tensor(max_seqlen)
 
         gru_forward_triton(
@@ -83,12 +83,12 @@ class _GRU(torch.autograd.Function):
             max_seqlen_tensor,
         ) = ctx.saved_tensors
 
-        input_grad = torch.empty_like(output, memory_format=torch.contiguous_format)
-        forget_input_grad = torch.empty_like(output, memory_format=torch.contiguous_format)
-        reset_input_grad = torch.empty_like(output, memory_format=torch.contiguous_format)
-        weight_grad = torch.zeros_like(weight, dtype=torch.float32, memory_format=torch.contiguous_format)
-        forget_weight_grad = torch.zeros_like(weight, dtype=torch.float32, memory_format=torch.contiguous_format)
-        reset_weight_grad = torch.zeros_like(weight, dtype=torch.float32, memory_format=torch.contiguous_format)
+        input_grad = empty_like_contiguous(output)
+        forget_input_grad = empty_like_contiguous(output)
+        reset_input_grad = empty_like_contiguous(output)
+        weight_grad = zeros_like_contiguous(weight, dtype=torch.float32)
+        forget_weight_grad = zeros_like_contiguous(weight, dtype=torch.float32)
+        reset_weight_grad = zeros_like_contiguous(weight, dtype=torch.float32)
 
         gru_backward_triton(
             weight=weight,
