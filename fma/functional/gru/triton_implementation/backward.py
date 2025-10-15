@@ -64,7 +64,6 @@ def gru_backward_triton_kernel(
 
     BLOCK_B = BLOCK_ID_B * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
     BLOCK_H = tl.arange(0, BLOCK_SIZE_H)
-    BLOCK_W = BLOCK_ID_N * W_stride[0] + BLOCK_H[:, None] * W_stride[1] + BLOCK_H[None, :] * W_stride[2]
 
     MASK_B = BLOCK_B < B
     MASK_H = BLOCK_H < H
@@ -77,9 +76,18 @@ def gru_backward_triton_kernel(
     dWf = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
     dWr = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
 
-    W = tl.load(W_ptr + BLOCK_W, mask=MASK_HH)
-    Wf = tl.load(Wf_ptr + BLOCK_W, mask=MASK_HH)
-    Wr = tl.load(Wr_ptr + BLOCK_W, mask=MASK_HH)
+    W = tl.load(
+        W_ptr + BLOCK_ID_N * W_stride[0] + BLOCK_H[:, None] * W_stride[1] + BLOCK_H[None, :] * W_stride[2],
+        mask=MASK_HH,
+    )
+    Wf = tl.load(
+        Wf_ptr + BLOCK_ID_N * Wf_stride[0] + BLOCK_H[:, None] * Wf_stride[1] + BLOCK_H[None, :] * Wf_stride[2],
+        mask=MASK_HH,
+    )
+    Wr = tl.load(
+        Wr_ptr + BLOCK_ID_N * Wr_stride[0] + BLOCK_H[:, None] * Wr_stride[1] + BLOCK_H[None, :] * Wr_stride[2],
+        mask=MASK_HH,
+    )
 
     IS_VARLEN: tl.constexpr = cu_seqlens_ptr is not None
 
@@ -179,6 +187,8 @@ def gru_backward_triton_kernel(
 
         if IS_VARLEN:
             end -= 1
+
+    BLOCK_W = BLOCK_ID_N * W_stride[0] + BLOCK_H[:, None] * W_stride[1] + BLOCK_H[None, :] * W_stride[2]
 
     tl.atomic_add(dW_ptr + BLOCK_W, dW, mask=MASK_HH, sem="relaxed")
     tl.atomic_add(dWf_ptr + BLOCK_W, dWf, mask=MASK_HH, sem="relaxed")
