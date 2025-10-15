@@ -80,10 +80,12 @@ def gru_backward_triton_kernel(
         W_ptr + BLOCK_ID_N * W_stride[0] + BLOCK_H[:, None] * W_stride[1] + BLOCK_H[None, :] * W_stride[2],
         mask=MASK_HH,
     )
+
     Wf = tl.load(
         Wf_ptr + BLOCK_ID_N * Wf_stride[0] + BLOCK_H[:, None] * Wf_stride[1] + BLOCK_H[None, :] * Wf_stride[2],
         mask=MASK_HH,
     )
+
     Wr = tl.load(
         Wr_ptr + BLOCK_ID_N * Wr_stride[0] + BLOCK_H[:, None] * Wr_stride[1] + BLOCK_H[None, :] * Wr_stride[2],
         mask=MASK_HH,
@@ -187,11 +189,26 @@ def gru_backward_triton_kernel(
         if IS_VARLEN:
             end -= 1
 
-    BLOCK_W = BLOCK_ID_N * W_stride[0] + BLOCK_H[:, None] * W_stride[1] + BLOCK_H[None, :] * W_stride[2]
+    tl.atomic_add(
+        dW_ptr + BLOCK_ID_N * dW_stride[0] + BLOCK_H[:, None] * dW_stride[1] + BLOCK_H[None, :] * dW_stride[2],
+        dW,
+        mask=MASK_HH,
+        sem="relaxed",
+    )
 
-    tl.atomic_add(dW_ptr + BLOCK_W, dW, mask=MASK_HH, sem="relaxed")
-    tl.atomic_add(dWf_ptr + BLOCK_W, dWf, mask=MASK_HH, sem="relaxed")
-    tl.atomic_add(dWr_ptr + BLOCK_W, dWr, mask=MASK_HH, sem="relaxed")
+    tl.atomic_add(
+        dWf_ptr + BLOCK_ID_N * dWf_stride[0] + BLOCK_H[:, None] * dWf_stride[1] + BLOCK_H[None, :] * dWf_stride[2],
+        dWf,
+        mask=MASK_HH,
+        sem="relaxed",
+    )
+
+    tl.atomic_add(
+        dWr_ptr + BLOCK_ID_N * dWr_stride[0] + BLOCK_H[:, None] * dWr_stride[1] + BLOCK_H[None, :] * dWr_stride[2],
+        dWr,
+        mask=MASK_HH,
+        sem="relaxed",
+    )
 
 
 @custom_op(
