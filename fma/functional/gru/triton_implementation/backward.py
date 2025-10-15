@@ -212,7 +212,7 @@ def gru_backward_triton_kernel(
                     BLOCK_SIZE_H=BLOCK_SIZE_H,
                     dtype=W.dtype,
                 ),
-                tl.load(y_ptrs, mask=MASK & (end >= start)),
+                tl.load(y_ptrs, mask=MASK),
             )
         elif s == 0:
             if h0_ptr is None:
