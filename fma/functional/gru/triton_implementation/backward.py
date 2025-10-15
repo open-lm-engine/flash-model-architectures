@@ -106,12 +106,21 @@ def gru_backward_triton_kernel(
         end -= 1
 
         BLOCK = end * y_stride[0] + BLOCK_ID_N * y_stride[1] + BLOCK_H[None, :] * y_stride[2]
+        y_ptrs = y_ptr + end * y_stride[0] + BLOCK_ID_N * y_stride[1] + BLOCK_H[None, :] * y_stride[2]
     else:
         BLOCK = (
             BLOCK_B[:, None] * y_stride[0]
             + (S - 1) * y_stride[1]
             + BLOCK_ID_N * y_stride[2]
             + BLOCK_H[None, :] * y_stride[3]
+        )
+
+        y_ptrs = (
+            y_ptr
+            + BLOCK_B[:, None] * y_stride[0]
+            + (S - 1) * y_stride[1]
+            + BLOCK_ID_N * y_stride[1]
+            + BLOCK_H[None, :] * y_stride[2]
         )
 
     # backward counting reduces 1 instruction since we need to compare s == 0, otherwise we have to compare s == S - 1
@@ -134,6 +143,7 @@ def gru_backward_triton_kernel(
         dxr_ptrs = dxr_ptr + BLOCK
 
         BLOCK -= y_stride[1 - IS_VARLEN]
+        y_ptrs -= y_stride[1 - IS_VARLEN]
 
         if IS_VARLEN:
             y_prev = tl.where(
@@ -149,7 +159,7 @@ def gru_backward_triton_kernel(
                     BLOCK_SIZE_H=BLOCK_SIZE_H,
                     dtype=W.dtype,
                 ),
-                tl.load(y_ptr + BLOCK, mask=MASK & (BLOCK >= 0)),
+                tl.load(y_ptrs, mask=MASK & (BLOCK >= 0)),
             )
         elif s == 0:
             if h0_ptr is None:
@@ -163,7 +173,7 @@ def gru_backward_triton_kernel(
                     mask=MASK,
                 )
         else:
-            y_prev = tl.load(y_ptr + BLOCK, mask=MASK)
+            y_prev = tl.load(y_ptrs, mask=MASK)
 
         dh = f * dy
         dz = dy * (1 - f)
