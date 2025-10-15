@@ -3,7 +3,6 @@
 # **************************************************
 
 import torch
-import torch.nn as nn
 
 from ...cutotune import CutoTuneParameter
 from ...enums import KernelBackend
