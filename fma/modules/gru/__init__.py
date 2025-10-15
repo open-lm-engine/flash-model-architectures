@@ -13,6 +13,15 @@ from ...utils import ensure_contiguous
 from .triton_implementation import gru_backward_triton, gru_forward_triton
 
 
+def get_max_seqlen_and_max_seqlen_tensor(
+    max_seqlen: torch.Tensor | int | None,
+) -> tuple[torch.Tensor | None, int | None]:
+    if isinstance(max_seqlen, torch.Tensor):
+        return max_seqlen, None
+    else:
+        return None, max_seqlen
+
+
 class _GRU_Varlen(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
@@ -34,7 +43,7 @@ class _GRU_Varlen(torch.autograd.Function):
         reset_gate = torch.empty_like(input)
         output_update = torch.empty_like(input)
 
-        is_max_seqlen_tensor = isinstance(max_seqlen, torch.Tensor)
+        max_seqlen_tensor, max_seqlen = get_max_seqlen_and_max_seqlen_tensor(max_seqlen)
 
         gru_forward_triton(
             input=input,
@@ -49,11 +58,11 @@ class _GRU_Varlen(torch.autograd.Function):
             input_state=input_state,
             output=output,
             cu_seqlens=cu_seqlens,
-            max_seqlen_tensor=max_seqlen if is_max_seqlen_tensor else None,
-            max_seqlen=None if is_max_seqlen_tensor else max_seqlen,
+            max_seqlen_tensor=max_seqlen_tensor,
+            max_seqlen=max_seqlen,
         )
 
-        tensors_to_save = (
+        ctx.save_for_backward(
             weight,
             forget_weight,
             forget_gate,
@@ -63,51 +72,29 @@ class _GRU_Varlen(torch.autograd.Function):
             output,
             input_state,
             cu_seqlens,
+            max_seqlen_tensor,
         )
 
-        if is_max_seqlen_tensor:
-            ctx.save_for_backward(*tensors_to_save, max_seqlen)
-        else:
-            ctx.save_for_backward(*tensors_to_save)
-            ctx.max_seqlen = max_seqlen
-
+        ctx.max_seqlen = max_seqlen
         ctx.gradient_clipping = gradient_clipping
-        ctx.is_max_seqlen_tensor = is_max_seqlen_tensor
 
         return output
 
     @staticmethod
     @ensure_contiguous
     def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
-        is_max_seqlen_tensor = ctx.is_max_seqlen_tensor
-
-        if is_max_seqlen_tensor:
-            (
-                weight,
-                forget_weight,
-                forget_gate,
-                reset_weight,
-                reset_gate,
-                output_update,
-                output,
-                input_state,
-                cu_seqlens,
-                max_seqlen,
-            ) = ctx.saved_tensors
-        else:
-            (
-                weight,
-                forget_weight,
-                forget_gate,
-                reset_weight,
-                reset_gate,
-                output_update,
-                output,
-                input_state,
-                cu_seqlens,
-            ) = ctx.saved_tensors
-
-            max_seqlen = ctx.max_seqlen
+        (
+            weight,
+            forget_weight,
+            forget_gate,
+            reset_weight,
+            reset_gate,
+            output_update,
+            output,
+            input_state,
+            cu_seqlens,
+            max_seqlen_tensor,
+        ) = ctx.saved_tensors
 
         input_grad = torch.empty_like(output)
         forget_input_grad = torch.empty_like(output)
@@ -132,10 +119,10 @@ class _GRU_Varlen(torch.autograd.Function):
             output_grad=output_grad,
             input_grad=input_grad,
             weight_grad=weight_grad,
-            gradient_clipping=ctx.gradient_clipping,
             cu_seqlens=cu_seqlens,
-            max_seqlen_tensor=max_seqlen if is_max_seqlen_tensor else None,
-            max_seqlen=None if is_max_seqlen_tensor else max_seqlen,
+            max_seqlen_tensor=max_seqlen_tensor,
+            max_seqlen=ctx.max_seqlen,
+            gradient_clipping=ctx.gradient_clipping,
         )
 
         weight_grad = weight_grad.type_as(weight)
