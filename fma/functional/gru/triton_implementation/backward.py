@@ -177,7 +177,7 @@ def gru_backward_triton_kernel(
             + BLOCK_B[:, None] * dy_stride[0]
             + (S - 1) * dy_stride[1]
             + BLOCK_ID_N * dy_stride[2]
-            + BLOCK_H[None, :] * dy_stride[2]
+            + BLOCK_H[None, :] * dy_stride[3]
         )
 
     # backward counting reduces 1 instruction since we need to compare s == 0, otherwise we have to compare s == S - 1
