@@ -53,27 +53,27 @@ def gru_backward_triton_kernel(
     BLOCK_H = tl.arange(0, BLOCK_SIZE_H)
     BLOCK_W = BLOCK_ID_N * W_stride[0] + BLOCK_H[:, None] * W_stride[1] + BLOCK_H[None, :] * W_stride[2]
 
-    mask_b = BLOCK_B < B
-    mask_h = BLOCK_H < H
+    MASK_B = BLOCK_B < B
+    MASK_H = BLOCK_H < H
 
-    mask_bh = mask_b[:, None] & mask_h[None, :]
-    mask_hh = mask_h[:, None] & mask_h[None, :]
+    MASK_BH = MASK_B[:, None] & MASK_H[None, :]
+    MASK_HH = MASK_H[:, None] & MASK_H[None, :]
 
     dh = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=W_ptr.dtype.element_ty)
     dW = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
     dWf = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
     dWr = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
 
-    W = tl.load(W_ptr + BLOCK_W, mask=mask_hh)
-    Wf = tl.load(Wf_ptr + BLOCK_W, mask=mask_hh)
-    Wr = tl.load(Wr_ptr + BLOCK_W, mask=mask_hh)
+    W = tl.load(W_ptr + BLOCK_W, mask=MASK_HH)
+    Wf = tl.load(Wf_ptr + BLOCK_W, mask=MASK_HH)
+    Wr = tl.load(Wr_ptr + BLOCK_W, mask=MASK_HH)
 
     IS_VARLEN = cu_seqlens_ptr is not None
 
     if IS_VARLEN:
         cu_seqlens_ptrs = cu_seqlens_ptr + BLOCK_B[:, None]
-        start = tl.load(cu_seqlens_ptrs, mask=mask_b[:, None])
-        end = tl.load(cu_seqlens_ptrs + 1, mask=mask_b[:, None])
+        start = tl.load(cu_seqlens_ptrs, mask=MASK_B[:, None])
+        end = tl.load(cu_seqlens_ptrs + 1, mask=MASK_B[:, None])
 
         if IS_MAX_SEQLEN_TENSOR:
             S = tl.load(max_seqlen_ptr)
@@ -98,9 +98,9 @@ def gru_backward_triton_kernel(
 
         if IS_VARLEN:
             unfinished = end >= start
-            mask = unfinished & mask_h[None, :]
+            mask = unfinished & MASK_H[None, :]
         else:
-            mask = mask_bh
+            mask = MASK_BH
 
         dy = tl.load(dy_ptr + BLOCK, mask=mask) + dh
         f = tl.load(f_ptr + BLOCK, mask=mask)
@@ -122,7 +122,7 @@ def gru_backward_triton_kernel(
                     BLOCK_ID_N=BLOCK_ID_N,
                     BLOCK_B=BLOCK_B,
                     BLOCK_H=BLOCK_H,
-                    mask_bh=mask_bh,
+                    MASK_BH=MASK_BH,
                     BLOCK_SIZE_B=BLOCK_SIZE_B,
                     BLOCK_SIZE_H=BLOCK_SIZE_H,
                     dtype=W.dtype,
@@ -167,9 +167,9 @@ def gru_backward_triton_kernel(
         if IS_VARLEN:
             end -= 1
 
-    tl.atomic_add(dW_ptr + BLOCK_W, dW, mask=mask_hh, sem="relaxed")
-    tl.atomic_add(dWf_ptr + BLOCK_W, dWf, mask=mask_hh, sem="relaxed")
-    tl.atomic_add(dWr_ptr + BLOCK_W, dWr, mask=mask_hh, sem="relaxed")
+    tl.atomic_add(dW_ptr + BLOCK_W, dW, mask=MASK_HH, sem="relaxed")
+    tl.atomic_add(dWf_ptr + BLOCK_W, dWf, mask=MASK_HH, sem="relaxed")
+    tl.atomic_add(dWr_ptr + BLOCK_W, dWr, mask=MASK_HH, sem="relaxed")
 
 
 @custom_op(
