@@ -6,7 +6,6 @@ import torch
 
 from ...enums import KernelBackend
 from ...torch_math import clip_gradients, tanh
-from ...utils import ensure_contiguous
 from .triton_implementation import rnn_backward_triton, rnn_forward_triton
 
 
@@ -21,7 +20,6 @@ def get_max_seqlen_and_max_seqlen_tensor(
 
 class _RNN(torch.autograd.Function):
     @staticmethod
-    @ensure_contiguous
     def forward(
         ctx,
         input: torch.Tensor,
@@ -52,7 +50,6 @@ class _RNN(torch.autograd.Function):
         return output
 
     @staticmethod
-    @ensure_contiguous
     def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor]:
         weight, output, input_state, cu_seqlens, max_seqlen_tensor = ctx.saved_tensors
 
