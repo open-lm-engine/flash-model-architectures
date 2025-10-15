@@ -118,15 +118,14 @@ def gru_backward_triton_kernel(
             dh = clamp(dh, min_value=-gradient_clipping, max_value=gradient_clipping)
 
         if IS_VARLEN:
-            unfinished = end >= start
-            mask = unfinished & MASK_H[None, :]
+            MASK = (end >= start) & MASK_H[None, :]
         else:
-            mask = MASK_BH
+            MASK = MASK_BH
 
-        dy = tl.load(dy_ptr + BLOCK, mask=mask) + dh
-        f = tl.load(f_ptr + BLOCK, mask=mask)
-        r = tl.load(r_ptr + BLOCK, mask=mask)
-        z = tl.load(z_ptr + BLOCK, mask=mask)
+        dy = tl.load(dy_ptr + BLOCK, mask=MASK) + dh
+        f = tl.load(f_ptr + BLOCK, mask=MASK)
+        r = tl.load(r_ptr + BLOCK, mask=MASK)
+        z = tl.load(z_ptr + BLOCK, mask=MASK)
 
         dx_ptrs = dx_ptr + BLOCK
         dxf_ptrs = dxf_ptr + BLOCK
@@ -148,7 +147,7 @@ def gru_backward_triton_kernel(
                     BLOCK_SIZE_H=BLOCK_SIZE_H,
                     dtype=W.dtype,
                 ),
-                tl.load(y_ptr + BLOCK, mask=mask & (BLOCK >= 0)),
+                tl.load(y_ptr + BLOCK, mask=MASK & (BLOCK >= 0)),
             )
         elif s == 0:
             if h0_ptr is None:
@@ -159,10 +158,10 @@ def gru_backward_triton_kernel(
                     + BLOCK_B[:, None] * h0_stride[0]
                     + BLOCK_ID_N * h0_stride[1]
                     + BLOCK_H[None, :] * h0_stride[2],
-                    mask=mask,
+                    mask=MASK,
                 )
         else:
-            y_prev = tl.load(y_ptr + BLOCK, mask=mask)
+            y_prev = tl.load(y_ptr + BLOCK, mask=MASK)
 
         dh = f * dy
         dz = dy * (1 - f)
@@ -171,19 +170,19 @@ def gru_backward_triton_kernel(
         dx = dz * tanh_backward(z)
         drh = matmul(A=dx, B=W.T, C=None, output_dtype=dx.dtype)
         dW = matmul(A=(r * y_prev).T, B=dx, C=dW, output_dtype=dW.dtype)
-        tl.store(dx_ptrs, dx, mask=mask)
+        tl.store(dx_ptrs, dx, mask=MASK)
 
         dh += drh * r
 
         dxf = df * sigmoid_backward(f)
         dh = matmul(A=dxf, B=Wf.T, C=dh, output_dtype=dx.dtype)
         dWf = matmul(A=y_prev.T, B=dxf, C=dWf, output_dtype=dW.dtype)
-        tl.store(dxf_ptrs, dxf, mask=mask)
+        tl.store(dxf_ptrs, dxf, mask=MASK)
 
         dxr = drh * y_prev * sigmoid_backward(r)
         dh = matmul(A=dxr, B=Wr.T, C=dh, output_dtype=dx.dtype)
         dWr = matmul(A=y_prev.T, B=dxr, C=dWr, output_dtype=dW.dtype)
-        tl.store(dxr_ptrs, dxr, mask=mask)
+        tl.store(dxr_ptrs, dxr, mask=MASK)
 
         if IS_VARLEN:
             end -= 1
