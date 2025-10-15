@@ -4,11 +4,10 @@
 
 import torch
 
-from ...cutotune import CutoTuneParameter
 from ...enums import KernelBackend
 from ...torch_math import clip_gradients, tanh
 from ...utils import ensure_contiguous
-from .triton_implementation import rnn_forward_triton, rnn_varlen_backward_triton
+from .triton_implementation import rnn_backward_triton, rnn_forward_triton
 
 
 def get_max_seqlen_and_max_seqlen_tensor(
@@ -20,7 +19,7 @@ def get_max_seqlen_and_max_seqlen_tensor(
         return None, max_seqlen
 
 
-class _RNN_Varlen(torch.autograd.Function):
+class _RNN(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
     def forward(
@@ -60,7 +59,7 @@ class _RNN_Varlen(torch.autograd.Function):
         input_grad = torch.empty_like(output)
         weight_grad = torch.zeros_like(weight, dtype=torch.float32)
 
-        rnn_varlen_backward_triton(
+        rnn_backward_triton(
             weight=weight,
             output=output,
             input_state=input_state,
@@ -84,7 +83,7 @@ def rnn(
     cu_seqlens: torch.Tensor | None = None,
     max_seqlen: torch.Tensor | int | None = None,
     *,
-    kernel_backend: KernelBackend | CutoTuneParameter = KernelBackend.triton,
+    kernel_backend: KernelBackend = KernelBackend.triton,
 ) -> torch.Tensor:
     """computes multihead RNN recurrent update over the sequence length: tanh(`input_state` @ `weight` + `input`)
 
@@ -98,8 +97,7 @@ def rnn(
             implies no clipping. Defaults to None.
         cu_seqlens (torch.Tensor | None, optional): cumulative sequence length (must contain 0 as first element). Defaults to None.
         max_seqlen (torch.Tensor | int | None, optional): max sequence length in the batch. Defaults to None.
-        kernel_backend (KernelBackend | CutoTuneParameter, optional): kernel backend to prioritize.
-            Defaults to KernelBackend.triton.
+        kernel_backend (KernelBackend, optional): kernel backend to prioritize. Defaults to KernelBackend.triton.
 
     Returns:
         torch.Tensor: output tensor of shape (B, S, N, H)
@@ -177,6 +175,6 @@ def rnn(
                 output[offset_unfinished] = new_state
                 input_state[unfinished] = new_state
     else:
-        output = _RNN_Varlen.apply(input, weight, input_state, gradient_clipping, cu_seqlens, max_seqlen)
+        output = _RNN.apply(input, weight, input_state, gradient_clipping, cu_seqlens, max_seqlen)
 
     return output
