@@ -6,7 +6,7 @@ import torch
 import torch.nn.functional as F
 
 from ...enums import KernelBackend
-from ...utils import get_num_elements_and_hidden_size
+from ...utils import empty_like_contiguous, get_num_elements_and_hidden_size
 from .triton_implementation import cross_entropy_forward_backward_triton
 
 
@@ -16,7 +16,7 @@ class _CrossEntropy(torch.autograd.Function):
         ctx, x: torch.Tensor, labels: torch.Tensor, reduction: str, logits_multiplier: float | None
     ) -> torch.Tensor:
         loss = torch.zeros((), device=x.device, dtype=torch.float32)
-        x_grad = torch.empty_like(x, memory_format=torch.contiguous_format)
+        x_grad = empty_like_contiguous(x)
 
         cross_entropy_forward_backward_triton(
             x=x, labels=labels, loss=loss, x_grad=x_grad, logits_multiplier=logits_multiplier, reduction=reduction
