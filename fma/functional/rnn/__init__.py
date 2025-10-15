@@ -29,7 +29,7 @@ class _RNN(torch.autograd.Function):
         cu_seqlens: torch.Tensor | None,
         max_seqlen: torch.Tensor | int | None,
     ) -> torch.Tensor:
-        output = torch.empty_like(input)
+        output = torch.empty_like(input, memory_format=torch.contiguous_format)
 
         max_seqlen_tensor, max_seqlen = get_max_seqlen_and_max_seqlen_tensor(max_seqlen)
 
@@ -53,8 +53,8 @@ class _RNN(torch.autograd.Function):
     def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor]:
         weight, output, input_state, cu_seqlens, max_seqlen_tensor = ctx.saved_tensors
 
-        input_grad = torch.empty_like(output)
-        weight_grad = torch.zeros_like(weight, dtype=torch.float32)
+        input_grad = torch.empty_like(output, memory_format=torch.contiguous_format)
+        weight_grad = torch.zeros_like(weight, dtype=torch.float32, memory_format=torch.contiguous_format)
 
         rnn_backward_triton(
             weight=weight,

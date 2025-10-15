@@ -26,10 +26,10 @@ class _GRU(torch.autograd.Function):
         cu_seqlens: torch.Tensor | None,
         max_seqlen: torch.Tensor | int | None,
     ) -> torch.Tensor:
-        output = torch.empty_like(input)
-        forget_gate = torch.empty_like(input)
-        reset_gate = torch.empty_like(input)
-        output_update = torch.empty_like(input)
+        output = torch.empty_like(input, memory_format=torch.contiguous_format)
+        forget_gate = torch.empty_like(input, memory_format=torch.contiguous_format)
+        reset_gate = torch.empty_like(input, memory_format=torch.contiguous_format)
+        output_update = torch.empty_like(input, memory_format=torch.contiguous_format)
 
         max_seqlen_tensor, max_seqlen = get_max_seqlen_and_max_seqlen_tensor(max_seqlen)
 
@@ -83,12 +83,12 @@ class _GRU(torch.autograd.Function):
             max_seqlen_tensor,
         ) = ctx.saved_tensors
 
-        input_grad = torch.empty_like(output)
-        forget_input_grad = torch.empty_like(output)
-        reset_input_grad = torch.empty_like(output)
-        weight_grad = torch.zeros_like(weight, dtype=torch.float32)
-        forget_weight_grad = torch.zeros_like(weight, dtype=torch.float32)
-        reset_weight_grad = torch.zeros_like(weight, dtype=torch.float32)
+        input_grad = torch.empty_like(output, memory_format=torch.contiguous_format)
+        forget_input_grad = torch.empty_like(output, memory_format=torch.contiguous_format)
+        reset_input_grad = torch.empty_like(output, memory_format=torch.contiguous_format)
+        weight_grad = torch.zeros_like(weight, dtype=torch.float32, memory_format=torch.contiguous_format)
+        forget_weight_grad = torch.zeros_like(weight, dtype=torch.float32, memory_format=torch.contiguous_format)
+        reset_weight_grad = torch.zeros_like(weight, dtype=torch.float32, memory_format=torch.contiguous_format)
 
         gru_backward_triton(
             weight=weight,
