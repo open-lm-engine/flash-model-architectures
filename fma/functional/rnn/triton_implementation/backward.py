@@ -180,7 +180,12 @@ def rnn_backward_triton_kernel(
         if IS_VARLEN:
             end -= 1
 
-    tl.atomic_add(dW_ptr + BLOCK_W, dW, mask=mask_hh, sem="relaxed")
+    tl.atomic_add(
+        dW_ptr + BLOCK_ID_N * dW_stride[0] + BLOCK_H[:, None] * dW_stride[1] + BLOCK_H[None, :] * dW_stride[2],
+        dW,
+        mask=MASK_HH,
+        sem="relaxed",
+    )
 
 
 @custom_op(f"{LIBRARY_NAME}::rnn_backward_triton", mutates_args={"input_grad", "weight_grad"})
