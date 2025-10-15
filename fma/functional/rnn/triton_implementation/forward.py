@@ -55,10 +55,11 @@ def rnn_forward_triton_kernel(
     MASK_H = BLOCK_H < H
 
     MASK_BH = MASK_B[:, None] & MASK_H[None, :]
+    MASK_HH = MASK_H[:, None] & MASK_H[None, :]
 
     W = tl.load(
         W_ptr + BLOCK_ID_N * W_stride[0] + BLOCK_H[:, None] * W_stride[1] + BLOCK_H[None, :] * W_stride[2],
-        mask=MASK_H[:, None] & MASK_H[None, :],
+        mask=MASK_HH,
     )
 
     if h0_ptr is None:
@@ -88,13 +89,21 @@ def rnn_forward_triton_kernel(
         y_ptrs = y_ptr + BLOCK_B[:, None] * y_stride[0] + BLOCK_ID_N * y_stride[2] + BLOCK_H[None, :] * y_stride[3]
 
     for _ in range(S):
-        x = tl.load(x_ptrs, mask=MASK_BH)
+        if IS_VARLEN:
+            MASK = (start < end) & MASK_H[None, :]
+        else:
+            MASK = MASK_BH
+
+        x = tl.load(x_ptrs, mask=MASK)
         h = matmul(A=h, B=W, C=x, output_dtype=tl.float32)
         h = tanh(h, output_dtype=x.dtype)
-        tl.store(y_ptrs, h, mask=MASK_BH)
+        tl.store(y_ptrs, h, mask=MASK)
 
         x_ptrs += x_stride[1 - IS_VARLEN]
         y_ptrs += y_stride[1 - IS_VARLEN]
+
+        if IS_VARLEN:
+            start += 1
 
 
 @custom_op(f"{LIBRARY_NAME}::rnn_forward_triton", mutates_args={"output"})
