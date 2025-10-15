@@ -22,7 +22,7 @@ def get_max_seqlen_and_max_seqlen_tensor(
         return None, max_seqlen
 
 
-class _GRU_Varlen(torch.autograd.Function):
+class _GRU(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
     def forward(
@@ -265,7 +265,7 @@ def gru(
                 output[offset_unfinished] = new_state
                 input_state[unfinished] = new_state
     else:
-        output = _GRU_Varlen.apply(
+        output = _GRU.apply(
             input,
             weight,
             forget_input,
