@@ -132,10 +132,10 @@ def fused_residual_add_rmsnorm_backward_triton(
     NUM_WARPS = 8
 
     sm_count = get_sm_count(added_x_residual.device)
-    num_programs = min(sm_count, ceil_divide(B, BLOCK_SIZE_B))
+    NUM_BLOCKS = min(sm_count, ceil_divide(B, BLOCK_SIZE_B))
 
     with torch.device(added_x_residual.device):
-        fused_residual_add_rmsnorm_backward_triton_kernel[num_programs,](
+        fused_residual_add_rmsnorm_backward_triton_kernel[NUM_BLOCKS,](
             added_x_residual_ptr=added_x_residual,
             weight_ptr=weight,
             output_grad_ptr=output_grad,
