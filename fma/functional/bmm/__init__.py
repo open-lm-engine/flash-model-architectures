@@ -6,11 +6,9 @@ import torch
 
 from ...cutotune import CutoTuneParameter
 from ...enums import KernelBackend
-from ...utils import ensure_contiguous
 from .triton_implementation import bmm_triton
 
 
-@ensure_contiguous
 def bmm(
     A: torch.Tensor,
     B: torch.Tensor,
