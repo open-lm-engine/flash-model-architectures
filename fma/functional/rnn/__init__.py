@@ -96,7 +96,7 @@ def rnn(
         kernel_backend (KernelBackend, optional): kernel backend to prioritize. Defaults to KernelBackend.triton.
 
     Returns:
-        torch.Tensor: output tensor of shape (B, S, N, H) and output state tensor of shape (B, N, H)
+        tuple[torch.Tensor, torch.Tensor]: output tensor of shape (B, S, N, H) and output state tensor of shape (B, N, H)
     """
 
     assert input.dim() in [3, 4]

@@ -155,7 +155,7 @@ def gru(
         max_seqlen (torch.Tensor | int | None, optional): max sequence length in the batch. Defaults to None.
 
     Returns:
-        torch.Tensor: output tensor of shape (B, S, N, H)
+        tuple[torch.Tensor, torch.Tensor]: output tensor of shape (B, S, N, H) and output state tensor of shape (B, N, H)
     """
 
     assert input.dim() in [3, 4]
