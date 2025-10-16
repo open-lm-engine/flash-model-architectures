@@ -104,7 +104,7 @@ def fused_residual_add_rmsnorm_forward_triton(
             xr_ptr=added_x_residual,
             xr_stride=added_x_residual.stride(),
             s_ptr=rmsnorm_denominator,
-            s_stride=rmsnorm_denominator.stride(),
+            s_stride=None if rmsnorm_denominator is None else rmsnorm_denominator.stride(),
             eps=eps,
             multiplier=multiplier,
             B=B,
