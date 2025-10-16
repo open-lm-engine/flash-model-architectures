@@ -144,7 +144,7 @@ def bmm_triton_kernel(
     )
 
 
-@custom_op(f"{LIBRARY_NAME}::bmm_triton", mutates_args={"output"})
+@custom_op(f"{LIBRARY_NAME}::bmm_triton", mutates_args={"D"})
 def bmm_triton(
     A: torch.Tensor,
     B: torch.Tensor,
