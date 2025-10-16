@@ -37,7 +37,7 @@ def bmm(
         ValueError: if unexpected `kernel_backend` is passed
 
     Returns:
-        torch.Tensor: D tensor
+        torch.Tensor: output tensor
     """
 
     assert A.dim() == 3
