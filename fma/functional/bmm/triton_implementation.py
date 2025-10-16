@@ -44,9 +44,13 @@ from ...math import ceil_divide
 @triton.jit
 def bmm_triton_kernel(
     A_ptr,
+    A_stride,
     B_ptr,
+    B_stride,
     C_ptr,
-    output_ptr,
+    C_stride,
+    D_ptr,
+    D_stride,
     alpha,
     beta,
     IS_A_TRANSPOSED: tl.constexpr,
@@ -81,64 +85,71 @@ def bmm_triton_kernel(
     if BLOCK_ID_N >= NUM_BLOCKS_N:
         return
 
-    indices_m = BLOCK_ID_M * BLOCK_SIZE_M + tl.arange(0, BLOCK_SIZE_M)
-    indices_n = BLOCK_ID_N * BLOCK_SIZE_N + tl.arange(0, BLOCK_SIZE_N)
+    BLOCK_M = BLOCK_ID_M * BLOCK_SIZE_M + tl.arange(0, BLOCK_SIZE_M)
+    BLOCK_N = BLOCK_ID_N * BLOCK_SIZE_N + tl.arange(0, BLOCK_SIZE_N)
 
-    mask_m = indices_m < M
-    mask_n = indices_n < N
+    MASK_M = BLOCK_M < M
+    MASK_N = BLOCK_N < N
 
-    accumulator = tl.zeros((BLOCK_SIZE_M, BLOCK_SIZE_N), dtype=tl.float32)
-    indices_k = tl.arange(0, BLOCK_SIZE_K)
+    D = tl.zeros((BLOCK_SIZE_M, BLOCK_SIZE_N), dtype=tl.float32)
+    BLOCK_K = tl.arange(0, BLOCK_SIZE_K)
 
     for _ in range(tl.cdiv(K, BLOCK_SIZE_K)):
-        mask_k = indices_k < K
+        MASK_K = BLOCK_K < K
 
         if IS_A_TRANSPOSED:
-            mask_A = mask_k[:, None] & mask_m[None, :]
-            A_ptrs = A_ptr + BLOCK_ID_L * M * K + indices_k[:, None] * M + indices_m[None, :]
+            A_ptrs = A_ptr + BLOCK_ID_L * A_stride[0] + BLOCK_K[:, None] * A_stride[1] + BLOCK_M[None, :] * A_stride[2]
+            MASK_A = MASK_K[:, None] & MASK_M[None, :]
         else:
-            mask_A = mask_m[:, None] & mask_k[None, :]
-            A_ptrs = A_ptr + BLOCK_ID_L * M * K + indices_m[:, None] * K + indices_k[None, :]
+            A_ptrs = A_ptr + BLOCK_ID_L * A_stride[0] + BLOCK_M[:, None] * A_stride[1] + BLOCK_K[None, :] * A_stride[2]
+            MASK_A = MASK_M[:, None] & MASK_K[None, :]
 
-        A = tl.load(A_ptrs, mask=mask_A)
+        A = tl.load(A_ptrs, mask=MASK_A)
 
         if IS_A_TRANSPOSED:
             A = A.T
 
         if IS_B_TRANSPOSED:
-            mask_B = mask_n[:, None] & mask_k[None, :]
-            B_ptrs = B_ptr + BLOCK_ID_L * K * N + indices_n[:, None] * K + indices_k[None, :]
+            B_ptrs = B_ptr + BLOCK_ID_L * B_stride[0] + BLOCK_N[:, None] * B_stride[1] + BLOCK_K[None, :] * B_stride[2]
+            MASK_B = MASK_N[:, None] & MASK_K[None, :]
         else:
-            mask_B = mask_k[:, None] & mask_n[None, :]
-            B_ptrs = B_ptr + BLOCK_ID_L * K * N + indices_k[:, None] * N + indices_n[None, :]
+            B_ptrs = B_ptr + BLOCK_ID_L * B_stride[0] + BLOCK_K[:, None] * B_stride[1] + BLOCK_N[None, :] * B_stride[2]
+            MASK_B = MASK_K[:, None] & MASK_N[None, :]
 
-        B = tl.load(B_ptrs, mask=mask_B)
+        B = tl.load(B_ptrs, mask=MASK_B)
 
         if IS_B_TRANSPOSED:
             B = B.T
 
-        accumulator = tl.dot(A, B, accumulator, allow_tf32=True)
-        indices_k += BLOCK_SIZE_K
+        D = tl.dot(A, B, D, allow_tf32=True)
+        BLOCK_K += BLOCK_SIZE_K
 
-    accumulator = accumulator.to(A_ptr.dtype.element_ty)
-    accumulator *= alpha
+    D = D.to(A_ptr.dtype.element_ty)
+    D *= alpha
 
-    indices_lmn = BLOCK_ID_L * M * N + indices_m[:, None] * N + indices_n[None, :]
-    mask_mn = mask_m[:, None] & mask_n[None, :]
+    MASK_MN = MASK_M[:, None] & MASK_N[None, :]
 
     if C_ptr is not None:
-        C = tl.load(C_ptr + indices_lmn, mask=mask_mn)
-        accumulator += beta * C
+        C = tl.load(
+            C_ptr + BLOCK_ID_L * C_stride[0] + BLOCK_M[:, None] * C_stride[1] + BLOCK_N[None, :] * C_stride[2],
+            mask=MASK_MN,
+        )
 
-    tl.store(output_ptr + indices_lmn, accumulator, mask=mask_mn)
+        D += beta * C
+
+    tl.store(
+        D_ptr + BLOCK_ID_L * D_stride[0] + BLOCK_M[:, None] * D_stride[1] + BLOCK_N[None, :] * D_stride[2],
+        D,
+        mask=MASK_MN,
+    )
 
 
-@custom_op(f"{LIBRARY_NAME}::bmm_triton", mutates_args={"output"})
+@custom_op(f"{LIBRARY_NAME}::bmm_triton", mutates_args={"D"})
 def bmm_triton(
     A: torch.Tensor,
     B: torch.Tensor,
     C: torch.Tensor | None,
-    output: torch.Tensor,
+    D: torch.Tensor,
     is_A_transposed: bool,
     is_B_transposed: bool,
     alpha: float,
@@ -158,9 +169,13 @@ def bmm_triton(
     with torch.device(A.device):
         bmm_triton_kernel[GRID](
             A_ptr=A,
+            A_stride=A.stride(),
             B_ptr=B,
+            B_stride=B.stride(),
             C_ptr=C,
-            output_ptr=output,
+            C_stride=None if C is None else C.stride(),
+            D_ptr=D,
+            D_stride=D.stride(),
             alpha=alpha,
             beta=beta,
             IS_A_TRANSPOSED=is_A_transposed,
