@@ -59,7 +59,7 @@ def fused_residual_add_rmsnorm_forward_triton_kernel(
     r = tl.rsqrt((r / H) + eps)
 
     if s_ptr is not None:
-        tl.store(s_ptr + BLOCK_B * r_stride[0], r, mask=MASK_B)
+        tl.store(s_ptr + BLOCK_B * s_stride[0], r, mask=MASK_B)
 
     x *= r[:, None]
 
