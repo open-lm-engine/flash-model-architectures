@@ -140,7 +140,7 @@ def gru(
     max_seqlen: torch.Tensor | int | None = None,
     *,
     kernel_backend: KernelBackend | CutoTuneParameter = KernelBackend.triton,
-) -> torch.Tensor:
+) -> tuple[torch.Tensor, torch.Tensor]:
     """computes multihead RNN: tanh(`input_state` @ `weight` + `input`)
 
     Args:
@@ -265,4 +265,6 @@ def gru(
             max_seqlen,
         )
 
-    return output
+    output_state = output[:, -1] if cu_seqlens is None else output[cu_seqlens[1:] - 1]
+
+    return output, output_state
