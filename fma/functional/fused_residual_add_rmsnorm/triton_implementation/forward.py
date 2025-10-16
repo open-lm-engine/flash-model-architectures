@@ -33,42 +33,41 @@ def fused_residual_add_rmsnorm_forward_triton_kernel(
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
-    pid_b = tl.program_id(axis=0)
+    BLOCK_ID_B = tl.program_id(axis=0)
 
-    BLOCK_B = pid_b * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
+    BLOCK_B = BLOCK_ID_B * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
     BLOCK_H = tl.arange(0, BLOCK_SIZE_H)
-    BLOCK_BH = BLOCK_B[:, None] * H + BLOCK_H[None, :]
 
     MASK_B = BLOCK_B < B
     MASK_H = BLOCK_H < H
 
     MASK_BH = MASK_B[:, None] & MASK_H[None, :]
 
-    x = tl.load(x_ptr + BLOCK_BH, mask=MASK_BH).to(tl.float32)
+    x = tl.load(x_ptr + BLOCK_B[:, None] * x_stride[0] + BLOCK_H[None, :] * x_stride[1], mask=MASK_BH).to(tl.float32)
 
     if multiplier is not None:
         x *= multiplier
 
     if r_ptr is not None:
-        r = tl.load(r_ptr + BLOCK_BH, mask=MASK_BH)
+        r = tl.load(r_ptr + BLOCK_B[:, None] * r_stride[0] + BLOCK_H[None, :] * r_stride[1], mask=MASK_BH)
         x += r
 
     if xr_ptr is not None:
-        tl.store(xr_ptr + BLOCK_BH, x, mask=MASK_BH)
+        tl.store(xr_ptr + BLOCK_B[:, None] * xr_stride[0] + BLOCK_H[None, :] * xr_stride[1], x, mask=MASK_BH)
 
     r = tl.sum(x * x, axis=1)
     r = tl.rsqrt((r / H) + eps)
 
     if s_ptr is not None:
-        tl.store(s_ptr + BLOCK_B, r, mask=MASK_B)
+        tl.store(s_ptr + BLOCK_B * r_stride[0], r, mask=MASK_B)
 
     x *= r[:, None]
 
     if W_ptr is not None:
-        W = tl.load(W_ptr + BLOCK_H, mask=MASK_H)
+        W = tl.load(W_ptr + BLOCK_H * W_stride[0], mask=MASK_H)
         x = x.to(x_ptr.dtype.element_ty) * W[None, :]
 
-    tl.store(y_ptr + BLOCK_BH, x, mask=MASK_BH)
+    tl.store(y_ptr + BLOCK_B[:, None] * y_stride[0] + BLOCK_H[None, :] * y_stride[1], x, mask=MASK_BH)
 
 
 @custom_op(
