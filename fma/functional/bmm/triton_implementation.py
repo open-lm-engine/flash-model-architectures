@@ -44,9 +44,13 @@ from ...math import ceil_divide
 @triton.jit
 def bmm_triton_kernel(
     A_ptr,
+    A_stride,
     B_ptr,
+    B_stride,
     C_ptr,
+    C_stride,
     D_ptr,
+    D_stride,
     alpha,
     beta,
     IS_A_TRANSPOSED: tl.constexpr,
