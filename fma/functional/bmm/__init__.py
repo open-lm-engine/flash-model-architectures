@@ -37,7 +37,7 @@ def bmm(
         ValueError: if unexpected `kernel_backend` is passed
 
     Returns:
-        torch.Tensor: output tensor
+        torch.Tensor: D tensor
     """
 
     assert A.dim() == 3
@@ -64,19 +64,19 @@ def bmm(
             B = B.transpose(1, 2)
 
         if beta == 0:
-            output = torch.bmm(A, B)
+            D = torch.bmm(A, B)
             if alpha != 1:
-                output = alpha * output
+                D = alpha * D
         else:
-            output = torch.baddbmm(C, A, B, alpha=alpha, beta=beta)
+            D = torch.baddbmm(C, A, B, alpha=alpha, beta=beta)
     elif kernel_backend == KernelBackend.triton:
-        output = torch.empty(L, M, N, dtype=A.dtype, device=A.device)
+        D = torch.empty(L, M, N, dtype=A.dtype, device=A.device)
 
         bmm_triton(
             A=A,
             B=B,
             C=C,
-            output=output,
+            D=D,
             is_A_transposed=is_A_transposed,
             is_B_transposed=is_B_transposed,
             alpha=alpha,
@@ -85,4 +85,4 @@ def bmm(
     else:
         raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
-    return output
+    return D
