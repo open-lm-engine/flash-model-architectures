@@ -127,14 +127,21 @@ def bmm_triton_kernel(
     D = D.to(A_ptr.dtype.element_ty)
     D *= alpha
 
-    BLOCK_LMN = BLOCK_ID_L * M * N + BLOCK_M[:, None] * N + BLOCK_N[None, :]
     MASK_MN = MASK_M[:, None] & MASK_N[None, :]
 
     if C_ptr is not None:
-        C = tl.load(C_ptr + BLOCK_LMN, mask=MASK_MN)
+        C = tl.load(
+            C_ptr + BLOCK_ID_L * C_stride[0] + BLOCK_M[:, None] * C_stride[1] + BLOCK_N[None, :] * C_stride[2],
+            mask=MASK_MN,
+        )
+
         D += beta * C
 
-    tl.store(D_ptr + BLOCK_LMN, D, mask=MASK_MN)
+    tl.store(
+        D_ptr + BLOCK_ID_L * D_stride[0] + BLOCK_M[:, None] * D_stride[1] + BLOCK_N[None, :] * D_stride[2],
+        D,
+        mask=MASK_MN,
+    )
 
 
 @custom_op(f"{LIBRARY_NAME}::bmm_triton", mutates_args={"output"})
