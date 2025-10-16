@@ -149,16 +149,15 @@ def fused_residual_add_rmsnorm(
         assert kernel_backend == KernelBackend.triton
         increment_counter(fused_residual_add_rmsnorm)
 
-        is_x_1d = x.dim() == 1
-
-        if is_x_1d:
+        is_flat = x.dim() == 1
+        if is_flat:
             x = x[None, :]
 
         x, residual = _FusedResidualAddRMSNorm.apply(
             x, residual, weight, eps, multiplier, memory_efficient, deterministic
         )
 
-        if is_x_1d:
+        if is_flat:
             x = x[0]
 
     return x, residual

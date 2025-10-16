@@ -69,6 +69,6 @@ def softmax(
         x = _Softmax.apply(x, logits_multiplier)
 
         if is_flat:
-            x = x.squeeze(0)
+            x = x[0]
 
     return x
