@@ -91,18 +91,18 @@ def bmm_triton_kernel(
     MASK_M = BLOCK_M < M
     MASK_N = BLOCK_N < N
 
-    accumulator = tl.zeros((BLOCK_SIZE_M, BLOCK_SIZE_N), dtype=tl.float32)
+    D = tl.zeros((BLOCK_SIZE_M, BLOCK_SIZE_N), dtype=tl.float32)
     BLOCK_K = tl.arange(0, BLOCK_SIZE_K)
 
     for _ in range(tl.cdiv(K, BLOCK_SIZE_K)):
         MASK_K = BLOCK_K < K
 
         if IS_A_TRANSPOSED:
+            A_ptrs = A_ptr + BLOCK_ID_L * A_stride[0] + BLOCK_K[:, None] * A_stride[1] + BLOCK_M[None, :] * A_stride[2]
             MASK_A = MASK_K[:, None] & MASK_M[None, :]
-            A_ptrs = A_ptr + BLOCK_ID_L * M * K + BLOCK_K[:, None] * M + BLOCK_M[None, :]
         else:
+            A_ptrs = A_ptr + BLOCK_ID_L * A_stride[0] + BLOCK_M[:, None] * A_stride[1] + BLOCK_K[None, :] * A_stride[2]
             MASK_A = MASK_M[:, None] & MASK_K[None, :]
-            A_ptrs = A_ptr + BLOCK_ID_L * M * K + BLOCK_M[:, None] * K + BLOCK_K[None, :]
 
         A = tl.load(A_ptrs, mask=MASK_A)
 
@@ -110,31 +110,31 @@ def bmm_triton_kernel(
             A = A.T
 
         if IS_B_TRANSPOSED:
+            B_ptrs = B_ptr + BLOCK_ID_L * B_stride[0] + BLOCK_N[:, None] * B_stride[1] + BLOCK_K[None, :] * B_stride[2]
             MASK_B = MASK_N[:, None] & MASK_K[None, :]
-            B_ptrs = B_ptr + BLOCK_ID_L * K * N + BLOCK_N[:, None] * K + BLOCK_K[None, :]
         else:
+            B_ptrs = B_ptr + BLOCK_ID_L * B_stride[0] + BLOCK_K[:, None] * B_stride[1] + BLOCK_N[None, :] * B_stride[2]
             MASK_B = MASK_K[:, None] & MASK_N[None, :]
-            B_ptrs = B_ptr + BLOCK_ID_L * K * N + BLOCK_K[:, None] * N + BLOCK_N[None, :]
 
         B = tl.load(B_ptrs, mask=MASK_B)
 
         if IS_B_TRANSPOSED:
             B = B.T
 
-        accumulator = tl.dot(A, B, accumulator, allow_tf32=True)
+        D = tl.dot(A, B, D, allow_tf32=True)
         BLOCK_K += BLOCK_SIZE_K
 
-    accumulator = accumulator.to(A_ptr.dtype.element_ty)
-    accumulator *= alpha
+    D = D.to(A_ptr.dtype.element_ty)
+    D *= alpha
 
     BLOCK_LMN = BLOCK_ID_L * M * N + BLOCK_M[:, None] * N + BLOCK_N[None, :]
     MASK_MN = MASK_M[:, None] & MASK_N[None, :]
 
     if C_ptr is not None:
         C = tl.load(C_ptr + BLOCK_LMN, mask=MASK_MN)
-        accumulator += beta * C
+        D += beta * C
 
-    tl.store(D_ptr + BLOCK_LMN, accumulator, mask=MASK_MN)
+    tl.store(D_ptr + BLOCK_LMN, D, mask=MASK_MN)
 
 
 @custom_op(f"{LIBRARY_NAME}::bmm_triton", mutates_args={"output"})
