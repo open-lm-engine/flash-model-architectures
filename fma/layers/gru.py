@@ -52,7 +52,7 @@ class GRU(nn.Module):
         if input_state is not None:
             input_state = input_state.view(-1, self.num_heads, self.state_head_dim)
 
-        input = gru(
+        input, input_state = gru(
             input=input,
             weight=self.state_weight,
             forget_input=forget_gate,
@@ -66,16 +66,9 @@ class GRU(nn.Module):
             kernel_backend=kernel_backend,
         )
 
-        del forget_gate, reset_gate
+        input = input.flatten(-2, -1)
+        input_state = input_state.flatten(-2, -1)
 
-        if cu_seqlens is None:
-            input_state = input[:, -1]
-        else:
-            input_state = input[cu_seqlens[1:] - 1]
-
-        input_state = input_state.view(input_state.size(0), -1)
-
-        input = input.view(*input.size()[:-2], -1)
         input = self.output_projection(input)
 
         return input, input_state

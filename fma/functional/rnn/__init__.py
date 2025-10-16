@@ -80,7 +80,7 @@ def rnn(
     max_seqlen: torch.Tensor | int | None = None,
     *,
     kernel_backend: KernelBackend = KernelBackend.triton,
-) -> torch.Tensor:
+) -> tuple[torch.Tensor, torch.Tensor]:
     """computes multihead RNN recurrent update over the sequence length: tanh(`input_state` @ `weight` + `input`)
 
     Args:
@@ -96,7 +96,7 @@ def rnn(
         kernel_backend (KernelBackend, optional): kernel backend to prioritize. Defaults to KernelBackend.triton.
 
     Returns:
-        torch.Tensor: output tensor of shape (B, S, N, H)
+        tuple[torch.Tensor, torch.Tensor]: output tensor of shape (B, S, N, H) and output state tensor of shape (B, N, H)
     """
 
     assert input.dim() in [3, 4]
@@ -173,4 +173,6 @@ def rnn(
     else:
         output = _RNN.apply(input, weight, input_state, gradient_clipping, cu_seqlens, max_seqlen)
 
-    return output
+    output_state = output[:, -1] if cu_seqlens is None else output[cu_seqlens[1:] - 1]
+
+    return output, output_state
