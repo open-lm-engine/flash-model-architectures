@@ -8,13 +8,12 @@ import torch.nn.functional as F
 from ..cutotune import CutoTuneParameter
 from ..enums import KernelBackend
 from ..math import ceil_divide, get_next_power_of_2
-from ..utils import ensure_contiguous
+from ..utils import empty_like_contiguous, zeros_like_contiguous
 from .cross_entropy import cross_entropy, cross_entropy_forward_backward_triton
 
 
 class _FusedLinearCrossEntropy(torch.autograd.Function):
     @staticmethod
-    @ensure_contiguous
     def forward(
         ctx,
         x: torch.Tensor,
@@ -33,8 +32,8 @@ class _FusedLinearCrossEntropy(torch.autograd.Function):
         num_chunks = ceil_divide(B, chunk_size)
 
         loss = torch.zeros((), device=x.device, dtype=torch.float32)
-        x_grad = torch.empty_like(x)
-        weight_grad = torch.zeros_like(weight)
+        x_grad = empty_like_contiguous(x)
+        weight_grad = zeros_like_contiguous(weight)
 
         for i in range(num_chunks):
             start = i * chunk_size
@@ -42,10 +41,10 @@ class _FusedLinearCrossEntropy(torch.autograd.Function):
             end = min(end, B)
 
             _x = x[start:end]
-            _logits = (_x @ weight.T).contiguous()
+            _logits = _x @ weight.T
 
-            _logits_grad = torch.empty_like(_logits)
-            _labels = labels[start:end].contiguous()
+            _logits_grad = empty_like_contiguous(_logits)
+            _labels = labels[start:end]
 
             cross_entropy_forward_backward_triton(
                 x=_logits,
