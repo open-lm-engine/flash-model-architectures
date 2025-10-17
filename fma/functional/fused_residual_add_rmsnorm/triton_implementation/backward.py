@@ -81,8 +81,8 @@ def fused_residual_add_rmsnorm_backward_triton_kernel(
 
         output_grad_weight = output_grad_weight.to(tl.float32)
 
-        x_grad = r[:, None] * output_grad_weight
-        x_grad -= (
+        dx = r[:, None] * output_grad_weight
+        dx -= (
             (1 / H)
             * r[:, None]
             * r[:, None]
@@ -91,19 +91,19 @@ def fused_residual_add_rmsnorm_backward_triton_kernel(
             * tl.sum(output_grad_weight * xr, axis=1, keep_dims=True)
         )
 
-        x_grad = x_grad.to(x_dtype)
+        dx = dx.to(x_dtype)
 
         if dxr_ptr is not None:
             xr_grad = tl.load(dxr_ptr + BLOCK_BH, mask=MASK_BH)
-            x_grad += xr_grad
+            dx += xr_grad
 
         if dr_ptr is not None:
-            tl.store(dr_ptr + BLOCK_BH, x_grad, mask=MASK_BH)
+            tl.store(dr_ptr + BLOCK_BH, dx, mask=MASK_BH)
 
         if multiplier is not None:
-            x_grad *= multiplier
+            dx *= multiplier
 
-        tl.store(dx_ptr + BLOCK_BH, x_grad, mask=MASK_BH)
+        tl.store(dx_ptr + BLOCK_BH, dx, mask=MASK_BH)
 
         if W_ptr is not None:
             dW += tl.sum(dy * (xr * r[:, None]).to(x_dtype), axis=0)
@@ -152,8 +152,8 @@ def fused_residual_add_rmsnorm_backward_triton(
             dy_stride=output_grad.stride(),
             dxr_ptr=added_x_residual_grad,
             dxr_stride=added_x_residual_grad.stride(),
-            dx_ptr=x_grad,
-            dx_stride=x_grad.stride(),
+            dx_ptr=dx,
+            dx_stride=dx.stride(),
             dr_ptr=residual_grad,
             dr_stride=residual_grad.stride(),
             dW_ptr=weight_grad,
