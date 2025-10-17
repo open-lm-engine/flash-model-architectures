@@ -75,21 +75,14 @@ def fused_residual_add_rmsnorm_backward_triton_kernel(
 
         dy = tl.load(dy_ptr + BLOCK_BH, mask=MASK_BH)
 
-        output_grad_weight = dy
+        dyW = dy
         if W_ptr is not None:
-            output_grad_weight *= W
+            dyW *= W
 
-        output_grad_weight = output_grad_weight.to(tl.float32)
+        dyW = dyW.to(tl.float32)
 
-        dx = r[:, None] * output_grad_weight
-        dx -= (
-            (1 / H)
-            * r[:, None]
-            * r[:, None]
-            * r[:, None]
-            * xr
-            * tl.sum(output_grad_weight * xr, axis=1, keep_dims=True)
-        )
+        dx = r[:, None] * dyW
+        dx -= (1 / H) * r[:, None] * r[:, None] * r[:, None] * xr * tl.sum(dyW * xr, axis=1, keep_dims=True)
 
         dx = dx.to(x_dtype)
 
