@@ -7,7 +7,7 @@ import torch.nn.functional as F
 
 from ...enums import KernelBackend
 from ...math import divide_if_divisible
-from ...utils import ensure_contiguous
+from ...utils import empty_like_contiguous, ensure_contiguous
 from .cuda_implementation import swiglu_backward_cuda, swiglu_forward_cuda
 from .triton_implementation import swiglu_backward_triton, swiglu_forward_triton
 
@@ -22,7 +22,7 @@ class _Swiglu(torch.autograd.Function):
         kernel_backend_forward: KernelBackend,
         kernel_backend_backward: KernelBackend,
     ) -> torch.Tensor:
-        output = torch.empty_like(gate)
+        output = empty_like_contiguous(gate)
 
         if kernel_backend_forward == KernelBackend.cuda:
             swiglu_forward_cuda(gate=gate, up=up, output=output, BLOCK_SIZE=1024)
@@ -40,8 +40,8 @@ class _Swiglu(torch.autograd.Function):
     @ensure_contiguous
     def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
         gate, up = ctx.saved_tensors
-        gate_grad = torch.empty_like(gate)
-        up_grad = torch.empty_like(up)
+        gate_grad = empty_like_contiguous(gate)
+        up_grad = empty_like_contiguous(up)
         kernel_backend_backward = ctx.kernel_backend_backward
 
         if kernel_backend_backward == KernelBackend.cuda:
@@ -73,7 +73,7 @@ class _SwigluPacked(torch.autograd.Function):
     @ensure_contiguous
     def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
         x: torch.Tensor = ctx.saved_tensors[0]
-        x_grad = torch.empty_like(x)
+        x_grad = empty_like_contiguous(x)
 
         up, gate = x.chunk(2, dim=-1)
         up_grad, gate_grad = x_grad.chunk(2, dim=-1)
