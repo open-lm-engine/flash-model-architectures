@@ -154,7 +154,7 @@ def fused_residual_add_rmsnorm_backward_triton(
             eps=eps,
             multiplier=multiplier,
             s_ptr=rmsnorm_denominator,
-            s_stride=rmsnorm_denominator.stride(),
+            s_stride=None if rmsnorm_denominator is None else rmsnorm_denominator.stride(),
             B=B,
             H=H,
             ATOMIC_ADD=not deterministic,
