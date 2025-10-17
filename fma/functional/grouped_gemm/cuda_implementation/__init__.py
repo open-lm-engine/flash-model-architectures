@@ -7,11 +7,13 @@ from torch.library import custom_op
 
 from ....constants import LIBRARY_NAME
 from ....jit import cpp_jit
+from ....utils import ensure_contiguous
 
 
 _KERNEL_NAME = "grouped_gemm_cuda"
 
 
+@ensure_contiguous
 @custom_op(f"{LIBRARY_NAME}::{_KERNEL_NAME}", mutates_args={"output"})
 @cpp_jit()
 def grouped_gemm_cuda(
