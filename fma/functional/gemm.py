@@ -75,7 +75,7 @@ def gemm(
                 A=A.unsqueeze(0),
                 B=B.unsqueeze(0),
                 C=None if C is None else C.unsqueeze(0),
-                output=output.unsqueeze(0),
+                D=output.unsqueeze(0),
                 is_A_transposed=is_A_transposed,
                 is_B_transposed=is_B_transposed,
                 alpha=alpha,

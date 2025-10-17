@@ -7,18 +7,9 @@ from __future__ import annotations
 from typing import Callable
 
 import torch
-import torch.nn as nn
 from parameterized import parameterized
 
-from fma import (
-    KernelBackend,
-    enable_counters,
-    enable_kernels,
-    fused_residual_add_rmsnorm,
-    get_counter_value,
-    reset_counters,
-    set_seed,
-)
+from fma import KernelBackend, fused_residual_add_rmsnorm, set_seed
 
 from ..test_commons import TestCommons
 

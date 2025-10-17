@@ -15,54 +15,59 @@ from ....utils import get_num_elements_and_hidden_size
 @triton.jit
 def fused_residual_add_rmsnorm_forward_triton_kernel(
     x_ptr,
-    residual_ptr,
-    weight_ptr,
-    output_ptr,
+    x_stride,
+    r_ptr,
+    r_stride,
+    W_ptr,
+    W_stride,
+    y_ptr,
+    y_stride,
+    xr_ptr,
+    xr_stride,
+    s_ptr,
+    s_stride,
     eps,
     multiplier,
-    added_x_residual_ptr,
-    rmsnorm_denominator_ptr,
     B,
     H,
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
-    pid_b = tl.program_id(axis=0)
+    BLOCK_ID_B = tl.program_id(axis=0)
 
-    indices_b = pid_b * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
-    indices_h = tl.arange(0, BLOCK_SIZE_H)
-    indices_bh = indices_b[:, None] * H + indices_h[None, :]
+    BLOCK_B = BLOCK_ID_B * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
+    BLOCK_H = tl.arange(0, BLOCK_SIZE_H)
 
-    mask_b = indices_b < B
-    mask_h = indices_h < H
+    MASK_B = BLOCK_B < B
+    MASK_H = BLOCK_H < H
 
-    mask_bh = mask_b[:, None] & mask_h[None, :]
+    MASK_BH = MASK_B[:, None] & MASK_H[None, :]
 
-    x = tl.load(x_ptr + indices_bh, mask=mask_bh).to(tl.float32)
+    x = tl.load(x_ptr + BLOCK_B[:, None] * x_stride[0] + BLOCK_H[None, :] * x_stride[1], mask=MASK_BH).to(tl.float32)
 
     if multiplier is not None:
         x *= multiplier
 
-    if residual_ptr is not None:
-        residual = tl.load(residual_ptr + indices_bh, mask=mask_bh)
-        x += residual
+    if r_ptr is not None:
+        r = tl.load(r_ptr + BLOCK_B[:, None] * r_stride[0] + BLOCK_H[None, :] * r_stride[1], mask=MASK_BH)
+        x += r
 
-    if added_x_residual_ptr is not None:
-        tl.store(added_x_residual_ptr + indices_bh, x, mask=mask_bh)
+    if xr_ptr is not None:
+        tl.store(xr_ptr + BLOCK_B[:, None] * xr_stride[0] + BLOCK_H[None, :] * xr_stride[1], x, mask=MASK_BH)
 
     r = tl.sum(x * x, axis=1)
     r = tl.rsqrt((r / H) + eps)
 
-    if rmsnorm_denominator_ptr is not None:
-        tl.store(rmsnorm_denominator_ptr + indices_b, r, mask=mask_b)
+    if s_ptr is not None:
+        tl.store(s_ptr + BLOCK_B * s_stride[0], r, mask=MASK_B)
 
     x *= r[:, None]
 
-    if weight_ptr is not None:
-        weight = tl.load(weight_ptr + indices_h, mask=mask_h)
-        x = x.to(x_ptr.dtype.element_ty) * weight[None, :]
+    if W_ptr is not None:
+        W = tl.load(W_ptr + BLOCK_H * W_stride[0], mask=MASK_H)
+        x = x.to(x_ptr.dtype.element_ty) * W[None, :]
 
-    tl.store(output_ptr + indices_bh, x, mask=mask_bh)
+    tl.store(y_ptr + BLOCK_B[:, None] * y_stride[0] + BLOCK_H[None, :] * y_stride[1], x, mask=MASK_BH)
 
 
 @custom_op(
@@ -89,13 +94,19 @@ def fused_residual_add_rmsnorm_forward_triton(
     with torch.device(x.device):
         fused_residual_add_rmsnorm_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](
             x_ptr=x,
-            residual_ptr=residual,
-            weight_ptr=weight,
-            output_ptr=output,
+            x_stride=x.stride(),
+            r_ptr=residual,
+            r_stride=None if residual is None else residual.stride(),
+            W_ptr=weight,
+            W_stride=None if weight is None else weight.stride(),
+            y_ptr=output,
+            y_stride=output.stride(),
+            xr_ptr=added_x_residual,
+            xr_stride=None if added_x_residual is None else added_x_residual.stride(),
+            s_ptr=rmsnorm_denominator,
+            s_stride=None if rmsnorm_denominator is None else rmsnorm_denominator.stride(),
             eps=eps,
             multiplier=multiplier,
-            added_x_residual_ptr=added_x_residual,
-            rmsnorm_denominator_ptr=rmsnorm_denominator,
             B=B,
             H=H,
             BLOCK_SIZE_B=BLOCK_SIZE_B,
