@@ -144,7 +144,7 @@ def fused_residual_add_rmsnorm_backward_triton(
             dy_ptr=output_grad,
             dy_stride=output_grad.stride(),
             dxr_ptr=added_x_residual_grad,
-            dxr_stride=added_x_residual_grad.stride(),
+            dxr_stride=None if added_x_residual_grad is None else added_x_residual_grad.stride(),
             dx_ptr=x_grad,
             dx_stride=x_grad.stride(),
             dr_ptr=residual_grad,
