@@ -148,7 +148,9 @@ def fused_residual_add_rmsnorm(
         is_flat = x.dim() == 1
         if is_flat:
             x = x[None, :]
-            residual = residual[None, :]
+
+            if residual is not None:
+                residual = residual[None, :]
 
         x, residual = _FusedResidualAddRMSNorm.apply(
             x, residual, weight, eps, multiplier, memory_efficient, deterministic
@@ -156,6 +158,8 @@ def fused_residual_add_rmsnorm(
 
         if is_flat:
             x = x.squeeze(0)
-            residual = residual.squeeze(0)
+
+            if residual is not None:
+                residual = residual.squeeze(0)
 
     return x, residual
