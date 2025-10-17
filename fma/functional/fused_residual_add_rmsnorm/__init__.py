@@ -158,6 +158,6 @@ def fused_residual_add_rmsnorm(
         )
 
         if is_flat:
-            x = x[0]
+            x = x.squeeze(0)
 
     return x, residual
