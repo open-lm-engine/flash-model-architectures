@@ -88,9 +88,7 @@ def fused_residual_add_rmsnorm_backward_triton_kernel(
         dx = dx.to(x_dtype)
 
         if dxr_ptr is not None:
-            dxr = tl.load(dxr_ptr + BLOCK_B[:, None] * dxr_stride[0] + BLOCK_H[None, :] * dxr_stride[1], mask=MASK_BH)
-
-            dx += dxr
+            dx += tl.load(dxr_ptr + BLOCK_B[:, None] * dxr_stride[0] + BLOCK_H[None, :] * dxr_stride[1], mask=MASK_BH)
 
         if dr_ptr is not None:
             tl.store(dr_ptr + BLOCK_B[:, None] * dr_stride[0] + BLOCK_H[None, :] * dr_stride[1], dx, mask=MASK_BH)
