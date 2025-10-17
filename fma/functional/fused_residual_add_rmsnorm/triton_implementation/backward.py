@@ -138,7 +138,7 @@ def fused_residual_add_rmsnorm_backward_triton(
     with torch.device(added_x_residual.device):
         fused_residual_add_rmsnorm_backward_triton_kernel[NUM_BLOCKS,](
             xr_ptr=added_x_residual,
-            xr_stride=added_x_residual.stride(),
+            xr_stride=None if added_x_residual is None else added_x_residual.stride(),
             W_ptr=weight,
             W_stride=None if weight is None else weight.stride(),
             dy_ptr=output_grad,
