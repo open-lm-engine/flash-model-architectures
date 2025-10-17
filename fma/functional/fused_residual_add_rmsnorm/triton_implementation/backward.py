@@ -60,12 +60,13 @@ def fused_residual_add_rmsnorm_backward_triton_kernel(
 
     for i in range(NUM_LOOPS):
         BLOCK_B = start + i * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
-        BLOCK_BH = BLOCK_B[:, None] * H + BLOCK_H[None, :]
 
         MASK_B = BLOCK_B < end
         MASK_BH = MASK_B[:, None] & MASK_H[None, :]
 
-        xr = tl.load(xr_ptr + BLOCK_BH, mask=MASK_BH).to(tl.float32)
+        xr = tl.load(xr_ptr + BLOCK_B[:, None] * xr_stride[0] + BLOCK_H[None, :] * xr_stride[1], mask=MASK_BH).to(
+            tl.float32
+        )
 
         if s_ptr is None:
             r = tl.sum(xr * xr, axis=1)
@@ -73,7 +74,7 @@ def fused_residual_add_rmsnorm_backward_triton_kernel(
         else:
             r = tl.load(s_ptr + BLOCK_B, mask=MASK_B)
 
-        dy = tl.load(dy_ptr + BLOCK_BH, mask=MASK_BH)
+        dy = tl.load(dy_ptr + BLOCK_B[:, None] * dy_stride[0] + BLOCK_H[None, :] * dy_stride[1], mask=MASK_BH)
 
         dyW = dy
         if W_ptr is not None:
@@ -87,16 +88,17 @@ def fused_residual_add_rmsnorm_backward_triton_kernel(
         dx = dx.to(x_dtype)
 
         if dxr_ptr is not None:
-            xr_grad = tl.load(dxr_ptr + BLOCK_BH, mask=MASK_BH)
-            dx += xr_grad
+            dxr = tl.load(dxr_ptr + BLOCK_B[:, None] * dxr_stride[0] + BLOCK_H[None, :] * dxr_stride[1], mask=MASK_BH)
+
+            dx += dxr
 
         if dr_ptr is not None:
-            tl.store(dr_ptr + BLOCK_BH, dx, mask=MASK_BH)
+            tl.store(dr_ptr + BLOCK_B[:, None] * dr_stride[0] + BLOCK_H[None, :] * dr_stride[1], dx, mask=MASK_BH)
 
         if multiplier is not None:
             dx *= multiplier
 
-        tl.store(dx_ptr + BLOCK_BH, dx, mask=MASK_BH)
+        tl.store(dx_ptr + BLOCK_B[:, None] * dx_stride[0] + BLOCK_H[None, :] * dx_stride[1], dx, mask=MASK_BH)
 
         if W_ptr is not None:
             dW += tl.sum(dy * (xr * r[:, None]).to(x_dtype), axis=0)
