@@ -68,10 +68,10 @@ def fused_residual_add_rmsnorm_backward_triton_kernel(
         xr = tl.load(xr_ptr + BLOCK_BH, mask=MASK_BH).to(tl.float32)
 
         if s_ptr is None:
-            squared_sum = tl.sum(xr * xr, axis=1)
-            inverse_rms = tl.rsqrt(squared_sum / H + eps)
+            r = tl.sum(xr * xr, axis=1)
+            r = tl.rsqrt(r / H + eps)
         else:
-            inverse_rms = tl.load(s_ptr + BLOCK_B, mask=MASK_B)
+            r = tl.load(s_ptr + BLOCK_B, mask=MASK_B)
 
         dy = tl.load(dy_ptr + BLOCK_BH, mask=MASK_BH)
 
@@ -81,12 +81,12 @@ def fused_residual_add_rmsnorm_backward_triton_kernel(
 
         output_grad_weight = output_grad_weight.to(tl.float32)
 
-        x_grad = inverse_rms[:, None] * output_grad_weight
+        x_grad = r[:, None] * output_grad_weight
         x_grad -= (
             (1 / H)
-            * inverse_rms[:, None]
-            * inverse_rms[:, None]
-            * inverse_rms[:, None]
+            * r[:, None]
+            * r[:, None]
+            * r[:, None]
             * xr
             * tl.sum(output_grad_weight * xr, axis=1, keep_dims=True)
         )
@@ -106,7 +106,7 @@ def fused_residual_add_rmsnorm_backward_triton_kernel(
         tl.store(dx_ptr + BLOCK_BH, x_grad, mask=MASK_BH)
 
         if W_ptr is not None:
-            dW += tl.sum(dy * (xr * inverse_rms[:, None]).to(x_dtype), axis=0)
+            dW += tl.sum(dy * (xr * r[:, None]).to(x_dtype), axis=0)
 
     if W_ptr is not None:
         if ATOMIC_ADD:
