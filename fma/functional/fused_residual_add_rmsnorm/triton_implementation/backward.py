@@ -14,62 +14,70 @@ from ....utils import get_num_elements_and_hidden_size, get_sm_count
 
 @triton.jit
 def fused_residual_add_rmsnorm_backward_triton_kernel(
-    added_x_residual_ptr,
-    weight_ptr,
-    output_grad_ptr,
-    added_x_residual_grad_ptr,
-    x_grad_ptr,
-    residual_grad_ptr,
-    weight_grad_ptr,
+    xr_ptr,
+    xr_stride,
+    W_ptr,
+    W_stride,
+    dy_ptr,
+    dy_stride,
+    dxr_ptr,
+    dxr_stride,
+    dx_ptr,
+    dx_stride,
+    dr_ptr,
+    dr_stride,
+    dW_ptr,
+    dW_stride,
+    s_ptr,
+    s_stride,
     eps,
     multiplier,
-    rmsnorm_denominator_ptr,
     B,
     H,
     ATOMIC_ADD: tl.constexpr,
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
-    pid = tl.program_id(axis=0)
-    num_programs = tl.num_programs(axis=0)
+    BLOCK_ID = tl.program_id(axis=0)
+    NUM_BLOCKS = tl.num_programs(axis=0)
 
-    num_elements_per_program = tl.cdiv(B, num_programs)
+    NUM_ELEMENTS_PER_BLOCK = tl.cdiv(B, NUM_BLOCKS)
 
-    indices_h = tl.arange(0, BLOCK_SIZE_H)
-    mask_h = indices_h < H
+    BLOCK_H = tl.arange(0, BLOCK_SIZE_H)
+    MASK_H = BLOCK_H < H
 
-    program_start = pid * num_elements_per_program
-    program_end = min(program_start + num_elements_per_program, B)
-    num_elements_in_current_program = program_end - program_start
+    start = BLOCK_ID * NUM_ELEMENTS_PER_BLOCK
+    end = min(start + NUM_ELEMENTS_PER_BLOCK, B)
+    NUM_ELEMENTS_IN_CURRENT_BLOCK = end - start
 
-    num_loops = tl.cdiv(num_elements_in_current_program, BLOCK_SIZE_B)
+    NUM_LOOPS = tl.cdiv(NUM_ELEMENTS_IN_CURRENT_BLOCK, BLOCK_SIZE_B)
 
-    x_dtype = added_x_residual_ptr.dtype.element_ty
+    x_dtype = xr_ptr.dtype.element_ty
 
-    if weight_ptr is not None:
-        weight = tl.load(weight_ptr + indices_h, mask=mask_h)[None, :]
-        weight_grad = tl.zeros((BLOCK_SIZE_H,), dtype=tl.float32)
+    if W_ptr is not None:
+        W = tl.load(W_ptr + BLOCK_H, mask=MASK_H)[None, :]
+        dW = tl.zeros((BLOCK_SIZE_H,), dtype=tl.float32)
 
-    for i in range(num_loops):
-        indices_b = program_start + i * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
-        indices_bh = indices_b[:, None] * H + indices_h[None, :]
+    for i in range(NUM_LOOPS):
+        BLOCK_B = start + i * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
+        BLOCK_BH = BLOCK_B[:, None] * H + BLOCK_H[None, :]
 
-        mask_b = indices_b < program_end
-        mask_bh = mask_b[:, None] & mask_h[None, :]
+        MASK_B = BLOCK_B < end
+        MASK_BH = MASK_B[:, None] & MASK_H[None, :]
 
-        added_x_residual = tl.load(added_x_residual_ptr + indices_bh, mask=mask_bh).to(tl.float32)
+        xr = tl.load(xr_ptr + BLOCK_BH, mask=MASK_BH).to(tl.float32)
 
-        if rmsnorm_denominator_ptr is None:
-            squared_sum = tl.sum(added_x_residual * added_x_residual, axis=1)
+        if s_ptr is None:
+            squared_sum = tl.sum(xr * xr, axis=1)
             inverse_rms = tl.rsqrt(squared_sum / H + eps)
         else:
-            inverse_rms = tl.load(rmsnorm_denominator_ptr + indices_b, mask=mask_b)
+            inverse_rms = tl.load(s_ptr + BLOCK_B, mask=MASK_B)
 
-        output_grad = tl.load(output_grad_ptr + indices_bh, mask=mask_bh)
+        dy = tl.load(dy_ptr + BLOCK_BH, mask=MASK_BH)
 
-        output_grad_weight = output_grad
-        if weight_ptr is not None:
-            output_grad_weight *= weight
+        output_grad_weight = dy
+        if W_ptr is not None:
+            output_grad_weight *= W
 
         output_grad_weight = output_grad_weight.to(tl.float32)
 
@@ -79,32 +87,32 @@ def fused_residual_add_rmsnorm_backward_triton_kernel(
             * inverse_rms[:, None]
             * inverse_rms[:, None]
             * inverse_rms[:, None]
-            * added_x_residual
-            * tl.sum(output_grad_weight * added_x_residual, axis=1, keep_dims=True)
+            * xr
+            * tl.sum(output_grad_weight * xr, axis=1, keep_dims=True)
         )
 
         x_grad = x_grad.to(x_dtype)
 
-        if added_x_residual_grad_ptr is not None:
-            added_x_residual_grad = tl.load(added_x_residual_grad_ptr + indices_bh, mask=mask_bh)
-            x_grad += added_x_residual_grad
+        if dxr_ptr is not None:
+            xr_grad = tl.load(dxr_ptr + BLOCK_BH, mask=MASK_BH)
+            x_grad += xr_grad
 
-        if residual_grad_ptr is not None:
-            tl.store(residual_grad_ptr + indices_bh, x_grad, mask=mask_bh)
+        if dr_ptr is not None:
+            tl.store(dr_ptr + BLOCK_BH, x_grad, mask=MASK_BH)
 
         if multiplier is not None:
             x_grad *= multiplier
 
-        tl.store(x_grad_ptr + indices_bh, x_grad, mask=mask_bh)
+        tl.store(dx_ptr + BLOCK_BH, x_grad, mask=MASK_BH)
 
-        if weight_ptr is not None:
-            weight_grad += tl.sum(output_grad * (added_x_residual * inverse_rms[:, None]).to(x_dtype), axis=0)
+        if W_ptr is not None:
+            dW += tl.sum(dy * (xr * inverse_rms[:, None]).to(x_dtype), axis=0)
 
-    if weight_ptr is not None:
+    if W_ptr is not None:
         if ATOMIC_ADD:
-            tl.atomic_add(weight_grad_ptr + indices_h, weight_grad, mask=mask_h, sem="relaxed")
+            tl.atomic_add(dW_ptr + BLOCK_H, dW, mask=MASK_H, sem="relaxed")
         else:
-            tl.store(weight_grad_ptr + pid * H + indices_h, weight_grad, mask=mask_h)
+            tl.store(dW_ptr + BLOCK_ID * H + BLOCK_H, dW, mask=MASK_H)
 
 
 @custom_op(
@@ -136,16 +144,24 @@ def fused_residual_add_rmsnorm_backward_triton(
 
     with torch.device(added_x_residual.device):
         fused_residual_add_rmsnorm_backward_triton_kernel[NUM_BLOCKS,](
-            added_x_residual_ptr=added_x_residual,
-            weight_ptr=weight,
-            output_grad_ptr=output_grad,
-            added_x_residual_grad_ptr=added_x_residual_grad,
-            x_grad_ptr=x_grad,
-            residual_grad_ptr=residual_grad,
-            weight_grad_ptr=weight_grad,
+            xr_ptr=added_x_residual,
+            xr_stride=added_x_residual.stride(),
+            W_ptr=weight,
+            W_stride=weight.stride(),
+            dy_ptr=output_grad,
+            dy_stride=output_grad.stride(),
+            dxr_ptr=added_x_residual_grad,
+            dxr_stride=added_x_residual_grad.stride(),
+            dx_ptr=x_grad,
+            dx_stride=x_grad.stride(),
+            dr_ptr=residual_grad,
+            dr_stride=residual_grad.stride(),
+            dW_ptr=weight_grad,
+            dW_stride=weight_grad.stride(),
             eps=eps,
             multiplier=multiplier,
-            rmsnorm_denominator_ptr=rmsnorm_denominator,
+            s_ptr=rmsnorm_denominator,
+            s_stride=rmsnorm_denominator.stride(),
             B=B,
             H=H,
             ATOMIC_ADD=not deterministic,
