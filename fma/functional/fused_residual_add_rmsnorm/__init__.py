@@ -48,11 +48,7 @@ class _FusedResidualAddRMSNorm(torch.autograd.Function):
             rmsnorm_denominator=rmsnorm_denominator,
         )
 
-        if residual is None:
-            ctx.save_for_backward(x, weight, rmsnorm_denominator)
-        else:
-            ctx.save_for_backward(added_x_residual, weight, rmsnorm_denominator)
-
+        ctx.save_for_backward(added_x_residual if has_residual else x, weight, rmsnorm_denominator)
         ctx.eps = eps
         ctx.has_residual = has_residual
         ctx.multiplier = multiplier
