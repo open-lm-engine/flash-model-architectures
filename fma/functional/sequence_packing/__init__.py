@@ -137,25 +137,23 @@ class _UnpackSequence(torch.autograd.Function):
 
 
 def pack_sequence(
-    inputs: torch.Tensor | list[torch.Tensor],
+    inputs: list[torch.Tensor],
     cu_seqlens: torch.Tensor,
-    output_shapes: list[tuple[int]] | None = None,
+    total_tokens: int,
     padding_side: str = "left",
     *,
     kernel_backend_forward: KernelBackend = KernelBackend.cuda,
     kernel_backend_backward: KernelBackend = KernelBackend.cuda,
 ) -> torch.Tensor | list[torch.Tensor]:
     assert padding_side in ["left", "right"]
-
-    is_list = isinstance(inputs, (list, tuple))
-    if not is_list:
-        inputs = [inputs]
+    assert isinstance(inputs, list)
 
     outputs = []
 
-    for x, output_shape in zip(inputs, output_shapes):
+    for x in inputs:
         assert x.dim() >= 2
         assert x.size(0) == cu_seqlens.size(0) - 1
+        output_shape = (total_tokens, *x.size()[2:])
 
         if kernel_backend_forward == KernelBackend.torch:
             assert kernel_backend_backward == KernelBackend.torch
@@ -173,23 +171,12 @@ def pack_sequence(
                 raise ValueError(f"unexpected padding_side ({padding_side})")
 
             x = x[batch_indices, seq_indices]
-
-            if output_shape is not None:
-                assert x.size() == output_shape
         else:
-            if output_shapes is None:
-                # NOTE we call .item() outside because data dependent (cu_seqlens[-1]) memory allocation calls sync anyways
-                # so, we do it once for all the tensors
-                output_shape = (cu_seqlens[-1].item(), *x.size()[2:])
-
             x = _PackSequence.apply(
                 x, cu_seqlens, output_shape, padding_side, kernel_backend_forward, kernel_backend_backward
             )
 
         outputs.append(x)
-
-    if not is_list:
-        outputs = outputs[0]
 
     return outputs
 
