@@ -97,6 +97,8 @@ class PackSequenceTest(TestCommons):
             z_kernel = function(
                 x_kernel,
                 cu_seqlens=cu_seqlens,
+                batch_size=cu_seqlens.size(0) - 1,
+                sequence_length=sequence_length,
                 padding_side=padding_side,
                 kernel_backend_forward=kernel_backend,
                 kernel_backend_backward=kernel_backend,
