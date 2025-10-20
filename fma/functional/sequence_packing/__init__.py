@@ -2,6 +2,8 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
+from typing import Sequence
+
 import torch
 
 from ...enums import KernelBackend
@@ -137,14 +139,14 @@ class _UnpackSequence(torch.autograd.Function):
 
 
 def pack_sequence(
-    inputs: list[torch.Tensor],
+    inputs: Sequence[torch.Tensor],
     cu_seqlens: torch.Tensor,
     total_tokens: int,
     padding_side: str = "left",
     *,
     kernel_backend_forward: KernelBackend = KernelBackend.cuda,
     kernel_backend_backward: KernelBackend = KernelBackend.cuda,
-) -> list[torch.Tensor]:
+) -> Sequence[torch.Tensor]:
     assert padding_side in ["left", "right"]
     assert isinstance(inputs, (list, tuple))
 
@@ -182,7 +184,7 @@ def pack_sequence(
 
 
 def unpack_sequence(
-    inputs: list[torch.Tensor],
+    inputs: Sequence[torch.Tensor],
     cu_seqlens: torch.Tensor,
     batch_size: int,
     sequence_length: int,
@@ -190,7 +192,7 @@ def unpack_sequence(
     *,
     kernel_backend_forward: KernelBackend = KernelBackend.cuda,
     kernel_backend_backward: KernelBackend = KernelBackend.cuda,
-) -> list[torch.Tensor]:
+) -> Sequence[torch.Tensor]:
     assert padding_side in ["left", "right"]
     assert isinstance(inputs, (list, tuple))
 
