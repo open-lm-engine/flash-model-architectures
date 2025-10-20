@@ -71,7 +71,7 @@ class PackSequenceTest(TestCommons):
         TestCommons.make_args_matrix(
             [(691, 12, 14)],  # size
             [[0, 70, 170, 295, 393, 412, 515, 691]],  # cu_seqlens
-            [(7, 1000, 12, 14)],  # output_shape
+            [1000],  # sequence_length
             [torch.device("cuda")],  # device
             TestCommons.get_dtypes(),  # dtype
             ["left", "right"],  # padding_side
@@ -106,6 +106,8 @@ class PackSequenceTest(TestCommons):
         z_expected = unpack_sequence(
             x_expected,
             cu_seqlens=cu_seqlens.to(torch.int),
+            batch_size=cu_seqlens.size(0) - 1,
+            sequence_length=sequence_length,
             output_shape=output_shape,
             padding_side=padding_side,
             kernel_backend_forward=KernelBackend.torch,

@@ -139,7 +139,7 @@ class _UnpackSequence(torch.autograd.Function):
 def pack_sequence(
     inputs: torch.Tensor | list[torch.Tensor],
     cu_seqlens: torch.Tensor,
-    output_shape: tuple[int] | None = None,
+    output_shapes: list[tuple[int]] | None = None,
     padding_side: str = "left",
     *,
     kernel_backend_forward: KernelBackend = KernelBackend.cuda,
@@ -153,7 +153,7 @@ def pack_sequence(
 
     outputs = []
 
-    for x in inputs:
+    for x, output_shape in zip(inputs, output_shapes):
         assert x.dim() >= 2
         assert x.size(0) == cu_seqlens.size(0) - 1
 
@@ -177,7 +177,7 @@ def pack_sequence(
             if output_shape is not None:
                 assert x.size() == output_shape
         else:
-            if output_shape is None:
+            if output_shapes is None:
                 # NOTE we call .item() outside because data dependent (cu_seqlens[-1]) memory allocation calls sync anyways
                 # so, we do it once for all the tensors
                 output_shape = (cu_seqlens[-1].item(), *x.size()[2:])
@@ -195,29 +195,29 @@ def pack_sequence(
 
 
 def unpack_sequence(
-    inputs: torch.Tensor | list[torch.Tensor],
+    inputs: list[torch.Tensor],
     cu_seqlens: torch.Tensor,
-    output_shape: tuple[int],
+    batch_size: int,
+    sequence_length: int,
     padding_side: str = "left",
     *,
     kernel_backend_forward: KernelBackend = KernelBackend.cuda,
     kernel_backend_backward: KernelBackend = KernelBackend.cuda,
-) -> torch.Tensor | list[torch.Tensor]:
+) -> list[torch.Tensor]:
     assert padding_side in ["left", "right"]
-
-    is_list = isinstance(inputs, (list, tuple))
-    if not is_list:
-        inputs = [inputs]
+    assert isinstance(inputs, list)
 
     outputs = []
+    B = batch_size
+    S = sequence_length
 
     for x in inputs:
+        assert x.dim() >= 2
+        output_shape = (B, S, *x.size()[1:])
+
         if kernel_backend_forward == KernelBackend.torch:
             assert kernel_backend_backward == KernelBackend.torch
-
-            B, S = output_shape[:2]
             assert cu_seqlens.size(0) - 1 == B
-            assert output_shape[2:] == x.size()[1:]
 
             seqlens = cu_seqlens[1:] - cu_seqlens[:-1]
             batch_indices = torch.arange(B, device=x.device).repeat_interleave(seqlens)
@@ -233,17 +233,10 @@ def unpack_sequence(
             padded = torch.zeros(output_shape, dtype=x.dtype, device=x.device)
             padded[batch_indices, seq_indices] = x
         else:
-            assert x.dim() >= 2
-            assert output_shape[0] == cu_seqlens.size(0) - 1
-            assert output_shape[2:] == x.size()[1:]
-
             padded = _UnpackSequence.apply(
                 x, cu_seqlens, output_shape, padding_side, kernel_backend_forward, kernel_backend_backward
             )
 
         outputs.append(padded)
-
-    if not is_list:
-        outputs = outputs[0]
 
     return outputs
