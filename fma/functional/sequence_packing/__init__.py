@@ -146,7 +146,7 @@ def pack_sequence(
     kernel_backend_backward: KernelBackend = KernelBackend.cuda,
 ) -> list[torch.Tensor]:
     assert padding_side in ["left", "right"]
-    assert isinstance(inputs, list)
+    assert isinstance(inputs, (list, tuple))
 
     outputs = []
 
@@ -192,7 +192,7 @@ def unpack_sequence(
     kernel_backend_backward: KernelBackend = KernelBackend.cuda,
 ) -> list[torch.Tensor]:
     assert padding_side in ["left", "right"]
-    assert isinstance(inputs, list)
+    assert isinstance(inputs, (list, tuple))
 
     outputs = []
     B = batch_size
