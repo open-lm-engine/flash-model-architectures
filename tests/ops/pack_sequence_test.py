@@ -97,7 +97,6 @@ class PackSequenceTest(TestCommons):
             z_kernel = function(
                 x_kernel,
                 cu_seqlens=cu_seqlens,
-                output_shape=output_shape,
                 padding_side=padding_side,
                 kernel_backend_forward=kernel_backend,
                 kernel_backend_backward=kernel_backend,
@@ -108,7 +107,6 @@ class PackSequenceTest(TestCommons):
             cu_seqlens=cu_seqlens.to(torch.int),
             batch_size=cu_seqlens.size(0) - 1,
             sequence_length=sequence_length,
-            output_shape=output_shape,
             padding_side=padding_side,
             kernel_backend_forward=KernelBackend.torch,
             kernel_backend_backward=KernelBackend.torch,
