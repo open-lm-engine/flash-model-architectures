@@ -144,7 +144,7 @@ def pack_sequence(
     *,
     kernel_backend_forward: KernelBackend = KernelBackend.cuda,
     kernel_backend_backward: KernelBackend = KernelBackend.cuda,
-) -> torch.Tensor | list[torch.Tensor]:
+) -> list[torch.Tensor]:
     assert padding_side in ["left", "right"]
     assert isinstance(inputs, list)
 
