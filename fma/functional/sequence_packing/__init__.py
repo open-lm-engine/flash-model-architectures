@@ -63,20 +63,19 @@ class _PackSequence(torch.autograd.Function):
         cu_seqlens: torch.Tensor,
         output_shape: tuple[int],
         padding_side: str,
-        kernel_backend_forward: KernelBackend,
-        kernel_backend_backward: KernelBackend,
+        kernel_backend: KernelBackend,
     ) -> torch.Tensor:
         ctx.save_for_backward(cu_seqlens)
         ctx.padding_side = padding_side
         ctx.x_shape = x.size()
-        ctx.kernel_backend_backward = kernel_backend_backward
+        ctx.kernel_backend = kernel_backend
 
         output = _pack_sequence(
             x=x,
             cu_seqlens=cu_seqlens,
             output_shape=output_shape,
             padding_side=padding_side,
-            kernel_backend=kernel_backend_forward,
+            kernel_backend=kernel_backend,
         )
 
         return output
@@ -89,10 +88,10 @@ class _PackSequence(torch.autograd.Function):
             cu_seqlens=ctx.saved_tensors[0],
             output_shape=ctx.x_shape,
             padding_side=ctx.padding_side,
-            kernel_backend=ctx.kernel_backend_backward,
+            kernel_backend=ctx.kernel_backend,
         )
 
-        return x_grad, *[None] * 5
+        return x_grad, *[None] * 4
 
 
 class _UnpackSequence(torch.autograd.Function):
@@ -104,12 +103,11 @@ class _UnpackSequence(torch.autograd.Function):
         cu_seqlens: torch.Tensor,
         output_shape: tuple[int],
         padding_side: str,
-        kernel_backend_forward: KernelBackend,
-        kernel_backend_backward: KernelBackend,
+        kernel_backend: KernelBackend,
     ) -> torch.Tensor:
         ctx.save_for_backward(cu_seqlens)
         ctx.padding_side = padding_side
-        ctx.kernel_backend_backward = kernel_backend_backward
+        ctx.kernel_backend = kernel_backend
         # saving shape in forward can avoid allocating a tensor of shape depending on cu_seqlens[-1]
         # this avoids synchronization with CPU
         ctx.x_shape = x.size()
@@ -119,7 +117,7 @@ class _UnpackSequence(torch.autograd.Function):
             cu_seqlens=cu_seqlens,
             padding_side=padding_side,
             output_shape=output_shape,
-            kernel_backend=kernel_backend_forward,
+            kernel_backend=kernel_backend,
         )
 
         return output
@@ -132,10 +130,10 @@ class _UnpackSequence(torch.autograd.Function):
             cu_seqlens=ctx.saved_tensors[0],
             output_shape=ctx.x_shape,
             padding_side=ctx.padding_side,
-            kernel_backend=ctx.kernel_backend_backward,
+            kernel_backend=ctx.kernel_backend,
         )
 
-        return x_grad, *[None] * 5
+        return x_grad, *[None] * 4
 
 
 def pack_sequence(
@@ -189,9 +187,6 @@ def unpack_sequence(
     batch_size: int,
     sequence_length: int,
     padding_side: str = "left",
-    *,
-    kernel_backend_forward: KernelBackend = KernelBackend.cuda,
-    kernel_backend_backward: KernelBackend = KernelBackend.cuda,
 ) -> Sequence[torch.Tensor]:
     assert padding_side in ["left", "right"]
     assert isinstance(inputs, (list, tuple))
@@ -200,12 +195,13 @@ def unpack_sequence(
     B = batch_size
     S = sequence_length
 
+    kernel_backend = KernelBackend.get_kernel_backend_from_device(inputs[0])
+
     for x in inputs:
         assert x.dim() >= 2
         output_shape = (B, S, *x.size()[1:])
 
-        if kernel_backend_forward == KernelBackend.torch:
-            assert kernel_backend_backward == KernelBackend.torch
+        if kernel_backend == KernelBackend.torch:
             assert cu_seqlens.size(0) - 1 == B
 
             seqlens = cu_seqlens[1:] - cu_seqlens[:-1]
@@ -222,9 +218,8 @@ def unpack_sequence(
             padded = torch.zeros(output_shape, dtype=x.dtype, device=x.device)
             padded[batch_indices, seq_indices] = x
         else:
-            padded = _UnpackSequence.apply(
-                x, cu_seqlens, output_shape, padding_side, kernel_backend_forward, kernel_backend_backward
-            )
+            assert kernel_backend in [KernelBackend.cuda, KernelBackend.triton]
+            padded = _UnpackSequence.apply(x, cu_seqlens, output_shape, padding_side, kernel_backend)
 
         outputs.append(padded)
 
