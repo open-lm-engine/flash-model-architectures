@@ -4,7 +4,6 @@
 
 import torch
 
-from ...cutotune import CutoTuneParameter
 from ...enums import KernelBackend
 from ...torch_math import clip_gradients, sigmoid, tanh
 from ...utils import empty_like_contiguous, zeros_like_contiguous
