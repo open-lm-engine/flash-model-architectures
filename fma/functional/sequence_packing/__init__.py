@@ -137,17 +137,12 @@ class _UnpackSequence(torch.autograd.Function):
 
 
 def pack_sequence(
-    inputs: Sequence[torch.Tensor],
-    cu_seqlens: torch.Tensor,
-    total_tokens: int,
-    padding_side: str = "left",
-    *,
-    kernel_backend_forward: KernelBackend = KernelBackend.cuda,
-    kernel_backend_backward: KernelBackend = KernelBackend.cuda,
+    inputs: Sequence[torch.Tensor], cu_seqlens: torch.Tensor, total_tokens: int, padding_side: str = "left"
 ) -> Sequence[torch.Tensor]:
     assert padding_side in ["left", "right"]
     assert isinstance(inputs, (list, tuple))
 
+    kernel_backend = KernelBackend.get_kernel_backend_from_device(inputs[0])
     outputs = []
 
     for x in inputs:
@@ -172,9 +167,7 @@ def pack_sequence(
 
             x = x[batch_indices, seq_indices]
         else:
-            x = _PackSequence.apply(
-                x, cu_seqlens, output_shape, padding_side, kernel_backend_forward, kernel_backend_backward
-            )
+            x = _PackSequence.apply(x, cu_seqlens, output_shape, padding_side, kernel_backend)
 
         outputs.append(x)
 
@@ -191,11 +184,11 @@ def unpack_sequence(
     assert padding_side in ["left", "right"]
     assert isinstance(inputs, (list, tuple))
 
+    kernel_backend = KernelBackend.get_kernel_backend_from_device(inputs[0])
+
     outputs = []
     B = batch_size
     S = sequence_length
-
-    kernel_backend = KernelBackend.get_kernel_backend_from_device(inputs[0])
 
     for x in inputs:
         assert x.dim() >= 2
