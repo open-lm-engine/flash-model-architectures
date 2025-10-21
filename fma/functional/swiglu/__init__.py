@@ -15,45 +15,39 @@ from .triton_implementation import swiglu_backward_triton, swiglu_forward_triton
 class _Swiglu(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
-    def forward(
-        ctx,
-        gate: torch.Tensor,
-        up: torch.Tensor,
-        kernel_backend_forward: KernelBackend,
-        kernel_backend_backward: KernelBackend,
-    ) -> torch.Tensor:
+    def forward(ctx, gate: torch.Tensor, up: torch.Tensor, kernel_backend: KernelBackend) -> torch.Tensor:
         output = empty_like_contiguous(gate)
 
-        if kernel_backend_forward == KernelBackend.cuda:
+        if kernel_backend == KernelBackend.cuda:
             swiglu_forward_cuda(gate=gate, up=up, output=output, BLOCK_SIZE=1024)
-        elif kernel_backend_forward == KernelBackend.triton:
+        elif kernel_backend == KernelBackend.triton:
             swiglu_forward_triton(gate=gate, up=up, output=output)
         else:
-            raise ValueError(f"unexpected kernel_backend ({kernel_backend_forward})")
+            raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
         ctx.save_for_backward(gate, up)
-        ctx.kernel_backend_backward = kernel_backend_backward
+        ctx.kernel_backend = kernel_backend
 
         return output
 
     @staticmethod
     @ensure_contiguous
-    def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
+    def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, None]:
         gate, up = ctx.saved_tensors
         gate_grad = empty_like_contiguous(gate)
         up_grad = empty_like_contiguous(up)
-        kernel_backend_backward = ctx.kernel_backend_backward
+        kernel_backend = ctx.kernel_backend
 
-        if kernel_backend_backward == KernelBackend.cuda:
+        if kernel_backend == KernelBackend.cuda:
             swiglu_backward_cuda(
                 gate=gate, up=up, output_grad=output_grad, gate_grad=gate_grad, up_grad=up_grad, BLOCK_SIZE=1024
             )
-        elif kernel_backend_backward == KernelBackend.triton:
+        elif kernel_backend == KernelBackend.triton:
             swiglu_backward_triton(gate=gate, up=up, output_grad=output_grad, gate_grad=gate_grad, up_grad=up_grad)
         else:
             raise ValueError("unexpected kernel_backend")
 
-        return gate_grad, up_grad, None, None
+        return gate_grad, up_grad, None
 
 
 class _SwigluPacked(torch.autograd.Function):
@@ -83,22 +77,12 @@ class _SwigluPacked(torch.autograd.Function):
         return x_grad
 
 
-def swiglu(
-    gate: torch.Tensor,
-    up: torch.Tensor,
-    *,
-    kernel_backend_forward: KernelBackend = KernelBackend.cuda,
-    kernel_backend_backward: KernelBackend = KernelBackend.cuda,
-) -> torch.Tensor:
+def swiglu(gate: torch.Tensor, up: torch.Tensor) -> torch.Tensor:
     """computes swiglu activation as `up` * `gate` * sigmoid(`gate`)
 
     Args:
         gate (torch.Tensor): `gate` activation tensor
         up (torch.Tensor): `up` activation tensor
-        kernel_backend_forward (KernelBackend, optional): kernel backend to prioritize. Defaults
-            to KernelBackend.cuda.
-        kernel_backend_backward (KernelBackend, optional): kernel backend to prioritize. Defaults
-            to KernelBackend.cuda.
 
     Returns:
         torch.Tensor: output tensor
@@ -107,8 +91,9 @@ def swiglu(
     assert gate.size() == up.size(), "tensors gate and up should have same shape"
     assert gate.type() == up.type(), "tensors gate and up should have same dtype"
 
-    if kernel_backend_forward == KernelBackend.torch:
-        assert kernel_backend_backward == KernelBackend.torch
+    kernel_backend = KernelBackend.get_kernel_backend_from_device(gate)
+
+    if kernel_backend == KernelBackend.torch:
         dtype = gate.dtype
 
         gate = gate.float()
@@ -117,7 +102,7 @@ def swiglu(
         output = up * F.silu(gate)
         output = output.to(dtype)
     else:
-        output = _Swiglu.apply(gate, up, kernel_backend_forward, kernel_backend_backward)
+        output = _Swiglu.apply(gate, up, kernel_backend)
 
     return output
 
