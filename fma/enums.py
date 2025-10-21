@@ -19,7 +19,7 @@ def force_kernel_backend(kernel_backend: KernelBackend):
     global _FORCED_KERNEL_BACKEND
 
     original_value = _FORCED_KERNEL_BACKEND
-    _FORCED_KERNEL_BACKEND = True
+    _FORCED_KERNEL_BACKEND = kernel_backend
 
     yield
 
@@ -45,11 +45,7 @@ class KernelBackend(Enum):
 
         if device_type == "cuda":
             return KernelBackend.rocm if _IS_ROCM_AVAILABLE else KernelBackend.cuda
-        elif device_type == "cpu":
-            return KernelBackend.cpu
         elif device_type == "xla":
             return KernelBackend.tpu
-        elif device_type == "xpu":
-            return KernelBackend.xpu
         else:
             return KernelBackend.triton
