@@ -5,7 +5,6 @@
 import torch
 import torch.nn.functional as F
 
-from ..cutotune import CutoTuneParameter
 from ..enums import KernelBackend
 from ..math import ceil_divide, get_next_power_of_2
 from ..utils import empty_like_contiguous, zeros_like_contiguous

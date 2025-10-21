@@ -6,7 +6,6 @@ import torch
 import torch.nn.functional as F
 
 from ...counters import increment_counter
-from ...cutotune import CutoTuneParameter
 from ...enums import KernelBackend
 from ...utils import empty_like_contiguous, get_num_elements_and_hidden_size, get_sm_count, zeros_like_contiguous
 from .triton_implementation import (
