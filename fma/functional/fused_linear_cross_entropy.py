@@ -83,7 +83,6 @@ def fused_linear_cross_entropy(
     labels: torch.Tensor,
     reduction: str = "mean",
     logits_multiplier: float | None = None,
-    kernel_backend: KernelBackend | CutoTuneParameter = KernelBackend.triton,
 ) -> torch.Tensor:
     """compute cross entropy loss without materializing the full output logits matrix
 
@@ -105,16 +104,13 @@ def fused_linear_cross_entropy(
     assert x.size(0) == labels.size(0), "x and labels have different number of elements along dim 0"
     assert x.size(-1) == weight.size(-1)
 
+    kernel_backend = KernelBackend.get_kernel_backend_from_device(x)
+
     if kernel_backend == KernelBackend.torch:
         x = F.linear(x, weight)
-        x = cross_entropy(
-            x=x,
-            labels=labels,
-            reduction=reduction,
-            logits_multiplier=logits_multiplier,
-            kernel_backend=kernel_backend,
-        )
+        x = cross_entropy(x=x, labels=labels, reduction=reduction, logits_multiplier=logits_multiplier)
     else:
+        assert kernel_backend in [KernelBackend.cuda, KernelBackend.triton]
         x = _FusedLinearCrossEntropy.apply(x, weight, labels, reduction, logits_multiplier)
 
     return x

@@ -164,9 +164,7 @@ class MoE(nn.Module):
             std=std,
         )
 
-    def forward(
-        self, hidden_states: torch.Tensor, kernel_backend: KernelBackend = KernelBackend.triton
-    ) -> torch.Tensor:
+    def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
         original_shape = hidden_states.shape
 
         # hidden_states -> (batch_size, query_length, hidden_size)
@@ -178,9 +176,7 @@ class MoE(nn.Module):
         # router_weights -> (total_q, top_k)
         # selected_experts -> (total_q, top_k)
 
-        hidden_states = self._compute_experts(
-            hidden_states, router_weights, selected_experts, kernel_backend=kernel_backend
-        )
+        hidden_states = self._compute_experts(hidden_states, router_weights, selected_experts)
 
         hidden_states = hidden_states.view(original_shape)
 
@@ -204,21 +200,20 @@ class MoE(nn.Module):
         return router_logits, router_weights, selected_experts
 
     def _compute_experts(
-        self,
-        hidden_states: torch.Tensor,
-        router_weights: torch.Tensor,
-        selected_experts: torch.Tensor,
-        kernel_backend: KernelBackend,
+        self, hidden_states: torch.Tensor, router_weights: torch.Tensor, selected_experts: torch.Tensor
     ) -> torch.Tensor:
+        kernel_backend = KernelBackend.get_kernel_backend_from_device(hidden_states)
+
         with torch.no_grad():
             sorted_expert_idxs, sorted_scattered_idxs = selected_experts.flatten().sort()
-            expert_frequency = continuous_count(
-                sorted_expert_idxs, self.num_experts, kernel_backend=KernelBackend.cuda
-            )
+            expert_frequency = continuous_count(sorted_expert_idxs, self.num_experts)
 
         T = hidden_states.size(0)
 
-        if kernel_backend == KernelBackend.cuda:
+        if kernel_backend == KernelBackend.cuda and torch.cuda.get_device_capability(torch.cuda.current_device()) < (
+            10,
+            0,
+        ):
             hidden_states, padded_expert_frequency, expert_padding_offset = group_with_padding(
                 x=hidden_states,
                 expert_frequency=expert_frequency,
@@ -244,7 +239,7 @@ class MoE(nn.Module):
 
             hidden_states = torch.bmm(router_weights.unsqueeze(1), hidden_states)
             hidden_states = hidden_states.squeeze(1)
-        elif kernel_backend == KernelBackend.triton:
+        elif kernel_backend in [KernelBackend.cuda, KernelBackend.triton]:
             with torch.no_grad():
                 expert_offsets = expert_frequency.cumsum(-1)
 

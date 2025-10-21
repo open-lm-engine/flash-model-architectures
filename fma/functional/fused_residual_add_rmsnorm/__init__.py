@@ -109,7 +109,6 @@ def fused_residual_add_rmsnorm(
     multiplier: float | None = None,
     memory_efficient: bool = False,
     deterministic: bool = False,
-    kernel_backend: KernelBackend | CutoTuneParameter = KernelBackend.triton,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """fused residual add RMSNorm computation
 
@@ -132,6 +131,8 @@ def fused_residual_add_rmsnorm(
         assert weight.size(-1) == x.size(-1), "hidden size for x and weight tensor is different"
         assert weight.type() == x.type(), "tensors weight and y should have same dtype"
 
+    kernel_backend = KernelBackend.get_kernel_backend_from_device(x)
+
     if kernel_backend == KernelBackend.torch:
         if multiplier not in [None, 1]:
             x = x * multiplier
@@ -142,7 +143,7 @@ def fused_residual_add_rmsnorm(
 
         x = F.rms_norm(x, normalized_shape=(x.size(-1),), weight=weight, eps=eps)
     else:
-        assert kernel_backend == KernelBackend.triton
+        assert kernel_backend in [KernelBackend.cuda, KernelBackend.triton]
         increment_counter(fused_residual_add_rmsnorm)
 
         is_flat = x.dim() == 1

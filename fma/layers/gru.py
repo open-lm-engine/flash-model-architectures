@@ -5,7 +5,6 @@
 import torch
 import torch.nn as nn
 
-from ..enums import KernelBackend
 from ..functional import gru
 from ..math import divide_if_divisible
 
@@ -40,7 +39,6 @@ class GRU(nn.Module):
         input_state: torch.Tensor | None = None,
         cu_seqlens: torch.Tensor | None = None,
         max_seqlen: int | None = None,
-        kernel_backend: KernelBackend = KernelBackend.triton,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         input = self.input_projection(input)
         input, forget_gate, reset_gate = input.chunk(3, dim=-1)
@@ -63,7 +61,6 @@ class GRU(nn.Module):
             gradient_clipping=self.gradient_clipping,
             cu_seqlens=cu_seqlens,
             max_seqlen=max_seqlen,
-            kernel_backend=kernel_backend,
         )
 
         input = input.flatten(-2, -1)

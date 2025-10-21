@@ -38,7 +38,6 @@ class RNN(nn.Module):
         input_state: torch.Tensor | None = None,
         cu_seqlens: torch.Tensor | None = None,
         max_seqlen: int | None = None,
-        kernel_backend: KernelBackend = KernelBackend.triton,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         input = self.input_projection(input)
         input = input.view(*input.size()[:-1], self.num_heads, self.state_head_dim)
@@ -53,7 +52,6 @@ class RNN(nn.Module):
             gradient_clipping=self.gradient_clipping,
             cu_seqlens=cu_seqlens,
             max_seqlen=max_seqlen,
-            kernel_backend=kernel_backend,
         )
 
         input = input.flatten(-2, -1)

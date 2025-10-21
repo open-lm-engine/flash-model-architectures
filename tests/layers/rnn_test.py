@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 from parameterized import parameterized
 
-from fma import RNN, KernelBackend, set_seed
+from fma import RNN, KernelBackend, force_kernel_backend, set_seed
 
 from ..test_commons import TestCommons
 
@@ -68,12 +68,10 @@ class RNNTest(TestCommons):
         if is_compiling:
             rnn_kernel = torch.compile(rnn_kernel, fullgraph=True)
 
-        y_kernel, output_state_kernel = rnn_kernel(
-            input=x_kernel, input_state=input_state_kernel, kernel_backend=KernelBackend.triton
-        )
-        y_torch, output_state_torch = rnn_torch(
-            input=x_torch, input_state=input_state_torch, kernel_backend=KernelBackend.torch
-        )
+        y_kernel, output_state_kernel = rnn_kernel(input=x_kernel, input_state=input_state_kernel)
+
+        with force_kernel_backend(KernelBackend.torch):
+            y_torch, output_state_torch = rnn_torch(input=x_torch, input_state=input_state_torch)
 
         self.assert_equal_tensors(
             y_kernel, y_torch, False, atol_float32=4e-6, rtol_float32=0, atol_float16=6.5e-5, rtol_float16=0
@@ -154,23 +152,19 @@ class RNNTest(TestCommons):
 
             nn.init.normal_(rnn.state_weight, std=0.01)
 
-        y_kernel, _ = rnn(
-            input=x_packed_kernel,
-            input_state=input_state_kernel,
-            cu_seqlens=cu_seqlens,
-            max_seqlen=max_seqlen,
-            kernel_backend=KernelBackend.torch,
-        )
-
-        y_torch = []
-        for i in range(batch_size):
-            y, _ = rnn(
-                input=x_packed_torch[cu_seqlens[i] : cu_seqlens[i + 1]].unsqueeze(0),
-                input_state=input_state_torch[i].unsqueeze(0) if has_input_state else None,
-                kernel_backend=KernelBackend.torch,
+        with force_kernel_backend(KernelBackend.torch):
+            y_kernel, _ = rnn(
+                input=x_packed_kernel, input_state=input_state_kernel, cu_seqlens=cu_seqlens, max_seqlen=max_seqlen
             )
-            y_torch.append(y.squeeze(0))
-        y_torch = torch.cat(y_torch)
+
+            y_torch = []
+            for i in range(batch_size):
+                y, _ = rnn(
+                    input=x_packed_torch[cu_seqlens[i] : cu_seqlens[i + 1]].unsqueeze(0),
+                    input_state=input_state_torch[i].unsqueeze(0) if has_input_state else None,
+                )
+                y_torch.append(y.squeeze(0))
+            y_torch = torch.cat(y_torch)
 
         self.assert_equal_tensors(y_kernel, y_torch, False)
 
@@ -250,20 +244,13 @@ class RNNTest(TestCommons):
             rnn_kernel = torch.compile(rnn_kernel, fullgraph=True)
 
         y_kernel, _ = rnn_kernel(
-            input=x_kernel,
-            input_state=input_state_kernel,
-            cu_seqlens=cu_seqlens,
-            max_seqlen=max_seqlen,
-            kernel_backend=KernelBackend.triton,
+            input=x_kernel, input_state=input_state_kernel, cu_seqlens=cu_seqlens, max_seqlen=max_seqlen
         )
 
-        y_torch, _ = rnn_torch(
-            input=x_torch,
-            input_state=input_state_torch,
-            cu_seqlens=cu_seqlens,
-            max_seqlen=max_seqlen,
-            kernel_backend=KernelBackend.torch,
-        )
+        with force_kernel_backend(KernelBackend.torch):
+            y_torch, _ = rnn_torch(
+                input=x_torch, input_state=input_state_torch, cu_seqlens=cu_seqlens, max_seqlen=max_seqlen
+            )
 
         y_kernel.sum().backward()
         weight_kernel_grads = self.collect_gradients_from_module_and_zero_grads(rnn)

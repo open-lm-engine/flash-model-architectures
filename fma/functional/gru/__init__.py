@@ -4,7 +4,6 @@
 
 import torch
 
-from ...cutotune import CutoTuneParameter
 from ...enums import KernelBackend
 from ...torch_math import clip_gradients, sigmoid, tanh
 from ...utils import empty_like_contiguous, zeros_like_contiguous
@@ -138,8 +137,6 @@ def gru(
     gradient_clipping: float | None = None,
     cu_seqlens: torch.Tensor | None = None,
     max_seqlen: torch.Tensor | int | None = None,
-    *,
-    kernel_backend: KernelBackend | CutoTuneParameter = KernelBackend.triton,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """computes multihead RNN: tanh(`input_state` @ `weight` + `input`)
 
@@ -163,6 +160,8 @@ def gru(
 
     N, H = input.size()[-2:]
     assert weight.size() == (N, H, H)
+
+    kernel_backend = KernelBackend.get_kernel_backend_from_device(input)
 
     if gradient_clipping is not None and gradient_clipping < 0:
         gradient_clipping = -gradient_clipping
@@ -252,6 +251,8 @@ def gru(
                 output[offset_unfinished] = new_state
                 input_state[unfinished] = new_state
     else:
+        assert kernel_backend in [KernelBackend.cuda, KernelBackend.triton]
+
         output = _GRU.apply(
             input,
             weight,

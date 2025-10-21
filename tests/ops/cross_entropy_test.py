@@ -7,7 +7,7 @@ from typing import Callable
 import torch
 from parameterized import parameterized
 
-from fma import KernelBackend, cross_entropy, set_seed
+from fma import KernelBackend, cross_entropy, force_kernel_backend, set_seed
 
 from ..test_commons import TestCommons
 
@@ -42,9 +42,9 @@ class CrossEntropyTest(TestCommons):
         labels = torch.randint(0, x_kernel.size(-1), (x_kernel.size(0),), device=x_kernel.device)
 
         loss_kernel = function(x=x_kernel, labels=labels, logits_multiplier=logits_multiplier)
-        loss_expected = cross_entropy(
-            x=x_expected, labels=labels, logits_multiplier=logits_multiplier, kernel_backend=KernelBackend.torch
-        )
+
+        with force_kernel_backend(KernelBackend.torch):
+            loss_expected = cross_entropy(x=x_expected, labels=labels, logits_multiplier=logits_multiplier)
 
         loss_kernel.backward()
         loss_expected.backward()
