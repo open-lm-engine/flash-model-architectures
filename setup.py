@@ -8,11 +8,11 @@ from setuptools import find_packages, setup
 VERSION = "0.0.0.dev"
 
 setup(
-    name="flash-model-architectures",
+    name="accelerated-model-architectures",
     version=VERSION,
     author="Mayank Mishra",
     author_email="mayank31398@gmail.com",
-    url="https://github.com/open-lm-engine/flash-model-architectures",
+    url="https://github.com/open-lm-engine/accelerated-model-architectures",
     packages=find_packages("./"),
     include_package_data=True,
     package_data={"": ["**/*.cu", "**/*.cpp", "**/*.cuh", "**/*.h", "**/*.pyx", "**/*.yml"]},
