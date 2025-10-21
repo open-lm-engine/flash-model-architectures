@@ -29,7 +29,7 @@ class SwiGLUTest(TestCommons):
         y_kernel, y_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype)
 
         with force_kernel_backend(kernel_backend):
-            z_kernel = function(x_kernel, y_kernel, kernel_backend_forward=kernel_backend)
+            z_kernel = function(x_kernel, y_kernel)
 
         with force_kernel_backend(KernelBackend.torch):
             z_expected = swiglu(x_expected, y_expected)
