@@ -4,7 +4,6 @@
 
 import torch
 
-from ..enums import KernelBackend
 from .bmm import bmm
 
 
