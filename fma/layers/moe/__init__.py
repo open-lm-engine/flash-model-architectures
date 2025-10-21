@@ -210,7 +210,10 @@ class MoE(nn.Module):
 
         T = hidden_states.size(0)
 
-        if kernel_backend == KernelBackend.cuda:
+        if kernel_backend == KernelBackend.cuda and torch.cuda.get_device_capability(torch.cuda.current_device()) < (
+            10,
+            0,
+        ):
             hidden_states, padded_expert_frequency, expert_padding_offset = group_with_padding(
                 x=hidden_states,
                 expert_frequency=expert_frequency,
@@ -236,7 +239,7 @@ class MoE(nn.Module):
 
             hidden_states = torch.bmm(router_weights.unsqueeze(1), hidden_states)
             hidden_states = hidden_states.squeeze(1)
-        elif kernel_backend == KernelBackend.triton:
+        elif kernel_backend in [KernelBackend.cuda, KernelBackend.triton]:
             with torch.no_grad():
                 expert_offsets = expert_frequency.cumsum(-1)
 
