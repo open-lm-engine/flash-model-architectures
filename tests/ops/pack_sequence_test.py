@@ -7,7 +7,7 @@ from typing import Callable
 import torch
 from parameterized import parameterized
 
-from fma import KernelBackend, force_kernel_backend, pack_sequence, unpack_sequence
+from xma import KernelBackend, force_kernel_backend, pack_sequence, unpack_sequence
 
 from ..test_commons import TestCommons
 

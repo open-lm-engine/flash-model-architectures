@@ -7,7 +7,7 @@
 #include <cuda_runtime.h>
 #include <torch/extension.h>
 
-#include "include/fma.h"
+#include "include/xma.h"
 
 #define MAX_ALLOWED_E 16384
 

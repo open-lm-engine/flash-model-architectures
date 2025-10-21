@@ -7,7 +7,7 @@ from typing import Callable
 import torch
 from parameterized import parameterized
 
-from fma import grouped_gemm, set_seed
+from xma import grouped_gemm, set_seed
 
 from ..test_commons import TestCommons
 

@@ -13,7 +13,7 @@ namespace flash_model_architectures {
     template <typename input_T, typename output_T>
     __device__ output_T sigmoid(const input_T &x) {
         fp32 x_fp32 = DType<input_T>::upcast(x);
-        x_fp32 = fmaxf(MIN_EXP_FP32, x_fp32);
+        x_fp32 = xmaxf(MIN_EXP_FP32, x_fp32);
         x_fp32 = fminf(MAX_EXP_FP32, x_fp32);
 
         x_fp32 = 1 / (1 + expf(-x_fp32));

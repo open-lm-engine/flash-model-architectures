@@ -15,24 +15,24 @@ Join the [discord server](https://discord.gg/AFDxmjH5RV) if you are interested i
 
 | Module   |  Triton   | CUDA |
 |----------|-----------|------|
-| [GRU](fma/modules/gru/__init__.py) | ✅ | ❌ |
-| [MoE](fma/modules/moe/__init__.py) | ✅ | ✅ |
-| [RNN](fma/modules/rnn/__init__.py) | ✅ | ❌ |
+| [GRU](xma/modules/gru/__init__.py) | ✅ | ❌ |
+| [MoE](xma/modules/moe/__init__.py) | ✅ | ✅ |
+| [RNN](xma/modules/rnn/__init__.py) | ✅ | ❌ |
 
 ## Ops
 
 | Module     | Triton | CUDA |
 |------------|--------|------|
-| [bmm](fma/ops/bmm/__init__.py)        | ✅     | ❌   |
-| [continuous_count](fma/ops/continuous_count/__init__.py) | ❌ | ✅ |
-| [cross_entropy](fma/ops/cross_entropy/__init__.py) | ✅ | ❌ |
-| [fused_linear_cross_entropy](fma/ops/fused_linear_cross_entropy.py) | ✅ | ❌ |
-| [fused_residual_add_rmsnorm](fma/ops/fused_residual_add_rmsnorm/__init__.py) | ✅ | ❌ |
-| [gemm](fma/ops/gemm/__init__.py) | ✅ | ❌ |
-| [grouped_gemm](fma/ops/grouped_gemm/__init__.py) | ❌ | ✅ |
-| [rmsnorm](fma/ops/rmsnorm/__init__.py) | ✅ | ❌ |
-| [pack_sequence](fma/ops/sequence_packing/__init__.py) | ✅ | ✅ |
-| [softmax](fma/ops/softmax/__init__.py) | ✅ | ❌ |
-| [swiglu](fma/ops/swiglu/__init__.py) | ✅ | ✅ |
-| [swiglu_packed](fma/ops/swiglu/__init__.py) | ✅ | ❌ |
-| [unpack_sequence](fma/ops/sequence_packing/__init__.py) | ✅ | ✅ |
+| [bmm](xma/ops/bmm/__init__.py)        | ✅     | ❌   |
+| [continuous_count](xma/ops/continuous_count/__init__.py) | ❌ | ✅ |
+| [cross_entropy](xma/ops/cross_entropy/__init__.py) | ✅ | ❌ |
+| [fused_linear_cross_entropy](xma/ops/fused_linear_cross_entropy.py) | ✅ | ❌ |
+| [fused_residual_add_rmsnorm](xma/ops/fused_residual_add_rmsnorm/__init__.py) | ✅ | ❌ |
+| [gemm](xma/ops/gemm/__init__.py) | ✅ | ❌ |
+| [grouped_gemm](xma/ops/grouped_gemm/__init__.py) | ❌ | ✅ |
+| [rmsnorm](xma/ops/rmsnorm/__init__.py) | ✅ | ❌ |
+| [pack_sequence](xma/ops/sequence_packing/__init__.py) | ✅ | ✅ |
+| [softmax](xma/ops/softmax/__init__.py) | ✅ | ❌ |
+| [swiglu](xma/ops/swiglu/__init__.py) | ✅ | ✅ |
+| [swiglu_packed](xma/ops/swiglu/__init__.py) | ✅ | ❌ |
+| [unpack_sequence](xma/ops/sequence_packing/__init__.py) | ✅ | ✅ |

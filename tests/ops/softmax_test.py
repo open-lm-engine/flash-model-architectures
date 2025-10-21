@@ -7,7 +7,7 @@ from typing import Callable
 import torch
 from parameterized import parameterized
 
-from fma import KernelBackend, force_kernel_backend, set_seed, softmax
+from xma import KernelBackend, force_kernel_backend, set_seed, softmax
 
 from ..test_commons import TestCommons
 from .rmsnorm_test import _get_sizes

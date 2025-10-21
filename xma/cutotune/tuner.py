@@ -52,7 +52,7 @@ class _CutoTune:
         self.functional_triggers = functional_triggers
         self.reset_to_zero = reset_to_zero
 
-        self.filename = inspect.stack()[2].filename.rsplit("fma", 1)[1][1:]
+        self.filename = inspect.stack()[2].filename.rsplit("xma", 1)[1][1:]
         self.function_hash = f"{self.filename}->{function.__name__}"
 
         self.function_cache = {}

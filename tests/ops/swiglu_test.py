@@ -7,7 +7,7 @@ from typing import Callable
 import torch
 from parameterized import parameterized
 
-from fma import KernelBackend, ceil_divide, force_kernel_backend, swiglu, swiglu_packed
+from xma import KernelBackend, ceil_divide, force_kernel_backend, swiglu, swiglu_packed
 
 from ..test_commons import TestCommons
 

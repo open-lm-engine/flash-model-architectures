@@ -8,7 +8,7 @@ from typing import Callable
 import torch
 from parameterized import parameterized
 
-from fma import KernelBackend, force_kernel_backend, fused_linear_cross_entropy, set_seed
+from xma import KernelBackend, force_kernel_backend, fused_linear_cross_entropy, set_seed
 
 from ..test_commons import TestCommons
 
