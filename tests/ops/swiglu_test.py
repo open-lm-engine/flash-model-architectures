@@ -7,7 +7,7 @@ from typing import Callable
 import torch
 from parameterized import parameterized
 
-from fma import KernelBackend, ceil_divide, swiglu, swiglu_packed
+from fma import KernelBackend, ceil_divide, force_kernel_backend, swiglu, swiglu_packed
 
 from ..test_commons import TestCommons
 
@@ -28,15 +28,11 @@ class SwiGLUTest(TestCommons):
         x_kernel, x_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype)
         y_kernel, y_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype)
 
-        z_kernel = function(
-            x_kernel, y_kernel, kernel_backend_forward=kernel_backend, kernel_backend_backward=kernel_backend
-        )
-        z_expected = swiglu(
-            x_expected,
-            y_expected,
-            kernel_backend_forward=KernelBackend.torch,
-            kernel_backend_backward=KernelBackend.torch,
-        )
+        with force_kernel_backend(kernel_backend):
+            z_kernel = function(x_kernel, y_kernel, kernel_backend_forward=kernel_backend)
+
+        with force_kernel_backend(KernelBackend.torch):
+            z_expected = swiglu(x_expected, y_expected)
 
         z_kernel.mean().backward()
         z_expected.mean().backward()
@@ -60,9 +56,9 @@ class SwiGLUTest(TestCommons):
         x_kernel, x_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype)
 
         z_kernel = function(x_kernel)
-        z_expected = swiglu_packed(
-            x_expected, kernel_backend_forward=KernelBackend.torch, kernel_backend_backward=KernelBackend.torch
-        )
+
+        with force_kernel_backend(KernelBackend.torch):
+            z_expected = swiglu_packed(x_expected)
 
         z_kernel.mean().backward()
         z_expected.mean().backward()
