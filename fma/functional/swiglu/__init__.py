@@ -122,7 +122,6 @@ def swiglu_packed(x: torch.Tensor) -> torch.Tensor:
 
     if kernel_backend == KernelBackend.torch:
         up, gate = x.chunk(2, dim=-1)
-
         output = swiglu(gate=gate, up=up)
     else:
         assert kernel_backend in [KernelBackend.cuda, KernelBackend.triton]
