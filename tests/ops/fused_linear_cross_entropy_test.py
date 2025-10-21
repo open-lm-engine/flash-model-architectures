@@ -8,7 +8,7 @@ from typing import Callable
 import torch
 from parameterized import parameterized
 
-from fma import KernelBackend, fused_linear_cross_entropy, set_seed
+from fma import KernelBackend, force_kernel_backend, fused_linear_cross_entropy, set_seed
 
 from ..test_commons import TestCommons
 
@@ -52,13 +52,11 @@ class FusedLinearCrossEntropyTest(TestCommons):
         labels = torch.randint(0, vocab_size, (x_kernel.size(0),), device=x_kernel.device)
 
         loss_kernel = function(x=x_kernel, weight=weight_kernel, labels=labels, logits_multiplier=logits_multiplier)
-        loss_expected = fused_linear_cross_entropy(
-            x=x_expected,
-            weight=weight_expected,
-            labels=labels,
-            logits_multiplier=logits_multiplier,
-            kernel_backend=KernelBackend.torch,
-        )
+
+        with force_kernel_backend(KernelBackend.torch):
+            loss_expected = fused_linear_cross_entropy(
+                x=x_expected, weight=weight_expected, labels=labels, logits_multiplier=logits_multiplier
+            )
 
         loss_kernel.backward()
         loss_expected.backward()
