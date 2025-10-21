@@ -9,7 +9,7 @@ from typing import Callable
 import torch
 from parameterized import parameterized
 
-from fma import KernelBackend, fused_residual_add_rmsnorm, set_seed
+from fma import KernelBackend, force_kernel_backend, fused_residual_add_rmsnorm, set_seed
 
 from ..test_commons import TestCommons
 
@@ -91,15 +91,15 @@ class FusedResdidualAddRMSNormTest(TestCommons):
         )
         z_kernel = z_kernel * 2 + r_kernel * 3
 
-        z_expected, r_expected = fused_residual_add_rmsnorm(
-            x=x_expected,
-            residual=residual_expected,
-            weight=weight_expected,
-            eps=_EPSILON,
-            multiplier=multiplier,
-            kernel_backend=KernelBackend.torch,
-        )
-        z_expected = z_expected * 2 + r_expected * 3
+        with force_kernel_backend(KernelBackend.torch):
+            z_expected, r_expected = fused_residual_add_rmsnorm(
+                x=x_expected,
+                residual=residual_expected,
+                weight=weight_expected,
+                eps=_EPSILON,
+                multiplier=multiplier,
+            )
+            z_expected = z_expected * 2 + r_expected * 3
 
         z_kernel.sum().backward()
         z_expected.sum().backward()
