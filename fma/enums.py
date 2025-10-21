@@ -11,53 +11,35 @@ import torch
 
 
 _IS_ROCM_AVAILABLE = torch.version.hip is not None
-_FORCE_TORCH_BACKEND = False
-_FORCE_TRITON_BACKEND = False
+_FORCED_KERNEL_BACKEND = None
 
 
 @contextmanager
-def force_torch_backend():
-    global _FORCE_TORCH_BACKEND
+def force_kernel_backend(kernel_backend: KernelBackend):
+    global _FORCED_KERNEL_BACKEND
 
-    original_value = _FORCE_TORCH_BACKEND
-    _FORCE_TORCH_BACKEND = True
-
-    yield
-
-    _FORCE_TORCH_BACKEND = original_value
-
-
-@contextmanager
-def force_triton_backend():
-    global _FORCE_TRITON_BACKEND
-
-    original_value = _FORCE_TRITON_BACKEND
-    _FORCE_TRITON_BACKEND = True
+    original_value = _FORCED_KERNEL_BACKEND
+    _FORCED_KERNEL_BACKEND = True
 
     yield
 
-    _FORCE_TRITON_BACKEND = original_value
+    _FORCED_KERNEL_BACKEND = original_value
 
 
 class KernelBackend(Enum):
-    cpu = "cpu"
     cuda = "cuda"
     rocm = "rocm"
-    tpu = "tpu"
-    xpu = "xpu"
+    tpu = "pallas"
     # for triton compatible accelerators
     triton = "triton"
     torch = "torch"
 
     @staticmethod
     def get_kernel_backend_from_device(x: torch.Tensor) -> KernelBackend:
-        global _FORCE_TORCH_BACKEND, _FORCE_TRITON_BACKEND
+        global _FORCED_KERNEL_BACKEND
 
-        if _FORCE_TORCH_BACKEND:
-            return KernelBackend.torch
-
-        if _FORCE_TRITON_BACKEND:
-            return KernelBackend.triton
+        if _FORCED_KERNEL_BACKEND is not None:
+            return _FORCED_KERNEL_BACKEND
 
         device_type = x.device.type
 
@@ -69,5 +51,5 @@ class KernelBackend(Enum):
             return KernelBackend.tpu
         elif device_type == "xpu":
             return KernelBackend.xpu
-
-        raise ValueError(f"Unsupported device type: {device_type}")
+        else:
+            return KernelBackend.triton
