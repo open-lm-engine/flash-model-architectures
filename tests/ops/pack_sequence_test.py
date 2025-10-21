@@ -5,7 +5,6 @@
 from typing import Callable
 
 import torch
-import torch._dynamo.config
 from parameterized import parameterized
 
 from fma import KernelBackend, force_kernel_backend, pack_sequence, unpack_sequence
