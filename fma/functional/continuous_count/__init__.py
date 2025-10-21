@@ -32,7 +32,7 @@ def continuous_count(x: torch.Tensor, size: int) -> torch.Tensor:
 
     if kernel_backend == KernelBackend.torch:
         output = x.bincount(minlength=size).to(torch.uint32)
-    elif kernel_backend == KernelBackend.cuda:
+    elif kernel_backend in [KernelBackend.cuda, KernelBackend.triton]:
         output = torch.empty(size, dtype=torch.uint32, device=x.device)
         continuous_count_cuda(x=x, output=output, E=size, THREAD_BLOCK_CLUSTER_SIZE=1, BLOCK_SIZE=1024)
     else:
