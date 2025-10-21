@@ -4,8 +4,6 @@
 
 import torch
 
-from ..cutotune import CutoTuneParameter
-from ..enums import KernelBackend
 from .fused_residual_add_rmsnorm import fused_residual_add_rmsnorm
 
 
@@ -15,8 +13,6 @@ def rmsnorm(
     eps: float | None,
     memory_efficient: bool = False,
     deterministic: bool = False,
-    *,
-    kernel_backend: KernelBackend | CutoTuneParameter = KernelBackend.triton,
 ) -> torch.Tensor:
     """RMSNorm computation
 
@@ -27,8 +23,6 @@ def rmsnorm(
         memory_efficient (bool, optional): memory efficient = False caches RMSNorm's denominator in the forward.
             Defaults to False.
         deterministic (bool, optional): whether to use deterministic backward. Defaults to False.
-        kernel_backend (KernelBackend | CutoTuneParameter, optional): kernel backend to prioritize.
-            Defaults to KernelBackend.triton.
 
     Returns:
         torch.Tensor: output tensor
@@ -42,7 +36,6 @@ def rmsnorm(
         multiplier=None,
         memory_efficient=memory_efficient,
         deterministic=deterministic,
-        kernel_backend=kernel_backend,
     )
 
     return x
