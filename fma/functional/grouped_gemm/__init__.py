@@ -4,6 +4,7 @@
 
 import torch
 
+from ...enums import KernelBackend
 from .cuda_implementation import grouped_gemm_cuda
 
 
@@ -23,6 +24,9 @@ def grouped_gemm(
 ) -> torch.Tensor:
     assert beta == 0
     assert C is None
+
+    kernel_backend = KernelBackend.get_kernel_backend_from_device(A)
+    assert kernel_backend == KernelBackend.cuda
 
     output = torch.empty(*output_shape, device=A.device, dtype=A.dtype)
 
