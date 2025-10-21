@@ -162,7 +162,7 @@ def gru(
     N, H = input.size()[-2:]
     assert weight.size() == (N, H, H)
 
-    kernel_backend = KernelBackend.get_kernel_backend_from_device(A)
+    kernel_backend = KernelBackend.get_kernel_backend_from_device(input)
 
     if gradient_clipping is not None and gradient_clipping < 0:
         gradient_clipping = -gradient_clipping
