@@ -58,7 +58,7 @@ def softmax(x: torch.Tensor, logits_multiplier: float | None = None) -> torch.Te
 
         x = x.to(dtype)
     else:
-        assert kernel_backend == KernelBackend.triton
+        assert kernel_backend in [KernelBackend.cuda, KernelBackend.triton]
 
         is_flat = x.dim() < 2
         if is_flat:
