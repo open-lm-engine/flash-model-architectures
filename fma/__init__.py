@@ -22,6 +22,7 @@ from .functional import (
     pack_sequence,
     rmsnorm,
     softmax,
+    softmax_attention,
     swiglu,
     swiglu_packed,
     unpack_sequence,
