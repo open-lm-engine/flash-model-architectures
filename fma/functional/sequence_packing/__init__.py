@@ -150,9 +150,7 @@ def pack_sequence(
         assert x.size(0) == cu_seqlens.size(0) - 1
         output_shape = (total_tokens, *x.size()[2:])
 
-        if kernel_backend_forward == KernelBackend.torch:
-            assert kernel_backend_backward == KernelBackend.torch
-
+        if kernel_backend == KernelBackend.torch:
             B, S = x.size()[:2]
             seqlens = cu_seqlens[1:] - cu_seqlens[:-1]
             batch_indices = torch.arange(B, device=x.device).repeat_interleave(seqlens)
