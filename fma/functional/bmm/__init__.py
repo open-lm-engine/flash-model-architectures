@@ -66,7 +66,7 @@ def bmm(
                 D = alpha * D
         else:
             D = torch.baddbmm(C, A, B, alpha=alpha, beta=beta)
-    elif kernel_backend == KernelBackend.triton:
+    elif kernel_backend in [KernelBackend.cuda, KernelBackend.triton]:
         D = torch.empty(L, M, N, dtype=A.dtype, device=A.device)
 
         bmm_triton(
