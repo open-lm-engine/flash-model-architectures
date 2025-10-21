@@ -102,43 +102,30 @@ def swiglu(gate: torch.Tensor, up: torch.Tensor) -> torch.Tensor:
         output = up * F.silu(gate)
         output = output.to(dtype)
     else:
+        assert kernel_backend in [KernelBackend.cuda, KernelBackend.triton]
         output = _Swiglu.apply(gate, up, kernel_backend)
 
     return output
 
 
-def swiglu_packed(
-    x: torch.Tensor,
-    *,
-    kernel_backend_forward: KernelBackend = KernelBackend.triton,
-    kernel_backend_backward: KernelBackend = KernelBackend.triton,
-) -> torch.Tensor:
+def swiglu_packed(x: torch.Tensor) -> torch.Tensor:
     """computes swiglu activation by splitting the tensor `x` into 2 parts: gate and up activations
 
     Args:
         x (torch.Tensor): input activation
-        kernel_backend_forward (KernelBackend, optional): kernel backend to prioritize. Defaults
-            to KernelBackend.triton.
-        kernel_backend_backward (KernelBackend, optional): kernel backend to prioritize. Defaults
-            to KernelBackend.triton.
 
     Returns:
         torch.Tensor: output tensor
     """
 
-    if kernel_backend_forward == KernelBackend.torch:
+    kernel_backend = KernelBackend.get_kernel_backend_from_device(x)
+
+    if kernel_backend == KernelBackend.torch:
         up, gate = x.chunk(2, dim=-1)
 
-        output = swiglu(
-            gate=gate,
-            up=up,
-            kernel_backend_forward=kernel_backend_forward,
-            kernel_backend_backward=kernel_backend_backward,
-        )
+        output = swiglu(gate=gate, up=up)
     else:
-        assert kernel_backend_forward == KernelBackend.triton
-        assert kernel_backend_backward == KernelBackend.triton
-
+        assert kernel_backend in [KernelBackend.cuda, KernelBackend.triton]
         output = _SwigluPacked.apply(x)
 
     return output
