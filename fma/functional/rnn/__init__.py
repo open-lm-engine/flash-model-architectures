@@ -78,8 +78,6 @@ def rnn(
     gradient_clipping: float | None = None,
     cu_seqlens: torch.Tensor | None = None,
     max_seqlen: torch.Tensor | int | None = None,
-    *,
-    kernel_backend: KernelBackend = KernelBackend.triton,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """computes multihead RNN recurrent update over the sequence length: tanh(`input_state` @ `weight` + `input`)
 
@@ -93,7 +91,6 @@ def rnn(
             implies no clipping. Defaults to None.
         cu_seqlens (torch.Tensor | None, optional): cumulative sequence length (must contain 0 as first element). Defaults to None.
         max_seqlen (torch.Tensor | int | None, optional): max sequence length in the batch. Defaults to None.
-        kernel_backend (KernelBackend, optional): kernel backend to prioritize. Defaults to KernelBackend.triton.
 
     Returns:
         tuple[torch.Tensor, torch.Tensor]: output tensor of shape (B, S, N, H) and output state tensor of shape (B, N, H)
@@ -104,6 +101,8 @@ def rnn(
 
     N, H = input.size()[-2:]
     assert weight.size() == (N, H, H)
+
+    kernel_backend = KernelBackend.get_kernel_backend_from_device(input)
 
     if gradient_clipping is not None and gradient_clipping < 0:
         gradient_clipping = -gradient_clipping
@@ -171,6 +170,7 @@ def rnn(
                 output[offset_unfinished] = new_state
                 input_state[unfinished] = new_state
     else:
+        assert kernel_backend in [KernelBackend.cuda, KernelBackend.triton]
         output = _RNN.apply(input, weight, input_state, gradient_clipping, cu_seqlens, max_seqlen)
 
     output_state = output[:, -1] if cu_seqlens is None else output[cu_seqlens[1:] - 1]
