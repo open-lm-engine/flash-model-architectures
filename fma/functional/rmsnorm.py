@@ -1,0 +1,41 @@
+# **************************************************
+# Copyright (c) 2025, Mayank Mishra
+# **************************************************
+
+import torch
+
+from .fused_residual_add_rmsnorm import fused_residual_add_rmsnorm
+
+
+def rmsnorm(
+    x: torch.Tensor,
+    weight: torch.Tensor | None,
+    eps: float | None,
+    memory_efficient: bool = False,
+    deterministic: bool = False,
+) -> torch.Tensor:
+    """RMSNorm computation
+
+    Args:
+        x (torch.Tensor): input activation
+        weight (torch.Tensor | None): RMSNorm weight
+        eps (float | None): epsilon
+        memory_efficient (bool, optional): memory efficient = False caches RMSNorm's denominator in the forward.
+            Defaults to False.
+        deterministic (bool, optional): whether to use deterministic backward. Defaults to False.
+
+    Returns:
+        torch.Tensor: output tensor
+    """
+
+    x, _ = fused_residual_add_rmsnorm(
+        x=x,
+        residual=None,
+        weight=weight,
+        eps=eps,
+        multiplier=None,
+        memory_efficient=memory_efficient,
+        deterministic=deterministic,
+    )
+
+    return x

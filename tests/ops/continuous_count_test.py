@@ -7,7 +7,7 @@ from typing import Callable
 import torch
 from parameterized import parameterized
 
-from fma import KernelBackend, continuous_count, set_seed
+from fma import KernelBackend, continuous_count, force_kernel_backend, set_seed
 
 from ..test_commons import TestCommons
 
@@ -36,6 +36,8 @@ class ContiguousCountTest(TestCommons):
         x = torch.randint(0, _MAX_EXPERTS, (size,), device=device, dtype=dtype)
 
         z_kernel = function(x=x, size=_MAX_EXPERTS)
-        z_expected = continuous_count(x.view(-1), size=_MAX_EXPERTS, kernel_backend=KernelBackend.torch)
+
+        with force_kernel_backend(KernelBackend.torch):
+            z_expected = continuous_count(x.view(-1), size=_MAX_EXPERTS)
 
         self.assert_equal_tensors(z_kernel, z_expected, True)

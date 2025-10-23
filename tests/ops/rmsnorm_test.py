@@ -7,10 +7,9 @@ from __future__ import annotations
 from typing import Callable
 
 import torch
-import torch.nn as nn
 from parameterized import parameterized
 
-from fma import KernelBackend, enable_counters, enable_kernels, get_counter_value, reset_counters, rmsnorm, set_seed
+from fma import KernelBackend, force_kernel_backend, rmsnorm, set_seed
 
 from ..test_commons import TestCommons
 from .fused_residual_add_rmsnorm_test import _get_sizes
@@ -69,7 +68,8 @@ class RMSNormTest(TestCommons):
             deterministic=deterministic,
         )
 
-        z_expected = rmsnorm(x=x_expected, weight=weight_expected, eps=_EPSILON, kernel_backend=KernelBackend.torch)
+        with force_kernel_backend(KernelBackend.torch):
+            z_expected = rmsnorm(x=x_expected, weight=weight_expected, eps=_EPSILON)
 
         z_kernel.sum().backward()
         z_expected.sum().backward()
