@@ -2,12 +2,10 @@
 Copyright (c) 2025, Mayank Mishra
 ************************************************** -->
 
-# Discord Server
-Join the [discord server](https://discord.gg/AFDxmjH5RV) if you are interested in LLM architecture or distributed training/inference research.
+# <img src="assets/xma.png" width="90px" height="30px" style="vertical-align: middle;"> (Accelerated Model Architectures)
 
-# Efficient GPU kernels written in both CUDA and Triton
-
-<img src="assets/xma.png" width="100px" height="100px">
+XMA is a repository comprising of fast kernels for model training.  
+We are planning on adding lots of experimental and fun model architectures with support for multiple accelerators like NVIDIA, AMD GPUs and Google TPUs.
 
 ## layers
 
@@ -33,3 +31,6 @@ Join the [discord server](https://discord.gg/AFDxmjH5RV) if you are interested i
 | [swiglu](xma/functional/swiglu/__init__.py) | ✅ | ✅ |
 | [swiglu_packed](xma/functional/swiglu/__init__.py) | ✅ | ❌ |
 | [unpack_sequence](xma/functional/sequence_packing/__init__.py) | ✅ | ✅ |
+
+# Discord Server
+Join the [discord server](https://discord.gg/AFDxmjH5RV) if you are interested in LLM architecture or distributed training/inference research.
