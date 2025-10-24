@@ -5,7 +5,6 @@
 import torch
 import torch.nn as nn
 
-from ..enums import KernelBackend
 from ..functional import rnn
 from ..math import divide_if_divisible
 
