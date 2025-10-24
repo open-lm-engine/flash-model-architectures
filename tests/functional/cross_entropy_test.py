@@ -62,7 +62,7 @@ class CrossEntropyTest(TestCommons):
 
             self.assert_equal_tensors(loss_kernel, loss_expected, False, atol_float32=6.3e-5, rtol_float32=0)
 
-            if no_grad:
+            if not no_grad:
                 loss_kernel.backward()
                 loss_expected.backward()
 
