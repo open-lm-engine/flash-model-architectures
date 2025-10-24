@@ -26,7 +26,7 @@ class _GRU(torch.autograd.Function):
         cu_seqlens: torch.Tensor | None,
         max_seqlen: torch.Tensor | int | None,
     ) -> torch.Tensor:
-        needs_grad = any(ctx.input_needs_grad[:6])
+        needs_grad = any(ctx.needs_input_grad[:6])
 
         output = empty_like_contiguous(input)
         max_seqlen_tensor, max_seqlen = get_max_seqlen_and_max_seqlen_tensor(max_seqlen)
