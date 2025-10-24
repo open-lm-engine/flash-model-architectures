@@ -15,16 +15,19 @@ def _copy_array(source_ptr, destination_ptr, BLOCK_ID_B, BLOCK_ID_S, t, S, N, pa
     unpacked_offset = (BLOCK_ID_B * S + BLOCK_ID_S) * N
     packed_offset = t * N
 
-    for i in range(tl.cdiv(N, BLOCK_SIZE)):
-        indices = i * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
-        mask = indices < N
+    BLOCK = tl.arange(0, BLOCK_SIZE)
+
+    for _ in range(tl.cdiv(N, BLOCK_SIZE)):
+        MASK = BLOCK < N
 
         if pack:
-            source = tl.load(source_ptr + unpacked_offset + indices, mask=mask)
-            tl.store(destination_ptr + packed_offset + indices, source, mask=mask)
+            source = tl.load(source_ptr + unpacked_offset + BLOCK, mask=MASK)
+            tl.store(destination_ptr + packed_offset + BLOCK, source, mask=MASK)
         else:
-            source = tl.load(source_ptr + packed_offset + indices, mask=mask)
-            tl.store(destination_ptr + unpacked_offset + indices, source, mask=mask)
+            source = tl.load(source_ptr + packed_offset + BLOCK, mask=MASK)
+            tl.store(destination_ptr + unpacked_offset + BLOCK, source, mask=MASK)
+
+        BLOCK += BLOCK_SIZE
 
 
 @triton.jit
