@@ -15,11 +15,11 @@ def _copy_array(x_ptr, x_stride, y_ptr, y_stride, BLOCK_ID_B, BLOCK_ID_S, t, S, 
     BLOCK = tl.arange(0, BLOCK_SIZE)
 
     if PACK:
-        x_ptrs = x_ptr + (BLOCK_ID_B * S + BLOCK_ID_S) * N + BLOCK
-        y_ptrs = y_ptr + t * N + BLOCK
+        x_ptrs = x_ptr + BLOCK_ID_B * x_stride[0] + BLOCK_ID_S * x_stride[1] + BLOCK * x_stride[-1]
+        y_ptrs = y_ptr + t * y_stride[0] + BLOCK * y_stride[-1]
     else:
-        x_ptrs = x_ptr + t * N + BLOCK
-        y_ptrs = y_ptr + (BLOCK_ID_B * S + BLOCK_ID_S) * N + BLOCK
+        x_ptrs = x_ptr + t * x_stride[0] + BLOCK * x_stride[-1]
+        y_ptrs = y_ptr + BLOCK_ID_B * y_stride[0] + BLOCK_ID_S * y_stride[1] + BLOCK * y_stride[-1]
 
     for _ in range(tl.cdiv(N, BLOCK_SIZE)):
         MASK = BLOCK < N
