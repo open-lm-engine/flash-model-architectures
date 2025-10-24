@@ -7,7 +7,7 @@ from typing import Sequence
 import torch
 
 from ...enums import KernelBackend
-from ...utils import ensure_contiguous
+from ...utils import ensure_contiguous, make_contiguous
 from .cuda_implementation import pack_unpack_sequence_cuda
 from .triton_implementation import pack_unpack_sequence_triton
 
@@ -56,7 +56,6 @@ def _unpack_sequence(
 
 class _PackSequence(torch.autograd.Function):
     @staticmethod
-    @ensure_contiguous
     def forward(
         ctx,
         x: torch.Tensor,
@@ -65,10 +64,16 @@ class _PackSequence(torch.autograd.Function):
         padding_side: str,
         kernel_backend: KernelBackend,
     ) -> torch.Tensor:
-        ctx.save_for_backward(cu_seqlens)
-        ctx.padding_side = padding_side
-        ctx.x_shape = x.size()
-        ctx.kernel_backend = kernel_backend
+        if kernel_backend == KernelBackend.cuda:
+            x, cu_seqlens = make_contiguous(x, cu_seqlens)
+        elif kernel_backend == KernelBackend.triton and not x[2:].is_contiguous():
+            x = x.contiguous()
+
+        if ctx.needs_input_grad[0]:
+            ctx.save_for_backward(cu_seqlens)
+            ctx.padding_side = padding_side
+            ctx.x_shape = x.size()
+            ctx.kernel_backend = kernel_backend
 
         output = _pack_sequence(
             x=x,
@@ -81,8 +86,10 @@ class _PackSequence(torch.autograd.Function):
         return output
 
     @staticmethod
-    @ensure_contiguous
     def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
+        if ctx.kernel_backend == KernelBackend.cuda:
+            output_grad = output_grad.contiguous()
+
         x_grad = _unpack_sequence(
             x=output_grad,
             cu_seqlens=ctx.saved_tensors[0],
