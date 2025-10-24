@@ -289,7 +289,7 @@ class RNNTest(TestCommons):
                 rtol_bfloat16=0,
             )
 
-            if no_grad:
+            if not no_grad:
                 y_kernel.sum().backward()
                 weight_kernel_grads = self.collect_gradients_from_module_and_zero_grads(rnn)
 
