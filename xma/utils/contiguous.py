@@ -8,16 +8,15 @@ import torch
 from torch.utils._pytree import tree_map
 
 
-def make_contiguous(x: torch.Tensor | tuple[torch.Tensor] | None) -> torch.Tensor | tuple[torch.Tensor] | None:
-    if x is None:
-        return None
+def make_contiguous(*args) -> list[torch.Tensor | None]:
+    y = []
+    for x in args:
+        y.append(x.contiguous() if isinstance(x, torch.Tensor) else None)
 
-    if isinstance(x, torch.Tensor):
-        x = x.contiguous()
-    elif isinstance(x, (tuple, list)):
-        x = [make_contiguous(i) for i in x]
+    if len(y) == 1:
+        y = y[0]
 
-    return x
+    return y
 
 
 def ensure_contiguous(func: Callable) -> Callable:
