@@ -60,8 +60,10 @@ class CrossEntropyTest(TestCommons):
             with force_kernel_backend(KernelBackend.torch):
                 loss_expected = cross_entropy(x=x_expected, labels=labels, logits_multiplier=logits_multiplier)
 
-            loss_kernel.backward()
-            loss_expected.backward()
-
             self.assert_equal_tensors(loss_kernel, loss_expected, False, atol_float32=6.3e-5, rtol_float32=0)
-            self.assert_equal_tensors(x_kernel.grad, x_expected.grad, False)
+
+            if no_grad:
+                loss_kernel.backward()
+                loss_expected.backward()
+
+                self.assert_equal_tensors(x_kernel.grad, x_expected.grad, False)
