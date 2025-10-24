@@ -46,7 +46,7 @@ def pack_unpack_sequence_triton_kernel(
 
     cu_seqlens_ptrs = cu_seqlens_ptr + BLOCK_ID_B * cu_seqlens_stride[0]
     start = tl.load(cu_seqlens_ptrs)
-    end = tl.load(cu_seqlens_ptrs + 1)
+    end = tl.load(cu_seqlens_ptrs + cu_seqlens_stride[0])
     seqlens = end - start
 
     if PADDING_SIDE == "left":
