@@ -30,6 +30,8 @@ class _RNN(torch.autograd.Function):
         cu_seqlens: torch.Tensor | None,
         max_seqlen: torch.Tensor | int | None,
     ) -> torch.Tensor:
+        needs_grad = any(ctx.needs_input_grad[:2])
+
         output = empty_like_contiguous(input)
         max_seqlen_tensor, max_seqlen = get_max_seqlen_and_max_seqlen_tensor(max_seqlen)
 
@@ -43,9 +45,10 @@ class _RNN(torch.autograd.Function):
             max_seqlen=max_seqlen,
         )
 
-        ctx.save_for_backward(weight, output, input_state, cu_seqlens, max_seqlen_tensor)
-        ctx.max_seqlen = max_seqlen
-        ctx.gradient_clipping = gradient_clipping
+        if needs_grad:
+            ctx.save_for_backward(weight, output, input_state, cu_seqlens, max_seqlen_tensor)
+            ctx.max_seqlen = max_seqlen
+            ctx.gradient_clipping = gradient_clipping
 
         return output
 
