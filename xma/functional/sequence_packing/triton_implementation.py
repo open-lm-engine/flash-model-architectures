@@ -12,22 +12,24 @@ from ...constants import LIBRARY_NAME
 
 @triton.jit
 def _copy_array(source_ptr, source_stride, destination_ptr, BLOCK_ID_B, BLOCK_ID_S, t, S, N, PACK, BLOCK_SIZE):
-    unpacked_offset = (BLOCK_ID_B * S + BLOCK_ID_S) * N
-    packed_offset = t * N
-
     BLOCK = tl.arange(0, BLOCK_SIZE)
+
+    if PACK:
+        source_ptrs = source_ptr + (BLOCK_ID_B * S + BLOCK_ID_S) * N + BLOCK
+        destination_ptrs = destination_ptr + t * N + BLOCK
+    else:
+        source_ptrs = source_ptr + t * N + BLOCK
+        destination_ptrs = destination_ptr + (BLOCK_ID_B * S + BLOCK_ID_S) * N + BLOCK
 
     for _ in range(tl.cdiv(N, BLOCK_SIZE)):
         MASK = BLOCK < N
 
-        if PACK:
-            source = tl.load(source_ptr + unpacked_offset + BLOCK, mask=MASK)
-            tl.store(destination_ptr + packed_offset + BLOCK, source, mask=MASK)
-        else:
-            source = tl.load(source_ptr + packed_offset + BLOCK, mask=MASK)
-            tl.store(destination_ptr + unpacked_offset + BLOCK, source, mask=MASK)
+        source = tl.load(source_ptrs, mask=MASK)
+        tl.store(destination_ptrs, source, mask=MASK)
 
         BLOCK += BLOCK_SIZE
+        source_ptrs += BLOCK_SIZE
+        destination_ptrs += BLOCK_SIZE
 
 
 @triton.jit
