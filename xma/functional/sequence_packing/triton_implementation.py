@@ -11,27 +11,25 @@ from ...constants import LIBRARY_NAME
 
 
 @triton.jit
-def _copy_array(
-    source_ptr, source_stride, destination_ptr, destination_stride, BLOCK_ID_B, BLOCK_ID_S, t, S, N, PACK, BLOCK_SIZE
-):
+def _copy_array(x_ptr, x_stride, y_ptr, y_stride, BLOCK_ID_B, BLOCK_ID_S, t, S, N, PACK, BLOCK_SIZE):
     BLOCK = tl.arange(0, BLOCK_SIZE)
 
     if PACK:
-        source_ptrs = source_ptr + (BLOCK_ID_B * S + BLOCK_ID_S) * N + BLOCK
-        destination_ptrs = destination_ptr + t * N + BLOCK
+        x_ptrs = x_ptr + (BLOCK_ID_B * S + BLOCK_ID_S) * N + BLOCK
+        y_ptrs = y_ptr + t * N + BLOCK
     else:
-        source_ptrs = source_ptr + t * N + BLOCK
-        destination_ptrs = destination_ptr + (BLOCK_ID_B * S + BLOCK_ID_S) * N + BLOCK
+        x_ptrs = x_ptr + t * N + BLOCK
+        y_ptrs = y_ptr + (BLOCK_ID_B * S + BLOCK_ID_S) * N + BLOCK
 
     for _ in range(tl.cdiv(N, BLOCK_SIZE)):
         MASK = BLOCK < N
 
-        source = tl.load(source_ptrs, mask=MASK)
-        tl.store(destination_ptrs, source, mask=MASK)
+        x = tl.load(x_ptrs, mask=MASK)
+        tl.store(y_ptrs, x, mask=MASK)
 
         BLOCK += BLOCK_SIZE
-        source_ptrs += BLOCK_SIZE
-        destination_ptrs += BLOCK_SIZE
+        x_ptrs += BLOCK_SIZE
+        y_ptrs += BLOCK_SIZE
 
 
 @triton.jit
@@ -60,10 +58,10 @@ def pack_unpack_sequence_triton_kernel(
         pad_tokens = S - seqlens
         if BLOCK_ID_S >= pad_tokens:
             _copy_array(
-                source_ptr=x_ptr,
-                source_stride=x_stride,
-                destination_ptr=y_ptr,
-                destination_stride=y_stride,
+                x_ptr=x_ptr,
+                x_stride=x_stride,
+                y_ptr=y_ptr,
+                y_stride=y_stride,
                 BLOCK_ID_B=BLOCK_ID_B,
                 BLOCK_ID_S=BLOCK_ID_S,
                 t=start + BLOCK_ID_S - pad_tokens,
@@ -75,10 +73,10 @@ def pack_unpack_sequence_triton_kernel(
     else:
         if BLOCK_ID_S < seqlens:
             _copy_array(
-                source_ptr=x_ptr,
-                source_stride=x_stride,
-                destination_ptr=y_ptr,
-                destination_stride=y_stride,
+                x_ptr=x_ptr,
+                x_stride=x_stride,
+                y_ptr=y_ptr,
+                y_stride=y_stride,
                 BLOCK_ID_B=BLOCK_ID_B,
                 BLOCK_ID_S=BLOCK_ID_S,
                 t=start + BLOCK_ID_S,
