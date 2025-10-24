@@ -80,7 +80,7 @@ class FusedResdidualAddRMSNormTest(TestCommons):
 
         context = torch.no_grad if no_grad else nullcontext
 
-        if context():
+        with context():
             if has_weight:
                 weight_kernel, weight_expected = self.get_random_duplicated_tensors(
                     size[-1], device=device, dtype=dtype
@@ -110,23 +110,25 @@ class FusedResdidualAddRMSNormTest(TestCommons):
                 )
                 z_expected = z_expected * 2 + r_expected * 3
 
-            z_kernel.sum().backward()
-            z_expected.sum().backward()
-
             self.assert_equal_tensors(z_kernel, z_expected, False, atol_float32=1.4e-4, rtol_float32=0)
-            self.assert_equal_tensors(x_kernel.grad, x_expected.grad, False, atol_float32=1.5e-4, rtol_float32=0)
-            self.assert_equal_tensors(
-                residual_kernel.grad, residual_expected.grad, False, atol_float32=1.6e-4, rtol_float32=0
-            )
 
-            if has_weight:
+            if not no_grad:
+                z_kernel.sum().backward()
+                z_expected.sum().backward()
+
+                self.assert_equal_tensors(x_kernel.grad, x_expected.grad, False, atol_float32=1.5e-4, rtol_float32=0)
                 self.assert_equal_tensors(
-                    weight_kernel.grad,
-                    weight_expected.grad,
-                    False,
-                    atol_float32=1.1e-4,
-                    rtol_float32=0,
+                    residual_kernel.grad, residual_expected.grad, False, atol_float32=1.6e-4, rtol_float32=0
                 )
+
+                if has_weight:
+                    self.assert_equal_tensors(
+                        weight_kernel.grad,
+                        weight_expected.grad,
+                        False,
+                        atol_float32=1.1e-4,
+                        rtol_float32=0,
+                    )
 
     # def test_fused_residual_add_rmsnorm_kernel_replacement(self) -> None:
     #     class Model(nn.Module):
