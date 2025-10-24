@@ -46,7 +46,7 @@ class GRUTest(TestCommons):
 
         context = torch.no_grad if no_grad else nullcontext
 
-        if context():
+        with context():
             x_kernel, x_torch, input_state_kernel, input_state_torch = self._get_packed_tensor_inputs(
                 batch_size=batch_size,
                 sequence_length=sequence_length,

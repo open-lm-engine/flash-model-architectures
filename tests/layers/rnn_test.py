@@ -2,6 +2,8 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
+from contextlib import nullcontext
+
 import torch
 import torch.nn as nn
 from parameterized import parameterized
@@ -25,6 +27,7 @@ class RNNTest(TestCommons):
             [7],  # num_heads
             [False, True],  # has_input_state
             [False, True],  # is_compiling
+            [False, True],  # no_grad
         )
     )
     def test_rnn(
@@ -37,73 +40,78 @@ class RNNTest(TestCommons):
         num_heads: int,
         has_input_state: bool,
         is_compiling: bool,
+        no_grad: bool,
     ) -> None:
         set_seed(_SEED)
 
-        x_kernel, x_torch, input_state_kernel, input_state_torch = self._get_packed_tensor_inputs(
-            batch_size=batch_size,
-            sequence_length=sequence_length,
-            total_tokens=None,
-            state_size=state_size,
-            has_input_state=has_input_state,
-            dtype=dtype,
-            device=device,
-        )
+        context = torch.no_grad if no_grad else nullcontext
 
-        with torch.device(device):
-            rnn = RNN(
-                input_size=state_size,
+        with context():
+            x_kernel, x_torch, input_state_kernel, input_state_torch = self._get_packed_tensor_inputs(
+                batch_size=batch_size,
+                sequence_length=sequence_length,
+                total_tokens=None,
                 state_size=state_size,
-                output_size=state_size,
-                num_heads=num_heads,
-                add_bias=False,
-                gradient_clipping=None,
-            ).to(dtype)
+                has_input_state=has_input_state,
+                dtype=dtype,
+                device=device,
+            )
 
-            nn.init.normal_(rnn.state_weight, std=0.01)
+            with torch.device(device):
+                rnn = RNN(
+                    input_size=state_size,
+                    state_size=state_size,
+                    output_size=state_size,
+                    num_heads=num_heads,
+                    add_bias=False,
+                    gradient_clipping=None,
+                ).to(dtype)
 
-        rnn_torch = rnn
-        rnn_kernel = rnn
+                nn.init.normal_(rnn.state_weight, std=0.01)
 
-        if is_compiling:
-            rnn_kernel = torch.compile(rnn_kernel, fullgraph=True)
+            rnn_torch = rnn
+            rnn_kernel = rnn
 
-        y_kernel, output_state_kernel = rnn_kernel(input=x_kernel, input_state=input_state_kernel)
+            if is_compiling:
+                rnn_kernel = torch.compile(rnn_kernel, fullgraph=True)
 
-        with force_kernel_backend(KernelBackend.torch):
-            y_torch, output_state_torch = rnn_torch(input=x_torch, input_state=input_state_torch)
+            y_kernel, output_state_kernel = rnn_kernel(input=x_kernel, input_state=input_state_kernel)
 
-        self.assert_equal_tensors(
-            y_kernel, y_torch, False, atol_float32=4e-6, rtol_float32=0, atol_float16=6.5e-5, rtol_float16=0
-        )
+            with force_kernel_backend(KernelBackend.torch):
+                y_torch, output_state_torch = rnn_torch(input=x_torch, input_state=input_state_torch)
 
-        self.assert_equal_tensors(
-            output_state_kernel,
-            output_state_torch,
-            False,
-            atol_float32=4e-6,
-            rtol_float32=0,
-            atol_float16=6.5e-5,
-            rtol_float16=0,
-        )
+            self.assert_equal_tensors(
+                y_kernel, y_torch, False, atol_float32=4e-6, rtol_float32=0, atol_float16=6.5e-5, rtol_float16=0
+            )
 
-        y_kernel.sum().backward()
-        weight_kernel_grads = self.collect_gradients_from_module_and_zero_grads(rnn)
+            self.assert_equal_tensors(
+                output_state_kernel,
+                output_state_torch,
+                False,
+                atol_float32=4e-6,
+                rtol_float32=0,
+                atol_float16=6.5e-5,
+                rtol_float16=0,
+            )
 
-        y_torch.sum().backward()
-        weight_torch_grads = self.collect_gradients_from_module_and_zero_grads(rnn)
+            if not no_grad:
+                y_kernel.sum().backward()
+                weight_kernel_grads = self.collect_gradients_from_module_and_zero_grads(rnn)
 
-        self.assert_equal_tensors(x_kernel.grad, x_torch.grad, False, atol_float16=5e-4, rtol_float16=0)
+                y_torch.sum().backward()
+                weight_torch_grads = self.collect_gradients_from_module_and_zero_grads(rnn)
 
-        self.assert_equal_tensors(
-            weight_kernel_grads["state_weight"],
-            weight_torch_grads["state_weight"],
-            False,
-            atol_float32=1.5e-3,
-            rtol_float32=0,
-            atol_float16=1.7e-2,
-            rtol_float16=0,
-        )
+                self.assert_equal_tensors(x_kernel.grad, x_torch.grad, False, atol_float16=5e-4, rtol_float16=0)
+
+                self.assert_equal_tensors(
+                    weight_kernel_grads["state_weight"],
+                    weight_torch_grads["state_weight"],
+                    False,
+                    atol_float32=1.5e-3,
+                    rtol_float32=0,
+                    atol_float16=1.7e-2,
+                    rtol_float16=0,
+                )
 
     @parameterized.expand(
         TestCommons.make_args_matrix(
@@ -197,6 +205,7 @@ class RNNTest(TestCommons):
             [4, 256],  # num_heads
             [False, True],  # has_input_state
             [False, True],  # is_compiling
+            [False, True],  # no_grad
         )
     )
     def test_rnn_varlen(
@@ -208,83 +217,106 @@ class RNNTest(TestCommons):
         num_heads: int,
         has_input_state: bool,
         is_compiling: bool,
+        no_grad: bool,
     ) -> None:
         set_seed(_SEED)
 
-        batch_size = len(cu_seqlens) - 1
-        cu_seqlens = torch.tensor(cu_seqlens, device=device)
-        max_seqlen = (cu_seqlens[1:] - cu_seqlens[:-1]).max()
+        context = torch.no_grad if no_grad else nullcontext
 
-        x_kernel, x_torch, input_state_kernel, input_state_torch = self._get_packed_tensor_inputs(
-            batch_size=batch_size,
-            sequence_length=None,
-            total_tokens=cu_seqlens[-1],
-            state_size=state_size,
-            has_input_state=has_input_state,
-            dtype=dtype,
-            device=device,
-        )
+        with context():
+            batch_size = len(cu_seqlens) - 1
+            cu_seqlens = torch.tensor(cu_seqlens, device=device)
+            max_seqlen = (cu_seqlens[1:] - cu_seqlens[:-1]).max()
 
-        with torch.device(device):
-            rnn = RNN(
-                input_size=state_size,
+            x_kernel, x_torch, input_state_kernel, input_state_torch = self._get_packed_tensor_inputs(
+                batch_size=batch_size,
+                sequence_length=None,
+                total_tokens=cu_seqlens[-1],
                 state_size=state_size,
-                output_size=state_size,
-                num_heads=num_heads,
-                add_bias=False,
-                gradient_clipping=None,
-            ).to(dtype)
-
-            nn.init.normal_(rnn.state_weight, std=0.01)
-
-        rnn_torch = rnn
-        rnn_kernel = rnn
-
-        if is_compiling:
-            rnn_kernel = torch.compile(rnn_kernel, fullgraph=True)
-
-        y_kernel, _ = rnn_kernel(
-            input=x_kernel, input_state=input_state_kernel, cu_seqlens=cu_seqlens, max_seqlen=max_seqlen
-        )
-
-        with force_kernel_backend(KernelBackend.torch):
-            y_torch, _ = rnn_torch(
-                input=x_torch, input_state=input_state_torch, cu_seqlens=cu_seqlens, max_seqlen=max_seqlen
+                has_input_state=has_input_state,
+                dtype=dtype,
+                device=device,
             )
 
-        y_kernel.sum().backward()
-        weight_kernel_grads = self.collect_gradients_from_module_and_zero_grads(rnn)
+            with torch.device(device):
+                rnn = RNN(
+                    input_size=state_size,
+                    state_size=state_size,
+                    output_size=state_size,
+                    num_heads=num_heads,
+                    add_bias=False,
+                    gradient_clipping=None,
+                ).to(dtype)
 
-        y_torch.sum().backward()
-        weight_torch_grads = self.collect_gradients_from_module_and_zero_grads(rnn)
+                nn.init.normal_(rnn.state_weight, std=0.01)
 
-        self.assert_equal_tensors(
-            y_kernel,
-            y_torch,
-            False,
-            atol_float32=3e-6,
-            rtol_float32=0,
-            atol_float16=7.7e-6,
-            rtol_float16=0,
-            atol_bfloat16=6.2e-5,
-            rtol_bfloat16=0,
-        )
+            rnn_torch = rnn
+            rnn_kernel = rnn
 
-        self.assert_equal_tensors(
-            x_kernel.grad, x_torch.grad, False, atol_float32=2e-3, rtol_float32=0, atol_float16=2e-3, rtol_float16=0
-        )
+            if is_compiling:
+                rnn_kernel = torch.compile(rnn_kernel, fullgraph=True)
 
-        self.assert_equal_tensors(
-            weight_kernel_grads["state_weight"],
-            weight_torch_grads["state_weight"],
-            False,
-            atol_float32=2.6e-4,
-            rtol_float32=0,
-            atol_float16=6.2e-4,
-            rtol_float16=0,
-            atol_bfloat16=5e-3,
-            rtol_bfloat16=0,
-        )
+            y_kernel, output_state_kernel = rnn_kernel(
+                input=x_kernel, input_state=input_state_kernel, cu_seqlens=cu_seqlens, max_seqlen=max_seqlen
+            )
+
+            with force_kernel_backend(KernelBackend.torch):
+                y_torch, output_state_torch = rnn_torch(
+                    input=x_torch, input_state=input_state_torch, cu_seqlens=cu_seqlens, max_seqlen=max_seqlen
+                )
+
+            self.assert_equal_tensors(
+                y_kernel,
+                y_torch,
+                False,
+                atol_float32=3e-6,
+                rtol_float32=0,
+                atol_float16=7.7e-6,
+                rtol_float16=0,
+                atol_bfloat16=6.2e-5,
+                rtol_bfloat16=0,
+            )
+
+            self.assert_equal_tensors(
+                output_state_kernel,
+                output_state_torch,
+                False,
+                atol_float32=4e-6,
+                rtol_float32=0,
+                atol_float16=6.5e-5,
+                rtol_float16=0,
+                atol_bfloat16=2e-4,
+                rtol_bfloat16=0,
+            )
+
+            if no_grad:
+                y_kernel.sum().backward()
+                weight_kernel_grads = self.collect_gradients_from_module_and_zero_grads(rnn)
+
+                y_torch.sum().backward()
+                weight_torch_grads = self.collect_gradients_from_module_and_zero_grads(rnn)
+
+                self.assert_equal_tensors(
+                    x_kernel.grad,
+                    x_torch.grad,
+                    False,
+                    atol_float32=2e-3,
+                    rtol_float32=0,
+                    atol_float16=2e-3,
+                    rtol_float16=0,
+                )
+
+                self.assert_equal_tensors(
+                    weight_kernel_grads["state_weight"],
+                    weight_torch_grads["state_weight"],
+                    False,
+                    atol_float32=2.6e-4,
+                    rtol_float32=0,
+                    atol_float16=6.2e-4,
+                    rtol_float16=0,
+                    atol_bfloat16=5e-3,
+                    rtol_bfloat16=0,
+                )
 
     def _get_packed_tensor_inputs(
         self,
