@@ -163,9 +163,14 @@ def gru_forward_triton_kernel(
         xr_ptrs += xr_stride[1 - IS_VARLEN]
         xf_ptrs += xf_stride[1 - IS_VARLEN]
 
-        z_ptrs += z_stride[1 - IS_VARLEN]
-        r_ptrs += r_stride[1 - IS_VARLEN]
-        f_ptrs += f_stride[1 - IS_VARLEN]
+        if z_ptr is not None:
+            z_ptrs += z_stride[1 - IS_VARLEN]
+
+        if r_ptr is not None:
+            r_ptrs += r_stride[1 - IS_VARLEN]
+
+        if f_ptr is not None:
+            f_ptrs += f_stride[1 - IS_VARLEN]
 
         y_ptrs += y_stride[1 - IS_VARLEN]
 
