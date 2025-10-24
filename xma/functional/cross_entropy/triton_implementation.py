@@ -70,6 +70,19 @@ def cross_entropy_forward_backward_triton_kernel(
 
     y = tl.load(y_ptr + BLOCK_B * y_stride[0], mask=MASK_B)
 
+    x1 = tl.load(x_ptr + BLOCK_B * x_stride[0] + y * x_stride[1], mask=MASK_B).to(tl.float32)
+    if logits_multiplier is not None:
+        x1 *= logits_multiplier
+
+    l = M + tl.log(Z) - x1[:, None]
+    l = tl.where(MASK_B[:, None], l, 0)
+    l = tl.sum(l, axis=0)
+
+    if reduction == "mean":
+        l /= B
+
+    tl.atomic_add(l_ptr + tl.arange(0, 1), l, sem="relaxed")
+
     BLOCK_V = tl.arange(0, BLOCK_SIZE_V)
     x_ptrs = x_ptr + BLOCK_B[:, None] * x_stride[0] + BLOCK_V[None, :] * x_stride[1]
     dx_ptrs = dx_ptr + BLOCK_B[:, None] * dx_stride[0] + BLOCK_V[None, :] * dx_stride[1]
@@ -98,19 +111,6 @@ def cross_entropy_forward_backward_triton_kernel(
         BLOCK_V += BLOCK_SIZE_V
         x_ptrs += BLOCK_SIZE_V * x_stride[1]
         dx_ptrs += BLOCK_SIZE_V * dx_stride[1]
-
-    x = tl.load(x_ptr + BLOCK_B * x_stride[0] + y * x_stride[1], mask=MASK_B).to(tl.float32)
-    if logits_multiplier is not None:
-        x *= logits_multiplier
-
-    l = M + tl.log(Z) - x[:, None]
-    l = tl.where(MASK_B[:, None], l, 0)
-    l = tl.sum(l, axis=0)
-
-    if reduction == "mean":
-        l /= B
-
-    tl.atomic_add(l_ptr + tl.arange(0, 1), l, sem="relaxed")
 
 
 @custom_op(f"{LIBRARY_NAME}::cross_entropy_forward_backward_triton", mutates_args={"loss", "x_grad"})
