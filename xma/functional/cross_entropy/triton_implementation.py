@@ -68,7 +68,7 @@ def cross_entropy_forward_backward_triton_kernel(
         BLOCK_V += BLOCK_SIZE_V
         x_ptrs += BLOCK_SIZE_V * x_stride[1]
 
-    labels = tl.load(y_ptr + BLOCK_B * y_stride[0], mask=MASK_B)
+    y = tl.load(y_ptr + BLOCK_B * y_stride[0], mask=MASK_B)
 
     BLOCK_V = tl.arange(0, BLOCK_SIZE_V)
     x_ptrs = x_ptr + BLOCK_B[:, None] * x_stride[0] + BLOCK_V[None, :] * x_stride[1]
@@ -86,7 +86,7 @@ def cross_entropy_forward_backward_triton_kernel(
         x = tl.exp(x)
         x /= Z
 
-        x -= tl.where(BLOCK_V[None, :] == labels[:, None], 1, 0)
+        x -= tl.where(BLOCK_V[None, :] == y[:, None], 1, 0)
 
         if logits_multiplier is not None:
             x *= logits_multiplier
@@ -99,7 +99,7 @@ def cross_entropy_forward_backward_triton_kernel(
         x_ptrs += BLOCK_SIZE_V * x_stride[1]
         dx_ptrs += BLOCK_SIZE_V * dx_stride[1]
 
-    x = tl.load(x_ptr + BLOCK_B * x_stride[0] + labels * x_stride[1], mask=MASK_B).to(tl.float32)
+    x = tl.load(x_ptr + BLOCK_B * x_stride[0] + y * x_stride[1], mask=MASK_B).to(tl.float32)
     if logits_multiplier is not None:
         x *= logits_multiplier
 
