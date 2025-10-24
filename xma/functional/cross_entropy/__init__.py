@@ -16,7 +16,7 @@ class _CrossEntropy(torch.autograd.Function):
         ctx, x: torch.Tensor, labels: torch.Tensor, reduction: str, logits_multiplier: float | None
     ) -> torch.Tensor:
         loss = torch.zeros((), device=x.device, dtype=torch.float32)
-        x_grad = empty_like_contiguous(x)
+        x_grad = empty_like_contiguous(x) if ctx.needs_input_grad[0] else None
 
         cross_entropy_forward_backward_triton(
             x=x, labels=labels, loss=loss, x_grad=x_grad, logits_multiplier=logits_multiplier, reduction=reduction
