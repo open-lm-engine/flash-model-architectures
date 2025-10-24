@@ -11,7 +11,7 @@ from torch.utils._pytree import tree_map
 def make_contiguous(*args) -> list[torch.Tensor | None]:
     y = []
     for x in args:
-        y.append(x.contiguous() if isinstance(x, torch.Tensor) else None)
+        y.append(x.contiguous() if isinstance(x, torch.Tensor) else x)
 
     if len(y) == 1:
         y = y[0]
