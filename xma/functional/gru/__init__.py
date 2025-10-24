@@ -26,11 +26,13 @@ class _GRU(torch.autograd.Function):
         cu_seqlens: torch.Tensor | None,
         max_seqlen: torch.Tensor | int | None,
     ) -> torch.Tensor:
+        needs_grad = any(ctx.needs_input_grad[:6])
+
         output = empty_like_contiguous(input)
-        forget_gate = empty_like_contiguous(input)
-        reset_gate = empty_like_contiguous(input)
-        output_update = empty_like_contiguous(input)
         max_seqlen_tensor, max_seqlen = get_max_seqlen_and_max_seqlen_tensor(max_seqlen)
+        forget_gate = empty_like_contiguous(input) if needs_grad else None
+        reset_gate = empty_like_contiguous(input) if needs_grad else None
+        output_update = empty_like_contiguous(input) if needs_grad else None
 
         gru_forward_triton(
             input=input,
@@ -49,18 +51,19 @@ class _GRU(torch.autograd.Function):
             max_seqlen=max_seqlen,
         )
 
-        ctx.save_for_backward(
-            weight,
-            forget_weight,
-            forget_gate,
-            reset_weight,
-            reset_gate,
-            output_update,
-            output,
-            input_state,
-            cu_seqlens,
-            max_seqlen_tensor,
-        )
+        if needs_grad:
+            ctx.save_for_backward(
+                weight,
+                forget_weight,
+                forget_gate,
+                reset_weight,
+                reset_gate,
+                output_update,
+                output,
+                input_state,
+                cu_seqlens,
+                max_seqlen_tensor,
+            )
 
         ctx.max_seqlen = max_seqlen
         ctx.gradient_clipping = gradient_clipping
