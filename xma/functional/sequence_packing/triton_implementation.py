@@ -12,8 +12,8 @@ from ...constants import LIBRARY_NAME
 
 @triton.jit
 def _copy_array(source_ptr, source_stride, destination_ptr, BLOCK_ID_B, BLOCK_ID_S, t, S, N, PACK, BLOCK_SIZE):
-    source_offset = (BLOCK_ID_B * S + BLOCK_ID_S) * N
-    destination_offset = t * N
+    unpacked_offset = (BLOCK_ID_B * S + BLOCK_ID_S) * N
+    packed_offset = t * N
 
     BLOCK = tl.arange(0, BLOCK_SIZE)
 
@@ -21,11 +21,11 @@ def _copy_array(source_ptr, source_stride, destination_ptr, BLOCK_ID_B, BLOCK_ID
         MASK = BLOCK < N
 
         if PACK:
-            source = tl.load(source_ptr + source_offset + BLOCK, mask=MASK)
-            tl.store(destination_ptr + destination_offset + BLOCK, source, mask=MASK)
+            source = tl.load(source_ptr + unpacked_offset + BLOCK, mask=MASK)
+            tl.store(destination_ptr + packed_offset + BLOCK, source, mask=MASK)
         else:
-            source = tl.load(source_ptr + destination_offset + BLOCK, mask=MASK)
-            tl.store(destination_ptr + source_offset + BLOCK, source, mask=MASK)
+            source = tl.load(source_ptr + packed_offset + BLOCK, mask=MASK)
+            tl.store(destination_ptr + unpacked_offset + BLOCK, source, mask=MASK)
 
         BLOCK += BLOCK_SIZE
 
