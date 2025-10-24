@@ -99,9 +99,14 @@ def gru_forward_triton_kernel(
         xr_ptrs = xr_ptr + start * xr_stride[0] + BLOCK_ID_N * xr_stride[1] + BLOCK_H[None, :] * xr_stride[2]
         xf_ptrs = xf_ptr + start * xf_stride[0] + BLOCK_ID_N * xf_stride[1] + BLOCK_H[None, :] * xf_stride[2]
 
-        z_ptrs = z_ptr + start * z_stride[0] + BLOCK_ID_N * z_stride[1] + BLOCK_H[None, :] * z_stride[2]
-        r_ptrs = r_ptr + start * r_stride[0] + BLOCK_ID_N * r_stride[1] + BLOCK_H[None, :] * r_stride[2]
-        f_ptrs = f_ptr + start * f_stride[0] + BLOCK_ID_N * f_stride[1] + BLOCK_H[None, :] * f_stride[2]
+        if z_ptr is not None:
+            z_ptrs = z_ptr + start * z_stride[0] + BLOCK_ID_N * z_stride[1] + BLOCK_H[None, :] * z_stride[2]
+
+        if r_ptr is not None:
+            r_ptrs = r_ptr + start * r_stride[0] + BLOCK_ID_N * r_stride[1] + BLOCK_H[None, :] * r_stride[2]
+
+        if f_ptr is not None:
+            f_ptrs = f_ptr + start * f_stride[0] + BLOCK_ID_N * f_stride[1] + BLOCK_H[None, :] * f_stride[2]
 
         y_ptrs = y_ptr + start * y_stride[0] + BLOCK_ID_N * y_stride[1] + BLOCK_H[None, :] * y_stride[2]
     else:
@@ -113,9 +118,14 @@ def gru_forward_triton_kernel(
             xf_ptr + BLOCK_B[:, None] * xf_stride[0] + BLOCK_ID_N * xf_stride[2] + BLOCK_H[None, :] * xf_stride[3]
         )
 
-        z_ptrs = z_ptr + BLOCK_B[:, None] * z_stride[0] + BLOCK_ID_N * z_stride[2] + BLOCK_H[None, :] * z_stride[3]
-        r_ptrs = r_ptr + BLOCK_B[:, None] * r_stride[0] + BLOCK_ID_N * r_stride[2] + BLOCK_H[None, :] * r_stride[3]
-        f_ptrs = f_ptr + BLOCK_B[:, None] * f_stride[0] + BLOCK_ID_N * f_stride[2] + BLOCK_H[None, :] * f_stride[3]
+        if z_ptr is not None:
+            z_ptrs = z_ptr + BLOCK_B[:, None] * z_stride[0] + BLOCK_ID_N * z_stride[2] + BLOCK_H[None, :] * z_stride[3]
+
+        if r_ptr is not None:
+            r_ptrs = r_ptr + BLOCK_B[:, None] * r_stride[0] + BLOCK_ID_N * r_stride[2] + BLOCK_H[None, :] * r_stride[3]
+
+        if f_ptr is not None:
+            f_ptrs = f_ptr + BLOCK_B[:, None] * f_stride[0] + BLOCK_ID_N * f_stride[2] + BLOCK_H[None, :] * f_stride[3]
 
         y_ptrs = y_ptr + BLOCK_B[:, None] * y_stride[0] + BLOCK_ID_N * y_stride[2] + BLOCK_H[None, :] * y_stride[3]
 
@@ -128,17 +138,23 @@ def gru_forward_triton_kernel(
         x = tl.load(xr_ptrs, mask=MASK)
         r = matmul(A=h, B=Wr, C=x, output_dtype=tl.float32)
         r = sigmoid(r, output_dtype=x.dtype)
-        tl.store(r_ptrs, r, mask=MASK)
+
+        if r_ptr is not None:
+            tl.store(r_ptrs, r, mask=MASK)
 
         x = tl.load(x_ptrs, mask=MASK)
         z = matmul(A=h * r, B=W, C=x, output_dtype=tl.float32)
         z = tanh(z, output_dtype=x.dtype)
-        tl.store(z_ptrs, z, mask=MASK)
+
+        if z_ptr is not None:
+            tl.store(z_ptrs, z, mask=MASK)
 
         x = tl.load(xf_ptrs, mask=MASK)
         f = matmul(A=h, B=Wf, C=x, output_dtype=tl.float32)
         f = sigmoid(f, output_dtype=x.dtype)
-        tl.store(f_ptrs, f, mask=MASK)
+
+        if f_ptr is not None:
+            tl.store(f_ptrs, f, mask=MASK)
 
         h = f * h + (1 - f) * z
         tl.store(y_ptrs, h, mask=MASK)
@@ -165,11 +181,11 @@ def gru_forward_triton(
     weight: torch.Tensor,
     forget_input: torch.Tensor,
     forget_weight: torch.Tensor,
-    forget_gate: torch.Tensor,
+    forget_gate: torch.Tensor | None,
     reset_input: torch.Tensor,
     reset_weight: torch.Tensor,
-    reset_gate: torch.Tensor,
-    output_update: torch.Tensor,
+    reset_gate: torch.Tensor | None,
+    output_update: torch.Tensor | None,
     input_state: torch.Tensor | None,
     output: torch.Tensor,
     cu_seqlens: torch.Tensor | None,
@@ -207,11 +223,11 @@ def gru_forward_triton(
             Wr_ptr=reset_weight,
             Wr_stride=reset_weight.stride(),
             z_ptr=output_update,
-            z_stride=output_update.stride(),
+            z_stride=None if output_update is None else output_update.stride(),
             f_ptr=forget_gate,
-            f_stride=forget_gate.stride(),
+            f_stride=None if forget_gate is None else forget_gate.stride(),
             r_ptr=reset_gate,
-            r_stride=reset_gate.stride(),
+            r_stride=None if reset_gate is None else reset_gate.stride(),
             h0_ptr=input_state,
             h0_stride=None if input_state is None else input_state.stride(),
             y_ptr=output,
