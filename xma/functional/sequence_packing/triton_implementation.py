@@ -11,7 +11,9 @@ from ...constants import LIBRARY_NAME
 
 
 @triton.jit
-def _copy_array(source_ptr, source_stride, destination_ptr, BLOCK_ID_B, BLOCK_ID_S, t, S, N, PACK, BLOCK_SIZE):
+def _copy_array(
+    source_ptr, source_stride, destination_ptr, destination_stride, BLOCK_ID_B, BLOCK_ID_S, t, S, N, PACK, BLOCK_SIZE
+):
     BLOCK = tl.arange(0, BLOCK_SIZE)
 
     if PACK:
