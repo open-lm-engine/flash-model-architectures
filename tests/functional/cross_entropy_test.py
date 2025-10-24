@@ -51,7 +51,7 @@ class CrossEntropyTest(TestCommons):
 
         context = torch.no_grad if no_grad else nullcontext
 
-        if context():
+        with context():
             x_kernel, x_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype, std=0.02)
             labels = torch.randint(0, x_kernel.size(-1), (x_kernel.size(0),), device=x_kernel.device)
 
