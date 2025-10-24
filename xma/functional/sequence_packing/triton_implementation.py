@@ -54,6 +54,8 @@ def pack_unpack_sequence_triton_kernel(
     end = tl.load(cu_seqlens_ptrs + cu_seqlens_stride[0])
     seqlens = end - start
 
+    pad_tokens = S - seqlens if PADDING_SIDE == "left" else 0
+
     if PADDING_SIDE == "left":
         pad_tokens = S - seqlens
         if BLOCK_ID_S >= pad_tokens:
@@ -70,21 +72,20 @@ def pack_unpack_sequence_triton_kernel(
                 PACK=PACK,
                 BLOCK_SIZE=BLOCK_SIZE,
             )
-    else:
-        if BLOCK_ID_S < seqlens:
-            _copy_array(
-                x_ptr=x_ptr,
-                x_stride=x_stride,
-                y_ptr=y_ptr,
-                y_stride=y_stride,
-                BLOCK_ID_B=BLOCK_ID_B,
-                BLOCK_ID_S=BLOCK_ID_S,
-                t=start + BLOCK_ID_S,
-                S=S,
-                N=N,
-                PACK=PACK,
-                BLOCK_SIZE=BLOCK_SIZE,
-            )
+    elif BLOCK_ID_S < seqlens:
+        _copy_array(
+            x_ptr=x_ptr,
+            x_stride=x_stride,
+            y_ptr=y_ptr,
+            y_stride=y_stride,
+            BLOCK_ID_B=BLOCK_ID_B,
+            BLOCK_ID_S=BLOCK_ID_S,
+            t=start + BLOCK_ID_S - pad_tokens,
+            S=S,
+            N=N,
+            PACK=PACK,
+            BLOCK_SIZE=BLOCK_SIZE,
+        )
 
 
 @custom_op(f"{LIBRARY_NAME}::pack_unpack_sequence_triton", mutates_args={"output"})
