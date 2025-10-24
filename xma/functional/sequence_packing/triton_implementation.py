@@ -11,7 +11,7 @@ from ...constants import LIBRARY_NAME
 
 
 @triton.jit
-def _copy_array(x_ptr, x_stride, y_ptr, y_stride, BLOCK_ID_B, BLOCK_ID_S, t, S, N, PACK, BLOCK_SIZE):
+def _copy_array(x_ptr, x_stride, y_ptr, y_stride, BLOCK_ID_B, BLOCK_ID_S, t, N, PACK, BLOCK_SIZE):
     BLOCK = tl.arange(0, BLOCK_SIZE)
 
     if PACK:
@@ -65,7 +65,6 @@ def pack_unpack_sequence_triton_kernel(
             BLOCK_ID_B=BLOCK_ID_B,
             BLOCK_ID_S=BLOCK_ID_S,
             t=start + BLOCK_ID_S - pad_tokens,
-            S=S,
             N=N,
             PACK=PACK,
             BLOCK_SIZE=BLOCK_SIZE,
