@@ -58,11 +58,33 @@ def pack_unpack_sequence_triton_kernel(
         pad_tokens = S - seqlens
         if BLOCK_ID_S >= pad_tokens:
             _copy_array(
-                x_ptr, x_stride, y_ptr, BLOCK_ID_B, BLOCK_ID_S, start + BLOCK_ID_S - pad_tokens, S, N, PACK, BLOCK_SIZE
+                source_ptr=x_ptr,
+                source_stride=x_stride,
+                destination_ptr=y_ptr,
+                destination_stride=y_stride,
+                BLOCK_ID_B=BLOCK_ID_B,
+                BLOCK_ID_S=BLOCK_ID_S,
+                t=start + BLOCK_ID_S - pad_tokens,
+                S=S,
+                N=N,
+                PACK=PACK,
+                BLOCK_SIZE=BLOCK_SIZE,
             )
     else:
         if BLOCK_ID_S < seqlens:
-            _copy_array(x_ptr, x_stride, y_ptr, BLOCK_ID_B, BLOCK_ID_S, start + BLOCK_ID_S, S, N, PACK, BLOCK_SIZE)
+            _copy_array(
+                source_ptr=x_ptr,
+                source_stride=x_stride,
+                destination_ptr=y_ptr,
+                destination_stride=y_stride,
+                BLOCK_ID_B=BLOCK_ID_B,
+                BLOCK_ID_S=BLOCK_ID_S,
+                t=start + BLOCK_ID_S,
+                S=S,
+                N=N,
+                PACK=PACK,
+                BLOCK_SIZE=BLOCK_SIZE,
+            )
 
 
 @custom_op(f"{LIBRARY_NAME}::pack_unpack_sequence_triton", mutates_args={"output"})
