@@ -56,8 +56,6 @@ class _UpProjectionExperts(torch.autograd.Function):
         ) = ctx.saved_tensors
 
         k = ctx.k
-        grouped_grad_out = None
-        grouped_grad_out = grad_out
 
         grouped_x = torch.empty(sorted_scattered_idxs.size(0), x.size(1), dtype=x.dtype, device=x.device)
         group(
@@ -71,7 +69,7 @@ class _UpProjectionExperts(torch.autograd.Function):
         d_weights = torch.zeros_like(expert_weights)
 
         group_bwd_W(
-            DY=grouped_grad_out,
+            DY=grad_out,
             X=grouped_x,
             expert_offsets=expert_offsets,
             DW=d_weights,
@@ -79,7 +77,7 @@ class _UpProjectionExperts(torch.autograd.Function):
         )
 
         scatter2scatter(
-            X=grouped_grad_out,
+            X=grad_out,
             W=expert_weights.permute(0, 2, 1),
             sorted_expert_idxs=sorted_expert_idxs,
             sorted_scattered_idxs=sorted_scattered_idxs,
