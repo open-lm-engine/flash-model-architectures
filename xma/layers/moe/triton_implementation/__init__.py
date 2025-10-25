@@ -19,7 +19,6 @@ class _UpProjectionExperts(torch.autograd.Function):
         sorted_expert_idxs,
         sorted_scattered_idxs,
         expert_offsets,
-        gates=None,
         grouped_in=False,
         grouped_out=False,
     ):
@@ -36,20 +35,12 @@ class _UpProjectionExperts(torch.autograd.Function):
             y_grouped=grouped_out,
         )
 
-        if gates is None:
-            output_expanded = None
-        else:
-            output_expanded = output.view(gates.size(0), gates.size(1), output.size(-1))
-            output = torch.bmm(gates.unsqueeze(1), output_expanded).squeeze(1)
-
         ctx.save_for_backward(
             x,
             expert_weights,
             sorted_expert_idxs,
             sorted_scattered_idxs,
             expert_offsets,
-            gates,
-            output_expanded,
         )
 
         ctx.grouped_in = grouped_in
@@ -66,25 +57,15 @@ class _UpProjectionExperts(torch.autograd.Function):
             sorted_expert_idxs,
             sorted_scattered_idxs,
             expert_offsets,
-            gates,
-            output_expanded,
         ) = ctx.saved_tensors
         k = ctx.k
         grouped_in = ctx.grouped_in
         grouped_out = ctx.grouped_out
 
-        if gates is None:
-            d_gates = None
-            gates_flat = None
-            gate_fan = 1
-            grouped_grad_out = None
-        else:
-            # calculate gates gradient
-            d_gates = torch.bmm(output_expanded, grad_out.unsqueeze(2)).squeeze(-1)
-            gates_flat = gates.flatten()
-            gate_fan = gates.size(1)
-            # print("expanded and grouping")
-            grouped_grad_out = output_expanded.flatten(0, 1)  # reuse expanded buffer later
+        d_gates = None
+        gates_flat = None
+        gate_fan = 1
+        grouped_grad_out = None
 
         if grouped_out:
             grouped_grad_out = grad_out
@@ -154,8 +135,6 @@ class _UpProjectionExperts(torch.autograd.Function):
             None,
             # expert_offsets,
             None,
-            # gates
-            d_gates,
             None,
             None,
         )
