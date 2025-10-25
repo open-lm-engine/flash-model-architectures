@@ -27,11 +27,11 @@ class _Softmax(CustomOp):
 
     @staticmethod
     def forward_cuda(ctx, x: torch.Tensor, logits_multiplier: float | None) -> torch.Tensor:
-        return _Softmax.forward(ctx, x, logits_multiplier)
+        return _Softmax.forward_triton(ctx, x, logits_multiplier)
 
     @staticmethod
     def backward_cuda(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
-        return _Softmax.backward(ctx, output_grad)
+        return _Softmax.backward_triton(ctx, output_grad)
 
     @staticmethod
     def forward_triton(ctx, x: torch.Tensor, logits_multiplier: float | None) -> torch.Tensor:
