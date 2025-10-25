@@ -29,7 +29,7 @@ def force_kernel_backend(kernel_backend: KernelBackend):
 class KernelBackend(Enum):
     cuda = "cuda"
     rocm = "rocm"
-    tpu = "pallas"
+    pallas = "pallas"
     # for triton compatible accelerators
     triton = "triton"
     torch = "torch"
@@ -46,6 +46,6 @@ class KernelBackend(Enum):
         if device_type == "cuda":
             return KernelBackend.rocm if _IS_ROCM_AVAILABLE else KernelBackend.cuda
         elif device_type == "xla":
-            return KernelBackend.tpu
+            return KernelBackend.pallas
         else:
             return KernelBackend.triton
