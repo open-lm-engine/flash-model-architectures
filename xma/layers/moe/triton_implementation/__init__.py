@@ -58,11 +58,10 @@ class _UpProjectionExperts(torch.autograd.Function):
             sorted_scattered_idxs,
             expert_offsets,
         ) = ctx.saved_tensors
+
         k = ctx.k
         grouped_in = ctx.grouped_in
         grouped_out = ctx.grouped_out
-
-        d_gates = None
         gates_flat = None
         gate_fan = 1
         grouped_grad_out = None
@@ -311,7 +310,6 @@ def scattered_experts(
             sorted_expert_idxs,
             sorted_scattered_idxs,
             expert_offsets,
-            gates,
             grouped_in,
             grouped_out,
         )
