@@ -73,6 +73,11 @@ class _Swiglu(CustomOp):
 
 class _SwigluPacked(CustomOp):
     @staticmethod
+    def forward_backward_torch(x: torch.Tensor) -> torch.Tensor:
+        up, gate = x.chunk(2, dim=-1)
+        return swiglu(gate=gate, up=up, kernel_backend=KernelBackend.torch)
+
+    @staticmethod
     def forward_cuda(ctx, x: torch.Tensor) -> torch.Tensor:
         return _SwigluPacked.forward_triton(ctx, x)
 
