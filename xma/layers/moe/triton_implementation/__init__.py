@@ -92,17 +92,7 @@ class _UpProjectionExperts(torch.autograd.Function):
         else:
             d_input = d_expanded_input.view(x.size(0), k, d_expanded_input.size(-1)).sum(-2)
 
-        return (
-            # x, expert_weights, k,
-            d_input,
-            d_weights,
-            None,
-            # sorted_expert_idxs, sorted_scattered_idxs,
-            None,
-            None,
-            # expert_offsets,
-            None,
-        )
+        return d_input, d_weights, None, None, None, None
 
 
 class _ScatteredExperts(torch.autograd.Function):
