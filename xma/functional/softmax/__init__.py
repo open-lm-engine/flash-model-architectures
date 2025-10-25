@@ -5,7 +5,7 @@
 import torch
 import torch.nn.functional as F
 
-from ...custom_op import CustomOp
+from ...custom_op import CustomOp, ctx_save_for_backward
 from ...enums import KernelBackend
 from ...utils import empty_like_contiguous
 from .triton_implementation import softmax_backward_triton, softmax_forward_triton
@@ -39,7 +39,7 @@ class _Softmax(CustomOp):
 
         softmax_forward_triton(x=x, output=output, logits_multiplier=logits_multiplier)
 
-        ctx.save_for_backward(output)
+        ctx_save_for_backward(ctx, output)
         ctx.logits_multiplier = logits_multiplier
 
         return output
