@@ -58,14 +58,8 @@ class _UpProjectionExperts(torch.autograd.Function):
         k = ctx.k
 
         grouped_x = torch.empty(sorted_scattered_idxs.size(0), x.size(1), dtype=x.dtype, device=x.device)
-        group(
-            A=x,
-            sorted_expert_idxs=sorted_scattered_idxs,
-            out=grouped_x,
-            fan_out=k,
-        )
+        group(A=x, sorted_expert_idxs=sorted_scattered_idxs, out=grouped_x, fan_out=k)
 
-        d_expanded_input = grouped_x
         d_weights = torch.zeros_like(expert_weights)
 
         group_bwd_W(
@@ -81,16 +75,16 @@ class _UpProjectionExperts(torch.autograd.Function):
             W=expert_weights.permute(0, 2, 1),
             sorted_expert_idxs=sorted_expert_idxs,
             sorted_scattered_idxs=sorted_scattered_idxs,
-            out=d_expanded_input,
+            out=grouped_x,
             FAN_OUT=1,
             x_grouped=True,
             y_grouped=False,
         )
 
         if k == 1:
-            d_input = d_expanded_input
+            d_input = grouped_x
         else:
-            d_input = d_expanded_input.view(x.size(0), k, d_expanded_input.size(-1)).sum(-2)
+            d_input = grouped_x.view(x.size(0), k, grouped_x.size(-1)).sum(-2)
 
         return d_input, d_weights, None, None, None, None
 
