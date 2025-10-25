@@ -81,13 +81,13 @@ class _FusedLinearCrossEntropy(CustomOp):
         return loss
 
     @staticmethod
-    def backward_triton(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
+    def backward_triton(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor | None, None, None, None]:
         x_grad, weight_grad = ctx.saved_tensors
 
         x_grad *= output_grad
         weight_grad *= output_grad
 
-        return x_grad, weight_grad, *[None] * 3
+        return x_grad, weight_grad, None, None, None
 
 
 def fused_linear_cross_entropy(
