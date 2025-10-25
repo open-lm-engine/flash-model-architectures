@@ -11,7 +11,7 @@ import torch.nn.functional as F
 from ...enums import KernelBackend
 from ...functional import continuous_count
 from .cuda_implementation import group_with_padding, grouped_gemm_experts, ungroup_with_padding
-from .triton_implementation import scattered_experts, up_projection_experts
+from .triton_implementation import down_projection_experts, up_projection_experts
 
 
 class Experts(nn.Module):
@@ -69,7 +69,7 @@ class Experts(nn.Module):
     ) -> torch.Tensor:
         assert self.bias is None
 
-        input = scattered_experts(
+        input = down_projection_experts(
             inputs=input,
             expert_weights=self.weight.permute(0, 2, 1),
             k=num_experts_per_token,

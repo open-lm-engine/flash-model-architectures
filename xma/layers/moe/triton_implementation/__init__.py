@@ -256,7 +256,7 @@ def up_projection_experts(
     )
 
 
-def scattered_experts(
+def down_projection_experts(
     inputs,
     expert_weights,
     k,
