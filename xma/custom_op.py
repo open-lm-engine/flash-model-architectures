@@ -39,7 +39,7 @@ class CustomOp(torch.autograd.Function):
 
     @staticmethod
     def forward(ctx, *args) -> Any:
-        *args, kernel_backend = args[-1]
+        *args, kernel_backend = args
         forward_function, backward_function = CustomOp._registry[kernel_backend]
 
         ctx.kernel_backend = kernel_backend
