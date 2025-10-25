@@ -48,7 +48,7 @@ class CustomOp(torch.autograd.Function):
 
     @staticmethod
     def forward(ctx, *args) -> Any:
-        single_arg = len(args) == 1
+        single_arg = len(args) == 3
         *args, forward_function, backward_function = args
 
         ctx.backward_function = backward_function
