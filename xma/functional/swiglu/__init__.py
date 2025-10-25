@@ -47,7 +47,7 @@ class _Swiglu(CustomOp):
             gate=gate, up=up, output_grad=output_grad, gate_grad=gate_grad, up_grad=up_grad, BLOCK_SIZE=1024
         )
 
-        return gate_grad, up_grad, None
+        return gate_grad, up_grad
 
     @staticmethod
     @ensure_contiguous
@@ -72,6 +72,14 @@ class _Swiglu(CustomOp):
 
 
 class _SwigluPacked(CustomOp):
+    @staticmethod
+    def forward_cuda(ctx, x: torch.Tensor) -> torch.Tensor:
+        return _SwigluPacked.forward_triton(ctx, x)
+
+    @staticmethod
+    def backward_cuda(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor]:
+        return _SwigluPacked.backward_triton(ctx, output_grad)
+
     @staticmethod
     @ensure_contiguous
     def forward_triton(ctx, x: torch.Tensor) -> torch.Tensor:
