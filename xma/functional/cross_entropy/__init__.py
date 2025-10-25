@@ -21,9 +21,7 @@ class _CrossEntropy(CustomOp):
         if logits_multiplier not in [None, 1]:
             x = x * logits_multiplier
 
-        x = F.cross_entropy(x, labels, reduction=reduction)
-
-        return x
+        return F.cross_entropy(x, labels, reduction=reduction)
 
     @staticmethod
     def forward_triton(
