@@ -58,6 +58,7 @@ class CrossEntropyTest(TestCommons):
             loss_kernel = function(
                 x=x_kernel, labels=labels, logits_multiplier=logits_multiplier, kernel_backend=KernelBackend.triton
             )
+
             loss_expected = cross_entropy(
                 x=x_expected, labels=labels, logits_multiplier=logits_multiplier, kernel_backend=KernelBackend.torch
             )
