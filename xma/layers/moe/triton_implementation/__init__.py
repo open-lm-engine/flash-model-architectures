@@ -162,20 +162,13 @@ class _DownProjectionExperts(torch.autograd.Function):
             fan_out=gate_fan,
         )
 
-        grouped_x = x
         d_expanded_input = torch.empty(
             sorted_expert_idxs.size(0), expert_weights.size(1), device=x.device, dtype=x.dtype
         )
 
         d_weights = torch.zeros_like(expert_weights)
 
-        group_bwd_W(
-            DY=grouped_grad_out,
-            X=grouped_x,
-            expert_offsets=expert_offsets,
-            DW=d_weights,
-            E=expert_weights.size(0),
-        )
+        group_bwd_W(DY=grouped_grad_out, X=x, expert_offsets=expert_offsets, DW=d_weights, E=expert_weights.size(0))
 
         scatter2scatter(
             X=grouped_grad_out,
