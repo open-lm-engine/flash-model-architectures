@@ -76,3 +76,10 @@ class CustomOp(torch.autograd.Function):
     @staticmethod
     def forward_backward_torch(*args, **kwargs) -> Any:
         raise NotImplementedError
+
+    def needs_gradients(self) -> bool:
+        return any(self.needs_input_grad)
+
+    def save_for_backward(self, *args) -> None:
+        if self.needs_gradients():
+            super().save_for_backward(*args)
