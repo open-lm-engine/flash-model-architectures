@@ -36,6 +36,7 @@ class _FusedResidualAddRMSNorm(CustomOp):
 
         return x, residual
 
+    @staticmethod
     def forward_triton(
         ctx,
         x: torch.Tensor,
