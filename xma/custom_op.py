@@ -11,6 +11,15 @@ import torch
 from .enums import KernelBackend
 
 
+def ctx_needs_gradients(ctx) -> bool:
+    return any(ctx.needs_input_grad)
+
+
+def ctx_save_for_backward(ctx, *args) -> None:
+    if ctx_needs_gradients(ctx):
+        ctx.save_for_backward(*args)
+
+
 class CustomOp(torch.autograd.Function):
     @classmethod
     def run(cls, *args, kernel_backend: KernelBackend | None = None, **kwargs) -> Any:
@@ -84,12 +93,3 @@ class CustomOp(torch.autograd.Function):
     @staticmethod
     def forward_backward_torch(*args, **kwargs) -> Any:
         raise NotImplementedError
-
-    @classmethod
-    def needs_gradients(cls) -> bool:
-        return any(cls.needs_input_grad)
-
-    @classmethod
-    def maybe_save_for_backward(cls, *args) -> None:
-        if cls.needs_gradients():
-            super().save_for_backward(*args)
