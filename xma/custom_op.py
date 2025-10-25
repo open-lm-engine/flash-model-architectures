@@ -40,16 +40,6 @@ class CustomOp(torch.autograd.Function):
         return output
 
     @staticmethod
-    def infer_kernel_backend(*args, **kwargs) -> KernelBackend:
-        for tensor in args:
-            if isinstance(tensor, torch.Tensor):
-                return KernelBackend.get_kernel_backend_from_device(tensor)
-
-        for tensor in kwargs.values():
-            if isinstance(tensor, torch.Tensor):
-                return KernelBackend.get_kernel_backend_from_device(tensor)
-
-    @staticmethod
     def forward(ctx, *args, **kwargs) -> Any:
         kernel_backend = CustomOp.infer_kernel_backend(ctx, *args, **kwargs)
         assert kernel_backend != KernelBackend.torch
@@ -75,6 +65,6 @@ class CustomOp(torch.autograd.Function):
     def forward_backward_torch(*args, **kwargs) -> Any: ...
 
     _registry = {
-        KernelBackend.triton: (forward_triton, backward_triton),
         KernelBackend.torch: forward_backward_torch,
+        KernelBackend.triton: (forward_triton, backward_triton),
     }
