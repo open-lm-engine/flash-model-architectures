@@ -142,18 +142,12 @@ class _DownProjectionExperts(torch.autograd.Function):
 
         k = ctx.k
 
-        if gates is None:
-            d_gates = None
-            gates_flat = None
-            gate_fan = 1
-            grouped_grad_out = None
-        else:
-            # calculate gates gradient
-            d_gates = torch.bmm(output_expanded, grad_out.unsqueeze(2)).squeeze(-1)
-            gates_flat = gates.flatten()
-            gate_fan = gates.size(1)
-            # print("expanded and grouping")
-            grouped_grad_out = output_expanded.flatten(0, 1)  # reuse expanded buffer later
+        # calculate gates gradient
+        d_gates = torch.bmm(output_expanded, grad_out.unsqueeze(2)).squeeze(-1)
+        gates_flat = gates.flatten()
+        gate_fan = gates.size(1)
+        # print("expanded and grouping")
+        grouped_grad_out = output_expanded.flatten(0, 1)  # reuse expanded buffer later
 
         if grouped_grad_out is None:
             if gate_fan == 1:
