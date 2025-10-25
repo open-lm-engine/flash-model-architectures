@@ -194,10 +194,9 @@ class _DownProjectionExperts(torch.autograd.Function):
             y_grouped=True,
         )
 
-        if k == 1:
-            d_input = d_expanded_input
-        else:
-            d_input = d_expanded_input.view(x.size(0), k, d_expanded_input.size(-1)).sum(-2)
+        d_input = (
+            d_expanded_input if k == 1 else d_expanded_input.view(x.size(0), k, d_expanded_input.size(-1)).sum(-2)
+        )
 
         return (
             # x, expert_weights, k,
