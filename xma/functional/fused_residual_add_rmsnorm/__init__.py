@@ -5,7 +5,7 @@
 import torch
 import torch.nn.functional as F
 
-from ...counters import increment_counter
+from ...custom_op import CustomOp
 from ...enums import KernelBackend
 from ...utils import empty_like_contiguous, get_num_elements_and_hidden_size, get_sm_count, zeros_like_contiguous
 from .triton_implementation import (
@@ -14,9 +14,29 @@ from .triton_implementation import (
 )
 
 
-class _FusedResidualAddRMSNorm(torch.autograd.Function):
+class _FusedResidualAddRMSNorm(CustomOp):
     @staticmethod
-    def forward(
+    def forward_backward_torch(
+        x: torch.Tensor,
+        residual: torch.Tensor | None,
+        weight: torch.Tensor | None,
+        eps: float | None,
+        multiplier: float | None,
+        memory_efficient: bool,
+        deterministic: bool,
+    ) -> tuple[torch.Tensor, torch.Tensor | None]:
+        if multiplier not in [None, 1]:
+            x = x * multiplier
+
+        if residual is not None:
+            x = x + residual
+            residual = x
+
+        x = F.rms_norm(x, normalized_shape=(x.size(-1),), weight=weight, eps=eps)
+
+        return x, residual
+
+    def forward_triton(
         ctx,
         x: torch.Tensor,
         residual: torch.Tensor | None,
@@ -32,7 +52,7 @@ class _FusedResidualAddRMSNorm(torch.autograd.Function):
         B, _ = get_num_elements_and_hidden_size(x)
         has_residual = residual is not None
 
-        needs_grad = any(ctx.needs_input_grad[:3])
+        needs_grad = ctx.needs_gradients()
 
         output = empty_like_contiguous(x)
         added_x_residual = empty_like_contiguous(x) if has_residual else None
@@ -63,7 +83,9 @@ class _FusedResidualAddRMSNorm(torch.autograd.Function):
         return output, added_x_residual
 
     @staticmethod
-    def backward(ctx, output_grad: torch.Tensor, added_x_residual_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
+    def backward_triton(
+        ctx, output_grad: torch.Tensor, added_x_residual_grad: torch.Tensor
+    ) -> tuple[torch.Tensor, torch.Tensor | None, torch.Tensor | None, None, None, None, None]:
         has_residual = ctx.has_residual
         deterministic = ctx.deterministic
 
@@ -115,7 +137,9 @@ def fused_residual_add_rmsnorm(
     multiplier: float | None = None,
     memory_efficient: bool = False,
     deterministic: bool = False,
-) -> tuple[torch.Tensor, torch.Tensor]:
+    *,
+    kernel_backend: KernelBackend | None = None,
+) -> tuple[torch.Tensor, torch.Tensor | None]:
     """fused residual add RMSNorm computation
 
     Args:
@@ -129,7 +153,7 @@ def fused_residual_add_rmsnorm(
         deterministic (bool, optional): whether to use deterministic backward. Defaults to False.
 
     Returns:
-        tuple[torch.Tensor, torch.Tensor]: output activations, updated residual stream
+        tuple[torch.Tensor, torch.Tensor | None]: output activations, updated residual stream
     """
 
     if weight is not None:
@@ -137,36 +161,30 @@ def fused_residual_add_rmsnorm(
         assert weight.size(-1) == x.size(-1), "hidden size for x and weight tensor is different"
         assert weight.type() == x.type(), "tensors weight and y should have same dtype"
 
-    kernel_backend = KernelBackend.get_kernel_backend_from_device(x)
-
-    if kernel_backend == KernelBackend.torch:
-        if multiplier not in [None, 1]:
-            x = x * multiplier
+    # if 1D -> make 2D
+    is_flat = x.dim() == 1
+    if is_flat:
+        x = x[None, ...]
 
         if residual is not None:
-            x = x + residual
-            residual = x
+            residual = residual[None, :]
 
-        x = F.rms_norm(x, normalized_shape=(x.size(-1),), weight=weight, eps=eps)
-    else:
-        assert kernel_backend in [KernelBackend.cuda, KernelBackend.triton]
-        increment_counter(fused_residual_add_rmsnorm)
+    x = _FusedResidualAddRMSNorm.run(
+        x=x,
+        residual=residual,
+        weight=weight,
+        eps=eps,
+        multiplier=multiplier,
+        memory_efficient=memory_efficient,
+        deterministic=deterministic,
+        kernel_backend=kernel_backend,
+    )
 
-        is_flat = x.dim() == 1
-        if is_flat:
-            x = x[None, :]
+    # convert back to 1D
+    if is_flat:
+        x = x.squeeze(0)
 
-            if residual is not None:
-                residual = residual[None, :]
-
-        x, residual = _FusedResidualAddRMSNorm.apply(
-            x, residual, weight, eps, multiplier, memory_efficient, deterministic
-        )
-
-        if is_flat:
-            x = x.squeeze(0)
-
-            if residual is not None:
-                residual = residual.squeeze(0)
+        if residual is not None:
+            residual = residual.squeeze(0)
 
     return x, residual

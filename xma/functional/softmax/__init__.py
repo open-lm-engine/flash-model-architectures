@@ -71,7 +71,7 @@ def softmax(
     """
 
     # if 1D -> make 2D
-    is_flat = x.dim() < 2
+    is_flat = x.dim() == 1
     if is_flat:
         x = x[None, ...]
 
