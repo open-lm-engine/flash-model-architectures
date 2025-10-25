@@ -76,7 +76,7 @@ class _FusedLinearCrossEntropy(CustomOp):
             x_grad /= B
             weight_grad /= B
 
-        ctx_save_for_backward(x_grad, weight_grad)
+        ctx_save_for_backward(ctx, x_grad, weight_grad)
 
         return loss
 
