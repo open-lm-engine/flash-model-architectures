@@ -55,10 +55,12 @@ class CrossEntropyTest(TestCommons):
             x_kernel, x_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype, std=0.02)
             labels = torch.randint(0, x_kernel.size(-1), (x_kernel.size(0),), device=x_kernel.device)
 
-            loss_kernel = function(x=x_kernel, labels=labels, logits_multiplier=logits_multiplier)
-
-            with force_kernel_backend(KernelBackend.torch):
-                loss_expected = cross_entropy(x=x_expected, labels=labels, logits_multiplier=logits_multiplier)
+            loss_kernel = function(
+                x=x_kernel, labels=labels, logits_multiplier=logits_multiplier, kernel_backend=KernelBackend.triton
+            )
+            loss_expected = cross_entropy(
+                x=x_expected, labels=labels, logits_multiplier=logits_multiplier, kernel_backend=KernelBackend.torch
+            )
 
             self.assert_equal_tensors(loss_kernel, loss_expected, False, atol_float32=6.3e-5, rtol_float32=0)
 
