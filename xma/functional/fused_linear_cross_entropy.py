@@ -21,14 +21,15 @@ class _FusedLinearCrossEntropy(CustomOp):
         logits_multiplier: float | None,
     ) -> torch.Tensor:
         x = F.linear(x, weight)
-
-        return cross_entropy(
+        x = cross_entropy(
             x=x,
             labels=labels,
             reduction=reduction,
             logits_multiplier=logits_multiplier,
             kernel_backend=KernelBackend.torch,
         )
+
+        return x
 
     @staticmethod
     def forward_triton(
