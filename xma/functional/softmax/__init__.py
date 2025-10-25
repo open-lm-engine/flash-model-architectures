@@ -49,7 +49,7 @@ class _Softmax(CustomOp):
 
 
 def softmax(
-    x: torch.Tensor, logits_multiplier: float | None = None, kernel_backend: KernelBackend | None = None
+    x: torch.Tensor, logits_multiplier: float | None = None, *, kernel_backend: KernelBackend | None = None
 ) -> torch.Tensor:
     """computes softmax activation
 
