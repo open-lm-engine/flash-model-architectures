@@ -19,8 +19,6 @@ class _UpProjectionExperts(torch.autograd.Function):
         sorted_expert_idxs,
         sorted_scattered_idxs,
         expert_offsets,
-        grouped_in=False,
-        grouped_out=False,
     ):
         output = torch.empty(sorted_expert_idxs.size(0), expert_weights.size(-1), device=x.device, dtype=x.dtype)
 
@@ -31,8 +29,8 @@ class _UpProjectionExperts(torch.autograd.Function):
             sorted_scattered_idxs=sorted_scattered_idxs,
             out=output,
             FAN_OUT=k,
-            x_grouped=grouped_in,
-            y_grouped=grouped_out,
+            x_grouped=False,
+            y_grouped=True,
         )
 
         ctx.save_for_backward(
@@ -43,8 +41,6 @@ class _UpProjectionExperts(torch.autograd.Function):
             expert_offsets,
         )
 
-        ctx.grouped_in = grouped_in
-        ctx.grouped_out = grouped_out
         ctx.k = k
 
         return output
@@ -60,44 +56,18 @@ class _UpProjectionExperts(torch.autograd.Function):
         ) = ctx.saved_tensors
 
         k = ctx.k
-        grouped_in = ctx.grouped_in
-        grouped_out = ctx.grouped_out
-        gates_flat = None
-        gate_fan = 1
         grouped_grad_out = None
+        grouped_grad_out = grad_out
 
-        if grouped_out:
-            grouped_grad_out = grad_out
-        else:
-            if grouped_grad_out is None:
-                if gate_fan == 1:
-                    grouped_grad_out = torch.empty_like(grad_out)
-                else:
-                    raise RuntimeError("Need to infer size")
-            group(
-                A=grad_out,
-                sorted_expert_idxs=sorted_scattered_idxs,
-                out=grouped_grad_out,
-                coeff=gates_flat,
-                fan_out=gate_fan,
-            )
+        grouped_x = torch.empty(sorted_scattered_idxs.size(0), x.size(1), dtype=x.dtype, device=x.device)
+        group(
+            A=x,
+            sorted_expert_idxs=sorted_scattered_idxs,
+            out=grouped_x,
+            fan_out=k,
+        )
 
-        if grouped_in:
-            grouped_x = x
-            d_expanded_input = torch.empty(
-                sorted_expert_idxs.size(0), expert_weights.size(1), device=x.device, dtype=x.dtype
-            )
-        else:
-            grouped_x = torch.empty(sorted_scattered_idxs.size(0), x.size(1), dtype=x.dtype, device=x.device)
-            group(
-                A=x,
-                sorted_expert_idxs=sorted_scattered_idxs,
-                out=grouped_x,
-                fan_out=k,
-            )
-
-            d_expanded_input = grouped_x
-
+        d_expanded_input = grouped_x
         d_weights = torch.zeros_like(expert_weights)
 
         group_bwd_W(
@@ -116,7 +86,7 @@ class _UpProjectionExperts(torch.autograd.Function):
             out=d_expanded_input,
             FAN_OUT=1,
             x_grouped=True,
-            y_grouped=grouped_in,
+            y_grouped=False,
         )
 
         if k == 1:
@@ -133,8 +103,6 @@ class _UpProjectionExperts(torch.autograd.Function):
             None,
             None,
             # expert_offsets,
-            None,
-            None,
             None,
         )
 
