@@ -48,14 +48,22 @@ class CustomOp(torch.autograd.Function):
 
     @staticmethod
     def forward(ctx, *args) -> Any:
+        single_arg = len(args) == 1
         *args, forward_function, backward_function = args
+
         ctx.backward_function = backward_function
+        ctx.single_arg = single_arg
 
         return forward_function(ctx, *args)
 
     @staticmethod
     def backward(ctx, *args) -> Any:
-        return *ctx.backward_function(ctx, *args), None, None
+        args = ctx.backward_function(ctx, *args)
+
+        if ctx.single_arg:
+            return args, None, None
+
+        return *args, None, None
 
     @staticmethod
     def forward_cuda(ctx, *args, **kwargs) -> Any:
