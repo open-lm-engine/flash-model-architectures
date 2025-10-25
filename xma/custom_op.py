@@ -14,9 +14,24 @@ from .enums import KernelBackend
 class CustomOp(torch.autograd.Function):
     @staticmethod
     def run(*args, **kwargs) -> Any:
-        kernel_backend = CustomOp.infer_kernel_backend(*args, **kwargs)
+        kernel_backend = None
 
-        if kernel_backend == KernelBackend.torch:
+        # infer the kernel backend using args
+        for tensor in args:
+            if isinstance(tensor, torch.Tensor):
+                kernel_backend = KernelBackend.get_kernel_backend_from_device(tensor)
+                break
+
+        # infer the kernel backend using kwargs if it can't be inferred from kwargs
+        if kernel_backend is None:
+            for tensor in kwargs.values():
+                if isinstance(tensor, torch.Tensor):
+                    kernel_backend = KernelBackend.get_kernel_backend_from_device(tensor)
+                    break
+
+        if kernel_backend is None:
+            raise ValueError("code is not supposed to reach here! kernel_backend was not inferrable")
+        elif kernel_backend == KernelBackend.torch:
             output = CustomOp.forward_backward_torch(*args, **kwargs)
         else:
             args = args + tuple(kwargs.values())
