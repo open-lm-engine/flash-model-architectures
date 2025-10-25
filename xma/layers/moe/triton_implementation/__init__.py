@@ -278,8 +278,6 @@ def scattered_experts(
             sorted_expert_idxs,
             sorted_scattered_idxs,
             expert_offsets,
-            grouped_in,
-            grouped_out,
         )
 
     return _ScatteredExperts.apply(
