@@ -96,9 +96,7 @@ class _DownProjectionExperts(torch.autograd.Function):
         sorted_expert_idxs,
         sorted_scattered_idxs,
         expert_offsets,
-        gates=None,
-        grouped_in=False,
-        grouped_out=False,
+        gates,
     ):
         output = torch.empty(sorted_expert_idxs.size(0), expert_weights.size(-1), device=x.device, dtype=x.dtype)
 
@@ -109,15 +107,12 @@ class _DownProjectionExperts(torch.autograd.Function):
             sorted_scattered_idxs=sorted_scattered_idxs,
             out=output,
             FAN_OUT=k,
-            x_grouped=grouped_in,
-            y_grouped=grouped_out,
+            x_grouped=True,
+            y_grouped=False,
         )
 
-        if gates is None:
-            output_expanded = None
-        else:
-            output_expanded = output.view(gates.size(0), gates.size(1), output.size(-1))
-            output = torch.bmm(gates.unsqueeze(1), output_expanded).squeeze(1)
+        output_expanded = output.view(gates.size(0), gates.size(1), output.size(-1))
+        output = torch.bmm(gates.unsqueeze(1), output_expanded).squeeze(1)
 
         ctx.save_for_backward(
             x,
@@ -129,8 +124,6 @@ class _DownProjectionExperts(torch.autograd.Function):
             output_expanded,
         )
 
-        ctx.grouped_in = grouped_in
-        ctx.grouped_out = grouped_out
         ctx.k = k
 
         return output
@@ -146,9 +139,8 @@ class _DownProjectionExperts(torch.autograd.Function):
             gates,
             output_expanded,
         ) = ctx.saved_tensors
+
         k = ctx.k
-        grouped_in = ctx.grouped_in
-        grouped_out = ctx.grouped_out
 
         if gates is None:
             d_gates = None
@@ -163,37 +155,23 @@ class _DownProjectionExperts(torch.autograd.Function):
             # print("expanded and grouping")
             grouped_grad_out = output_expanded.flatten(0, 1)  # reuse expanded buffer later
 
-        if grouped_out:
-            grouped_grad_out = grad_out
-        else:
-            if grouped_grad_out is None:
-                if gate_fan == 1:
-                    grouped_grad_out = torch.empty_like(grad_out)
-                else:
-                    raise RuntimeError("Need to infer size")
-            group(
-                A=grad_out,
-                sorted_expert_idxs=sorted_scattered_idxs,
-                out=grouped_grad_out,
-                coeff=gates_flat,
-                fan_out=gate_fan,
-            )
+        if grouped_grad_out is None:
+            if gate_fan == 1:
+                grouped_grad_out = torch.empty_like(grad_out)
+            else:
+                raise RuntimeError("Need to infer size")
+        group(
+            A=grad_out,
+            sorted_expert_idxs=sorted_scattered_idxs,
+            out=grouped_grad_out,
+            coeff=gates_flat,
+            fan_out=gate_fan,
+        )
 
-        if grouped_in:
-            grouped_x = x
-            d_expanded_input = torch.empty(
-                sorted_expert_idxs.size(0), expert_weights.size(1), device=x.device, dtype=x.dtype
-            )
-        else:
-            grouped_x = torch.empty(sorted_scattered_idxs.size(0), x.size(1), dtype=x.dtype, device=x.device)
-            group(
-                A=x,
-                sorted_expert_idxs=sorted_scattered_idxs,
-                out=grouped_x,
-                fan_out=k,
-            )
-
-            d_expanded_input = grouped_x
+        grouped_x = x
+        d_expanded_input = torch.empty(
+            sorted_expert_idxs.size(0), expert_weights.size(1), device=x.device, dtype=x.dtype
+        )
 
         d_weights = torch.zeros_like(expert_weights)
 
@@ -213,7 +191,7 @@ class _DownProjectionExperts(torch.autograd.Function):
             out=d_expanded_input,
             FAN_OUT=1,
             x_grouped=True,
-            y_grouped=grouped_in,
+            y_grouped=True,
         )
 
         if k == 1:
@@ -233,8 +211,6 @@ class _DownProjectionExperts(torch.autograd.Function):
             None,
             # gates
             d_gates,
-            None,
-            None,
         )
 
 
@@ -264,8 +240,6 @@ def down_projection_experts(
     sorted_scattered_idxs,
     expert_offsets,
     gates=None,
-    grouped_in=False,
-    grouped_out=False,
 ):
     return _DownProjectionExperts.apply(
         inputs,
@@ -275,6 +249,4 @@ def down_projection_experts(
         sorted_scattered_idxs,
         expert_offsets,
         gates,
-        grouped_in,
-        grouped_out,
     )

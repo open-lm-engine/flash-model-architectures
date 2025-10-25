@@ -77,8 +77,6 @@ class Experts(nn.Module):
             sorted_scattered_idxs=sorted_scattered_idxs,
             expert_offsets=expert_offsets,
             gates=gates,
-            grouped_in=True,
-            grouped_out=False,
         )
 
         return input
