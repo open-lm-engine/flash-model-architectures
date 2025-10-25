@@ -166,7 +166,7 @@ def fused_residual_add_rmsnorm(
         if residual is not None:
             residual = residual[None, :]
 
-    x = _FusedResidualAddRMSNorm.run(
+    x, residual = _FusedResidualAddRMSNorm.run(
         x=x,
         residual=residual,
         weight=weight,
