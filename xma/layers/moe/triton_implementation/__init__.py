@@ -86,7 +86,7 @@ class _UpProjectionExperts(torch.autograd.Function):
         return d_input, d_weights, None, None, None, None
 
 
-class _ScatteredExperts(torch.autograd.Function):
+class _DownProjectionExperts(torch.autograd.Function):
     @staticmethod
     def forward(
         ctx,
@@ -267,17 +267,7 @@ def scattered_experts(
     grouped_in=False,
     grouped_out=False,
 ):
-    if gates is None:
-        return _UpProjectionExperts.apply(
-            inputs,
-            expert_weights,
-            k,
-            sorted_expert_idxs,
-            sorted_scattered_idxs,
-            expert_offsets,
-        )
-
-    return _ScatteredExperts.apply(
+    return _DownProjectionExperts.apply(
         inputs,
         expert_weights,
         k,
