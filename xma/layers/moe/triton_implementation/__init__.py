@@ -238,6 +238,24 @@ class _ScatteredExperts(torch.autograd.Function):
         )
 
 
+def up_projection_experts(
+    inputs,
+    expert_weights,
+    k,
+    sorted_expert_idxs,
+    sorted_scattered_idxs,
+    expert_offsets,
+):
+    return _UpProjectionExperts.apply(
+        inputs,
+        expert_weights,
+        k,
+        sorted_expert_idxs,
+        sorted_scattered_idxs,
+        expert_offsets,
+    )
+
+
 def scattered_experts(
     inputs,
     expert_weights,
