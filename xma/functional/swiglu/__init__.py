@@ -125,7 +125,7 @@ def swiglu(gate: torch.Tensor, up: torch.Tensor, *, kernel_backend: KernelBacken
     assert gate.size() == up.size(), "tensors gate and up should have same shape"
     assert gate.type() == up.type(), "tensors gate and up should have same dtype"
 
-    return _Swiglu.run(gate, up, kernel_backend=kernel_backend)
+    return _Swiglu.run(gate=gate, up=up, kernel_backend=kernel_backend)
 
 
 def swiglu_packed(x: torch.Tensor, *, kernel_backend: KernelBackend | None = None) -> torch.Tensor:
@@ -138,4 +138,4 @@ def swiglu_packed(x: torch.Tensor, *, kernel_backend: KernelBackend | None = Non
         torch.Tensor: output tensor
     """
 
-    return _SwigluPacked.run(x, kernel_backend=kernel_backend)
+    return _SwigluPacked.run(x=x, kernel_backend=kernel_backend)

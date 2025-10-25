@@ -75,7 +75,7 @@ def softmax(
     if is_flat:
         x = x[None, ...]
 
-    x = _Softmax.run(x, logits_multiplier, kernel_backend=kernel_backend)
+    x = _Softmax.run(x=x, logits_multiplier=logits_multiplier, kernel_backend=kernel_backend)
 
     # convert back to 1D
     if is_flat:
