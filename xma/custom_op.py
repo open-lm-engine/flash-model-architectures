@@ -52,6 +52,12 @@ class CustomOp(torch.autograd.Function):
         return *ctx.backward_function(ctx, *args), None
 
     @staticmethod
+    def forward_cuda(ctx, *args, **kwargs) -> Any: ...
+
+    @staticmethod
+    def backward_cuda(ctx, *args, **kwargs) -> Any: ...
+
+    @staticmethod
     def forward_triton(ctx, *args, **kwargs) -> Any: ...
 
     @staticmethod
@@ -61,6 +67,7 @@ class CustomOp(torch.autograd.Function):
     def forward_backward_torch(*args, **kwargs) -> Any: ...
 
     _registry = {
+        KernelBackend.cuda: (forward_cuda, backward_cuda),
         KernelBackend.torch: forward_backward_torch,
         KernelBackend.triton: (forward_triton, backward_triton),
     }
