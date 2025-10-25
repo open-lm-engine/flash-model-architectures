@@ -5,7 +5,7 @@
 import torch
 import torch.nn.functional as F
 
-from ...custom_op import CustomOp
+from ...custom_op import CustomOp, ctx_needs_gradients, ctx_save_for_backward
 from ...enums import KernelBackend
 from ...utils import empty_like_contiguous, get_num_elements_and_hidden_size, get_sm_count, zeros_like_contiguous
 from .triton_implementation import (
@@ -52,12 +52,10 @@ class _FusedResidualAddRMSNorm(CustomOp):
         B, _ = get_num_elements_and_hidden_size(x)
         has_residual = residual is not None
 
-        needs_grad = ctx.needs_gradients()
-
         output = empty_like_contiguous(x)
         added_x_residual = empty_like_contiguous(x) if has_residual else None
 
-        if needs_grad:
+        if ctx_needs_gradients(ctx):
             rmsnorm_denominator = None if memory_efficient else torch.empty(B, device=x.device, dtype=torch.float32)
         else:
             rmsnorm_denominator = None
@@ -73,12 +71,11 @@ class _FusedResidualAddRMSNorm(CustomOp):
             rmsnorm_denominator=rmsnorm_denominator,
         )
 
-        if needs_grad:
-            ctx.save_for_backward(added_x_residual if has_residual else x, weight, rmsnorm_denominator)
-            ctx.eps = eps
-            ctx.has_residual = has_residual
-            ctx.multiplier = multiplier
-            ctx.deterministic = deterministic
+        ctx_save_for_backward(ctx, added_x_residual if has_residual else x, weight, rmsnorm_denominator)
+        ctx.eps = eps
+        ctx.has_residual = has_residual
+        ctx.multiplier = multiplier
+        ctx.deterministic = deterministic
 
         return output, added_x_residual
 
