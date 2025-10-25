@@ -70,4 +70,15 @@ def softmax(
         torch.Tensor: output tensor
     """
 
-    return _Softmax.run(x, logits_multiplier, kernel_backend=kernel_backend)
+    # if 1D -> make 2D
+    is_flat = x.dim() < 2
+    if is_flat:
+        x = x[None, ...]
+
+    x = _Softmax.run(x, logits_multiplier, kernel_backend=kernel_backend)
+
+    # convert back to 1D
+    if is_flat:
+        x = x.squeeze(0)
+
+    return x
