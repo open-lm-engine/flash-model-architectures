@@ -74,6 +74,8 @@ def cross_entropy(
         labels.size(0) == get_num_elements_and_hidden_size(x)[0]
     ), "x and labels have different number of elements along batch dimension"
 
-    return _CrossEntropy.run(
+    x = _CrossEntropy.run(
         x=x, labels=labels, reduction=reduction, logits_multiplier=logits_multiplier, kernel_backend=kernel_backend
     )
+
+    return x

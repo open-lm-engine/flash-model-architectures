@@ -127,7 +127,7 @@ def fused_linear_cross_entropy(
     assert x.size(0) == labels.size(0), "x and labels have different number of elements along dim 0"
     assert x.size(-1) == weight.size(-1)
 
-    return _FusedLinearCrossEntropy.run(
+    x = _FusedLinearCrossEntropy.run(
         x=x,
         weight=weight,
         labels=labels,
@@ -135,3 +135,5 @@ def fused_linear_cross_entropy(
         logits_multiplier=logits_multiplier,
         kernel_backend=kernel_backend,
     )
+
+    return x
