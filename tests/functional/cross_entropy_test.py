@@ -8,7 +8,7 @@ from typing import Callable
 import torch
 from parameterized import parameterized
 
-from xma import KernelBackend, cross_entropy, force_kernel_backend, set_seed
+from xma import KernelBackend, cross_entropy, set_seed
 
 from ..test_commons import TestCommons
 
