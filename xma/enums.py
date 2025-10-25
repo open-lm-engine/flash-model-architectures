@@ -36,11 +36,6 @@ class KernelBackend(Enum):
 
     @staticmethod
     def get_kernel_backend_from_device(x: torch.Tensor) -> KernelBackend:
-        global _FORCED_KERNEL_BACKEND
-
-        if _FORCED_KERNEL_BACKEND is not None:
-            return _FORCED_KERNEL_BACKEND
-
         device_type = x.device.type
 
         if device_type == "cuda":
