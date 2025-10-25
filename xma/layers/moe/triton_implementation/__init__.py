@@ -81,10 +81,7 @@ class _UpProjectionExperts(torch.autograd.Function):
             y_grouped=False,
         )
 
-        if k == 1:
-            d_input = grouped_x
-        else:
-            d_input = grouped_x.view(x.size(0), k, grouped_x.size(-1)).sum(-2)
+        d_input = grouped_x if k == 1 else grouped_x.view(x.size(0), k, grouped_x.size(-1)).sum(-2)
 
         return d_input, d_weights, None, None, None, None
 
