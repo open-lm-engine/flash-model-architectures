@@ -33,24 +33,29 @@ class CustomOp(torch.autograd.Function):
         elif kernel_backend == KernelBackend.torch:
             output = cls.forward_backward_torch(*args, **kwargs)
         else:
-            args = args + tuple(kwargs.values()) + (kernel_backend,)
+            args = args + tuple(kwargs.values())
+
+            if kernel_backend == KernelBackend.cuda:
+                args += (cls.forward_cuda, cls.backward_cuda)
+            elif kernel_backend == KernelBackend.triton:
+                args += (cls.forward_triton, cls.backward_triton)
+            else:
+                raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
+
             output = cls.apply(*args)
 
         return output
 
     @staticmethod
     def forward(ctx, *args) -> Any:
-        *args, kernel_backend = args
-        forward_function, backward_function = CustomOp._registry[kernel_backend]
-
-        ctx.kernel_backend = kernel_backend
+        *args, forward_function, backward_function = args
         ctx.backward_function = backward_function
 
         return forward_function(ctx, *args)
 
     @staticmethod
     def backward(ctx, *args) -> Any:
-        return *ctx.backward_function(ctx, *args), None
+        return *ctx.backward_function(ctx, *args), None, None
 
     @staticmethod
     def forward_cuda(ctx, *args, **kwargs) -> Any:
@@ -71,9 +76,3 @@ class CustomOp(torch.autograd.Function):
     @staticmethod
     def forward_backward_torch(*args, **kwargs) -> Any:
         raise NotImplementedError
-
-    _registry = {
-        KernelBackend.cuda: (forward_cuda, backward_cuda),
-        KernelBackend.torch: forward_backward_torch,
-        KernelBackend.triton: (forward_triton, backward_triton),
-    }
