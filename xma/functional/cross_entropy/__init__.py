@@ -5,29 +5,41 @@
 import torch
 import torch.nn.functional as F
 
+from ...custom_op import CustomOp, ctx_needs_gradients, ctx_save_for_backward
 from ...enums import KernelBackend
 from ...utils import empty_like_contiguous, get_num_elements_and_hidden_size
 from .triton_implementation import cross_entropy_forward_backward_triton
 
 
-class _CrossEntropy(torch.autograd.Function):
+class _CrossEntropy(CustomOp):
     @staticmethod
-    def forward(
+    def forward_backward_torch(
+        x: torch.Tensor, labels: torch.Tensor, reduction: str = "mean", logits_multiplier: float | None = None
+    ) -> torch.Tensor:
+        x = x.float()
+
+        if logits_multiplier not in [None, 1]:
+            x = x * logits_multiplier
+
+        return F.cross_entropy(x, labels, reduction=reduction)
+
+    @staticmethod
+    def forward_triton(
         ctx, x: torch.Tensor, labels: torch.Tensor, reduction: str, logits_multiplier: float | None
     ) -> torch.Tensor:
         loss = torch.zeros((), device=x.device, dtype=torch.float32)
-        x_grad = empty_like_contiguous(x) if ctx.needs_input_grad[0] else None
+        x_grad = empty_like_contiguous(x) if ctx_needs_gradients(ctx) else None
 
         cross_entropy_forward_backward_triton(
             x=x, labels=labels, loss=loss, x_grad=x_grad, logits_multiplier=logits_multiplier, reduction=reduction
         )
 
-        ctx.save_for_backward(x_grad)
+        ctx_save_for_backward(ctx, x_grad)
 
         return loss
 
     @staticmethod
-    def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
+    def backward_triton(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor, None, None, None]:
         x_grad = ctx.saved_tensors[0]
         x_grad *= output_grad
 
@@ -35,7 +47,12 @@ class _CrossEntropy(torch.autograd.Function):
 
 
 def cross_entropy(
-    x: torch.Tensor, labels: torch.Tensor, reduction: str = "mean", logits_multiplier: float | None = None
+    x: torch.Tensor,
+    labels: torch.Tensor,
+    reduction: str = "mean",
+    logits_multiplier: float | None = None,
+    *,
+    kernel_backend: KernelBackend | None = None,
 ) -> torch.Tensor:
     """compute cross entropy loss
 
@@ -57,17 +74,8 @@ def cross_entropy(
         labels.size(0) == get_num_elements_and_hidden_size(x)[0]
     ), "x and labels have different number of elements along batch dimension"
 
-    kernel_backend = KernelBackend.get_kernel_backend_from_device(x)
-
-    if kernel_backend == KernelBackend.torch:
-        x = x.float()
-
-        if logits_multiplier not in [None, 1]:
-            x = x * logits_multiplier
-
-        x = F.cross_entropy(x, labels, reduction=reduction)
-    else:
-        assert kernel_backend in [KernelBackend.cuda, KernelBackend.triton]
-        x = _CrossEntropy.apply(x, labels, reduction, logits_multiplier)
+    x = _CrossEntropy.run(
+        x=x, labels=labels, reduction=reduction, logits_multiplier=logits_multiplier, kernel_backend=kernel_backend
+    )
 
     return x

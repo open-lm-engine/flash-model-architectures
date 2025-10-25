@@ -5,15 +5,34 @@
 import torch
 import torch.nn.functional as F
 
+from ..custom_op import CustomOp, ctx_needs_gradients, ctx_save_for_backward
 from ..enums import KernelBackend
 from ..math import ceil_divide, get_next_power_of_2
 from ..utils import empty_like_contiguous, zeros_like_contiguous
 from .cross_entropy import cross_entropy, cross_entropy_forward_backward_triton
 
 
-class _FusedLinearCrossEntropy(torch.autograd.Function):
+class _FusedLinearCrossEntropy(CustomOp):
+    def forward_backward_torch(
+        x: torch.Tensor,
+        weight: torch.Tensor,
+        labels: torch.Tensor,
+        reduction: str,
+        logits_multiplier: float | None,
+    ) -> torch.Tensor:
+        x = F.linear(x, weight)
+        x = cross_entropy(
+            x=x,
+            labels=labels,
+            reduction=reduction,
+            logits_multiplier=logits_multiplier,
+            kernel_backend=KernelBackend.torch,
+        )
+
+        return x
+
     @staticmethod
-    def forward(
+    def forward_triton(
         ctx,
         x: torch.Tensor,
         weight: torch.Tensor,
@@ -31,8 +50,10 @@ class _FusedLinearCrossEntropy(torch.autograd.Function):
         num_chunks = ceil_divide(B, chunk_size)
 
         loss = torch.zeros((), device=x.device, dtype=torch.float32)
-        x_grad = empty_like_contiguous(x)
-        weight_grad = zeros_like_contiguous(weight)
+
+        needs_grad = ctx_needs_gradients(ctx)
+        x_grad = empty_like_contiguous(x) if needs_grad else None
+        weight_grad = zeros_like_contiguous(weight) if needs_grad else None
 
         for i in range(num_chunks):
             start = i * chunk_size
@@ -54,26 +75,27 @@ class _FusedLinearCrossEntropy(torch.autograd.Function):
                 reduction="sum",
             )
 
-            x_grad[start:end] = _logits_grad @ weight
-            torch.addmm(weight_grad, _logits_grad.T, _x, alpha=1, beta=1, out=weight_grad)
+            if needs_grad:
+                x_grad[start:end] = _logits_grad @ weight
+                torch.addmm(weight_grad, _logits_grad.T, _x, alpha=1, beta=1, out=weight_grad)
 
         if reduction == "mean":
             loss /= B
             x_grad /= B
             weight_grad /= B
 
-        ctx.save_for_backward(x_grad, weight_grad)
+        ctx_save_for_backward(ctx, x_grad, weight_grad)
 
         return loss
 
     @staticmethod
-    def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
+    def backward_triton(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor | None, None, None, None]:
         x_grad, weight_grad = ctx.saved_tensors
 
         x_grad *= output_grad
         weight_grad *= output_grad
 
-        return x_grad, weight_grad, *[None] * 3
+        return x_grad, weight_grad, None, None, None
 
 
 def fused_linear_cross_entropy(
@@ -82,6 +104,8 @@ def fused_linear_cross_entropy(
     labels: torch.Tensor,
     reduction: str = "mean",
     logits_multiplier: float | None = None,
+    *,
+    kernel_backend: KernelBackend | None = None,
 ) -> torch.Tensor:
     """compute cross entropy loss without materializing the full output logits matrix
 
@@ -103,13 +127,13 @@ def fused_linear_cross_entropy(
     assert x.size(0) == labels.size(0), "x and labels have different number of elements along dim 0"
     assert x.size(-1) == weight.size(-1)
 
-    kernel_backend = KernelBackend.get_kernel_backend_from_device(x)
-
-    if kernel_backend == KernelBackend.torch:
-        x = F.linear(x, weight)
-        x = cross_entropy(x=x, labels=labels, reduction=reduction, logits_multiplier=logits_multiplier)
-    else:
-        assert kernel_backend in [KernelBackend.cuda, KernelBackend.triton]
-        x = _FusedLinearCrossEntropy.apply(x, weight, labels, reduction, logits_multiplier)
+    x = _FusedLinearCrossEntropy.run(
+        x=x,
+        weight=weight,
+        labels=labels,
+        reduction=reduction,
+        logits_multiplier=logits_multiplier,
+        kernel_backend=kernel_backend,
+    )
 
     return x
