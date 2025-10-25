@@ -32,7 +32,7 @@ class CustomOp(torch.autograd.Function):
         elif kernel_backend == KernelBackend.torch:
             output = cls.forward_backward_torch(*args, **kwargs)
         else:
-            args = args + tuple(kwargs.values() + (kernel_backend,))
+            args = args + tuple(kwargs.values()) + (kernel_backend,)
             output = cls.apply(*args)
 
         return output
