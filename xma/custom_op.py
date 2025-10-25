@@ -12,10 +12,8 @@ from .enums import KernelBackend
 
 
 class CustomOp(torch.autograd.Function):
-    @staticmethod
-    def run(*args, **kwargs) -> Any:
-        kernel_backend = None
-
+    @classmethod
+    def run(cls, *args, kernel_backend: KernelBackend | None = None, **kwargs) -> Any:
         # infer the kernel backend using args
         for tensor in args:
             if isinstance(tensor, torch.Tensor):
@@ -32,28 +30,26 @@ class CustomOp(torch.autograd.Function):
         if kernel_backend is None:
             raise ValueError("code is not supposed to reach here! kernel_backend was not inferrable")
         elif kernel_backend == KernelBackend.torch:
-            output = CustomOp.forward_backward_torch(*args, **kwargs)
+            output = cls.forward_backward_torch(*args, **kwargs)
         else:
-            args = args + tuple(kwargs.values())
-            output = CustomOp.apply(*args)
+            args = args + tuple(kwargs.values() + (kernel_backend,))
+            output = cls.apply(*args)
 
         return output
 
     @staticmethod
-    def forward(ctx, *args, **kwargs) -> Any:
-        kernel_backend = CustomOp.infer_kernel_backend(ctx, *args, **kwargs)
-        assert kernel_backend != KernelBackend.torch
-
-        forward_function, backward_function = CustomOp._registry
+    def forward(ctx, *args) -> Any:
+        *args, kernel_backend = args[-1]
+        forward_function, backward_function = CustomOp._registry[kernel_backend]
 
         ctx.kernel_backend = kernel_backend
         ctx.backward_function = backward_function
 
-        return forward_function(ctx, *args, **kwargs)
+        return forward_function(ctx, *args)
 
     @staticmethod
-    def backward(ctx, *args, **kwargs) -> Any:
-        return ctx.backward_function(ctx, *args, **kwargs)
+    def backward(ctx, *args) -> Any:
+        return *ctx.backward_function(ctx, *args), None
 
     @staticmethod
     def forward_triton(ctx, *args, **kwargs) -> Any: ...
