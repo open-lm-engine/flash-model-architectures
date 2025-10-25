@@ -142,18 +142,11 @@ class _DownProjectionExperts(torch.autograd.Function):
 
         k = ctx.k
 
-        # calculate gates gradient
         d_gates = torch.bmm(output_expanded, grad_out.unsqueeze(2)).squeeze(-1)
         gates_flat = gates.flatten()
         gate_fan = gates.size(1)
-        # print("expanded and grouping")
-        grouped_grad_out = output_expanded.flatten(0, 1)  # reuse expanded buffer later
+        grouped_grad_out = output_expanded.flatten(0, 1)
 
-        if grouped_grad_out is None:
-            if gate_fan == 1:
-                grouped_grad_out = torch.empty_like(grad_out)
-            else:
-                raise RuntimeError("Need to infer size")
         group(
             A=grad_out,
             sorted_expert_idxs=sorted_scattered_idxs,
