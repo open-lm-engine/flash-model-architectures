@@ -164,7 +164,7 @@ class MoE(nn.Module):
             std=std,
         )
 
-    def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
+    def forward(self, hidden_states: torch.Tensor, *, kernel_backend: KernelBackend | None = None) -> torch.Tensor:
         original_shape = hidden_states.shape
 
         # hidden_states -> (batch_size, query_length, hidden_size)
@@ -176,7 +176,9 @@ class MoE(nn.Module):
         # router_weights -> (total_q, top_k)
         # selected_experts -> (total_q, top_k)
 
-        hidden_states = self._compute_experts(hidden_states, router_weights, selected_experts)
+        hidden_states = self._compute_experts(
+            hidden_states, router_weights, selected_experts, kernel_backend=kernel_backend
+        )
 
         hidden_states = hidden_states.view(original_shape)
 
@@ -200,7 +202,12 @@ class MoE(nn.Module):
         return router_logits, router_weights, selected_experts
 
     def _compute_experts(
-        self, hidden_states: torch.Tensor, router_weights: torch.Tensor, selected_experts: torch.Tensor
+        self,
+        hidden_states: torch.Tensor,
+        router_weights: torch.Tensor,
+        selected_experts: torch.Tensor,
+        *,
+        kernel_backend: KernelBackend | None = None,
     ) -> torch.Tensor:
         kernel_backend = KernelBackend.get_kernel_backend_from_device(hidden_states)
 
