@@ -74,22 +74,22 @@ class CustomOp(torch.autograd.Function):
 
         return *args, None, None
 
-    @staticmethod
-    def forward_cuda(ctx, *args, **kwargs) -> Any:
-        return CustomOp.forward_triton(ctx, *args, **kwargs)
+    @classmethod
+    def forward_cuda(cls, ctx, *args, **kwargs) -> Any:
+        return cls.forward_triton(ctx, *args, **kwargs)
 
-    @staticmethod
-    def backward_cuda(ctx, *args, **kwargs) -> Any:
-        return CustomOp.backward_triton(ctx, *args, **kwargs)
+    @classmethod
+    def backward_cuda(cls, ctx, *args, **kwargs) -> Any:
+        return cls.backward_triton(ctx, *args, **kwargs)
 
-    @staticmethod
-    def forward_triton(ctx, *args, **kwargs) -> Any:
+    @classmethod
+    def forward_triton(cls, ctx, *args, **kwargs) -> Any:
         raise NotImplementedError
 
-    @staticmethod
-    def backward_triton(ctx, *args, **kwargs) -> Any:
+    @classmethod
+    def backward_triton(cls, ctx, *args, **kwargs) -> Any:
         raise NotImplementedError
 
-    @staticmethod
-    def forward_backward_torch(*args, **kwargs) -> Any:
+    @classmethod
+    def forward_backward_torch(cls, *args, **kwargs) -> Any:
         raise NotImplementedError

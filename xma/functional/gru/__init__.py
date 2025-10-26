@@ -13,8 +13,9 @@ from .triton_implementation import gru_backward_triton, gru_forward_triton
 
 
 class _GRU(CustomOp):
-    @staticmethod
+    @classmethod
     def forward_backward_torch(
+        cls,
         input: torch.Tensor,
         weight: torch.Tensor,
         forget_input: torch.Tensor,
@@ -112,8 +113,9 @@ class _GRU(CustomOp):
 
         return output
 
-    @staticmethod
+    @classmethod
     def forward_triton(
+        cls,
         ctx,
         input: torch.Tensor,
         weight: torch.Tensor,
@@ -170,8 +172,8 @@ class _GRU(CustomOp):
 
         return output
 
-    @staticmethod
-    def backward_triton(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
+    @classmethod
+    def backward_triton(cls, ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
         (
             weight,
             forget_weight,
