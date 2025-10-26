@@ -16,6 +16,8 @@ def bmm(
     is_B_transposed: bool = False,
     alpha: float = 1,
     beta: float = 1,
+    *,
+    kernel_backend: KernelBackend | None = None,
 ) -> torch.Tensor:
     """computes `alpha` * (`A` @ `B`) + `beta` * `C`
 
@@ -51,7 +53,8 @@ def bmm(
         assert C is not None
         assert C.size() == (L, M, N)
 
-    kernel_backend = KernelBackend.get_kernel_backend_from_device(A)
+    if kernel_backend is None:
+        kernel_backend = KernelBackend.get_kernel_backend_from_device(A)
 
     if kernel_backend == KernelBackend.torch:
         if is_A_transposed:
