@@ -240,6 +240,8 @@ def gru(
     gradient_clipping: float | None = None,
     cu_seqlens: torch.Tensor | None = None,
     max_seqlen: torch.Tensor | int | None = None,
+    *,
+    kernel_backend: KernelBackend | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """computes multihead RNN: tanh(`input_state` @ `weight` + `input`)
 
@@ -263,8 +265,6 @@ def gru(
 
     N, H = input.size()[-2:]
     assert weight.size() == (N, H, H)
-
-    kernel_backend = KernelBackend.get_kernel_backend_from_device(input)
 
     if gradient_clipping is not None and gradient_clipping < 0:
         gradient_clipping = -gradient_clipping
