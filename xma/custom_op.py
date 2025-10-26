@@ -76,11 +76,11 @@ class CustomOp(torch.autograd.Function):
 
     @staticmethod
     def forward_cuda(ctx, *args, **kwargs) -> Any:
-        raise NotImplementedError
+        return CustomOp.forward_triton(ctx, *args, **kwargs)
 
     @staticmethod
     def backward_cuda(ctx, *args, **kwargs) -> Any:
-        raise NotImplementedError
+        return CustomOp.backward_triton(ctx, *args, **kwargs)
 
     @staticmethod
     def forward_triton(ctx, *args, **kwargs) -> Any:
