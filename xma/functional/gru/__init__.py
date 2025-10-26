@@ -4,6 +4,7 @@
 
 import torch
 
+from ...custom_op import CustomOp, ctx_needs_gradients, ctx_save_for_backward
 from ...enums import KernelBackend
 from ...torch_math import clip_gradients, sigmoid, tanh
 from ...utils import empty_like_contiguous, zeros_like_contiguous
@@ -11,9 +12,108 @@ from ..rnn import get_max_seqlen_and_max_seqlen_tensor
 from .triton_implementation import gru_backward_triton, gru_forward_triton
 
 
-class _GRU(torch.autograd.Function):
+class _GRU(CustomOp):
     @staticmethod
-    def forward(
+    def forward_backward_torch(
+        input: torch.Tensor,
+        weight: torch.Tensor,
+        forget_input: torch.Tensor,
+        forget_weight: torch.Tensor,
+        reset_input: torch.Tensor,
+        reset_weight: torch.Tensor,
+        input_state: torch.Tensor | None,
+        gradient_clipping: float | None,
+        cu_seqlens: torch.Tensor | None,
+        max_seqlen: torch.Tensor | int | None,
+    ) -> torch.Tensor:
+        output = torch.empty_like(input)
+
+        if cu_seqlens is None:
+            assert max_seqlen is None
+            B, S, N, H = input.size()
+
+            if input_state is None:
+                input_state = torch.zeros(B, N, H, device=input.device, dtype=input.dtype)
+
+            # input -> (B, S, N, H)
+            # weight -> (N, H, H)
+            # input_state -> (B, N, H)
+
+            for s in range(S):
+                # (B, N, 1, H) = (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
+                forget_gate = input_state.unsqueeze(-2) @ forget_weight.unsqueeze(0) + forget_input[:, s].unsqueeze(-2)
+                forget_gate = sigmoid(forget_gate)
+
+                # (B, N, 1, H) = (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
+                reset_gate = input_state.unsqueeze(-2) @ reset_weight.unsqueeze(0) + reset_input[:, s].unsqueeze(-2)
+                reset_gate = sigmoid(reset_gate)
+
+                # (B, N, 1, H) = [(B, N, 1, H) * (B, N, 1, H)] @ (1, N, H, H) + (B, N, 1, H)
+                possible_new_state = (input_state.unsqueeze(-2) * reset_gate) @ weight.unsqueeze(0) + input[
+                    :, s
+                ].unsqueeze(-2)
+                possible_new_state = tanh(possible_new_state)
+
+                input_state = forget_gate * input_state.unsqueeze(-2) + (1 - forget_gate) * possible_new_state
+                input_state = input_state.squeeze(-2)
+
+                if gradient_clipping is not None:
+                    input_state = clip_gradients(input_state, gradient_clipping)
+
+                output[:, s] = input_state
+        else:
+            assert max_seqlen is not None
+            B = cu_seqlens.numel() - 1
+            _, N, H = input.size()
+
+            if input_state is None:
+                input_state = torch.zeros(B, N, H, device=input.device, dtype=input.dtype)
+            else:
+                input_state = input_state.clone()
+
+            # input -> (cu_seqlens[-1], N, H)
+            # weight -> (N, H, H)
+            # input_state -> (B, N, H)
+
+            start = cu_seqlens[:-1]
+            end = cu_seqlens[1:]
+
+            for s in range(max_seqlen):
+                offset = start + s
+                unfinished = offset < end
+
+                new_state = input_state[unfinished].unsqueeze(-2)
+                offset_unfinished = offset[unfinished]
+
+                # don't update the finished sequences
+                # (B, N, 1, H) = (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
+                forget_gate = new_state @ forget_weight.unsqueeze(0) + forget_input[offset_unfinished].unsqueeze(-2)
+                forget_gate = sigmoid(forget_gate)
+
+                # (B, N, 1, H) = (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
+                reset_gate = new_state @ reset_weight.unsqueeze(0) + reset_input[offset_unfinished].unsqueeze(-2)
+                reset_gate = sigmoid(reset_gate)
+
+                # (B, N, 1, H) = [(B, N, 1, H) * (B, N, 1, H)] @ (1, N, H, H) + (B, N, 1, H)
+                possible_new_state = (new_state * reset_gate) @ weight.unsqueeze(0) + input[
+                    offset_unfinished
+                ].unsqueeze(-2)
+                possible_new_state = tanh(possible_new_state)
+
+                new_state = forget_gate * new_state + (1 - forget_gate) * possible_new_state
+
+                if gradient_clipping is not None:
+                    new_state = clip_gradients(new_state, gradient_clipping)
+
+                new_state = new_state.squeeze(-2)
+
+                output[offset_unfinished] = new_state
+                input_state[unfinished] = new_state
+
+        return output
+
+    @staticmethod
+    def forward_triton(
         ctx,
         input: torch.Tensor,
         weight: torch.Tensor,
@@ -26,7 +126,7 @@ class _GRU(torch.autograd.Function):
         cu_seqlens: torch.Tensor | None,
         max_seqlen: torch.Tensor | int | None,
     ) -> torch.Tensor:
-        needs_grad = any(ctx.needs_input_grad[:6])
+        needs_grad = ctx_needs_gradients(ctx)
 
         output = empty_like_contiguous(input)
         max_seqlen_tensor, max_seqlen = get_max_seqlen_and_max_seqlen_tensor(max_seqlen)
@@ -51,19 +151,19 @@ class _GRU(torch.autograd.Function):
             max_seqlen=max_seqlen,
         )
 
-        if needs_grad:
-            ctx.save_for_backward(
-                weight,
-                forget_weight,
-                forget_gate,
-                reset_weight,
-                reset_gate,
-                output_update,
-                output,
-                input_state,
-                cu_seqlens,
-                max_seqlen_tensor,
-            )
+        ctx_save_for_backward(
+            ctx,
+            weight,
+            forget_weight,
+            forget_gate,
+            reset_weight,
+            reset_gate,
+            output_update,
+            output,
+            input_state,
+            cu_seqlens,
+            max_seqlen_tensor,
+        )
 
         ctx.max_seqlen = max_seqlen
         ctx.gradient_clipping = gradient_clipping
@@ -71,7 +171,7 @@ class _GRU(torch.autograd.Function):
         return output
 
     @staticmethod
-    def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
+    def backward_triton(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
         (
             weight,
             forget_weight,
@@ -169,106 +269,20 @@ def gru(
     if gradient_clipping is not None and gradient_clipping < 0:
         gradient_clipping = -gradient_clipping
 
-    if kernel_backend == KernelBackend.torch:
-        output = torch.empty_like(input)
+    input = _GRU.run(
+        input=input,
+        weight=weight,
+        forget_input=forget_input,
+        forget_weight=forget_weight,
+        reset_input=reset_input,
+        reset_weight=reset_weight,
+        input_state=input_state,
+        gradient_clipping=gradient_clipping,
+        cu_seqlens=cu_seqlens,
+        max_seqlen=max_seqlen,
+        kernel_backend=kernel_backend,
+    )
 
-        if cu_seqlens is None:
-            assert max_seqlen is None
-            B, S, N, H = input.size()
+    output_state = input[:, -1] if cu_seqlens is None else input[cu_seqlens[1:] - 1]
 
-            if input_state is None:
-                input_state = torch.zeros(B, N, H, device=input.device, dtype=input.dtype)
-
-            # input -> (B, S, N, H)
-            # weight -> (N, H, H)
-            # input_state -> (B, N, H)
-
-            for s in range(S):
-                # (B, N, 1, H) = (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
-                forget_gate = input_state.unsqueeze(-2) @ forget_weight.unsqueeze(0) + forget_input[:, s].unsqueeze(-2)
-                forget_gate = sigmoid(forget_gate)
-
-                # (B, N, 1, H) = (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
-                reset_gate = input_state.unsqueeze(-2) @ reset_weight.unsqueeze(0) + reset_input[:, s].unsqueeze(-2)
-                reset_gate = sigmoid(reset_gate)
-
-                # (B, N, 1, H) = [(B, N, 1, H) * (B, N, 1, H)] @ (1, N, H, H) + (B, N, 1, H)
-                possible_new_state = (input_state.unsqueeze(-2) * reset_gate) @ weight.unsqueeze(0) + input[
-                    :, s
-                ].unsqueeze(-2)
-                possible_new_state = tanh(possible_new_state)
-
-                input_state = forget_gate * input_state.unsqueeze(-2) + (1 - forget_gate) * possible_new_state
-                input_state = input_state.squeeze(-2)
-
-                if gradient_clipping is not None:
-                    input_state = clip_gradients(input_state, gradient_clipping)
-
-                output[:, s] = input_state
-        else:
-            assert max_seqlen is not None
-            B = cu_seqlens.numel() - 1
-            _, N, H = input.size()
-
-            if input_state is None:
-                input_state = torch.zeros(B, N, H, device=input.device, dtype=input.dtype)
-            else:
-                input_state = input_state.clone()
-
-            # input -> (cu_seqlens[-1], N, H)
-            # weight -> (N, H, H)
-            # input_state -> (B, N, H)
-
-            start = cu_seqlens[:-1]
-            end = cu_seqlens[1:]
-
-            for s in range(max_seqlen):
-                offset = start + s
-                unfinished = offset < end
-
-                new_state = input_state[unfinished].unsqueeze(-2)
-                offset_unfinished = offset[unfinished]
-
-                # don't update the finished sequences
-                # (B, N, 1, H) = (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
-                forget_gate = new_state @ forget_weight.unsqueeze(0) + forget_input[offset_unfinished].unsqueeze(-2)
-                forget_gate = sigmoid(forget_gate)
-
-                # (B, N, 1, H) = (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
-                reset_gate = new_state @ reset_weight.unsqueeze(0) + reset_input[offset_unfinished].unsqueeze(-2)
-                reset_gate = sigmoid(reset_gate)
-
-                # (B, N, 1, H) = [(B, N, 1, H) * (B, N, 1, H)] @ (1, N, H, H) + (B, N, 1, H)
-                possible_new_state = (new_state * reset_gate) @ weight.unsqueeze(0) + input[
-                    offset_unfinished
-                ].unsqueeze(-2)
-                possible_new_state = tanh(possible_new_state)
-
-                new_state = forget_gate * new_state + (1 - forget_gate) * possible_new_state
-
-                if gradient_clipping is not None:
-                    new_state = clip_gradients(new_state, gradient_clipping)
-
-                new_state = new_state.squeeze(-2)
-
-                output[offset_unfinished] = new_state
-                input_state[unfinished] = new_state
-    else:
-        assert kernel_backend in [KernelBackend.cuda, KernelBackend.triton]
-
-        output = _GRU.apply(
-            input,
-            weight,
-            forget_input,
-            forget_weight,
-            reset_input,
-            reset_weight,
-            input_state,
-            gradient_clipping,
-            cu_seqlens,
-            max_seqlen,
-        )
-
-    output_state = output[:, -1] if cu_seqlens is None else output[cu_seqlens[1:] - 1]
-
-    return output, output_state
+    return input, output_state
