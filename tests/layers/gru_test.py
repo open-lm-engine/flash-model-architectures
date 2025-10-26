@@ -270,13 +270,20 @@ class GRUTest(TestCommons):
                 gru_kernel = torch.compile(gru_kernel, fullgraph=True)
 
             y_kernel, output_state_kernel = gru_kernel(
-                input=x_kernel, input_state=input_state_kernel, cu_seqlens=cu_seqlens, max_seqlen=max_seqlen
+                input=x_kernel,
+                input_state=input_state_kernel,
+                cu_seqlens=cu_seqlens,
+                max_seqlen=max_seqlen,
+                kernel_backend=KernelBackend.triton,
             )
 
-            with force_kernel_backend(KernelBackend.torch):
-                y_torch, output_state_torch = gru_torch(
-                    input=x_torch, input_state=input_state_torch, cu_seqlens=cu_seqlens, max_seqlen=max_seqlen
-                )
+            y_torch, output_state_torch = gru_torch(
+                input=x_torch,
+                input_state=input_state_torch,
+                cu_seqlens=cu_seqlens,
+                max_seqlen=max_seqlen,
+                kernel_backend=KernelBackend.torch,
+            )
 
             self.assert_equal_tensors(
                 y_kernel,
