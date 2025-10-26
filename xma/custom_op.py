@@ -90,6 +90,6 @@ class CustomOp(torch.autograd.Function):
     def backward_triton(cls, ctx, *args, **kwargs) -> Any:
         raise NotImplementedError
 
-    @classmethod
-    def forward_backward_torch(cls, *args, **kwargs) -> Any:
+    @staticmethod
+    def forward_backward_torch(*args, **kwargs) -> Any:
         raise NotImplementedError
