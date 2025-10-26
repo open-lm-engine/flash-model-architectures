@@ -8,7 +8,7 @@ import torch
 import torch.nn as nn
 from parameterized import parameterized
 
-from xma import GRU, KernelBackend, force_kernel_backend, set_seed
+from xma import GRU, KernelBackend, set_seed
 
 from ..test_commons import TestCommons
 
@@ -75,10 +75,13 @@ class GRUTest(TestCommons):
             if is_compiling:
                 gru_kernel = torch.compile(gru_kernel, fullgraph=True)
 
-            y_kernel, output_state_kernel = gru_kernel(input=x_kernel, input_state=input_state_kernel)
+            y_kernel, output_state_kernel = gru_kernel(
+                input=x_kernel, input_state=input_state_kernel, kernel_backend=KernelBackend.triton
+            )
 
-            with force_kernel_backend(KernelBackend.torch):
-                y_torch, output_state_torch = gru_torch(input=x_torch, input_state=input_state_torch)
+            y_torch, output_state_torch = gru_torch(
+                input=x_torch, input_state=input_state_torch, kernel_backend=KernelBackend.torch
+            )
 
             self.assert_equal_tensors(
                 y_kernel,
