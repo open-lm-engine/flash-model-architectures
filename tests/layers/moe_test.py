@@ -5,7 +5,7 @@
 import torch
 from parameterized import parameterized
 
-from xma import KernelBackend, MoE, force_kernel_backend, set_seed
+from xma import KernelBackend, MoE, set_seed
 
 from ..test_commons import TestCommons
 
