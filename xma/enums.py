@@ -11,19 +11,6 @@ import torch
 
 
 _IS_ROCM_AVAILABLE = torch.version.hip is not None
-_FORCED_KERNEL_BACKEND = None
-
-
-@contextmanager
-def force_kernel_backend(kernel_backend: KernelBackend):
-    global _FORCED_KERNEL_BACKEND
-
-    original_value = _FORCED_KERNEL_BACKEND
-    _FORCED_KERNEL_BACKEND = kernel_backend
-
-    yield
-
-    _FORCED_KERNEL_BACKEND = original_value
 
 
 class KernelBackend(Enum):
