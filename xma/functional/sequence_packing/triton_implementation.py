@@ -11,23 +11,6 @@ from ...constants import LIBRARY_NAME
 
 
 @triton.jit
-def _copy_array(x_ptr, x_stride, y_ptr, y_stride, BLOCK_ID_B, BLOCK_ID_S, t, S, N, pack, BLOCK_SIZE):
-    unpacked_offset = (BLOCK_ID_B * S + BLOCK_ID_S) * N
-    packed_offset = t * N
-
-    for i in range(tl.cdiv(N, BLOCK_SIZE)):
-        indices = i * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
-        mask = indices < N
-
-        if pack:
-            source = tl.load(x_ptr + unpacked_offset + indices, mask=mask)
-            tl.store(y_ptr + packed_offset + indices, source, mask=mask)
-        else:
-            source = tl.load(x_ptr + packed_offset + indices, mask=mask)
-            tl.store(y_ptr + unpacked_offset + indices, source, mask=mask)
-
-
-@triton.jit
 def pack_unpack_sequence_triton_kernel(
     x_ptr,
     x_stride,
@@ -52,19 +35,19 @@ def pack_unpack_sequence_triton_kernel(
     pad_tokens = (S - seqlens) if PADDING_SIDE == "left" else 0
 
     if (PADDING_SIDE == "left" and BLOCK_ID_S >= pad_tokens) or (PADDING_SIDE == "right" and BLOCK_ID_S < seqlens):
-        _copy_array(
-            x_ptr=x_ptr,
-            x_stride=x_stride,
-            y_ptr=y_ptr,
-            y_stride=y_stride,
-            BLOCK_ID_B=BLOCK_ID_B,
-            BLOCK_ID_S=BLOCK_ID_S,
-            t=start + BLOCK_ID_S - pad_tokens,
-            S=S,
-            N=N,
-            pack=PACK,
-            BLOCK_SIZE=BLOCK_SIZE,
-        )
+        unpacked_offset = (BLOCK_ID_B * S + BLOCK_ID_S) * N
+        packed_offset = (start + BLOCK_ID_S - pad_tokens) * N
+
+        for i in range(tl.cdiv(N, BLOCK_SIZE)):
+            indices = i * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
+            mask = indices < N
+
+            if PACK:
+                source = tl.load(x_ptr + unpacked_offset + indices, mask=mask)
+                tl.store(y_ptr + packed_offset + indices, source, mask=mask)
+            else:
+                source = tl.load(x_ptr + packed_offset + indices, mask=mask)
+                tl.store(y_ptr + unpacked_offset + indices, source, mask=mask)
 
 
 @custom_op(f"{LIBRARY_NAME}::pack_unpack_sequence_triton", mutates_args={"output"})
