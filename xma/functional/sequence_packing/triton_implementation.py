@@ -51,36 +51,20 @@ def pack_unpack_sequence_triton_kernel(
 
     pad_tokens = (S - seqlens) if PADDING_SIDE == "left" else 0
 
-    if PADDING_SIDE == "left":
-        if BLOCK_ID_S >= pad_tokens:
-            _copy_array(
-                x_ptr=x_ptr,
-                x_stride=x_stride,
-                y_ptr=y_ptr,
-                y_stride=y_stride,
-                BLOCK_ID_B=BLOCK_ID_B,
-                BLOCK_ID_S=BLOCK_ID_S,
-                t=start + BLOCK_ID_S - pad_tokens,
-                S=S,
-                N=N,
-                pack=PACK,
-                BLOCK_SIZE=BLOCK_SIZE,
-            )
-    else:
-        if BLOCK_ID_S < seqlens:
-            _copy_array(
-                x_ptr=x_ptr,
-                x_stride=x_stride,
-                y_ptr=y_ptr,
-                y_stride=y_stride,
-                BLOCK_ID_B=BLOCK_ID_B,
-                BLOCK_ID_S=BLOCK_ID_S,
-                t=start + BLOCK_ID_S - pad_tokens,
-                S=S,
-                N=N,
-                pack=PACK,
-                BLOCK_SIZE=BLOCK_SIZE,
-            )
+    if (PADDING_SIDE == "left" and BLOCK_ID_S >= pad_tokens) or (PADDING_SIDE == "right" and BLOCK_ID_S < seqlens):
+        _copy_array(
+            x_ptr=x_ptr,
+            x_stride=x_stride,
+            y_ptr=y_ptr,
+            y_stride=y_stride,
+            BLOCK_ID_B=BLOCK_ID_B,
+            BLOCK_ID_S=BLOCK_ID_S,
+            t=start + BLOCK_ID_S - pad_tokens,
+            S=S,
+            N=N,
+            pack=PACK,
+            BLOCK_SIZE=BLOCK_SIZE,
+        )
 
 
 @custom_op(f"{LIBRARY_NAME}::pack_unpack_sequence_triton", mutates_args={"output"})
