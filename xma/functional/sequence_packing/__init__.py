@@ -55,42 +55,6 @@ def _unpack_sequence(
     return output
 
 
-class __PackSequence(torch.autograd.Function):
-    @staticmethod
-    def forward(
-        ctx,
-        x: torch.Tensor,
-        cu_seqlens: torch.Tensor,
-        output_shape: tuple[int],
-        padding_side: str,
-    ) -> torch.Tensor:
-        ctx.save_for_backward(cu_seqlens)
-        ctx.padding_side = padding_side
-        ctx.x_shape = x.size()
-
-        output = _pack_sequence(
-            x=x,
-            cu_seqlens=cu_seqlens,
-            output_shape=output_shape,
-            padding_side=padding_side,
-            kernel_backend=KernelBackend.triton,
-        )
-
-        return output
-
-    @staticmethod
-    def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
-        x_grad = _unpack_sequence(
-            x=output_grad,
-            cu_seqlens=ctx.saved_tensors[0],
-            output_shape=ctx.x_shape,
-            padding_side=ctx.padding_side,
-            kernel_backend=KernelBackend.triton,
-        )
-
-        return x_grad, None, None, None
-
-
 class _PackSequence(CustomOp):
     @staticmethod
     def forward_backward_torch(
@@ -142,6 +106,36 @@ class _PackSequence(CustomOp):
             padding_side=ctx.padding_side,
             pack=False,
             BLOCK_SIZE=1024,
+        )
+
+        return x_grad, None, None, None
+
+    @staticmethod
+    def forward_triton(
+        ctx, x: torch.Tensor, cu_seqlens: torch.Tensor, output_shape: tuple[int], padding_side: str
+    ) -> torch.Tensor:
+        ctx.save_for_backward(cu_seqlens)
+        ctx.padding_side = padding_side
+        ctx.x_shape = x.size()
+
+        output = _pack_sequence(
+            x=x,
+            cu_seqlens=cu_seqlens,
+            output_shape=output_shape,
+            padding_side=padding_side,
+            kernel_backend=KernelBackend.triton,
+        )
+
+        return output
+
+    @staticmethod
+    def backward_triton(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor, None, None, None]:
+        x_grad = _unpack_sequence(
+            x=output_grad,
+            cu_seqlens=ctx.saved_tensors[0],
+            output_shape=ctx.x_shape,
+            padding_side=ctx.padding_side,
+            kernel_backend=KernelBackend.triton,
         )
 
         return x_grad, None, None, None
@@ -207,16 +201,13 @@ def pack_sequence(
         assert x.size(0) == cu_seqlens.size(0) - 1
         output_shape = (total_tokens, *x.size()[2:])
 
-        if kernel_backend in [KernelBackend.torch, KernelBackend.cuda]:
-            x = _PackSequence.run(
-                x=x,
-                cu_seqlens=cu_seqlens,
-                output_shape=output_shape,
-                padding_side=padding_side,
-                kernel_backend=kernel_backend,
-            )
-        else:
-            x = __PackSequence.apply(x, cu_seqlens, output_shape, padding_side)
+        x = _PackSequence.run(
+            x=x,
+            cu_seqlens=cu_seqlens,
+            output_shape=output_shape,
+            padding_side=padding_side,
+            kernel_backend=kernel_backend,
+        )
 
         outputs.append(x)
 
