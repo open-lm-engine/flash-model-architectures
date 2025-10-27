@@ -6,6 +6,7 @@ from typing import Sequence
 
 import torch
 
+from ...custom_op import CustomOp
 from ...enums import KernelBackend
 from ...utils import ensure_contiguous
 from .cuda_implementation import pack_unpack_sequence_cuda
@@ -54,7 +55,7 @@ def _unpack_sequence(
     return output
 
 
-class _PackSequence(torch.autograd.Function):
+class __PackSequence(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
     def forward(
@@ -92,6 +93,29 @@ class _PackSequence(torch.autograd.Function):
         )
 
         return x_grad, *[None] * 4
+
+
+class _PackSequence(CustomOp):
+    @staticmethod
+    @ensure_contiguous
+    def forward_backward_torch(
+        x: torch.Tensor, cu_seqlens: torch.Tensor, output_shape: tuple[int], padding_side: str
+    ) -> torch.Tensor:
+        B, S = x.size()[:2]
+        seqlens = cu_seqlens[1:] - cu_seqlens[:-1]
+        batch_indices = torch.arange(B, device=x.device).repeat_interleave(seqlens)
+
+        if padding_side == "left":
+            pad_tokens = S - seqlens
+            seq_indices = torch.cat([torch.arange(sl, S, device=x.device) for sl in pad_tokens])
+        elif padding_side == "right":
+            seq_indices = torch.cat([torch.arange(sl, device=x.device) for sl in seqlens])
+        else:
+            raise ValueError(f"unexpected padding_side ({padding_side})")
+
+        x = x[batch_indices, seq_indices]
+
+        return x
 
 
 class _UnpackSequence(torch.autograd.Function):
@@ -155,21 +179,15 @@ def pack_sequence(
         output_shape = (total_tokens, *x.size()[2:])
 
         if kernel_backend == KernelBackend.torch:
-            B, S = x.size()[:2]
-            seqlens = cu_seqlens[1:] - cu_seqlens[:-1]
-            batch_indices = torch.arange(B, device=x.device).repeat_interleave(seqlens)
-
-            if padding_side == "left":
-                pad_tokens = S - seqlens
-                seq_indices = torch.cat([torch.arange(sl, S, device=x.device) for sl in pad_tokens])
-            elif padding_side == "right":
-                seq_indices = torch.cat([torch.arange(sl, device=x.device) for sl in seqlens])
-            else:
-                raise ValueError(f"unexpected padding_side ({padding_side})")
-
-            x = x[batch_indices, seq_indices]
+            x = _PackSequence.run(
+                x=x,
+                cu_seqlens=cu_seqlens,
+                output_shape=output_shape,
+                padding_side=padding_side,
+                kernel_backend=kernel_backend,
+            )
         else:
-            x = _PackSequence.apply(x, cu_seqlens, output_shape, padding_side, kernel_backend)
+            x = __PackSequence.apply(x, cu_seqlens, output_shape, padding_side, kernel_backend)
 
         outputs.append(x)
 
