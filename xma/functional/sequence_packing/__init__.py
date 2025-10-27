@@ -88,7 +88,7 @@ class __PackSequence(torch.autograd.Function):
             kernel_backend=KernelBackend.triton,
         )
 
-        return x_grad, *[None] * 4
+        return x_grad, None, None, None
 
 
 class _PackSequence(CustomOp):
@@ -216,7 +216,7 @@ def pack_sequence(
                 kernel_backend=kernel_backend,
             )
         else:
-            x = __PackSequence.apply(x, cu_seqlens, output_shape, padding_side, kernel_backend)
+            x = __PackSequence.apply(x, cu_seqlens, output_shape, padding_side)
 
         outputs.append(x)
 
