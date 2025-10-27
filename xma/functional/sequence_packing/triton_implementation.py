@@ -77,7 +77,7 @@ def pack_unpack_sequence_triton(
             x_ptr=x,
             x_stride=x.stride(),
             y_ptr=output,
-            y_ptr=output.stride(),
+            y_stride=output.stride(),
             cu_seqlens_ptr=cu_seqlens,
             cu_seqlens_stride=cu_seqlens.stride(),
             S=S,
