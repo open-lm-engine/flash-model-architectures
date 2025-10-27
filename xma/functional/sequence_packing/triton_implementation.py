@@ -35,18 +35,15 @@ def pack_unpack_sequence_triton_kernel(
     pad_tokens = (S - seqlens) if PADDING_SIDE == "left" else 0
 
     if (PADDING_SIDE == "left" and BLOCK_ID_S >= pad_tokens) or (PADDING_SIDE == "right" and BLOCK_ID_S < seqlens):
-        unpacked_offset = (BLOCK_ID_B * S + BLOCK_ID_S) * N
-        packed_offset = (start + BLOCK_ID_S - pad_tokens) * N
-
         BLOCK = tl.arange(0, BLOCK_SIZE)
         NUM_BLOCKS = tl.cdiv(N, BLOCK_SIZE)
 
         if PACK:
-            x_ptrs = x_ptr + unpacked_offset + BLOCK
-            y_ptrs = y_ptr + packed_offset + BLOCK
+            x_ptrs = x_ptr + (BLOCK_ID_B * S + BLOCK_ID_S) * N + BLOCK
+            y_ptrs = y_ptr + (start + BLOCK_ID_S - pad_tokens) * N + BLOCK
         else:
-            x_ptrs = x_ptr + packed_offset + BLOCK
-            y_ptrs = y_ptr + unpacked_offset + BLOCK
+            x_ptrs = x_ptr + (start + BLOCK_ID_S - pad_tokens) * N + BLOCK
+            y_ptrs = y_ptr + (BLOCK_ID_B * S + BLOCK_ID_S) * N + BLOCK
 
         for _ in range(NUM_BLOCKS):
             MASK = BLOCK < N
