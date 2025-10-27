@@ -6,7 +6,7 @@ from typing import Sequence
 
 import torch
 
-from ...custom_op import CustomOp
+from ...custom_op import CustomOp, ctx_save_for_backward
 from ...enums import KernelBackend
 from ...utils import ensure_contiguous
 from .cuda_implementation import pack_unpack_sequence_cuda
@@ -81,7 +81,7 @@ class _PackSequence(CustomOp):
     def forward_cuda(
         ctx, x: torch.Tensor, cu_seqlens: torch.Tensor, output_shape: tuple[int], padding_side: str
     ) -> torch.Tensor:
-        ctx.save_for_backward(cu_seqlens)
+        ctx_save_for_backward(ctx, cu_seqlens)
         ctx.padding_side = padding_side
         ctx.x_shape = x.size()
 
@@ -114,7 +114,7 @@ class _PackSequence(CustomOp):
     def forward_triton(
         ctx, x: torch.Tensor, cu_seqlens: torch.Tensor, output_shape: tuple[int], padding_side: str
     ) -> torch.Tensor:
-        ctx.save_for_backward(cu_seqlens)
+        ctx_save_for_backward(ctx, cu_seqlens)
         ctx.padding_side = padding_side
         ctx.x_shape = x.size()
 
