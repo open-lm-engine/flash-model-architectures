@@ -125,7 +125,9 @@ def bmm_triton_kernel(
         BLOCK_K += BLOCK_SIZE_K
 
     D = D.to(A_ptr.dtype.element_ty)
-    D *= alpha
+
+    if alpha is not None:
+        D *= alpha
 
     MASK_MN = MASK_M[:, None] & MASK_N[None, :]
 
@@ -135,7 +137,10 @@ def bmm_triton_kernel(
             mask=MASK_MN,
         )
 
-        D += beta * C
+        if beta is not None:
+            C *= beta
+
+        D += C
 
     tl.store(
         D_ptr + BLOCK_ID_L * D_stride[0] + BLOCK_M[:, None] * D_stride[1] + BLOCK_N[None, :] * D_stride[2],
@@ -176,8 +181,8 @@ def bmm_triton(
             C_stride=None if C is None else C.stride(),
             D_ptr=D,
             D_stride=D.stride(),
-            alpha=alpha,
-            beta=beta,
+            alpha=None if alpha == 1 else alpha,
+            beta=None if beta == 1 else beta,
             IS_A_TRANSPOSED=is_A_transposed,
             IS_B_TRANSPOSED=is_B_transposed,
             M=M,
