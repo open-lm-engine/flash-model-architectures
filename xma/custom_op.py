@@ -50,6 +50,12 @@ class CustomOp(torch.autograd.Function):
 
             if kernel_backend == KernelBackend.cuda:
                 args += (cls.forward_cuda, cls.backward_cuda)
+            elif kernel_backend == KernelBackend.rocm:
+                args += (cls.forward_rocm, cls.backward_rocm)
+            elif kernel_backend == KernelBackend.pallas:
+                args += (cls.forward_pallas, cls.backward_pallas)
+            elif kernel_backend == KernelBackend.nki:
+                args += (cls.forward_nki, cls.backward_nki)
             elif kernel_backend == KernelBackend.triton:
                 args += (cls.forward_triton, cls.backward_triton)
             else:
@@ -83,6 +89,30 @@ class CustomOp(torch.autograd.Function):
     @classmethod
     def backward_cuda(cls, ctx, *args, **kwargs) -> Any:
         return cls.backward_triton(ctx, *args, **kwargs)
+
+    @classmethod
+    def forward_rocm(cls, ctx, *args, **kwargs) -> Any:
+        return cls.forward_triton(ctx, *args, **kwargs)
+
+    @classmethod
+    def backward_rocm(cls, ctx, *args, **kwargs) -> Any:
+        return cls.backward_triton(ctx, *args, **kwargs)
+
+    @classmethod
+    def forward_pallas(cls, ctx, *args, **kwargs) -> Any:
+        raise NotImplementedError
+
+    @classmethod
+    def backward_pallas(cls, ctx, *args, **kwargs) -> Any:
+        raise NotImplementedError
+
+    @classmethod
+    def forward_nki(cls, ctx, *args, **kwargs) -> Any:
+        raise NotImplementedError
+
+    @classmethod
+    def backward_nki(cls, ctx, *args, **kwargs) -> Any:
+        raise NotImplementedError
 
     @classmethod
     def forward_triton(cls, ctx, *args, **kwargs) -> Any:

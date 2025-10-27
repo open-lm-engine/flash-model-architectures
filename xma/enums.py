@@ -4,7 +4,6 @@
 
 from __future__ import annotations
 
-from contextlib import contextmanager
 from enum import Enum
 
 import torch
@@ -15,11 +14,11 @@ _IS_ROCM_AVAILABLE = torch.version.hip is not None
 
 class KernelBackend(Enum):
     cuda = "cuda"
-    rocm = "rocm"
+    nki = "nki"
     pallas = "pallas"
-    # for triton compatible accelerators
-    triton = "triton"
+    rocm = "rocm"
     torch = "torch"
+    triton = "triton"
 
     @staticmethod
     def get_kernel_backend_from_device(x: torch.Tensor) -> KernelBackend:
