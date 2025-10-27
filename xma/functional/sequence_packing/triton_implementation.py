@@ -39,8 +39,9 @@ def pack_unpack_sequence_triton_kernel(
         packed_offset = (start + BLOCK_ID_S - pad_tokens) * N
 
         BLOCK = tl.arange(0, BLOCK_SIZE)
+        NUM_BLOCKS = tl.cdiv(N, BLOCK_SIZE)
 
-        for i in range(tl.cdiv(N, BLOCK_SIZE)):
+        for _ in range(NUM_BLOCKS):
             MASK = BLOCK < N
 
             if PACK:
