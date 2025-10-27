@@ -193,12 +193,11 @@ def pack_sequence(
     for x in inputs:
         assert x.dim() >= 2
         assert x.size(0) == cu_seqlens.size(0) - 1
-        output_shape = (total_tokens, *x.size()[2:])
 
         x = _PackSequence.run(
             x=x,
             cu_seqlens=cu_seqlens,
-            output_shape=output_shape,
+            output_shape=(total_tokens, *x.size()[2:]),
             padding_side=padding_side,
             kernel_backend=kernel_backend,
         )
