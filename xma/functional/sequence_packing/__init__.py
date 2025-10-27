@@ -135,7 +135,7 @@ class _PackSequence(CustomOp):
 
     @staticmethod
     @ensure_contiguous
-    def backward_cuda(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
+    def backward_cuda(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor, None, None, None]:
         x_grad = torch.zeros(*ctx.x_shape, device=output_grad.device, dtype=output_grad.dtype)
         cu_seqlens = ctx.saved_tensors[0]
 
@@ -148,7 +148,7 @@ class _PackSequence(CustomOp):
             BLOCK_SIZE=1024,
         )
 
-        return x_grad, *[None] * 4
+        return x_grad, None, None, None
 
 
 class _UnpackSequence(torch.autograd.Function):
