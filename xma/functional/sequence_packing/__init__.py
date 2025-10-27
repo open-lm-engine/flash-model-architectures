@@ -137,12 +137,16 @@ class _UnpackSequence(torch.autograd.Function):
 
 
 def pack_sequence(
-    inputs: Sequence[torch.Tensor], cu_seqlens: torch.Tensor, total_tokens: int, padding_side: str = "left"
+    inputs: Sequence[torch.Tensor],
+    cu_seqlens: torch.Tensor,
+    total_tokens: int,
+    padding_side: str = "left",
+    *,
+    kernel_backend: KernelBackend | None = None,
 ) -> Sequence[torch.Tensor]:
     assert padding_side in ["left", "right"]
     assert isinstance(inputs, (list, tuple))
 
-    kernel_backend = KernelBackend.get_kernel_backend_from_device(inputs[0])
     outputs = []
 
     for x in inputs:
@@ -178,11 +182,11 @@ def unpack_sequence(
     batch_size: int,
     sequence_length: int,
     padding_side: str = "left",
+    *,
+    kernel_backend: KernelBackend | None = None,
 ) -> Sequence[torch.Tensor]:
     assert padding_side in ["left", "right"]
     assert isinstance(inputs, (list, tuple))
-
-    kernel_backend = KernelBackend.get_kernel_backend_from_device(inputs[0])
 
     outputs = []
     B = batch_size
