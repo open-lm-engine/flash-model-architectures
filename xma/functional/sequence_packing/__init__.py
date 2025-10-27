@@ -57,39 +57,35 @@ def _unpack_sequence(
 
 class __PackSequence(torch.autograd.Function):
     @staticmethod
-    @ensure_contiguous
     def forward(
         ctx,
         x: torch.Tensor,
         cu_seqlens: torch.Tensor,
         output_shape: tuple[int],
         padding_side: str,
-        kernel_backend: KernelBackend,
     ) -> torch.Tensor:
         ctx.save_for_backward(cu_seqlens)
         ctx.padding_side = padding_side
         ctx.x_shape = x.size()
-        ctx.kernel_backend = kernel_backend
 
         output = _pack_sequence(
             x=x,
             cu_seqlens=cu_seqlens,
             output_shape=output_shape,
             padding_side=padding_side,
-            kernel_backend=kernel_backend,
+            kernel_backend=KernelBackend.triton,
         )
 
         return output
 
     @staticmethod
-    @ensure_contiguous
     def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
         x_grad = _unpack_sequence(
             x=output_grad,
             cu_seqlens=ctx.saved_tensors[0],
             output_shape=ctx.x_shape,
             padding_side=ctx.padding_side,
-            kernel_backend=ctx.kernel_backend,
+            kernel_backend=KernelBackend.triton,
         )
 
         return x_grad, *[None] * 4
