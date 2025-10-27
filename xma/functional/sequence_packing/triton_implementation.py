@@ -41,17 +41,23 @@ def pack_unpack_sequence_triton_kernel(
         BLOCK = tl.arange(0, BLOCK_SIZE)
         NUM_BLOCKS = tl.cdiv(N, BLOCK_SIZE)
 
+        if PACK:
+            x_ptrs = x_ptr + unpacked_offset + BLOCK
+        else:
+            x_ptrs = x_ptr + packed_offset + BLOCK
+
         for _ in range(NUM_BLOCKS):
             MASK = BLOCK < N
 
+            source = tl.load(x_ptrs, mask=MASK)
+
             if PACK:
-                source = tl.load(x_ptr + unpacked_offset + BLOCK, mask=MASK)
                 tl.store(y_ptr + packed_offset + BLOCK, source, mask=MASK)
             else:
-                source = tl.load(x_ptr + packed_offset + BLOCK, mask=MASK)
                 tl.store(y_ptr + unpacked_offset + BLOCK, source, mask=MASK)
 
             BLOCK += BLOCK_SIZE
+            x_ptrs += BLOCK_SIZE
 
 
 @custom_op(f"{LIBRARY_NAME}::pack_unpack_sequence_triton", mutates_args={"output"})
