@@ -97,7 +97,6 @@ class __PackSequence(torch.autograd.Function):
 
 class _PackSequence(CustomOp):
     @staticmethod
-    @ensure_contiguous
     def forward_backward_torch(
         x: torch.Tensor, cu_seqlens: torch.Tensor, output_shape: tuple[int], padding_side: str
     ) -> torch.Tensor:
@@ -116,6 +115,40 @@ class _PackSequence(CustomOp):
         x = x[batch_indices, seq_indices]
 
         return x
+
+    @staticmethod
+    @ensure_contiguous
+    def forward_cuda(
+        ctx, x: torch.Tensor, cu_seqlens: torch.Tensor, output_shape: tuple[int], padding_side: str
+    ) -> torch.Tensor:
+        ctx.save_for_backward(cu_seqlens)
+        ctx.padding_side = padding_side
+        ctx.x_shape = x.size()
+
+        output = torch.empty(output_shape, device=x.device, dtype=x.dtype)
+
+        pack_unpack_sequence_cuda(
+            x=x, output=output, cu_seqlens=cu_seqlens, padding_side=padding_side, pack=True, BLOCK_SIZE=1024
+        )
+
+        return output
+
+    @staticmethod
+    @ensure_contiguous
+    def backward_cuda(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
+        x_grad = torch.zeros(*ctx.x_shape, device=output_grad.device, dtype=output_grad.dtype)
+        cu_seqlens = ctx.saved_tensors[0]
+
+        pack_unpack_sequence_cuda(
+            x=output_grad,
+            output=x_grad,
+            cu_seqlens=cu_seqlens,
+            padding_side=ctx.padding_side,
+            pack=False,
+            BLOCK_SIZE=1024,
+        )
+
+        return x_grad, *[None] * 4
 
 
 class _UnpackSequence(torch.autograd.Function):
@@ -178,7 +211,7 @@ def pack_sequence(
         assert x.size(0) == cu_seqlens.size(0) - 1
         output_shape = (total_tokens, *x.size()[2:])
 
-        if kernel_backend == KernelBackend.torch:
+        if kernel_backend in [KernelBackend.torch, KernelBackend.cuda]:
             x = _PackSequence.run(
                 x=x,
                 cu_seqlens=cu_seqlens,
