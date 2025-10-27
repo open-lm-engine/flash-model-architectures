@@ -6,6 +6,7 @@ import torch
 import triton
 import triton.language as tl
 from torch.library import custom_op
+from torch.utils.flop_counter import register_flop_formula
 
 from ...constants import LIBRARY_NAME
 from ...math import ceil_divide
@@ -125,7 +126,8 @@ def bmm_triton_kernel(
         BLOCK_K += BLOCK_SIZE_K
 
     D = D.to(A_ptr.dtype.element_ty)
-    D *= alpha
+    if alpha is not None:
+        D *= alpha
 
     MASK_MN = MASK_M[:, None] & MASK_N[None, :]
 
@@ -135,7 +137,10 @@ def bmm_triton_kernel(
             mask=MASK_MN,
         )
 
-        D += beta * C
+        if beta is not None:
+            C *= beta
+
+        D += C
 
     tl.store(
         D_ptr + BLOCK_ID_L * D_stride[0] + BLOCK_M[:, None] * D_stride[1] + BLOCK_N[None, :] * D_stride[2],
@@ -176,11 +181,70 @@ def bmm_triton(
             C_stride=None if C is None else C.stride(),
             D_ptr=D,
             D_stride=D.stride(),
-            alpha=alpha,
-            beta=beta,
+            alpha=None if alpha == 1 else alpha,
+            beta=None if beta == 1 else beta,
             IS_A_TRANSPOSED=is_A_transposed,
             IS_B_TRANSPOSED=is_B_transposed,
             M=M,
             K=K,
             N=N,
         )
+
+
+@register_flop_formula(bmm_triton)
+def _bmm_triton_flops(
+    A_shape: tuple[int],
+    B_shape: tuple[int],
+    C_shape: tuple[int] | None,
+    D_shape: tuple[int],
+    is_A_transposed: bool,
+    is_B_transposed: bool,
+    alpha: int,
+    beta: int,
+) -> int:
+    L, M, K = A_shape
+    if is_A_transposed:
+        M, K = K, M
+
+    N = D_shape[1]
+
+    flops = M * N * (2 * K - 1)
+
+    if alpha != 1:
+        flops += M * N
+
+    if C_shape is not None:
+        flops += M * N
+
+        if beta != 1:
+            flops += M * N
+
+    flops *= L
+
+    return flops
+
+
+@register_io_formula(bmm_triton)
+def _bmm_triton_io(
+    A: torch.Tensor,
+    B: torch.Tensor,
+    C: torch.Tensor | None,
+    D: torch.Tensor,
+    is_A_transposed: bool,
+    is_B_transposed: bool,
+    alpha: float,
+    beta: float,
+) -> int:
+    L, M, K = A.size()
+    if is_A_transposed:
+        M, K = K, M
+
+    N = D.size(1)
+
+    io = M * N + K * N + M * K
+    if C is not None:
+        io += M * N
+
+    io *= L * A.dtype.itemsize
+
+    return io
