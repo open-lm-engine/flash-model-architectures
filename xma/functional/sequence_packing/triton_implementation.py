@@ -40,10 +40,10 @@ def pack_unpack_sequence_triton_kernel(
 
         if PACK:
             x_ptrs = x_ptr + BLOCK_ID_B * x_stride[0] + BLOCK_ID_S * x_stride[1] + BLOCK * x_stride[-1]
-            y_ptrs = y_ptr + (start + BLOCK_ID_S - pad_tokens) * N + BLOCK * y_stride[-1]
+            y_ptrs = y_ptr + (start + BLOCK_ID_S - pad_tokens) * y_stride[0] + BLOCK * y_stride[-1]
         else:
             x_ptrs = x_ptr + (start + BLOCK_ID_S - pad_tokens) * x_stride[0] + BLOCK * x_stride[-1]
-            y_ptrs = y_ptr + (BLOCK_ID_B * S + BLOCK_ID_S) * N + BLOCK * y_stride[-1]
+            y_ptrs = y_ptr + BLOCK_ID_B * y_stride[0] + BLOCK_ID_S * y_stride[1] + BLOCK * y_stride[-1]
 
         for _ in range(NUM_BLOCKS):
             MASK = BLOCK < N
