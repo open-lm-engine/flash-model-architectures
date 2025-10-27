@@ -262,19 +262,15 @@ def unpack_sequence(
     assert isinstance(inputs, (list, tuple))
 
     outputs = []
-    B = batch_size
-    S = sequence_length
 
     for x in inputs:
         assert x.dim() >= 2
-        assert cu_seqlens.size(0) - 1 == B
-
-        output_shape = (B, S, *x.size()[1:])
+        assert cu_seqlens.size(0) - 1 == batch_size
 
         x = _UnpackSequence.run(
             x=x,
             cu_seqlens=cu_seqlens,
-            output_shape=output_shape,
+            output_shape=(batch_size, sequence_length, *x.size()[1:]),
             padding_side=padding_side,
             kernel_backend=kernel_backend,
         )
