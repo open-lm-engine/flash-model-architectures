@@ -7,7 +7,7 @@ from functools import partial
 import torch
 from tabulate import tabulate
 
-from xma import KernelBackend, device_synchronize, gemm
+from xma import KernelBackend, bmm, device_synchronize
 
 
 torch._inductor.config.max_autotune_gemm_backends = "TRITON"
@@ -17,18 +17,22 @@ n = 100
 
 headers = ["dtype", "torch TFLOPs", "torch compile TFLOPs", "triton TFLOPs"]
 kernels = [
-    partial(gemm, kernel_backend=KernelBackend.torch),
-    partial(torch.compile(gemm, mode="max-autotune"), kernel_backend=KernelBackend.torch),
-    partial(gemm, kernel_backend=KernelBackend.triton),
+    partial(bmm, kernel_backend=KernelBackend.torch),
+    partial(torch.compile(bmm, mode="max-autotune"), kernel_backend=KernelBackend.torch),
+    partial(bmm, kernel_backend=KernelBackend.triton),
 ]
 
 table = []
+L = 1
+M = 4096
+N = 4096
+K = 4096
 
 for dtype in [torch.float16, torch.bfloat16, torch.float32]:
     row = [str(dtype)]
     for kernel in kernels:
-        x = torch.randn(4096, 4096, device=torch.cuda.current_device(), dtype=dtype)
-        w = torch.randn(4096, 4096, device=torch.cuda.current_device(), dtype=dtype)
+        x = torch.randn(L, M, K, device=torch.cuda.current_device(), dtype=dtype)
+        w = torch.randn(L, K, N, device=torch.cuda.current_device(), dtype=dtype)
 
         for i in range(n):
             z = kernel(x, w, C=None, beta=0)
@@ -44,7 +48,7 @@ for dtype in [torch.float16, torch.bfloat16, torch.float32]:
         device_synchronize()
 
         t = s.elapsed_time(e) / n / 1e3
-        row.append(2 * x.size(0) * x.size(1) * w.size(0) / t / 1e12)
+        row.append(2 * L * M * N * K / t / 1e12)
 
     table.append(row)
 
