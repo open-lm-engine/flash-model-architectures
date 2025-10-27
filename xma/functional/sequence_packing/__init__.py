@@ -170,6 +170,31 @@ class _UnpackSequence(CustomOp):
 
         return x_grad, None, None, None
 
+    @staticmethod
+    def forward_triton(
+        ctx, x: torch.Tensor, cu_seqlens: torch.Tensor, output_shape: tuple[int], padding_side: str
+    ) -> torch.Tensor:
+        ctx_save_for_backward(ctx, cu_seqlens)
+        ctx.padding_side = padding_side
+        ctx.x_shape = x.size()
+
+        output = torch.zeros(*output_shape, device=x.device, dtype=x.dtype)
+
+        pack_unpack_sequence_triton(x=x, output=output, cu_seqlens=cu_seqlens, padding_side=padding_side, pack=False)
+
+        return output
+
+    @staticmethod
+    def backward_triton(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
+        x_grad = torch.empty(ctx.x_shape, device=output_grad.device, dtype=output_grad.dtype)
+        cu_seqlens = ctx.saved_tensors[0]
+
+        pack_unpack_sequence_triton(
+            x=output_grad, output=x_grad, cu_seqlens=cu_seqlens, padding_side=ctx.padding_side, pack=True
+        )
+
+        return x_grad, None, None, None
+
 
 def pack_sequence(
     inputs: Sequence[torch.Tensor],
