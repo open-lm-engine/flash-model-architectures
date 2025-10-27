@@ -11,7 +11,7 @@ from ...constants import LIBRARY_NAME
 
 
 @triton.jit
-def _copy_array(source_ptr, destination_ptr, b, s, t, S, N, pack, BLOCK_SIZE):
+def _copy_array(x_ptr, y_ptr, b, s, t, S, N, pack, BLOCK_SIZE):
     unpacked_offset = (b * S + s) * N
     packed_offset = t * N
 
@@ -20,18 +20,21 @@ def _copy_array(source_ptr, destination_ptr, b, s, t, S, N, pack, BLOCK_SIZE):
         mask = indices < N
 
         if pack:
-            source = tl.load(source_ptr + unpacked_offset + indices, mask=mask)
-            tl.store(destination_ptr + packed_offset + indices, source, mask=mask)
+            source = tl.load(x_ptr + unpacked_offset + indices, mask=mask)
+            tl.store(y_ptr + packed_offset + indices, source, mask=mask)
         else:
-            source = tl.load(source_ptr + packed_offset + indices, mask=mask)
-            tl.store(destination_ptr + unpacked_offset + indices, source, mask=mask)
+            source = tl.load(x_ptr + packed_offset + indices, mask=mask)
+            tl.store(y_ptr + unpacked_offset + indices, source, mask=mask)
 
 
 @triton.jit
 def pack_unpack_sequence_triton_kernel(
     x_ptr,
-    output_ptr,
+    x_stride,
+    y_ptr,
+    y_stride,
     cu_seqlens_ptr,
+    cu_seqlens_stride,
     S,
     N,
     PADDING_SIDE: tl.constexpr,
@@ -41,18 +44,18 @@ def pack_unpack_sequence_triton_kernel(
     s = tl.program_id(axis=0)
     b = tl.program_id(axis=1)
 
-    cu_seqlens_ptrs = cu_seqlens_ptr + b
+    cu_seqlens_ptrs = cu_seqlens_ptr + b * cu_seqlens_stride[0]
     start = tl.load(cu_seqlens_ptrs)
-    end = tl.load(cu_seqlens_ptrs + 1)
+    end = tl.load(cu_seqlens_ptrs + cu_seqlens_stride[0])
     seqlens = end - start
 
     if PADDING_SIDE == "left":
         pad_tokens = S - seqlens
         if s >= pad_tokens:
-            _copy_array(x_ptr, output_ptr, b, s, start + s - pad_tokens, S, N, PACK, BLOCK_SIZE)
+            _copy_array(x_ptr, x_stride, y_ptr, y_stride, b, s, start + s - pad_tokens, S, N, PACK, BLOCK_SIZE)
     else:
         if s < seqlens:
-            _copy_array(x_ptr, output_ptr, b, s, start + s, S, N, PACK, BLOCK_SIZE)
+            _copy_array(x_ptr, x_stride, y_ptr, y_stride, b, s, start + s, S, N, PACK, BLOCK_SIZE)
 
 
 @custom_op(f"{LIBRARY_NAME}::pack_unpack_sequence_triton", mutates_args={"output"})
@@ -72,8 +75,11 @@ def pack_unpack_sequence_triton(
     with torch.device(x.device):
         pack_unpack_sequence_triton_kernel[S, B](
             x_ptr=x,
-            output_ptr=output,
+            x_stride=x.stride(),
+            y_ptr=output,
+            y_ptr=output.stride(),
             cu_seqlens_ptr=cu_seqlens,
+            cu_seqlens_stride=cu_seqlens.stride(),
             S=S,
             N=N,
             PADDING_SIDE=padding_side,
