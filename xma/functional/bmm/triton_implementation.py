@@ -67,8 +67,8 @@ def bmm_triton_kernel(
     # B -> N x K if is_B_transposed else K x N
     # C -> M x N
 
-    BLOCK_ID_L = tl.program_id(axis=0)
-    BLOCK_ID = tl.program_id(axis=1)
+    BLOCK_ID = tl.program_id(axis=0)
+    BLOCK_ID_L = tl.program_id(axis=1)
 
     NUM_BLOCKS_M = tl.cdiv(M, BLOCK_SIZE_M)
     NUM_BLOCKS_N = tl.cdiv(N, BLOCK_SIZE_N)
@@ -167,8 +167,8 @@ def bmm_triton(
     N = B.size(1 if is_B_transposed else 2)
 
     GRID = lambda meta: (
-        L,
         ceil_divide(M, meta["BLOCK_SIZE_M"]) * ceil_divide(N, meta["BLOCK_SIZE_N"]),
+        L,
     )
 
     with torch.device(A.device):
