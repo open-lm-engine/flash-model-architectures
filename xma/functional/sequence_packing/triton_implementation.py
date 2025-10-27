@@ -11,7 +11,7 @@ from ...constants import LIBRARY_NAME
 
 
 @triton.jit
-def _copy_array(x_ptr, y_ptr, b, s, t, S, N, pack, BLOCK_SIZE):
+def _copy_array(x_ptr, x_stride, y_ptr, y_stride, b, s, t, S, N, pack, BLOCK_SIZE):
     unpacked_offset = (b * S + s) * N
     packed_offset = t * N
 
