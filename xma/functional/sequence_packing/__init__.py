@@ -118,13 +118,8 @@ class _PackSequence(CustomOp):
         ctx.padding_side = padding_side
         ctx.x_shape = x.size()
 
-        output = _pack_sequence(
-            x=x,
-            cu_seqlens=cu_seqlens,
-            output_shape=output_shape,
-            padding_side=padding_side,
-            kernel_backend=KernelBackend.triton,
-        )
+        output = torch.empty(output_shape, device=x.device, dtype=x.dtype)
+        pack_unpack_sequence_triton(x=x, output=output, cu_seqlens=cu_seqlens, padding_side=padding_side, pack=True)
 
         return output
 
