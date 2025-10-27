@@ -76,7 +76,6 @@ class CustomOp(torch.autograd.Function):
 
         return grads + (None, None)
 
-
     @classmethod
     def forward_cuda(cls, ctx, *args, **kwargs) -> Any:
         return cls.forward_triton(ctx, *args, **kwargs)
