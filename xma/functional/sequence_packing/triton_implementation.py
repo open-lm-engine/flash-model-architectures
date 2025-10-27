@@ -11,8 +11,8 @@ from ...constants import LIBRARY_NAME
 
 
 @triton.jit
-def _copy_array(x_ptr, x_stride, y_ptr, y_stride, b, s, t, S, N, pack, BLOCK_SIZE):
-    unpacked_offset = (b * S + s) * N
+def _copy_array(x_ptr, x_stride, y_ptr, y_stride, BLOCK_ID_B, BLOCK_ID_S, t, S, N, pack, BLOCK_SIZE):
+    unpacked_offset = (BLOCK_ID_B * S + BLOCK_ID_S) * N
     packed_offset = t * N
 
     for i in range(tl.cdiv(N, BLOCK_SIZE)):
@@ -41,8 +41,8 @@ def pack_unpack_sequence_triton_kernel(
     PACK: tl.constexpr,
     BLOCK_SIZE: tl.constexpr,
 ):
-    s = tl.program_id(axis=0)
-    b = tl.program_id(axis=1)
+    BLOCK_ID_S = tl.program_id(axis=0)
+    BLOCK_ID_B = tl.program_id(axis=1)
 
     cu_seqlens_ptrs = cu_seqlens_ptr + b * cu_seqlens_stride[0]
     start = tl.load(cu_seqlens_ptrs)
@@ -51,11 +51,25 @@ def pack_unpack_sequence_triton_kernel(
 
     if PADDING_SIDE == "left":
         pad_tokens = S - seqlens
-        if s >= pad_tokens:
-            _copy_array(x_ptr, x_stride, y_ptr, y_stride, b, s, start + s - pad_tokens, S, N, PACK, BLOCK_SIZE)
+        if BLOCK_ID_S >= pad_tokens:
+            _copy_array(
+                x_ptr,
+                x_stride,
+                y_ptr,
+                y_stride,
+                BLOCK_ID_B,
+                BLOCK_ID_S,
+                start + BLOCK_ID_S - pad_tokens,
+                S,
+                N,
+                PACK,
+                BLOCK_SIZE,
+            )
     else:
-        if s < seqlens:
-            _copy_array(x_ptr, x_stride, y_ptr, y_stride, b, s, start + s, S, N, PACK, BLOCK_SIZE)
+        if BLOCK_ID_S < seqlens:
+            _copy_array(
+                x_ptr, x_stride, y_ptr, y_stride, BLOCK_ID_B, BLOCK_ID_S, start + BLOCK_ID_S, S, N, PACK, BLOCK_SIZE
+            )
 
 
 @custom_op(f"{LIBRARY_NAME}::pack_unpack_sequence_triton", mutates_args={"output"})
