@@ -39,15 +39,15 @@ def pack_unpack_sequence_triton_kernel(
         packed_offset = (start + BLOCK_ID_S - pad_tokens) * N
 
         for i in range(tl.cdiv(N, BLOCK_SIZE)):
-            indices = i * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
-            mask = indices < N
+            BLOCK = i * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
+            MASK = BLOCK < N
 
             if PACK:
-                source = tl.load(x_ptr + unpacked_offset + indices, mask=mask)
-                tl.store(y_ptr + packed_offset + indices, source, mask=mask)
+                source = tl.load(x_ptr + unpacked_offset + BLOCK, mask=MASK)
+                tl.store(y_ptr + packed_offset + BLOCK, source, mask=MASK)
             else:
-                source = tl.load(x_ptr + packed_offset + indices, mask=mask)
-                tl.store(y_ptr + unpacked_offset + indices, source, mask=mask)
+                source = tl.load(x_ptr + packed_offset + BLOCK, mask=MASK)
+                tl.store(y_ptr + unpacked_offset + BLOCK, source, mask=MASK)
 
 
 @custom_op(f"{LIBRARY_NAME}::pack_unpack_sequence_triton", mutates_args={"output"})
