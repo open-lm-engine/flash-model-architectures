@@ -39,11 +39,11 @@ def pack_unpack_sequence_triton_kernel(
         NUM_BLOCKS = tl.cdiv(N, BLOCK_SIZE)
 
         if PACK:
-            x_ptrs = x_ptr + (BLOCK_ID_B * S + BLOCK_ID_S) * N + BLOCK
-            y_ptrs = y_ptr + (start + BLOCK_ID_S - pad_tokens) * N + BLOCK
+            x_ptrs = x_ptr + (BLOCK_ID_B * S + BLOCK_ID_S) * N + BLOCK * x_stride[-1]
+            y_ptrs = y_ptr + (start + BLOCK_ID_S - pad_tokens) * N + BLOCK * y_stride[-1]
         else:
-            x_ptrs = x_ptr + (start + BLOCK_ID_S - pad_tokens) * N + BLOCK
-            y_ptrs = y_ptr + (BLOCK_ID_B * S + BLOCK_ID_S) * N + BLOCK
+            x_ptrs = x_ptr + (start + BLOCK_ID_S - pad_tokens) * N + BLOCK * x_stride[-1]
+            y_ptrs = y_ptr + (BLOCK_ID_B * S + BLOCK_ID_S) * N + BLOCK * y_stride[-1]
 
         for _ in range(NUM_BLOCKS):
             MASK = BLOCK < N
@@ -52,8 +52,8 @@ def pack_unpack_sequence_triton_kernel(
             tl.store(y_ptrs, x, mask=MASK)
 
             BLOCK += BLOCK_SIZE
-            x_ptrs += BLOCK_SIZE
-            y_ptrs += BLOCK_SIZE
+            x_ptrs += BLOCK_SIZE * x_stride[-1]
+            y_ptrs += BLOCK_SIZE * y_stride[-1]
 
 
 @custom_op(f"{LIBRARY_NAME}::pack_unpack_sequence_triton", mutates_args={"output"})
