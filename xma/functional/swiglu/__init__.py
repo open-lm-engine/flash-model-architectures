@@ -5,6 +5,7 @@
 import torch
 import torch.nn.functional as F
 
+from ...custom_op import CustomOp, ctx_save_for_backward
 from ...enums import KernelBackend
 from ...math import divide_if_divisible
 from ...utils import empty_like_contiguous, ensure_contiguous
@@ -12,49 +13,74 @@ from .cuda_implementation import swiglu_backward_cuda, swiglu_forward_cuda
 from .triton_implementation import swiglu_backward_triton, swiglu_forward_triton
 
 
-class _Swiglu(torch.autograd.Function):
+class _Swiglu(CustomOp):
     @staticmethod
-    @ensure_contiguous
-    def forward(ctx, gate: torch.Tensor, up: torch.Tensor, kernel_backend: KernelBackend) -> torch.Tensor:
-        output = empty_like_contiguous(gate)
+    def forward_backward_torch(gate: torch.Tensor, up: torch.Tensor) -> torch.Tensor:
+        dtype = gate.dtype
 
-        if kernel_backend == KernelBackend.cuda:
-            swiglu_forward_cuda(gate=gate, up=up, output=output, BLOCK_SIZE=1024)
-        elif kernel_backend == KernelBackend.triton:
-            swiglu_forward_triton(gate=gate, up=up, output=output)
-        else:
-            raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
+        gate = gate.float()
+        up = up.float()
 
-        ctx.save_for_backward(gate, up)
-        ctx.kernel_backend = kernel_backend
+        output = up * F.silu(gate)
+        output = output.to(dtype)
 
         return output
 
     @staticmethod
     @ensure_contiguous
-    def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, None]:
+    def forward_cuda(ctx, gate: torch.Tensor, up: torch.Tensor) -> torch.Tensor:
+        output = empty_like_contiguous(gate)
+        swiglu_forward_cuda(gate=gate, up=up, output=output, BLOCK_SIZE=1024)
+
+        ctx_save_for_backward(ctx, gate, up)
+
+        return output
+
+    @staticmethod
+    @ensure_contiguous
+    def backward_cuda(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         gate, up = ctx.saved_tensors
         gate_grad = empty_like_contiguous(gate)
         up_grad = empty_like_contiguous(up)
-        kernel_backend = ctx.kernel_backend
 
-        if kernel_backend == KernelBackend.cuda:
-            swiglu_backward_cuda(
-                gate=gate, up=up, output_grad=output_grad, gate_grad=gate_grad, up_grad=up_grad, BLOCK_SIZE=1024
-            )
-        elif kernel_backend == KernelBackend.triton:
-            swiglu_backward_triton(gate=gate, up=up, output_grad=output_grad, gate_grad=gate_grad, up_grad=up_grad)
-        else:
-            raise ValueError("unexpected kernel_backend")
+        swiglu_backward_cuda(
+            gate=gate, up=up, output_grad=output_grad, gate_grad=gate_grad, up_grad=up_grad, BLOCK_SIZE=1024
+        )
 
-        return gate_grad, up_grad, None
+        return gate_grad, up_grad
 
-
-class _SwigluPacked(torch.autograd.Function):
     @staticmethod
     @ensure_contiguous
-    def forward(ctx, x: torch.Tensor) -> torch.Tensor:
-        ctx.save_for_backward(x)
+    def forward_triton(ctx, gate: torch.Tensor, up: torch.Tensor) -> torch.Tensor:
+        output = empty_like_contiguous(gate)
+        swiglu_forward_triton(gate=gate, up=up, output=output)
+
+        ctx_save_for_backward(ctx, gate, up)
+
+        return output
+
+    @staticmethod
+    @ensure_contiguous
+    def backward_triton(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        gate, up = ctx.saved_tensors
+        gate_grad = empty_like_contiguous(gate)
+        up_grad = empty_like_contiguous(up)
+
+        swiglu_backward_triton(gate=gate, up=up, output_grad=output_grad, gate_grad=gate_grad, up_grad=up_grad)
+
+        return gate_grad, up_grad
+
+
+class _SwigluPacked(CustomOp):
+    @staticmethod
+    def forward_backward_torch(x: torch.Tensor) -> torch.Tensor:
+        up, gate = x.chunk(2, dim=-1)
+        return swiglu(gate=gate, up=up, kernel_backend=KernelBackend.torch)
+
+    @staticmethod
+    @ensure_contiguous
+    def forward_triton(ctx, x: torch.Tensor) -> torch.Tensor:
+        ctx_save_for_backward(ctx, x)
 
         output = torch.empty(*x.size()[:-1], divide_if_divisible(x.size(-1), 2), device=x.device, dtype=x.dtype)
         up, gate = x.chunk(2, dim=-1)
@@ -65,8 +91,8 @@ class _SwigluPacked(torch.autograd.Function):
 
     @staticmethod
     @ensure_contiguous
-    def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
-        x: torch.Tensor = ctx.saved_tensors[0]
+    def backward_triton(ctx, output_grad: torch.Tensor) -> torch.Tensor:
+        x = ctx.saved_tensors[0]
         x_grad = empty_like_contiguous(x)
 
         up, gate = x.chunk(2, dim=-1)
@@ -77,7 +103,7 @@ class _SwigluPacked(torch.autograd.Function):
         return x_grad
 
 
-def swiglu(gate: torch.Tensor, up: torch.Tensor) -> torch.Tensor:
+def swiglu(gate: torch.Tensor, up: torch.Tensor, *, kernel_backend: KernelBackend | None = None) -> torch.Tensor:
     """computes swiglu activation as `up` * `gate` * sigmoid(`gate`)
 
     Args:
@@ -91,24 +117,10 @@ def swiglu(gate: torch.Tensor, up: torch.Tensor) -> torch.Tensor:
     assert gate.size() == up.size(), "tensors gate and up should have same shape"
     assert gate.type() == up.type(), "tensors gate and up should have same dtype"
 
-    kernel_backend = KernelBackend.get_kernel_backend_from_device(gate)
-
-    if kernel_backend == KernelBackend.torch:
-        dtype = gate.dtype
-
-        gate = gate.float()
-        up = up.float()
-
-        output = up * F.silu(gate)
-        output = output.to(dtype)
-    else:
-        assert kernel_backend in [KernelBackend.cuda, KernelBackend.triton]
-        output = _Swiglu.apply(gate, up, kernel_backend)
-
-    return output
+    return _Swiglu.run(gate=gate, up=up, kernel_backend=kernel_backend)
 
 
-def swiglu_packed(x: torch.Tensor) -> torch.Tensor:
+def swiglu_packed(x: torch.Tensor, *, kernel_backend: KernelBackend | None = None) -> torch.Tensor:
     """computes swiglu activation by splitting the tensor `x` into 2 parts: gate and up activations
 
     Args:
@@ -118,13 +130,4 @@ def swiglu_packed(x: torch.Tensor) -> torch.Tensor:
         torch.Tensor: output tensor
     """
 
-    kernel_backend = KernelBackend.get_kernel_backend_from_device(x)
-
-    if kernel_backend == KernelBackend.torch:
-        up, gate = x.chunk(2, dim=-1)
-        output = swiglu(gate=gate, up=up)
-    else:
-        assert kernel_backend in [KernelBackend.cuda, KernelBackend.triton]
-        output = _SwigluPacked.apply(x)
-
-    return output
+    return _SwigluPacked.run(x=x, kernel_backend=kernel_backend)

@@ -10,7 +10,7 @@ from .cutotune import (
     get_cartesian_product_cutotune_configs,
     get_cutotune_cache,
 )
-from .enums import KernelBackend, force_kernel_backend
+from .enums import KernelBackend
 from .functional import (
     bmm,
     continuous_count,

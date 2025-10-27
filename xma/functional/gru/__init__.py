@@ -4,6 +4,7 @@
 
 import torch
 
+from ...custom_op import CustomOp, ctx_needs_gradients, ctx_save_for_backward
 from ...enums import KernelBackend
 from ...torch_math import clip_gradients, sigmoid, tanh
 from ...utils import empty_like_contiguous, zeros_like_contiguous
@@ -11,10 +12,9 @@ from ..rnn import get_max_seqlen_and_max_seqlen_tensor
 from .triton_implementation import gru_backward_triton, gru_forward_triton
 
 
-class _GRU(torch.autograd.Function):
+class _GRU(CustomOp):
     @staticmethod
-    def forward(
-        ctx,
+    def forward_backward_torch(
         input: torch.Tensor,
         weight: torch.Tensor,
         forget_input: torch.Tensor,
@@ -26,150 +26,6 @@ class _GRU(torch.autograd.Function):
         cu_seqlens: torch.Tensor | None,
         max_seqlen: torch.Tensor | int | None,
     ) -> torch.Tensor:
-        needs_grad = any(ctx.needs_input_grad[:6])
-
-        output = empty_like_contiguous(input)
-        max_seqlen_tensor, max_seqlen = get_max_seqlen_and_max_seqlen_tensor(max_seqlen)
-        forget_gate = empty_like_contiguous(input) if needs_grad else None
-        reset_gate = empty_like_contiguous(input) if needs_grad else None
-        output_update = empty_like_contiguous(input) if needs_grad else None
-
-        gru_forward_triton(
-            input=input,
-            weight=weight,
-            forget_input=forget_input,
-            forget_weight=forget_weight,
-            forget_gate=forget_gate,
-            reset_input=reset_input,
-            reset_weight=reset_weight,
-            reset_gate=reset_gate,
-            output_update=output_update,
-            input_state=input_state,
-            output=output,
-            cu_seqlens=cu_seqlens,
-            max_seqlen_tensor=max_seqlen_tensor,
-            max_seqlen=max_seqlen,
-        )
-
-        if needs_grad:
-            ctx.save_for_backward(
-                weight,
-                forget_weight,
-                forget_gate,
-                reset_weight,
-                reset_gate,
-                output_update,
-                output,
-                input_state,
-                cu_seqlens,
-                max_seqlen_tensor,
-            )
-
-        ctx.max_seqlen = max_seqlen
-        ctx.gradient_clipping = gradient_clipping
-
-        return output
-
-    @staticmethod
-    def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
-        (
-            weight,
-            forget_weight,
-            forget_gate,
-            reset_weight,
-            reset_gate,
-            output_update,
-            output,
-            input_state,
-            cu_seqlens,
-            max_seqlen_tensor,
-        ) = ctx.saved_tensors
-
-        input_grad = empty_like_contiguous(output)
-        forget_input_grad = empty_like_contiguous(output)
-        reset_input_grad = empty_like_contiguous(output)
-        weight_grad = zeros_like_contiguous(weight, dtype=torch.float32)
-        forget_weight_grad = zeros_like_contiguous(weight, dtype=torch.float32)
-        reset_weight_grad = zeros_like_contiguous(weight, dtype=torch.float32)
-
-        gru_backward_triton(
-            weight=weight,
-            output=output,
-            forget_weight=forget_weight,
-            forget_gate=forget_gate,
-            forget_input_grad=forget_input_grad,
-            forget_weight_grad=forget_weight_grad,
-            reset_weight=reset_weight,
-            reset_gate=reset_gate,
-            reset_input_grad=reset_input_grad,
-            reset_weight_grad=reset_weight_grad,
-            output_update=output_update,
-            input_state=input_state,
-            output_grad=output_grad,
-            input_grad=input_grad,
-            weight_grad=weight_grad,
-            cu_seqlens=cu_seqlens,
-            max_seqlen_tensor=max_seqlen_tensor,
-            max_seqlen=ctx.max_seqlen,
-            gradient_clipping=ctx.gradient_clipping,
-        )
-
-        weight_grad = weight_grad.type_as(weight)
-        forget_weight_grad = forget_weight_grad.type_as(forget_weight)
-        reset_weight_grad = reset_weight_grad.type_as(reset_weight)
-
-        return (
-            input_grad,
-            weight_grad,
-            forget_input_grad,
-            forget_weight_grad,
-            reset_input_grad,
-            reset_weight_grad,
-            *[None] * 5,
-        )
-
-
-def gru(
-    input: torch.Tensor,
-    weight: torch.Tensor,
-    forget_input: torch.Tensor,
-    forget_weight: torch.Tensor,
-    reset_input: torch.Tensor,
-    reset_weight: torch.Tensor,
-    input_state: torch.Tensor | None = None,
-    gradient_clipping: float | None = None,
-    cu_seqlens: torch.Tensor | None = None,
-    max_seqlen: torch.Tensor | int | None = None,
-) -> tuple[torch.Tensor, torch.Tensor]:
-    """computes multihead RNN: tanh(`input_state` @ `weight` + `input`)
-
-    Args:
-        input (torch.Tensor): input tensor of shape (B, S, N, H) where N is the number of heads and H is the head
-            dimension. Should have shape (T, N, H) and `cu_seqlens` should be passed.
-        weight (torch.Tensor): weight tensor of shape (N, H, H)
-        input_state (torch.Tensor | None, optional): starting state of shape (B, N, H), None means starting state
-            is 0 tensor. Defaults to None.
-        gradient_clipping (float | None, optional): gradient clipping for the state gradient in backward, None
-            implies no clipping. Defaults to None.
-        cu_seqlens (torch.Tensor | None, optional): cumulative sequence length (must contain 0 as first element). Defaults to None.
-        max_seqlen (torch.Tensor | int | None, optional): max sequence length in the batch. Defaults to None.
-
-    Returns:
-        tuple[torch.Tensor, torch.Tensor]: output tensor of shape (B, S, N, H) and output state tensor of shape (B, N, H)
-    """
-
-    assert input.dim() in [3, 4]
-    assert weight.dim() == 3
-
-    N, H = input.size()[-2:]
-    assert weight.size() == (N, H, H)
-
-    kernel_backend = KernelBackend.get_kernel_backend_from_device(input)
-
-    if gradient_clipping is not None and gradient_clipping < 0:
-        gradient_clipping = -gradient_clipping
-
-    if kernel_backend == KernelBackend.torch:
         output = torch.empty_like(input)
 
         if cu_seqlens is None:
@@ -253,22 +109,180 @@ def gru(
 
                 output[offset_unfinished] = new_state
                 input_state[unfinished] = new_state
-    else:
-        assert kernel_backend in [KernelBackend.cuda, KernelBackend.triton]
 
-        output = _GRU.apply(
-            input,
-            weight,
-            forget_input,
-            forget_weight,
-            reset_input,
-            reset_weight,
-            input_state,
-            gradient_clipping,
-            cu_seqlens,
-            max_seqlen,
+        return output
+
+    @staticmethod
+    def forward_triton(
+        ctx,
+        input: torch.Tensor,
+        weight: torch.Tensor,
+        forget_input: torch.Tensor,
+        forget_weight: torch.Tensor,
+        reset_input: torch.Tensor,
+        reset_weight: torch.Tensor,
+        input_state: torch.Tensor | None,
+        gradient_clipping: float | None,
+        cu_seqlens: torch.Tensor | None,
+        max_seqlen: torch.Tensor | int | None,
+    ) -> torch.Tensor:
+        needs_grad = ctx_needs_gradients(ctx)
+
+        output = empty_like_contiguous(input)
+        max_seqlen_tensor, max_seqlen = get_max_seqlen_and_max_seqlen_tensor(max_seqlen)
+        forget_gate = empty_like_contiguous(input) if needs_grad else None
+        reset_gate = empty_like_contiguous(input) if needs_grad else None
+        output_update = empty_like_contiguous(input) if needs_grad else None
+
+        gru_forward_triton(
+            input=input,
+            weight=weight,
+            forget_input=forget_input,
+            forget_weight=forget_weight,
+            forget_gate=forget_gate,
+            reset_input=reset_input,
+            reset_weight=reset_weight,
+            reset_gate=reset_gate,
+            output_update=output_update,
+            input_state=input_state,
+            output=output,
+            cu_seqlens=cu_seqlens,
+            max_seqlen_tensor=max_seqlen_tensor,
+            max_seqlen=max_seqlen,
         )
 
-    output_state = output[:, -1] if cu_seqlens is None else output[cu_seqlens[1:] - 1]
+        ctx_save_for_backward(
+            ctx,
+            weight,
+            forget_weight,
+            forget_gate,
+            reset_weight,
+            reset_gate,
+            output_update,
+            output,
+            input_state,
+            cu_seqlens,
+            max_seqlen_tensor,
+        )
 
-    return output, output_state
+        ctx.max_seqlen = max_seqlen
+        ctx.gradient_clipping = gradient_clipping
+
+        return output
+
+    @staticmethod
+    def backward_triton(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
+        (
+            weight,
+            forget_weight,
+            forget_gate,
+            reset_weight,
+            reset_gate,
+            output_update,
+            output,
+            input_state,
+            cu_seqlens,
+            max_seqlen_tensor,
+        ) = ctx.saved_tensors
+
+        input_grad = empty_like_contiguous(output)
+        forget_input_grad = empty_like_contiguous(output)
+        reset_input_grad = empty_like_contiguous(output)
+        weight_grad = zeros_like_contiguous(weight, dtype=torch.float32)
+        forget_weight_grad = zeros_like_contiguous(weight, dtype=torch.float32)
+        reset_weight_grad = zeros_like_contiguous(weight, dtype=torch.float32)
+
+        gru_backward_triton(
+            weight=weight,
+            output=output,
+            forget_weight=forget_weight,
+            forget_gate=forget_gate,
+            forget_input_grad=forget_input_grad,
+            forget_weight_grad=forget_weight_grad,
+            reset_weight=reset_weight,
+            reset_gate=reset_gate,
+            reset_input_grad=reset_input_grad,
+            reset_weight_grad=reset_weight_grad,
+            output_update=output_update,
+            input_state=input_state,
+            output_grad=output_grad,
+            input_grad=input_grad,
+            weight_grad=weight_grad,
+            cu_seqlens=cu_seqlens,
+            max_seqlen_tensor=max_seqlen_tensor,
+            max_seqlen=ctx.max_seqlen,
+            gradient_clipping=ctx.gradient_clipping,
+        )
+
+        weight_grad = weight_grad.type_as(weight)
+        forget_weight_grad = forget_weight_grad.type_as(forget_weight)
+        reset_weight_grad = reset_weight_grad.type_as(reset_weight)
+
+        return (
+            input_grad,
+            weight_grad,
+            forget_input_grad,
+            forget_weight_grad,
+            reset_input_grad,
+            reset_weight_grad,
+            *[None] * 5,
+        )
+
+
+def gru(
+    input: torch.Tensor,
+    weight: torch.Tensor,
+    forget_input: torch.Tensor,
+    forget_weight: torch.Tensor,
+    reset_input: torch.Tensor,
+    reset_weight: torch.Tensor,
+    input_state: torch.Tensor | None = None,
+    gradient_clipping: float | None = None,
+    cu_seqlens: torch.Tensor | None = None,
+    max_seqlen: torch.Tensor | int | None = None,
+    *,
+    kernel_backend: KernelBackend | None = None,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """computes multihead RNN: tanh(`input_state` @ `weight` + `input`)
+
+    Args:
+        input (torch.Tensor): input tensor of shape (B, S, N, H) where N is the number of heads and H is the head
+            dimension. Should have shape (T, N, H) and `cu_seqlens` should be passed.
+        weight (torch.Tensor): weight tensor of shape (N, H, H)
+        input_state (torch.Tensor | None, optional): starting state of shape (B, N, H), None means starting state
+            is 0 tensor. Defaults to None.
+        gradient_clipping (float | None, optional): gradient clipping for the state gradient in backward, None
+            implies no clipping. Defaults to None.
+        cu_seqlens (torch.Tensor | None, optional): cumulative sequence length (must contain 0 as first element). Defaults to None.
+        max_seqlen (torch.Tensor | int | None, optional): max sequence length in the batch. Defaults to None.
+
+    Returns:
+        tuple[torch.Tensor, torch.Tensor]: output tensor of shape (B, S, N, H) and output state tensor of shape (B, N, H)
+    """
+
+    assert input.dim() in [3, 4]
+    assert weight.dim() == 3
+
+    N, H = input.size()[-2:]
+    assert weight.size() == (N, H, H)
+
+    if gradient_clipping is not None and gradient_clipping < 0:
+        gradient_clipping = -gradient_clipping
+
+    input = _GRU.run(
+        input=input,
+        weight=weight,
+        forget_input=forget_input,
+        forget_weight=forget_weight,
+        reset_input=reset_input,
+        reset_weight=reset_weight,
+        input_state=input_state,
+        gradient_clipping=gradient_clipping,
+        cu_seqlens=cu_seqlens,
+        max_seqlen=max_seqlen,
+        kernel_backend=kernel_backend,
+    )
+
+    output_state = input[:, -1] if cu_seqlens is None else input[cu_seqlens[1:] - 1]
+
+    return input, output_state

@@ -4,6 +4,7 @@
 
 import torch
 
+from ..enums import KernelBackend
 from .fused_residual_add_rmsnorm import fused_residual_add_rmsnorm
 
 
@@ -13,6 +14,8 @@ def rmsnorm(
     eps: float | None,
     memory_efficient: bool = False,
     deterministic: bool = False,
+    *,
+    kernel_backend: KernelBackend | None = None,
 ) -> torch.Tensor:
     """RMSNorm computation
 
@@ -36,6 +39,7 @@ def rmsnorm(
         multiplier=None,
         memory_efficient=memory_efficient,
         deterministic=deterministic,
+        kernel_backend=kernel_backend,
     )
 
     return x

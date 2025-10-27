@@ -11,48 +11,49 @@ from ...constants import LIBRARY_NAME
 
 
 @triton.jit
-def _copy_array(source_ptr, destination_ptr, b, s, t, S, N, pack, BLOCK_SIZE):
-    unpacked_offset = (b * S + s) * N
-    packed_offset = t * N
-
-    for i in range(tl.cdiv(N, BLOCK_SIZE)):
-        indices = i * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
-        mask = indices < N
-
-        if pack:
-            source = tl.load(source_ptr + unpacked_offset + indices, mask=mask)
-            tl.store(destination_ptr + packed_offset + indices, source, mask=mask)
-        else:
-            source = tl.load(source_ptr + packed_offset + indices, mask=mask)
-            tl.store(destination_ptr + unpacked_offset + indices, source, mask=mask)
-
-
-@triton.jit
 def pack_unpack_sequence_triton_kernel(
     x_ptr,
-    output_ptr,
+    x_stride,
+    y_ptr,
+    y_stride,
     cu_seqlens_ptr,
+    cu_seqlens_stride,
     S,
     N,
     PADDING_SIDE: tl.constexpr,
     PACK: tl.constexpr,
     BLOCK_SIZE: tl.constexpr,
 ):
-    s = tl.program_id(axis=0)
-    b = tl.program_id(axis=1)
+    BLOCK_ID_S = tl.program_id(axis=0)
+    BLOCK_ID_B = tl.program_id(axis=1)
 
-    cu_seqlens_ptrs = cu_seqlens_ptr + b
+    cu_seqlens_ptrs = cu_seqlens_ptr + BLOCK_ID_B * cu_seqlens_stride[0]
     start = tl.load(cu_seqlens_ptrs)
-    end = tl.load(cu_seqlens_ptrs + 1)
+    end = tl.load(cu_seqlens_ptrs + cu_seqlens_stride[0])
     seqlens = end - start
 
-    if PADDING_SIDE == "left":
-        pad_tokens = S - seqlens
-        if s >= pad_tokens:
-            _copy_array(x_ptr, output_ptr, b, s, start + s - pad_tokens, S, N, PACK, BLOCK_SIZE)
-    else:
-        if s < seqlens:
-            _copy_array(x_ptr, output_ptr, b, s, start + s, S, N, PACK, BLOCK_SIZE)
+    pad_tokens = (S - seqlens) if PADDING_SIDE == "left" else 0
+
+    if (PADDING_SIDE == "left" and BLOCK_ID_S >= pad_tokens) or (PADDING_SIDE == "right" and BLOCK_ID_S < seqlens):
+        BLOCK = tl.arange(0, BLOCK_SIZE)
+        NUM_BLOCKS = tl.cdiv(N, BLOCK_SIZE)
+
+        if PACK:
+            x_ptrs = x_ptr + BLOCK_ID_B * x_stride[0] + BLOCK_ID_S * x_stride[1] + BLOCK * x_stride[-1]
+            y_ptrs = y_ptr + (start + BLOCK_ID_S - pad_tokens) * y_stride[0] + BLOCK * y_stride[-1]
+        else:
+            x_ptrs = x_ptr + (start + BLOCK_ID_S - pad_tokens) * x_stride[0] + BLOCK * x_stride[-1]
+            y_ptrs = y_ptr + BLOCK_ID_B * y_stride[0] + BLOCK_ID_S * y_stride[1] + BLOCK * y_stride[-1]
+
+        for _ in range(NUM_BLOCKS):
+            MASK = BLOCK < N
+
+            x = tl.load(x_ptrs, mask=MASK)
+            tl.store(y_ptrs, x, mask=MASK)
+
+            BLOCK += BLOCK_SIZE
+            x_ptrs += BLOCK_SIZE * x_stride[-1]
+            y_ptrs += BLOCK_SIZE * y_stride[-1]
 
 
 @custom_op(f"{LIBRARY_NAME}::pack_unpack_sequence_triton", mutates_args={"output"})
@@ -72,8 +73,11 @@ def pack_unpack_sequence_triton(
     with torch.device(x.device):
         pack_unpack_sequence_triton_kernel[S, B](
             x_ptr=x,
-            output_ptr=output,
+            x_stride=x.stride(),
+            y_ptr=output,
+            y_stride=output.stride(),
             cu_seqlens_ptr=cu_seqlens,
+            cu_seqlens_stride=cu_seqlens.stride(),
             S=S,
             N=N,
             PADDING_SIDE=padding_side,

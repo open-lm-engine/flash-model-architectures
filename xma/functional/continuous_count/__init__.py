@@ -9,7 +9,7 @@ from .cuda_implementation import continuous_count_cuda
 
 
 @torch.no_grad()
-def continuous_count(x: torch.Tensor, size: int) -> torch.Tensor:
+def continuous_count(x: torch.Tensor, size: int, *, kernel_backend: KernelBackend | None = None) -> torch.Tensor:
     """counts the number of occurances of the values [0, 1, ..., `size`) in the input tensor (`size` is excluded).
         NOTE: the user is responsible for ensuring that the values lie in the valid range, any values outside this
         range are ignored and not counted.
@@ -28,7 +28,8 @@ def continuous_count(x: torch.Tensor, size: int) -> torch.Tensor:
     assert x.dim() == 1, "x should be 1-dimensional"
     assert x.dtype in [torch.int32, torch.long]
 
-    kernel_backend = KernelBackend.get_kernel_backend_from_device(x)
+    if kernel_backend is None:
+        kernel_backend = KernelBackend.get_kernel_backend_from_device(x)
 
     if kernel_backend == KernelBackend.torch:
         output = x.bincount(minlength=size).to(torch.uint32)

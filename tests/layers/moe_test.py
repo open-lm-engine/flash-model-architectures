@@ -5,7 +5,7 @@
 import torch
 from parameterized import parameterized
 
-from xma import KernelBackend, MoE, force_kernel_backend, set_seed
+from xma import KernelBackend, MoE, set_seed
 
 from ..test_commons import TestCommons
 
@@ -106,11 +106,8 @@ class MoETest(TestCommons):
         x_torch = torch.randn(7, hidden_size, device=device, dtype=dtype, requires_grad=True)
         x_kernel = x_torch.clone().detach().requires_grad_()
 
-        with force_kernel_backend(KernelBackend.torch):
-            y_torch = moe_torch(x_torch)[0]
-
-        with force_kernel_backend(kernel_backend):
-            y_kernel = moe_kernel(x_kernel)[0]
+        y_torch = moe_torch(x_torch, kernel_backend=KernelBackend.torch)[0]
+        y_kernel = moe_kernel(x_kernel, kernel_backend=kernel_backend)[0]
 
         self.assert_equal_tensors(
             y_kernel,

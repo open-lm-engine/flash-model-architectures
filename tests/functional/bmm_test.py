@@ -7,7 +7,7 @@ from typing import Callable
 import torch
 from parameterized import parameterized
 
-from xma import KernelBackend, bmm, force_kernel_backend, set_seed
+from xma import KernelBackend, bmm, set_seed
 
 from ..test_commons import TestCommons
 
@@ -75,18 +75,19 @@ class BMMTest(TestCommons):
             is_B_transposed=is_B_transposed,
             alpha=alpha,
             beta=beta,
+            kernel_backend=KernelBackend.triton,
         )
 
-        with force_kernel_backend(KernelBackend.torch):
-            output_expected = bmm(
-                A=A,
-                B=B,
-                C=C,
-                alpha=alpha,
-                beta=beta,
-                is_A_transposed=is_A_transposed,
-                is_B_transposed=is_B_transposed,
-            )
+        output_expected = bmm(
+            A=A,
+            B=B,
+            C=C,
+            alpha=alpha,
+            beta=beta,
+            is_A_transposed=is_A_transposed,
+            is_B_transposed=is_B_transposed,
+            kernel_backend=KernelBackend.torch,
+        )
 
         self.assert_equal_tensors(
             output_kernel,

@@ -9,7 +9,7 @@ from typing import Callable
 import torch
 from parameterized import parameterized
 
-from xma import KernelBackend, force_kernel_backend, rmsnorm, set_seed
+from xma import KernelBackend, rmsnorm, set_seed
 
 from ..test_commons import TestCommons
 from .fused_residual_add_rmsnorm_test import _get_sizes
@@ -66,10 +66,10 @@ class RMSNormTest(TestCommons):
             eps=_EPSILON,
             memory_efficient=memory_efficient,
             deterministic=deterministic,
+            kernel_backend=KernelBackend.triton,
         )
 
-        with force_kernel_backend(KernelBackend.torch):
-            z_expected = rmsnorm(x=x_expected, weight=weight_expected, eps=_EPSILON)
+        z_expected = rmsnorm(x=x_expected, weight=weight_expected, eps=_EPSILON, kernel_backend=KernelBackend.torch)
 
         z_kernel.sum().backward()
         z_expected.sum().backward()

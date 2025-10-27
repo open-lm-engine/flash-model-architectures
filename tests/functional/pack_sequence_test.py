@@ -7,7 +7,7 @@ from typing import Callable
 import torch
 from parameterized import parameterized
 
-from xma import KernelBackend, force_kernel_backend, pack_sequence, unpack_sequence
+from xma import KernelBackend, pack_sequence, unpack_sequence
 
 from ..test_commons import TestCommons
 
@@ -37,18 +37,21 @@ class PackSequenceTest(TestCommons):
         x_kernel, x_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype)
         cu_seqlens = torch.tensor(cu_seqlens, device=device, dtype=torch.uint32)
 
-        with force_kernel_backend(kernel_backend):
-            z_kernel = function(
-                [x_kernel], cu_seqlens=cu_seqlens, total_tokens=cu_seqlens[-1].item(), padding_side=padding_side
-            )[0]
+        z_kernel = function(
+            [x_kernel],
+            cu_seqlens=cu_seqlens,
+            total_tokens=cu_seqlens[-1].item(),
+            padding_side=padding_side,
+            kernel_backend=kernel_backend,
+        )[0]
 
-        with force_kernel_backend(KernelBackend.torch):
-            z_expected = pack_sequence(
-                [x_expected],
-                cu_seqlens=cu_seqlens.to(torch.int),
-                total_tokens=cu_seqlens[-1].item(),
-                padding_side=padding_side,
-            )[0]
+        z_expected = pack_sequence(
+            [x_expected],
+            cu_seqlens=cu_seqlens.to(torch.int),
+            total_tokens=cu_seqlens[-1].item(),
+            padding_side=padding_side,
+            kernel_backend=KernelBackend.torch,
+        )[0]
 
         z_expected.sum().backward()
         z_kernel.sum().backward()
@@ -82,23 +85,23 @@ class PackSequenceTest(TestCommons):
         x_kernel, x_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype)
         cu_seqlens = torch.tensor(cu_seqlens, device=device, dtype=torch.uint32)
 
-        with force_kernel_backend(kernel_backend):
-            z_kernel = function(
-                [x_kernel],
-                cu_seqlens=cu_seqlens,
-                batch_size=cu_seqlens.size(0) - 1,
-                sequence_length=sequence_length,
-                padding_side=padding_side,
-            )[0]
+        z_kernel = function(
+            [x_kernel],
+            cu_seqlens=cu_seqlens,
+            batch_size=cu_seqlens.size(0) - 1,
+            sequence_length=sequence_length,
+            padding_side=padding_side,
+            kernel_backend=kernel_backend,
+        )[0]
 
-        with force_kernel_backend(KernelBackend.torch):
-            z_expected = unpack_sequence(
-                [x_expected],
-                cu_seqlens=cu_seqlens.to(torch.int),
-                batch_size=cu_seqlens.size(0) - 1,
-                sequence_length=sequence_length,
-                padding_side=padding_side,
-            )[0]
+        z_expected = unpack_sequence(
+            [x_expected],
+            cu_seqlens=cu_seqlens.to(torch.int),
+            batch_size=cu_seqlens.size(0) - 1,
+            sequence_length=sequence_length,
+            padding_side=padding_side,
+            kernel_backend=KernelBackend.torch,
+        )[0]
 
         z_expected.sum().backward()
         z_kernel.sum().backward()

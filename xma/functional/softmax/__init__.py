@@ -5,25 +5,39 @@
 import torch
 import torch.nn.functional as F
 
+from ...custom_op import CustomOp, ctx_save_for_backward
 from ...enums import KernelBackend
 from ...utils import empty_like_contiguous
 from .triton_implementation import softmax_backward_triton, softmax_forward_triton
 
 
-class _Softmax(torch.autograd.Function):
+class _Softmax(CustomOp):
     @staticmethod
-    def forward(ctx, x: torch.Tensor, logits_multiplier: float | None) -> torch.Tensor:
+    def forward_backward_torch(x: torch.Tensor, logits_multiplier: float | None) -> torch.Tensor:
+        dtype = x.dtype
+        x = x.float()
+
+        if logits_multiplier is not None:
+            x = x * logits_multiplier
+
+        x = F.softmax(x, dim=-1)
+        x = x.to(dtype)
+
+        return x
+
+    @staticmethod
+    def forward_triton(ctx, x: torch.Tensor, logits_multiplier: float | None) -> torch.Tensor:
         output = empty_like_contiguous(x)
 
         softmax_forward_triton(x=x, output=output, logits_multiplier=logits_multiplier)
 
-        ctx.save_for_backward(output)
+        ctx_save_for_backward(ctx, output)
         ctx.logits_multiplier = logits_multiplier
 
         return output
 
     @staticmethod
-    def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
+    def backward_triton(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
         output = ctx.saved_tensors[0]
         x_grad = empty_like_contiguous(output)
 
@@ -34,7 +48,9 @@ class _Softmax(torch.autograd.Function):
         return x_grad, None
 
 
-def softmax(x: torch.Tensor, logits_multiplier: float | None = None) -> torch.Tensor:
+def softmax(
+    x: torch.Tensor, logits_multiplier: float | None = None, *, kernel_backend: KernelBackend | None = None
+) -> torch.Tensor:
     """computes softmax activation
 
     Args:
@@ -46,27 +62,15 @@ def softmax(x: torch.Tensor, logits_multiplier: float | None = None) -> torch.Te
         torch.Tensor: output tensor
     """
 
-    kernel_backend = KernelBackend.get_kernel_backend_from_device(x)
+    # if 1D -> make 2D
+    is_flat = x.dim() == 1
+    if is_flat:
+        x = x[None, ...]
 
-    if kernel_backend == KernelBackend.torch:
-        dtype = x.dtype
+    x = _Softmax.run(x=x, logits_multiplier=logits_multiplier, kernel_backend=kernel_backend)
 
-        x = x.float()
-        if logits_multiplier is not None:
-            x = x * logits_multiplier
-        x = F.softmax(x, dim=-1)
-
-        x = x.to(dtype)
-    else:
-        assert kernel_backend in [KernelBackend.cuda, KernelBackend.triton]
-
-        is_flat = x.dim() < 2
-        if is_flat:
-            x = x[None, ...]
-
-        x = _Softmax.apply(x, logits_multiplier)
-
-        if is_flat:
-            x = x.squeeze(0)
+    # convert back to 1D
+    if is_flat:
+        x = x.squeeze(0)
 
     return x
