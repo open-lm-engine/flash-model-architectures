@@ -13,48 +13,6 @@ from .cuda_implementation import pack_unpack_sequence_cuda
 from .triton_implementation import pack_unpack_sequence_triton
 
 
-def _pack_sequence(
-    x: torch.Tensor,
-    cu_seqlens: torch.Tensor,
-    output_shape: tuple[int],
-    padding_side: str,
-    kernel_backend: KernelBackend,
-) -> torch.Tensor:
-    output = torch.empty(output_shape, device=x.device, dtype=x.dtype)
-
-    if kernel_backend == KernelBackend.cuda:
-        pack_unpack_sequence_cuda(
-            x=x, output=output, cu_seqlens=cu_seqlens, padding_side=padding_side, pack=True, BLOCK_SIZE=1024
-        )
-    elif kernel_backend == KernelBackend.triton:
-        pack_unpack_sequence_triton(x=x, output=output, cu_seqlens=cu_seqlens, padding_side=padding_side, pack=True)
-    else:
-        raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
-
-    return output
-
-
-def _unpack_sequence(
-    x: torch.Tensor,
-    cu_seqlens: torch.Tensor,
-    output_shape: tuple[int],
-    padding_side: str,
-    kernel_backend: KernelBackend,
-) -> torch.Tensor:
-    output = torch.zeros(*output_shape, device=x.device, dtype=x.dtype)
-
-    if kernel_backend == KernelBackend.cuda:
-        pack_unpack_sequence_cuda(
-            x=x, output=output, cu_seqlens=cu_seqlens, padding_side=padding_side, pack=False, BLOCK_SIZE=1024
-        )
-    elif kernel_backend == KernelBackend.triton:
-        pack_unpack_sequence_triton(x=x, output=output, cu_seqlens=cu_seqlens, padding_side=padding_side, pack=False)
-    else:
-        raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
-
-    return output
-
-
 class _PackSequence(CustomOp):
     @staticmethod
     def forward_backward_torch(
