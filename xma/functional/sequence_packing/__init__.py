@@ -137,6 +137,29 @@ class _PackSequence(CustomOp):
 
 class _UnpackSequence(CustomOp):
     @staticmethod
+    def forward_backward_torch(
+        x: torch.Tensor, cu_seqlens: torch.Tensor, output_shape: tuple[int], padding_side: str
+    ) -> torch.Tensor:
+        B = cu_seqlens.size(0) - 1
+        S = output_shape[1]
+
+        seqlens = cu_seqlens[1:] - cu_seqlens[:-1]
+        batch_indices = torch.arange(B, device=x.device).repeat_interleave(seqlens)
+
+        if padding_side == "left":
+            pad_tokens = S - seqlens
+            seq_indices = torch.cat([torch.arange(sl, S, device=x.device) for sl in pad_tokens])
+        elif padding_side == "right":
+            seq_indices = torch.cat([torch.arange(sl, device=x.device) for sl in seqlens])
+        else:
+            raise ValueError(f"unexpected padding_side ({padding_side})")
+
+        padded = torch.zeros(output_shape, dtype=x.dtype, device=x.device)
+        padded[batch_indices, seq_indices] = x
+
+        return padded
+
+    @staticmethod
     @ensure_contiguous
     def forward_cuda(
         ctx, x: torch.Tensor, cu_seqlens: torch.Tensor, output_shape: tuple[int], padding_side: str
@@ -244,33 +267,18 @@ def unpack_sequence(
 
     for x in inputs:
         assert x.dim() >= 2
+        assert cu_seqlens.size(0) - 1 == B
+
         output_shape = (B, S, *x.size()[1:])
 
-        if kernel_backend == KernelBackend.torch:
-            assert cu_seqlens.size(0) - 1 == B
+        x = _UnpackSequence.run(
+            x=x,
+            cu_seqlens=cu_seqlens,
+            output_shape=output_shape,
+            padding_side=padding_side,
+            kernel_backend=kernel_backend,
+        )
 
-            seqlens = cu_seqlens[1:] - cu_seqlens[:-1]
-            batch_indices = torch.arange(B, device=x.device).repeat_interleave(seqlens)
-
-            if padding_side == "left":
-                pad_tokens = S - seqlens
-                seq_indices = torch.cat([torch.arange(sl, S, device=x.device) for sl in pad_tokens])
-            elif padding_side == "right":
-                seq_indices = torch.cat([torch.arange(sl, device=x.device) for sl in seqlens])
-            else:
-                raise ValueError(f"unexpected padding_side ({padding_side})")
-
-            padded = torch.zeros(output_shape, dtype=x.dtype, device=x.device)
-            padded[batch_indices, seq_indices] = x
-        else:
-            padded = _UnpackSequence.run(
-                x=x,
-                cu_seqlens=cu_seqlens,
-                output_shape=output_shape,
-                padding_side=padding_side,
-                kernel_backend=kernel_backend,
-            )
-
-        outputs.append(padded)
+        outputs.append(x)
 
     return outputs
