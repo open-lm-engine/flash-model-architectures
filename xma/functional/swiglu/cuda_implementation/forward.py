@@ -41,5 +41,10 @@ def swiglu_forward_cuda_jit(mG: cute.Tensor, mU: cute.Tensor, mY: cute.Tensor, B
 
 @custom_op(f"{LIBRARY_NAME}::swiglu_forward_cuda", mutates_args={"output"})
 def swiglu_forward_cuda(gate: torch.Tensor, up: torch.Tensor, output: torch.Tensor, BLOCK_SIZE: int) -> None:
-    function = cute.compile(swiglu_forward_cuda_jit, gate, up, output, BLOCK_SIZE)
+    function = getattr(swiglu_forward_cuda, "function", None)
+
+    if function is None:
+        function = cute.compile(swiglu_forward_cuda_jit, gate, up, output, BLOCK_SIZE)
+        swiglu_forward_cuda.function = function
+
     function(gate, up, output, BLOCK_SIZE)
