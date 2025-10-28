@@ -5,8 +5,6 @@
 import torch
 from torch.library import custom_op
 
-import cutlass.cute as cute
-
 from ....constants import LIBRARY_NAME
 from ....jit import cpp_jit
 from .forward import swiglu_forward_cuda
