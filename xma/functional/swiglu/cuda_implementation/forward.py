@@ -8,6 +8,7 @@ from torch.library import custom_op
 import cutlass.cute as cute
 
 from ....constants import LIBRARY_NAME
+from ....math import ceil_divide
 
 
 @cute.kernel
@@ -32,7 +33,7 @@ def swiglu_forward_cuda_kernel(gG: cute.Tensor, gU: cute.Tensor, gY: cute.Tensor
 @cute.jit
 def swiglu_forward_cuda_jit(mG: cute.Tensor, mU: cute.Tensor, mY: cute.Tensor, BLOCK_SIZE: int) -> None:
     M, N = mG.shape
-    NUM_BLOCKS = (M * N + BLOCK_SIZE - 1) / BLOCK_SIZE
+    NUM_BLOCKS = ceil_divide(M * N, BLOCK_SIZE)
 
     kernel = swiglu_forward_cuda_kernel(mG, mU, mY)
     kernel.launch(grid=(NUM_BLOCKS, 1, 1), block=(BLOCK_SIZE, 1, 1))
