@@ -2,22 +2,10 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
-import triton
-import triton.language as tl
+import cutlass.cute as cute
 
 
-@triton.jit
-def clamp(x, min_value, max_value):
-    dtype = x.dtype
-
-    x = max(min_value, x)
-    x = min(max_value, x)
-    x = x.to(dtype)
-
-    return x
-
-
-@triton.jit
+@cute.jit
 def tanh(x, output_dtype: tl.constexpr = None):
     if output_dtype is None:
         output_dtype = x.dtype
@@ -27,14 +15,3 @@ def tanh(x, output_dtype: tl.constexpr = None):
     x = x.to(output_dtype)
 
     return x
-
-
-@triton.jit
-def tanh_backward(y):
-    dtype = y.dtype
-
-    y = y.to(tl.float32)
-    y = 1 - y * y
-    y = y.to(dtype)
-
-    return y
