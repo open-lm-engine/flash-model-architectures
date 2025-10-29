@@ -5,7 +5,11 @@
 import torch
 
 from ...enums import KernelBackend
-from .triton_implementation import bmm_triton
+from ...utils import is_triton_available
+
+
+if is_triton_available():
+    from .triton_implementation import bmm_triton
 
 
 def bmm(
