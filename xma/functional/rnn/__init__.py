@@ -7,8 +7,11 @@ import torch
 from ...custom_op import CustomOp, ctx_save_for_backward
 from ...enums import KernelBackend
 from ...torch_math import clip_gradients, tanh
-from ...utils import empty_like_contiguous, zeros_like_contiguous
-from .triton_implementation import rnn_backward_triton, rnn_forward_triton
+from ...utils import empty_like_contiguous, is_triton_available, zeros_like_contiguous
+
+
+if is_triton_available():
+    from .triton_implementation import rnn_backward_triton, rnn_forward_triton
 
 
 def get_max_seqlen_and_max_seqlen_tensor(
