@@ -60,7 +60,6 @@ class CustomOp(torch.autograd.Function):
             elif kernel_backend == KernelBackend.nki:
                 args += (cls.forward_nki, cls.backward_nki)
             elif kernel_backend == KernelBackend.triton:
-                assert is_triton_available()
                 args += (cls.forward_triton, cls.backward_triton)
             else:
                 raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
