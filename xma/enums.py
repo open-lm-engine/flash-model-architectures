@@ -8,6 +8,8 @@ from enum import Enum
 
 import torch
 
+from .utils import is_triton_available
+
 
 _IS_ROCM_AVAILABLE = torch.version.hip is not None
 
@@ -29,4 +31,5 @@ class KernelBackend(Enum):
         elif device_type == "xla":
             return KernelBackend.pallas
         else:
+            assert is_triton_available()
             return KernelBackend.triton
