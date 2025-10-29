@@ -38,6 +38,8 @@ class CustomOp(torch.autograd.Function):
                     if isinstance(tensor, torch.Tensor):
                         kernel_backend = KernelBackend.get_kernel_backend_from_device(tensor)
                         break
+        else:
+            KernelBackend.verify_kernel_backend(kernel_backend)
 
         if kernel_backend is None:
             raise ValueError("code is not supposed to reach here! kernel_backend was not inferrable")

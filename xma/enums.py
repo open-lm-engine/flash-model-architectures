@@ -27,9 +27,17 @@ class KernelBackend(Enum):
         device_type = x.device.type
 
         if device_type == "cuda":
-            return KernelBackend.rocm if _IS_ROCM_AVAILABLE else KernelBackend.cuda
+            kernel_backend = KernelBackend.rocm if _IS_ROCM_AVAILABLE else KernelBackend.cuda
         elif device_type == "xla":
-            return KernelBackend.pallas
+            kernel_backend = KernelBackend.pallas
         else:
+            kernel_backend = KernelBackend.triton
+
+        KernelBackend.verify_kernel_backend(kernel_backend)
+
+        return kernel_backend
+
+    @staticmethod
+    def verify_kernel_backend(kernel_backend: KernelBackend) -> None:
+        if kernel_backend == KernelBackend.triton:
             assert is_triton_available()
-            return KernelBackend.triton

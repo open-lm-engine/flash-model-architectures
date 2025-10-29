@@ -59,6 +59,8 @@ def bmm(
 
     if kernel_backend is None:
         kernel_backend = KernelBackend.get_kernel_backend_from_device(A)
+    else:
+        KernelBackend.verify_kernel_backend(kernel_backend)
 
     if kernel_backend == KernelBackend.torch:
         if is_A_transposed:
