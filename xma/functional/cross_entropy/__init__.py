@@ -7,8 +7,11 @@ import torch.nn.functional as F
 
 from ...custom_op import CustomOp, ctx_needs_gradients, ctx_save_for_backward
 from ...enums import KernelBackend
-from ...utils import empty_like_contiguous, get_num_elements_and_hidden_size
-from .triton_implementation import cross_entropy_forward_backward_triton
+from ...utils import empty_like_contiguous, get_num_elements_and_hidden_size, is_triton_available
+
+
+if is_triton_available():
+    from .triton_implementation import cross_entropy_forward_backward_triton
 
 
 class _CrossEntropy(CustomOp):
