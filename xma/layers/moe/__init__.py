@@ -10,8 +10,12 @@ import torch.nn.functional as F
 
 from ...enums import KernelBackend
 from ...functional import continuous_count
+from ...utils import is_triton_available
 from .cuda_implementation import group_with_padding, grouped_gemm_experts, ungroup_with_padding
-from .triton_implementation import scattered_experts
+
+
+if is_triton_available():
+    from .triton_implementation import scattered_experts
 
 
 class Experts(nn.Module):

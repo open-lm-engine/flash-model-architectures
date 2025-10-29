@@ -7,8 +7,11 @@ import torch.nn.functional as F
 
 from ...custom_op import CustomOp, ctx_save_for_backward
 from ...enums import KernelBackend
-from ...utils import empty_like_contiguous
-from .triton_implementation import softmax_backward_triton, softmax_forward_triton
+from ...utils import empty_like_contiguous, is_triton_available
+
+
+if is_triton_available():
+    from .triton_implementation import softmax_backward_triton, softmax_forward_triton
 
 
 class _Softmax(CustomOp):
