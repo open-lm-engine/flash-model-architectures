@@ -6,10 +6,13 @@ import torch
 
 from ....functional import grouped_gemm
 from ....math import ceil_divide
-from ....utils import ensure_contiguous
-from .group_kernel import group_with_padding_triton
-from .padded_expert_frequency_kernel import padded_expert_frequency_triton
-from .ungroup_kernel import ungroup_with_padding_triton
+from ....utils import ensure_contiguous, is_triton_available
+
+
+if is_triton_available():
+    from .group_kernel import group_with_padding_triton
+    from .padded_expert_frequency_kernel import padded_expert_frequency_triton
+    from .ungroup_kernel import ungroup_with_padding_triton
 
 
 class _GroupedGemmExperts(torch.autograd.Function):

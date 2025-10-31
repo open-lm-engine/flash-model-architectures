@@ -7,9 +7,12 @@ import torch
 from ...custom_op import CustomOp, ctx_needs_gradients, ctx_save_for_backward
 from ...enums import KernelBackend
 from ...torch_math import clip_gradients, sigmoid, tanh
-from ...utils import empty_like_contiguous, zeros_like_contiguous
+from ...utils import empty_like_contiguous, is_triton_available, zeros_like_contiguous
 from ..rnn import get_max_seqlen_and_max_seqlen_tensor
-from .triton_implementation import gru_backward_triton, gru_forward_triton
+
+
+if is_triton_available():
+    from .triton_implementation import gru_backward_triton, gru_forward_triton
 
 
 class _GRU(CustomOp):

@@ -7,11 +7,20 @@ import torch.nn.functional as F
 
 from ...custom_op import CustomOp, ctx_needs_gradients, ctx_save_for_backward
 from ...enums import KernelBackend
-from ...utils import empty_like_contiguous, get_num_elements_and_hidden_size, get_sm_count, zeros_like_contiguous
-from .triton_implementation import (
-    fused_residual_add_rmsnorm_backward_triton,
-    fused_residual_add_rmsnorm_forward_triton,
+from ...utils import (
+    empty_like_contiguous,
+    get_num_elements_and_hidden_size,
+    get_sm_count,
+    is_triton_available,
+    zeros_like_contiguous,
 )
+
+
+if is_triton_available():
+    from .triton_implementation import (
+        fused_residual_add_rmsnorm_backward_triton,
+        fused_residual_add_rmsnorm_forward_triton,
+    )
 
 
 class _FusedResidualAddRMSNorm(CustomOp):

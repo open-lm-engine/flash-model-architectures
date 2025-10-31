@@ -10,8 +10,12 @@ import torch.nn.functional as F
 
 from ...enums import KernelBackend
 from ...functional import continuous_count
+from ...utils import is_triton_available
 from .cuda_implementation import group_with_padding, grouped_gemm_experts, ungroup_with_padding
-from .triton_implementation import scattered_experts
+
+
+if is_triton_available():
+    from .triton_implementation import scattered_experts
 
 
 class Experts(nn.Module):
@@ -211,6 +215,8 @@ class MoE(nn.Module):
     ) -> torch.Tensor:
         if kernel_backend is None:
             kernel_backend = KernelBackend.get_kernel_backend_from_device(hidden_states)
+        else:
+            KernelBackend.verify_kernel_backend(kernel_backend)
 
         with torch.no_grad():
             sorted_expert_idxs, sorted_scattered_idxs = selected_experts.flatten().sort()
