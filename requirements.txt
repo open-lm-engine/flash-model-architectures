@@ -6,6 +6,4 @@ torch
 pybind11
 numpy
 pyyaml
-pytest
-parameterized
 tqdm
