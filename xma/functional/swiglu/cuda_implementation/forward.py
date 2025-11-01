@@ -45,9 +45,9 @@ def swiglu_forward_cuda_jit(mG: cute.Tensor, mU: cute.Tensor, mY: cute.Tensor) -
 
 @custom_op(f"{LIBRARY_NAME}::swiglu_forward_cuda", mutates_args={"output"})
 def swiglu_forward_cuda(gate: torch.Tensor, up: torch.Tensor, output: torch.Tensor, BLOCK_SIZE: int) -> None:
-    gate = torch_tensor_to_cute_tensor(gate)
-    up = torch_tensor_to_cute_tensor(up)
-    output = torch_tensor_to_cute_tensor(output)
+    gate = torch_tensor_to_cute_tensor(gate, leading_dim=1)
+    up = torch_tensor_to_cute_tensor(up, leading_dim=1)
+    output = torch_tensor_to_cute_tensor(output, leading_dim=1)
 
     function = getattr(swiglu_forward_cuda, "function", None)
 
