@@ -7,6 +7,8 @@ import torch
 import cutlass.cute as cute
 from cutlass.cute.runtime import from_dlpack
 
+from .cute_dsl_math import sigmoid, tanh
+
 
 def torch_tensor_to_cute_tensor(
     x: torch.Tensor, leading_dim: int, alignment: int = 16, divisibility: int = 1

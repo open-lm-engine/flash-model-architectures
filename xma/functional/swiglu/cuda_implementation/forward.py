@@ -8,8 +8,7 @@ from torch.library import custom_op
 import cutlass.cute as cute
 
 from ....constants import LIBRARY_NAME
-from ....cute_dsl_math import sigmoid
-from ....cute_dsl_utils import torch_tensor_to_cute_tensor
+from ....cute_dsl_utils import sigmoid, torch_tensor_to_cute_tensor
 from ....math import ceil_divide
 
 

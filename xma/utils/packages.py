@@ -15,7 +15,7 @@ def is_triton_available() -> bool:
 
 
 try:
-    import cutlass
+    import cutlass.cute
 
     _IS_CUTE_DSL_AVAILABLE = True
 except:
