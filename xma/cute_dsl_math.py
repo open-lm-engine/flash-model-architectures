@@ -29,4 +29,4 @@ def tanh(x: Float32 | float, *, loc=None, ip=None):
 
 
 def sigmoid(x: cute.Float32 | float):
-    return tanh(x)
+    return 0.5 * tanh(0.5 * x) + 0.5
