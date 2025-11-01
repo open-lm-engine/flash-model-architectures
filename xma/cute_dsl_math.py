@@ -15,16 +15,17 @@ def tanh(x: cute.Float32 | float, *, loc=None, ip=None):
 
     x = x.to(cute.Float32)
 
-    x = llvm.inline_asm(
-        res=T.f32(),
-        operands_=[cute.Float32.ir_value(loc=loc, ip=ip)],
-        asm_string="tanh.approx.f32 $0, $1;",
-        constraints="=f,f",
-        has_side_effects=False,
-        is_align_stack=False,
-        asm_dialect=llvm.AsmDialect.AD_ATT,
+    x = cute.Float32(
+        llvm.inline_asm(
+            res=T.f32(),
+            operands_=[cute.Float32.ir_value(loc=loc, ip=ip)],
+            asm_string="tanh.approx.f32 $0, $1;",
+            constraints="=f,f",
+            has_side_effects=False,
+            is_align_stack=False,
+            asm_dialect=llvm.AsmDialect.AD_ATT,
+        )
     )
-    x = cute.Float32(x)
 
     x = x.to(output_dtype)
 
