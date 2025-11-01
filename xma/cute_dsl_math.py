@@ -9,7 +9,7 @@ from cutlass.cutlass_dsl import T, dsl_user_op
 
 
 @dsl_user_op
-def tanh(x: cute.Float32 | float, *, loc=None, ip=None, output_dtype: tl.constexpr = None):
+def tanh(x: cute.Float32 | float, *, loc=None, ip=None):
     if output_dtype is None:
         output_dtype = x.dtype
 
