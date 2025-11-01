@@ -3,15 +3,33 @@
 # **************************************************
 
 import cutlass.cute as cute
+from cutlass._mlir.dialects import llvm
+from cutlass.cute.math import tanh
+from cutlass.cutlass_dsl import T, dsl_user_op
 
 
-@cute.jit
-def tanh(x: cute.Float32 | float, output_dtype: tl.constexpr = None):
+@dsl_user_op
+def tanh(x: cute.Float32 | float, *, loc=None, ip=None, output_dtype: tl.constexpr = None):
     if output_dtype is None:
         output_dtype = x.dtype
 
-    x = x.to(tl.float32)
-    x = tl.inline_asm_elementwise("tanh.approx.f32 $0, $1;", "=f,f", [x], dtype=tl.float32, is_pure=True, pack=1)
+    x = x.to(cute.Float32)
+
+    x = llvm.inline_asm(
+        res=T.f32(),
+        operands_=[cute.Float32.ir_value(loc=loc, ip=ip)],
+        asm_string="tanh.approx.f32 $0, $1;",
+        constraints="=f,f",
+        has_side_effects=False,
+        is_align_stack=False,
+        asm_dialect=llvm.AsmDialect.AD_ATT,
+    )
+    x = cute.Float32(x)
+
     x = x.to(output_dtype)
 
     return x
+
+
+def sigmoid(x: cute.Float32 | float):
+    return tanh(x)

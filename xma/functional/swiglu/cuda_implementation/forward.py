@@ -9,6 +9,7 @@ import cutlass.cute as cute
 from cutlass.cute.runtime import from_dlpack
 
 from ....constants import LIBRARY_NAME
+from ....cute_dsl_math import sigmoid
 from ....math import ceil_divide
 
 
