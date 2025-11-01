@@ -3,7 +3,6 @@
 # **************************************************
 
 import cutlass.cute as cute
-from cutlass import Float32, const_expr
 from cutlass._mlir.dialects import llvm
 from cutlass.cute.math import tanh
 from cutlass.cutlass_dsl import T, dsl_user_op

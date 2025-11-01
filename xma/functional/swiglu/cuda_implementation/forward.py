@@ -6,10 +6,10 @@ import torch
 from torch.library import custom_op
 
 import cutlass.cute as cute
-from cutlass.cute.runtime import from_dlpack
 
 from ....constants import LIBRARY_NAME
 from ....cute_dsl_math import sigmoid
+from ....cute_dsl_utils import torch_tensor_to_cute_tensor
 from ....math import ceil_divide
 
 
@@ -45,9 +45,9 @@ def swiglu_forward_cuda_jit(mG: cute.Tensor, mU: cute.Tensor, mY: cute.Tensor) -
 
 @custom_op(f"{LIBRARY_NAME}::swiglu_forward_cuda", mutates_args={"output"})
 def swiglu_forward_cuda(gate: torch.Tensor, up: torch.Tensor, output: torch.Tensor, BLOCK_SIZE: int) -> None:
-    gate = from_dlpack(gate.detach())
-    up = from_dlpack(up.detach())
-    output = from_dlpack(output.detach())
+    gate = torch_tensor_to_cute_tensor(gate)
+    up = torch_tensor_to_cute_tensor(up)
+    output = torch_tensor_to_cute_tensor(output)
 
     function = getattr(swiglu_forward_cuda, "function", None)
 
