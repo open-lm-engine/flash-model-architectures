@@ -30,8 +30,8 @@ def swiglu_forward_cuda_kernel(gG: cute.Tensor, gU: cute.Tensor, gY: cute.Tensor
     u = gU[row, col]
 
     dtype = g.dtype
-    g = g.to(cute.Float32)
 
+    g = g.to(cute.Float32)
     y = u * g * sigmoid(g)
     y = y.to(dtype)
 
