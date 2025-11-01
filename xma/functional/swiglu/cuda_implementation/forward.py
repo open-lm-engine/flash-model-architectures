@@ -29,7 +29,13 @@ def swiglu_forward_cuda_kernel(gG: cute.Tensor, gU: cute.Tensor, gY: cute.Tensor
     g = gG[row, col]
     u = gU[row, col]
 
-    gY[row, col] = u * g * sigmoid(g)
+    dtype = g.dtype
+    g = g.to(cute.Float32)
+
+    y = u * g * sigmoid(g)
+    y = y.to(dtype)
+
+    gY[row, col] = y
 
 
 @cute.jit
@@ -49,10 +55,14 @@ def swiglu_forward_cuda(gate: torch.Tensor, up: torch.Tensor, output: torch.Tens
     up = torch_tensor_to_cute_tensor(up, leading_dim=1)
     output = torch_tensor_to_cute_tensor(output, leading_dim=1)
 
-    function = getattr(swiglu_forward_cuda, "function", None)
+    key = gate.element_type
+    function = swiglu_forward_cuda.cache.get(key, None)
 
     if function is None:
         function = cute.compile(swiglu_forward_cuda_jit, gate, up, output)
-        swiglu_forward_cuda.function = function
+        swiglu_forward_cuda.cache[key] = function
 
     function(gate, up, output)
+
+
+swiglu_forward_cuda.cache = {}
