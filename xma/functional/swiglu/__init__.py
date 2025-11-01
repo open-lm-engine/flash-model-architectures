@@ -37,9 +37,7 @@ class _Swiglu(CustomOp):
     def forward_cuda(ctx, gate: torch.Tensor, up: torch.Tensor) -> torch.Tensor:
         output = empty_like_contiguous(gate)
 
-        swiglu_forward_cuda(
-            gate=gate.flatten(0, -2), up=up.flatten(0, -2), output=output.flatten(0, -2), BLOCK_SIZE=1024
-        )
+        swiglu_forward_cuda(gate=gate.flatten(0, -2), up=up.flatten(0, -2), output=output.flatten(0, -2))
 
         ctx_save_for_backward(ctx, gate, up)
 
@@ -52,9 +50,7 @@ class _Swiglu(CustomOp):
         gate_grad = empty_like_contiguous(gate)
         up_grad = empty_like_contiguous(up)
 
-        swiglu_backward_cuda(
-            gate=gate, up=up, output_grad=output_grad, gate_grad=gate_grad, up_grad=up_grad, BLOCK_SIZE=1024
-        )
+        swiglu_backward_cuda(gate=gate, up=up, output_grad=output_grad, gate_grad=gate_grad, up_grad=up_grad)
 
         return gate_grad, up_grad
 
