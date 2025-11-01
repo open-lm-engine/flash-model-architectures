@@ -8,7 +8,7 @@ from enum import Enum
 
 import torch
 
-from .utils import is_triton_available
+from .utils import is_cute_dsl_available, is_triton_available
 
 
 _IS_ROCM_AVAILABLE = torch.version.hip is not None
@@ -39,5 +39,7 @@ class KernelBackend(Enum):
 
     @staticmethod
     def verify_kernel_backend(kernel_backend: KernelBackend) -> None:
-        if kernel_backend == KernelBackend.triton:
+        if kernel_backend == KernelBackend.cuda:
+            assert is_cute_dsl_available()
+        elif kernel_backend == KernelBackend.triton:
             assert is_triton_available()

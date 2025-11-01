@@ -6,7 +6,7 @@ import cutlass.cute as cute
 
 
 @cute.jit
-def tanh(x, output_dtype: tl.constexpr = None):
+def tanh(x: cute.Float32 | float, output_dtype: tl.constexpr = None):
     if output_dtype is None:
         output_dtype = x.dtype
 

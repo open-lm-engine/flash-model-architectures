@@ -9,11 +9,10 @@ from ...custom_op import CustomOp, ctx_save_for_backward
 from ...enums import KernelBackend
 from ...math import divide_if_divisible
 from ...utils import empty_like_contiguous, ensure_contiguous, is_cute_dsl_available, is_triton_available
-from .cuda_implementation import swiglu_backward_cuda, swiglu_forward_cuda
 
 
 if is_cute_dsl_available():
-    from .cuda_implementation import swiglu_forward_cuda
+    from .cuda_implementation import swiglu_backward_cuda, swiglu_forward_cuda
 
 
 if is_triton_available():
