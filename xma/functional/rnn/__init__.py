@@ -145,6 +145,8 @@ class _RNN(CustomOp):
             gradient_clipping=ctx.gradient_clipping,
         )
 
+        weight_grad = weight_grad.type_as(weight)
+
         return input_grad, weight_grad, *[None] * 4
 
 
