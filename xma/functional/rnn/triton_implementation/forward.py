@@ -9,7 +9,7 @@ from torch.library import custom_op
 
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2, get_powers_of_2
-from ....triton_math import matmul, tanh
+from ....triton_utils import matmul, tanh
 
 
 def _get_autotune_configs() -> list[triton.Config]:

@@ -9,7 +9,7 @@ from torch.library import custom_op
 
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide
-from ....triton_math import sigmoid
+from ....triton_utils import sigmoid
 from ....utils import get_num_elements_and_hidden_size
 
 

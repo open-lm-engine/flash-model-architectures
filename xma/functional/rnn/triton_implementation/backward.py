@@ -9,7 +9,7 @@ from torch.library import custom_op
 
 from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
-from ....triton_math import clamp, matmul, tanh_backward
+from ....triton_utils import clamp, matmul, tanh_backward
 from .forward import _get_autotune_configs
 
 
