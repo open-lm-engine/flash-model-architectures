@@ -7,6 +7,7 @@ import torch
 import cutlass.cute as cute
 from cutlass.cute.runtime import from_dlpack
 
+from .constants import LOG_WARP_SIZE, WARP_SIZE
 from .math import sigmoid, tanh
 
 
