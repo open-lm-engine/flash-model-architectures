@@ -8,8 +8,8 @@ from torch.library import custom_op
 import cutlass.cute as cute
 from cutlass import Boolean, Float32, range_constexpr
 
-from ....constants import LIBRARY_NAME
-from ....cute_dsl_utils import LOG_WARP_SIZE, WARP_SIZE, sigmoid, torch_tensor_to_cute_tensor
+from ....constants import LIBRARY_NAME, LOG_WARP_SIZE, WARP_SIZE
+from ....cute_dsl_utils import sigmoid, torch_tensor_to_cute_tensor
 
 
 @cute.kernel
