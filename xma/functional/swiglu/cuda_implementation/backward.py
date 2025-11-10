@@ -65,11 +65,21 @@ def swiglu_backward_cuda_kernel(
     dy = fragdY.load()
 
     dtype = g.dtype
-    y = u * g * sigmoid(g, output_dtype=Float32)
-    y = y.to(dtype)
 
-    fragY.store(y)
-    cute.copy(copy_atom, fragY, tY, pred=fragID)
+    g_sigmoid = sigmoid(g, output_dtype=Float32)
+    g_silu = g * g_sigmoid
+
+    dg = dy * u * (g_sigmoid + g_silu * (1 - g_sigmoid))
+    du = dy * g_silu
+
+    dg = dg.to(dtype)
+    du = du.to(dtype)
+
+    fragdG.store(dg)
+    fragdU.store(du)
+
+    cute.copy(copy_atom, fragdG, tdG, pred=fragID)
+    cute.copy(copy_atom, fragdU, tdU, pred=fragID)
 
 
 @cute.jit

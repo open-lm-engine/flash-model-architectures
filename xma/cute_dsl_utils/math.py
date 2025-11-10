@@ -10,7 +10,7 @@ from cutlass.cutlass_dsl import T, dsl_user_op
 
 
 @dsl_user_op
-def _tanh(x: Float32 | float, *, loc=None, ip=None):
+def _tanh(x: Float32 | float, *, loc=None, ip=None) -> Float32:
     return Float32(
         llvm.inline_asm(
             res=T.f32(),
@@ -25,7 +25,7 @@ def _tanh(x: Float32 | float, *, loc=None, ip=None):
 
 
 @cute.jit
-def tanh(x: Float32 | float | TensorSSA, output_dtype: cute.Numeric | None = None):
+def tanh(x: Float32 | TensorSSA, output_dtype: cute.Numeric | None = None) -> Float32 | TensorSSA:
     if const_expr(output_dtype is None):
         output_dtype = x.dtype
 
@@ -43,7 +43,7 @@ def tanh(x: Float32 | float | TensorSSA, output_dtype: cute.Numeric | None = Non
     return y
 
 
-def sigmoid(x: Float32 | float | TensorSSA, output_dtype: cute.Numeric | None = None):
+def sigmoid(x: Float32 | TensorSSA, output_dtype: cute.Numeric | None = None) -> Float32 | TensorSSA:
     if const_expr(output_dtype is None):
         output_dtype = x.dtype
 
