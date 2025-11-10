@@ -25,7 +25,7 @@ def _tanh(x: Float32 | float, *, loc=None, ip=None):
 
 
 @cute.jit
-def tanh(x: cute.Float32 | float | TensorSSA, output_dtype=None):
+def tanh(x: cute.Float32 | float | TensorSSA, output_dtype: cute.Numeric | None = None):
     if const_expr(isinstance(x, TensorSSA)):
         y = cute.make_fragment(x.shape, x.dtype if const_expr(output_dtype is None) else output_dtype)
 
