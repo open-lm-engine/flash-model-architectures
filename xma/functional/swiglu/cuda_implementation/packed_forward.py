@@ -14,8 +14,7 @@ from ....cute_dsl_utils import sigmoid, torch_tensor_to_cute_tensor
 
 @cute.kernel
 def packed_swiglu_forward_cuda_kernel(
-    gG: cute.Tensor,
-    gU: cute.Tensor,
+    gX: cute.Tensor,
     gY: cute.Tensor,
     gID: cute.Tensor,
     copy_atom: cute.CopyAtom,
@@ -27,34 +26,29 @@ def packed_swiglu_forward_cuda_kernel(
 
     block_coord = ((None, None), BLOCK_ID)
 
-    bG = gG[block_coord]
-    bU = gU[block_coord]
+    bX = gX[block_coord]
     bY = gY[block_coord]
     bID = gID[block_coord]
 
     thr_copy = tiled_copy.get_slice(THREAD_ID)
 
-    tG = thr_copy.partition_S(bG)
-    tU = thr_copy.partition_S(bU)
+    tX = thr_copy.partition_S(bX)
     tY = thr_copy.partition_D(bY)
     tID = thr_copy.partition_S(bID)
 
-    fragG = cute.make_fragment_like(tG)
-    fragU = cute.make_fragment_like(tU)
+    fragX = cute.make_fragment_like(tX)
     fragY = cute.make_fragment_like(tY)
 
     fragID = cute.make_fragment(tID.shape, Boolean)
     for i in range_constexpr(cute.size(fragID)):
         fragID[i] = cute.elem_less(tID[i], shape)
 
-    cute.copy(copy_atom, tG, fragG, pred=fragID)
-    cute.copy(copy_atom, tU, fragU, pred=fragID)
+    cute.copy(copy_atom, tX, fragX, pred=fragID)
 
     # convert rmem Tensor to TensorSSA
-    g = fragG.load()
-    u = fragU.load()
+    x = fragX.load()
 
-    dtype = g.dtype
+    dtype = x.dtype
     y = u * g * sigmoid(g, output_dtype=Float32)
     y = y.to(dtype)
 
