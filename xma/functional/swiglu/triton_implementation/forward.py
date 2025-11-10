@@ -32,16 +32,16 @@ def swiglu_forward_triton_kernel(
     BLOCK_B = BLOCK_ID_B * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
     BLOCK_H = BLOCK_ID_H * BLOCK_SIZE_H + tl.arange(0, BLOCK_SIZE_H)
 
-    mask_b = BLOCK_B < B
-    mask_h = BLOCK_H < H
-    mask = mask_b[:, None] & mask_h[None, :]
+    MASK_B = BLOCK_B < B
+    MASK_H = BLOCK_H < H
+    MASK = MASK_B[:, None] & MASK_H[None, :]
 
-    g = tl.load(g_ptr + BLOCK_B[:, None] * g_stride[0] + BLOCK_H[None, :] * g_stride[1], mask=mask).to(tl.float32)
-    u = tl.load(u_ptr + BLOCK_B[:, None] * u_stride[0] + BLOCK_H[None, :] * u_stride[1], mask=mask)
+    g = tl.load(g_ptr + BLOCK_B[:, None] * g_stride[0] + BLOCK_H[None, :] * g_stride[1], mask=MASK).to(tl.float32)
+    u = tl.load(u_ptr + BLOCK_B[:, None] * u_stride[0] + BLOCK_H[None, :] * u_stride[1], mask=MASK)
 
     y = u * g * sigmoid(g)
 
-    tl.store(y_ptr + BLOCK_B[:, None] * y_stride[0] + BLOCK_H[None, :] * y_stride[1], y, mask=mask)
+    tl.store(y_ptr + BLOCK_B[:, None] * y_stride[0] + BLOCK_H[None, :] * y_stride[1], y, mask=MASK)
 
 
 @custom_op(f"{LIBRARY_NAME}::swiglu_forward_triton", mutates_args={"output"})
