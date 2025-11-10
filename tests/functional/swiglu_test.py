@@ -15,7 +15,7 @@ from ..test_commons import TestCommons
 class SwiGLUTest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(
-            [(1, 1024)],  # size
+            TestCommons.get_2d_tensor_sizes(),  # size
             [torch.device("cuda")],  # device
             TestCommons.get_dtypes(),  # dtype
             [KernelBackend.cuda],  # kernel_backend
