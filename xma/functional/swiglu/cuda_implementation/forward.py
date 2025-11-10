@@ -9,7 +9,6 @@ import cutlass.cute as cute
 
 from ....constants import LIBRARY_NAME
 from ....cute_dsl_utils import LOG_WARP_SIZE, WARP_SIZE, sigmoid, torch_tensor_to_cute_tensor
-from ....math import ceil_divide
 
 
 @cute.kernel
@@ -50,8 +49,7 @@ def swiglu_forward_cuda_jit(mG: cute.Tensor, mU: cute.Tensor, mY: cute.Tensor) -
     gU = cute.zipped_divide(mU, tiler_mn)
     gY = cute.zipped_divide(mY, tiler_mn)
 
-    M, N = mG.shape
-    NUM_BLOCKS = ceil_divide(M * N, BLOCK_SIZE)
+    NUM_BLOCKS = cute.size(tv_layout)
 
     kernel = swiglu_forward_cuda_kernel(gG, gU, gY, thr_layout, val_layout)
     kernel.launch(grid=(NUM_BLOCKS, 1, 1), block=(BLOCK_SIZE, 1, 1))
