@@ -6,7 +6,8 @@ import torch
 from torch.library import custom_op
 
 import cutlass.cute as cute
-from cutlass import Float32
+from cutlass import Boolean, Float32, range_constexpr
+from cutlass.cute import CopyAtom, Shape, TiledCopy
 
 from ....constants import LIBRARY_NAME
 from ....cute_dsl_utils import LOG_WARP_SIZE, WARP_SIZE, sigmoid, torch_tensor_to_cute_tensor
@@ -14,27 +15,51 @@ from ....cute_dsl_utils import LOG_WARP_SIZE, WARP_SIZE, sigmoid, torch_tensor_t
 
 @cute.kernel
 def swiglu_forward_cuda_kernel(
-    gG: cute.Tensor, gU: cute.Tensor, gY: cute.Tensor, gID: cute.Tensor, tv_layout: cute.Layout
+    gG: cute.Tensor,
+    gU: cute.Tensor,
+    gY: cute.Tensor,
+    gID: cute.Tensor,
+    copy_atom: CopyAtom,
+    tiled_copy: TiledCopy,
+    shape: Shape,
 ) -> None:
     BLOCK_ID, _, _ = cute.arch.block_idx()
     THREAD_ID, _, _ = cute.arch.thread_idx()
 
-    bG = gG[None, BLOCK_ID]
-    bU = gU[None, BLOCK_ID]
-    bY = gY[None, BLOCK_ID]
+    block_coord = ((None, None), BLOCK_ID)
 
-    tidfrgG = cute.composition(bG, tv_layout)
-    tidfrgU = cute.composition(bU, tv_layout)
-    tidfrgY = cute.composition(bY, tv_layout)
+    bG = gG[block_coord]
+    bU = gU[block_coord]
+    bY = gY[block_coord]
+    bID = gID[block_coord]
 
-    g = tidfrgG[THREAD_ID, None].load()
-    u = tidfrgU[THREAD_ID, None].load()
+    thr_copy = tiled_copy.get_slice(THREAD_ID)
+
+    tG = thr_copy.partition_S(bG)
+    tU = thr_copy.partition_S(bU)
+    tY = thr_copy.partition_D(bY)
+    tID = thr_copy.partition_S(bID)
+
+    fragG = cute.make_fragment_like(tG)
+    fragU = cute.make_fragment_like(tU)
+    fragY = cute.make_fragment_like(tY)
+    fragID = cute.make_fragment(tID.shape, Boolean)
+
+    for i in range_constexpr(cute.size(fragID)):
+        fragID[i] = cute.elem_less(tID[i], shape)
+
+    cute.copy(copy_atom, tG, fragG, pred=fragID)
+    cute.copy(copy_atom, tU, fragU, pred=fragID)
+
+    g = fragG.load()
+    u = fragU.load()
 
     dtype = g.dtype
     y = u * g * sigmoid(g, output_dtype=Float32)
     y = y.to(dtype)
 
-    tidfrgY[THREAD_ID, None] = y
+    fragY.store(y)
+    cute.copy(copy_atom, fragY, tY, pred=fragID)
 
 
 @cute.jit
@@ -53,9 +78,12 @@ def swiglu_forward_cuda_jit(mG: cute.Tensor, mU: cute.Tensor, mY: cute.Tensor) -
     gY = cute.zipped_divide(mY, tiler_mn)
     gID = cute.zipped_divide(mID, tiler_mn)
 
+    copy_atom = cute.make_copy_atom(cute.nvgpu.CopyUniversalOp(), gG.element_type)
+    tiled_copy = cute.make_tiled_copy_tv(copy_atom, thr_layout, val_layout)
+
     NUM_BLOCKS = cute.size(gG, mode=[1])
 
-    kernel = swiglu_forward_cuda_kernel(gG, gU, gY, gID, tv_layout)
+    kernel = swiglu_forward_cuda_kernel(gG, gU, gY, gID, copy_atom, tiled_copy, mG.shape)
     kernel.launch(grid=(NUM_BLOCKS, 1, 1), block=(BLOCK_SIZE, 1, 1))
 
 
