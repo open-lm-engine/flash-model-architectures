@@ -43,8 +43,8 @@ def swiglu_forward_cuda_kernel(
     fragG = cute.make_fragment_like(tG)
     fragU = cute.make_fragment_like(tU)
     fragY = cute.make_fragment_like(tY)
-    fragID = cute.make_fragment(tID.shape, Boolean)
 
+    fragID = cute.make_fragment(tID.shape, Boolean)
     for i in range_constexpr(cute.size(fragID)):
         fragID[i] = cute.elem_less(tID[i], shape)
 
