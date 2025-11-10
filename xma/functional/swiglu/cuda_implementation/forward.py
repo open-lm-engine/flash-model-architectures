@@ -7,7 +7,6 @@ from torch.library import custom_op
 
 import cutlass.cute as cute
 from cutlass import Boolean, Float32, range_constexpr
-from cutlass.cute import CopyAtom, Shape, TiledCopy
 
 from ....constants import LIBRARY_NAME
 from ....cute_dsl_utils import LOG_WARP_SIZE, WARP_SIZE, sigmoid, torch_tensor_to_cute_tensor
@@ -19,9 +18,9 @@ def swiglu_forward_cuda_kernel(
     gU: cute.Tensor,
     gY: cute.Tensor,
     gID: cute.Tensor,
-    copy_atom: CopyAtom,
-    tiled_copy: TiledCopy,
-    shape: Shape,
+    copy_atom: cute.CopyAtom,
+    tiled_copy: cute.TiledCopy,
+    shape: cute.Shape,
 ) -> None:
     BLOCK_ID, _, _ = cute.arch.block_idx()
     THREAD_ID, _, _ = cute.arch.thread_idx()
@@ -51,6 +50,7 @@ def swiglu_forward_cuda_kernel(
     cute.copy(copy_atom, tG, fragG, pred=fragID)
     cute.copy(copy_atom, tU, fragU, pred=fragID)
 
+    # convert rmem Tensor to TensorSSA
     g = fragG.load()
     u = fragU.load()
 
@@ -64,18 +64,18 @@ def swiglu_forward_cuda_kernel(
 
 @cute.jit
 def swiglu_forward_cuda_jit(mG: cute.Tensor, mU: cute.Tensor, mY: cute.Tensor) -> None:
-    BLOCK_SIZE = 768
+    BLOCK_SIZE = 1024
     vector_size = 128 // mG.element_type.width
 
     thr_layout = cute.make_ordered_layout((BLOCK_SIZE >> LOG_WARP_SIZE, WARP_SIZE), order=(1, 0))
     val_layout = cute.make_ordered_layout((1, vector_size), order=(1, 0))
     tiler_mn, tv_layout = cute.make_layout_tv(thr_layout, val_layout)
 
-    mID = cute.make_identity_tensor(mG.shape)
-
     gG = cute.zipped_divide(mG, tiler_mn)
     gU = cute.zipped_divide(mU, tiler_mn)
     gY = cute.zipped_divide(mY, tiler_mn)
+
+    mID = cute.make_identity_tensor(mG.shape)
     gID = cute.zipped_divide(mID, tiler_mn)
 
     copy_atom = cute.make_copy_atom(cute.nvgpu.CopyUniversalOp(), gG.element_type)
@@ -83,7 +83,10 @@ def swiglu_forward_cuda_jit(mG: cute.Tensor, mU: cute.Tensor, mY: cute.Tensor) -
 
     NUM_BLOCKS = cute.size(gG, mode=[1])
 
-    kernel = swiglu_forward_cuda_kernel(gG, gU, gY, gID, copy_atom, tiled_copy, mG.shape)
+    kernel = swiglu_forward_cuda_kernel(
+        gG=gG, gU=gU, gY=gY, gID=gID, copy_atom=copy_atom, tiled_copy=tiled_copy, shape=mG.shape
+    )
+
     kernel.launch(grid=(NUM_BLOCKS, 1, 1), block=(BLOCK_SIZE, 1, 1))
 
 
