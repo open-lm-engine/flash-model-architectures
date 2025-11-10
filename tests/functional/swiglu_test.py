@@ -18,8 +18,8 @@ class SwiGLUTest(TestCommons):
             TestCommons.get_2d_tensor_sizes(),  # size
             [torch.device("cuda")],  # device
             TestCommons.get_dtypes(),  # dtype
-            [KernelBackend.cuda],  # kernel_backend
-            [swiglu],  # function
+            [KernelBackend.cuda, KernelBackend.triton],  # kernel_backend
+            [swiglu, torch.compile(swiglu, fullgraph=True)],  # function
         )
     )
     def test_swiglu(
