@@ -18,8 +18,8 @@ def swiglu_backward_triton_kernel(
     g_ptr,
     g_stride,
     up_ptr,
-    output_grad_ptr,
-    output_grad_stride_b,
+    dy_ptr,
+    dy_stride,
     gate_grad_ptr,
     up_grad_ptr,
     B,
@@ -30,20 +30,20 @@ def swiglu_backward_triton_kernel(
     BLOCK_ID_B = tl.program_id(axis=0)
     BLOCK_ID_H = tl.program_id(axis=1)
 
-    indices_b = BLOCK_ID_B * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
-    indices_h = BLOCK_ID_H * BLOCK_SIZE_H + tl.arange(0, BLOCK_SIZE_H)
+    BLOCK_B = BLOCK_ID_B * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
+    BLOCK_H = BLOCK_ID_H * BLOCK_SIZE_H + tl.arange(0, BLOCK_SIZE_H)
 
-    mask_b = indices_b < B
-    mask_h = indices_h < H
-    mask = mask_b[:, None] & mask_h[None, :]
+    MASK_B = BLOCK_B < B
+    MASK_H = BLOCK_H < H
+    MASK = MASK_B[:, None] & MASK_H[None, :]
 
-    indices_gate = indices_b[:, None] * g_stride[0] + indices_h[None, :] * g_stride[1]
-    indices_output = indices_b[:, None] * output_grad_stride_b + indices_h[None, :]
+    indices_gate = BLOCK_B[:, None] * g_stride[0] + BLOCK_H[None, :] * g_stride[1]
+    indices_output = BLOCK_B[:, None] * dy_stride[0] + BLOCK_H[None, :] * dy_stride[1]
 
-    gate = tl.load(g_ptr + indices_gate, mask=mask).to(tl.float32)
-    up = tl.load(up_ptr + indices_gate, mask=mask)
+    gate = tl.load(g_ptr + indices_gate, mask=MASK).to(tl.float32)
+    up = tl.load(up_ptr + indices_gate, mask=MASK)
 
-    output_grad = tl.load(output_grad_ptr + indices_output, mask=mask)
+    output_grad = tl.load(dy_ptr + indices_output, mask=MASK)
 
     gate_sigmoid = sigmoid(gate)
     gate_silu = gate * gate_sigmoid
@@ -51,8 +51,8 @@ def swiglu_backward_triton_kernel(
     gate_grad = output_grad * up * (gate_sigmoid + gate_silu * (1 - gate_sigmoid))
     up_grad = output_grad * gate_silu
 
-    tl.store(gate_grad_ptr + indices_gate, gate_grad, mask=mask)
-    tl.store(up_grad_ptr + indices_gate, up_grad, mask=mask)
+    tl.store(gate_grad_ptr + indices_gate, gate_grad, mask=MASK)
+    tl.store(up_grad_ptr + indices_gate, up_grad, mask=MASK)
 
 
 @custom_op(f"{LIBRARY_NAME}::swiglu_backward_triton", mutates_args={"gate_grad", "up_grad"})
