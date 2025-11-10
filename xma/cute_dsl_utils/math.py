@@ -26,8 +26,11 @@ def _tanh(x: Float32 | float, *, loc=None, ip=None):
 
 @cute.jit
 def tanh(x: Float32 | float | TensorSSA, output_dtype: cute.Numeric | None = None):
+    if const_expr(output_dtype is None):
+        output_dtype = x.dtype
+
     if const_expr(isinstance(x, TensorSSA)):
-        y = cute.make_fragment(x.shape, x.dtype if const_expr(output_dtype is None) else output_dtype)
+        y = cute.make_fragment(x.shape, output_dtype)
 
         for i in range_constexpr(cute.size(x.shape)):
             y[i] = _tanh(x[i].to(Float32))
@@ -35,10 +38,17 @@ def tanh(x: Float32 | float | TensorSSA, output_dtype: cute.Numeric | None = Non
         y = y.load()
     else:
         y = _tanh(x.to(Float32))
-        y = y.to(x.dtype if const_expr(output_dtype is None) else output_dtype)
+        y = y.to(output_dtype)
 
     return y
 
 
-def sigmoid(x: Float32 | float):
-    return 0.5 * tanh(0.5 * x, output_dtype=Float32) + 0.5
+def sigmoid(x: Float32 | float | TensorSSA, output_dtype: cute.Numeric | None = None):
+    if const_expr(output_dtype is None):
+        output_dtype = x.dtype
+
+    x = x.to(Float32)
+    x = 0.5 * tanh(0.5 * x, output_dtype=Float32) + 0.5
+    x = x.to(output_dtype)
+
+    return x
