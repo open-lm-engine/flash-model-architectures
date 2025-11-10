@@ -12,7 +12,7 @@ from ...utils import empty_like_contiguous, ensure_contiguous, is_cute_dsl_avail
 
 
 if is_cute_dsl_available():
-    from .cuda_implementation import packed_swiglu_forward_cuda, swiglu_backward_cuda, swiglu_forward_cuda
+    from .cuda_implementation import swiglu_backward_cuda, swiglu_forward_cuda
 
 
 if is_triton_available():
