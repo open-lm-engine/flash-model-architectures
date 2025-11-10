@@ -3,7 +3,7 @@
 # **************************************************
 
 import cutlass.cute as cute
-from cutlass import Float32, const_expr, range_constexpr
+from cutlass import Float32, Numeric, const_expr, range_constexpr
 from cutlass._mlir.dialects import llvm
 from cutlass.cute import TensorSSA
 from cutlass.cutlass_dsl import T, dsl_user_op
@@ -25,7 +25,7 @@ def _tanh(x: Float32 | float, *, loc=None, ip=None) -> Float32:
 
 
 @cute.jit
-def tanh(x: Float32 | TensorSSA, output_dtype: cute.Numeric | None = None) -> Float32 | TensorSSA:
+def tanh(x: Numeric | TensorSSA, output_dtype: Numeric | None = None) -> Numeric | TensorSSA:
     if const_expr(output_dtype is None):
         output_dtype = x.dtype
 
@@ -43,7 +43,7 @@ def tanh(x: Float32 | TensorSSA, output_dtype: cute.Numeric | None = None) -> Fl
     return y
 
 
-def sigmoid(x: Float32 | TensorSSA, output_dtype: cute.Numeric | None = None) -> Float32 | TensorSSA:
+def sigmoid(x: Numeric | TensorSSA, output_dtype: Numeric | None = None) -> Numeric | TensorSSA:
     if const_expr(output_dtype is None):
         output_dtype = x.dtype
 
