@@ -6,6 +6,7 @@ import torch
 from torch.library import custom_op
 
 import cutlass.cute as cute
+from cutlass import Float32
 
 from ....constants import LIBRARY_NAME
 from ....cute_dsl_utils import LOG_WARP_SIZE, WARP_SIZE, sigmoid, torch_tensor_to_cute_tensor
@@ -28,7 +29,7 @@ def swiglu_forward_cuda_kernel(gG: cute.Tensor, gU: cute.Tensor, gY: cute.Tensor
     u = tidfrgU[THREAD_ID, None].load()
 
     dtype = g.dtype
-    y = u * g * sigmoid(g)
+    y = u * g * sigmoid(g, output_dtype=Float32)
     y = y.to(dtype)
 
     tidfrgY[THREAD_ID, None] = y
