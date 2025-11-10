@@ -2,5 +2,5 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
-from .backward import swiglu_backward_cuda
-from .forward import swiglu_forward_cuda
+WARP_SIZE = 32
+LOG_WARP_SIZE = 5

@@ -6,7 +6,7 @@ import torch
 
 from ...custom_op import CustomOp, ctx_needs_gradients, ctx_save_for_backward
 from ...enums import KernelBackend
-from ...torch_math import clip_gradients, sigmoid, tanh
+from ...torch_utils import clip_gradients, sigmoid, tanh
 from ...utils import empty_like_contiguous, is_triton_available, zeros_like_contiguous
 from ..rnn import get_max_seqlen_and_max_seqlen_tensor
 
