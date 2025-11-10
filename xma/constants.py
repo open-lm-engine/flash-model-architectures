@@ -7,7 +7,7 @@ import torch
 from .math import get_powers_of_2
 
 
-LIBRARY_NAME = "flash_model_architectures"
+LIBRARY_NAME = "xma"
 
 WARP_SIZE = 32
 
