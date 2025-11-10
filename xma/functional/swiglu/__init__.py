@@ -88,9 +88,11 @@ class _SwigluPacked(CustomOp):
     @staticmethod
     def forward_cuda(ctx, x: torch.Tensor) -> torch.Tensor:
         ctx_save_for_backward(ctx, x)
-        output = torch.empty(*x.size()[:-1], divide_if_divisible(x.size(-1), 2), device=x.device, dtype=x.dtype)
 
-        packed_swiglu_forward_cuda(x=x, output=output)
+        output = torch.empty(*x.size()[:-1], divide_if_divisible(x.size(-1), 2), device=x.device, dtype=x.dtype)
+        up, gate = x.chunk(2, dim=-1)
+
+        swiglu_forward_cuda(gate=gate.flatten(0, -2), up=up.flatten(0, -2), output=output.flatten(0, -2))
 
         return output
 
