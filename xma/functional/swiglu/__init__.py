@@ -12,7 +12,7 @@ from ...utils import empty_like_contiguous, ensure_contiguous, is_cute_dsl_avail
 
 
 if is_cute_dsl_available():
-    from .cuda_implementation import swiglu_backward_cuda, swiglu_forward_cuda
+    from .cuda_implementation import packed_swiglu_forward_cuda, swiglu_backward_cuda, swiglu_forward_cuda
 
 
 if is_triton_available():
@@ -88,11 +88,9 @@ class _SwigluPacked(CustomOp):
     @staticmethod
     def forward_cuda(ctx, x: torch.Tensor) -> torch.Tensor:
         ctx_save_for_backward(ctx, x)
-
         output = torch.empty(*x.size()[:-1], divide_if_divisible(x.size(-1), 2), device=x.device, dtype=x.dtype)
-        up, gate = x.chunk(2, dim=-1)
 
-        swiglu_forward_triton(gate=gate, up=up, output=output)
+        packed_swiglu_forward_cuda(x=x, output=output)
 
         return output
 
