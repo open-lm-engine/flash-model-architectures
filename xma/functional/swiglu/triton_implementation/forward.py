@@ -28,21 +28,21 @@ def swiglu_forward_triton_kernel(
     BLOCK_ID_B = tl.program_id(axis=0)
     BLOCK_ID_H = tl.program_id(axis=1)
 
-    indices_b = BLOCK_ID_B * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
-    indices_h = BLOCK_ID_H * BLOCK_SIZE_H + tl.arange(0, BLOCK_SIZE_H)
+    BLOCK_B = BLOCK_ID_B * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
+    BLOCK_H = BLOCK_ID_H * BLOCK_SIZE_H + tl.arange(0, BLOCK_SIZE_H)
 
-    mask_b = indices_b < B
-    mask_h = indices_h < H
+    mask_b = BLOCK_B < B
+    mask_h = BLOCK_H < H
     mask = mask_b[:, None] & mask_h[None, :]
 
-    indices = indices_b[:, None] * g_stride[0] + indices_h[None, :] * g_stride[1]
+    indices = BLOCK_B[:, None] * g_stride[0] + BLOCK_H[None, :] * g_stride[1]
 
     g = tl.load(g_ptr + indices, mask=mask).to(tl.float32)
     u = tl.load(u_ptr + indices, mask=mask)
 
     y = u * g * sigmoid(g)
 
-    indices = indices_b[:, None] * y_stride_b + indices_h[None, :]
+    indices = BLOCK_B[:, None] * y_stride_b + BLOCK_H[None, :]
     tl.store(y_ptr + indices, y, mask=mask)
 
 
