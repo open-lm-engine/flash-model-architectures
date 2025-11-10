@@ -11,7 +11,7 @@ from cutlass.cutlass_dsl import T, dsl_user_op
 
 @dsl_user_op
 def _tanh(x: Float32 | float, *, loc=None, ip=None):
-    return cute.Float32(
+    return Float32(
         llvm.inline_asm(
             res=T.f32(),
             operands_=[Float32(x).ir_value(loc=loc, ip=ip)],
@@ -25,7 +25,7 @@ def _tanh(x: Float32 | float, *, loc=None, ip=None):
 
 
 @cute.jit
-def tanh(x: cute.Float32 | float | TensorSSA, output_dtype: cute.Numeric | None = None):
+def tanh(x: Float32 | float | TensorSSA, output_dtype: cute.Numeric | None = None):
     if const_expr(isinstance(x, TensorSSA)):
         y = cute.make_fragment(x.shape, x.dtype if const_expr(output_dtype is None) else output_dtype)
 
@@ -40,5 +40,5 @@ def tanh(x: cute.Float32 | float | TensorSSA, output_dtype: cute.Numeric | None 
     return y
 
 
-def sigmoid(x: cute.Float32 | float):
+def sigmoid(x: Float32 | float):
     return 0.5 * tanh(0.5 * x, output_dtype=Float32) + 0.5
