@@ -9,10 +9,8 @@ from cutlass.cutlass_dsl import T, dsl_user_op
 
 
 @dsl_user_op
-def tanh(x: Float32 | float, *, loc=None, ip=None):
-    x = x.to(Float32)
-
-    x = cute.Float32(
+def _tanh(x: Float32 | float, *, loc=None, ip=None):
+    return cute.Float32(
         llvm.inline_asm(
             res=T.f32(),
             operands_=[Float32(x).ir_value(loc=loc, ip=ip)],
@@ -24,7 +22,9 @@ def tanh(x: Float32 | float, *, loc=None, ip=None):
         )
     )
 
-    return x
+
+def tanh(x: cute.Float32 | float | TensorSSA):
+    return 0.5 * tanh(0.5 * x) + 0.5
 
 
 def sigmoid(x: cute.Float32 | float):
