@@ -50,6 +50,7 @@ def swiglu_forward_cuda_kernel(
     cute.copy(copy_atom, tG, fragG, pred=fragID)
     cute.copy(copy_atom, tU, fragU, pred=fragID)
 
+    # convert rmem Tensor to TensorSSA
     g = fragG.load()
     u = fragU.load()
 
