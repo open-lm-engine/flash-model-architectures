@@ -16,7 +16,9 @@ from ....cute_dsl_utils import LOG_WARP_SIZE, WARP_SIZE, sigmoid, torch_tensor_t
 def swiglu_backward_cuda_kernel(
     gG: cute.Tensor,
     gU: cute.Tensor,
-    gY: cute.Tensor,
+    gdY: cute.Tensor,
+    gdG: cute.Tensor,
+    gdU: cute.Tensor,
     gID: cute.Tensor,
     copy_atom: cute.CopyAtom,
     tiled_copy: cute.TiledCopy,
@@ -29,19 +31,25 @@ def swiglu_backward_cuda_kernel(
 
     bG = gG[block_coord]
     bU = gU[block_coord]
-    bY = gY[block_coord]
+    bdY = gdY[block_coord]
+    bdG = gdG[block_coord]
+    bdU = gdU[block_coord]
     bID = gID[block_coord]
 
     thr_copy = tiled_copy.get_slice(THREAD_ID)
 
     tG = thr_copy.partition_S(bG)
     tU = thr_copy.partition_S(bU)
-    tY = thr_copy.partition_D(bY)
+    tdY = thr_copy.partition_S(bdY)
+    tdG = thr_copy.partition_D(bdG)
+    tdU = thr_copy.partition_D(bdU)
     tID = thr_copy.partition_S(bID)
 
     fragG = cute.make_fragment_like(tG)
     fragU = cute.make_fragment_like(tU)
-    fragY = cute.make_fragment_like(tY)
+    fragdY = cute.make_fragment_like(tdY)
+    fragdG = cute.make_fragment_like(tdG)
+    fragdU = cute.make_fragment_like(tdU)
 
     fragID = cute.make_fragment(tID.shape, Boolean)
     for i in range_constexpr(cute.size(fragID)):
@@ -49,10 +57,12 @@ def swiglu_backward_cuda_kernel(
 
     cute.copy(copy_atom, tG, fragG, pred=fragID)
     cute.copy(copy_atom, tU, fragU, pred=fragID)
+    cute.copy(copy_atom, tdY, fragdY, pred=fragID)
 
     # convert rmem Tensor to TensorSSA
     g = fragG.load()
     u = fragU.load()
+    dy = fragdY.load()
 
     dtype = g.dtype
     y = u * g * sigmoid(g, output_dtype=Float32)
