@@ -17,7 +17,8 @@ from ....utils import get_num_elements_and_hidden_size
 def swiglu_backward_triton_kernel(
     g_ptr,
     g_stride,
-    up_ptr,
+    u_ptr,
+    u_stride,
     dy_ptr,
     dy_stride,
     gate_grad_ptr,
@@ -37,22 +38,19 @@ def swiglu_backward_triton_kernel(
     MASK_H = BLOCK_H < H
     MASK = MASK_B[:, None] & MASK_H[None, :]
 
-    indices_gate = BLOCK_B[:, None] * g_stride[0] + BLOCK_H[None, :] * g_stride[1]
-    indices_output = BLOCK_B[:, None] * dy_stride[0] + BLOCK_H[None, :] * dy_stride[1]
+    g = tl.load(g_ptr + BLOCK_B[:, None] * g_stride[0] + BLOCK_H[None, :] * g_stride[1], mask=MASK).to(tl.float32)
+    u = tl.load(u_ptr + BLOCK_B[:, None] * u_stride[0] + BLOCK_H[None, :] * u_stride[1], mask=MASK)
 
-    gate = tl.load(g_ptr + indices_gate, mask=MASK).to(tl.float32)
-    up = tl.load(up_ptr + indices_gate, mask=MASK)
+    output_grad = tl.load(dy_ptr + BLOCK_B[:, None] * dy_stride[0] + BLOCK_H[None, :] * dy_stride[1], mask=MASK)
 
-    output_grad = tl.load(dy_ptr + indices_output, mask=MASK)
+    g_sigmoid = sigmoid(g)
+    g_silu = g * g_sigmoid
 
-    gate_sigmoid = sigmoid(gate)
-    gate_silu = gate * gate_sigmoid
+    gate_grad = output_grad * u * (g_sigmoid + g_silu * (1 - g_sigmoid))
+    up_grad = output_grad * g_silu
 
-    gate_grad = output_grad * up * (gate_sigmoid + gate_silu * (1 - gate_sigmoid))
-    up_grad = output_grad * gate_silu
-
-    tl.store(gate_grad_ptr + indices_gate, gate_grad, mask=MASK)
-    tl.store(up_grad_ptr + indices_gate, up_grad, mask=MASK)
+    tl.store(gate_grad_ptr + BLOCK_B[:, None] * g_stride[0] + BLOCK_H[None, :] * g_stride[1], gate_grad, mask=MASK)
+    tl.store(up_grad_ptr + BLOCK_B[:, None] * g_stride[0] + BLOCK_H[None, :] * g_stride[1], up_grad, mask=MASK)
 
 
 @custom_op(f"{LIBRARY_NAME}::swiglu_backward_triton", mutates_args={"gate_grad", "up_grad"})
@@ -71,7 +69,8 @@ def swiglu_backward_triton(
         swiglu_backward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), ceil_divide(H, BLOCK_SIZE_H)](
             g_ptr=gate,
             g_stride=gate.stride(),
-            up_ptr=up,
+            u_ptr=up,
+            u_stride=up.stride(),
             output_grad_ptr=output_grad,
             output_grad_stride_b=output_grad.stride(-2),
             gate_grad_ptr=gate_grad,
