@@ -13,7 +13,9 @@ from ....cute_dsl_utils import LOG_WARP_SIZE, WARP_SIZE, sigmoid, torch_tensor_t
 
 
 @cute.kernel
-def swiglu_forward_cuda_kernel(gG: cute.Tensor, gU: cute.Tensor, gY: cute.Tensor, tv_layout: cute.Layout) -> None:
+def swiglu_forward_cuda_kernel(
+    gG: cute.Tensor, gU: cute.Tensor, gY: cute.Tensor, gID: cute.Tensor, tv_layout: cute.Layout
+) -> None:
     BLOCK_ID, _, _ = cute.arch.block_idx()
     THREAD_ID, _, _ = cute.arch.thread_idx()
 
@@ -44,13 +46,16 @@ def swiglu_forward_cuda_jit(mG: cute.Tensor, mU: cute.Tensor, mY: cute.Tensor) -
     val_layout = cute.make_ordered_layout((1, vector_size), order=(1, 0))
     tiler_mn, tv_layout = cute.make_layout_tv(thr_layout, val_layout)
 
+    mID = cute.make_identity_tensor(gG.shape)
+
     gG = cute.zipped_divide(mG, tiler_mn)
     gU = cute.zipped_divide(mU, tiler_mn)
     gY = cute.zipped_divide(mY, tiler_mn)
+    gID = cute.zipped_divide(mID, tiler_mn)
 
     NUM_BLOCKS = cute.size(gG, mode=[1])
 
-    kernel = swiglu_forward_cuda_kernel(gG, gU, gY, tv_layout)
+    kernel = swiglu_forward_cuda_kernel(gG, gU, gY, gID, tv_layout)
     kernel.launch(grid=(NUM_BLOCKS, 1, 1), block=(BLOCK_SIZE, 1, 1))
 
 
