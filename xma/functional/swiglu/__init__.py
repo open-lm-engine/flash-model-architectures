@@ -49,7 +49,13 @@ class _Swiglu(CustomOp):
         gate_grad = empty_like_contiguous(gate)
         up_grad = empty_like_contiguous(up)
 
-        swiglu_backward_cuda(gate=gate, up=up, output_grad=output_grad, gate_grad=gate_grad, up_grad=up_grad)
+        swiglu_backward_cuda(
+            gate=gate.flatten(0, -2),
+            up=up.flatten(0, -2),
+            output_grad=output_grad.flatten(0, -2),
+            gate_grad=gate_grad.flatten(0, -2),
+            up_grad=up_grad.flatten(0, -2),
+        )
 
         return gate_grad, up_grad
 
