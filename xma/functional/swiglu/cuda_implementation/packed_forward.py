@@ -62,7 +62,7 @@ def packed_swiglu_forward_cuda_jit(mX: cute.Tensor, mY: cute.Tensor) -> None:
     vector_size = 128 // mX.element_type.width
 
     thr_layout = cute.make_ordered_layout((BLOCK_SIZE >> LOG_WARP_SIZE, WARP_SIZE), order=(1, 0))
-    val_layout = cute.make_ordered_layout((1, vector_size), order=(1, 0))
+    val_layout = cute.make_ordered_layout((1, vector_size << 1), order=(1, 0))
     tiler_mn, tv_layout = cute.make_layout_tv(thr_layout, val_layout)
 
     gX = cute.zipped_divide(mX, tiler_mn)
