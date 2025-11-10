@@ -16,7 +16,7 @@ from ....utils import get_num_elements_and_hidden_size
 @triton.jit
 def swiglu_forward_triton_kernel(
     g_ptr,
-    g_stride_b,
+    g_stride,
     u_ptr,
     y_ptr,
     y_stride_b,
@@ -35,7 +35,7 @@ def swiglu_forward_triton_kernel(
     mask_h = indices_h < H
     mask = mask_b[:, None] & mask_h[None, :]
 
-    indices = indices_b[:, None] * g_stride_b + indices_h[None, :]
+    indices = indices_b[:, None] * g_stride[0] + indices_h[None, :] * g_stride[1]
 
     g = tl.load(g_ptr + indices, mask=mask).to(tl.float32)
     u = tl.load(u_ptr + indices, mask=mask)
