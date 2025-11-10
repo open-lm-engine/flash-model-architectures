@@ -46,7 +46,7 @@ def swiglu_forward_cuda_jit(mG: cute.Tensor, mU: cute.Tensor, mY: cute.Tensor) -
     val_layout = cute.make_ordered_layout((1, vector_size), order=(1, 0))
     tiler_mn, tv_layout = cute.make_layout_tv(thr_layout, val_layout)
 
-    mID = cute.make_identity_tensor(gG.shape)
+    mID = cute.make_identity_tensor(mG.shape)
 
     gG = cute.zipped_divide(mG, tiler_mn)
     gU = cute.zipped_divide(mU, tiler_mn)
