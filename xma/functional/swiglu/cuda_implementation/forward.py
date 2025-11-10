@@ -64,7 +64,7 @@ def swiglu_forward_cuda_kernel(
 
 @cute.jit
 def swiglu_forward_cuda_jit(mG: cute.Tensor, mU: cute.Tensor, mY: cute.Tensor) -> None:
-    BLOCK_SIZE = 768
+    BLOCK_SIZE = 1024
     vector_size = 128 // mG.element_type.width
 
     thr_layout = cute.make_ordered_layout((BLOCK_SIZE >> LOG_WARP_SIZE, WARP_SIZE), order=(1, 0))
