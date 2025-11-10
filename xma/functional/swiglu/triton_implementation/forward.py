@@ -18,8 +18,9 @@ def swiglu_forward_triton_kernel(
     g_ptr,
     g_stride,
     u_ptr,
+    u_stride,
     y_ptr,
-    y_stride_b,
+    y_stride,
     B,
     H,
     BLOCK_SIZE_B: tl.constexpr,
@@ -35,15 +36,12 @@ def swiglu_forward_triton_kernel(
     mask_h = BLOCK_H < H
     mask = mask_b[:, None] & mask_h[None, :]
 
-    indices = BLOCK_B[:, None] * g_stride[0] + BLOCK_H[None, :] * g_stride[1]
-
-    g = tl.load(g_ptr + indices, mask=mask).to(tl.float32)
-    u = tl.load(u_ptr + indices, mask=mask)
+    g = tl.load(g_ptr + BLOCK_B[:, None] * g_stride[0] + BLOCK_H[None, :] * g_stride[1], mask=mask).to(tl.float32)
+    u = tl.load(u_ptr + BLOCK_B[:, None] * u_stride[0] + BLOCK_H[None, :] * u_stride[1], mask=mask)
 
     y = u * g * sigmoid(g)
 
-    indices = BLOCK_B[:, None] * y_stride_b + BLOCK_H[None, :]
-    tl.store(y_ptr + indices, y, mask=mask)
+    tl.store(y_ptr + BLOCK_B[:, None] * y_stride[0] + BLOCK_H[None, :] * y_stride[1], y, mask=mask)
 
 
 @custom_op(f"{LIBRARY_NAME}::swiglu_forward_triton", mutates_args={"output"})
@@ -58,8 +56,9 @@ def swiglu_forward_triton(gate: torch.Tensor, up: torch.Tensor, output: torch.Te
             g_ptr=gate,
             g_stride=gate.stride(),
             u_ptr=up,
+            u_stride=up.stride(),
             y_ptr=output,
-            y_stride_b=output.stride(-2),
+            y_stride=output.stride(),
             B=B,
             H=H,
             BLOCK_SIZE_B=BLOCK_SIZE_B,
