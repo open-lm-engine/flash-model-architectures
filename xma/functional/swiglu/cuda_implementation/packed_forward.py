@@ -99,7 +99,7 @@ def packed_swiglu_forward_cuda(x: torch.Tensor, output: torch.Tensor) -> None:
     function = packed_swiglu_forward_cuda.cache.get(key, None)
 
     if function is None:
-        function = cute.compile(swiglu_forward_cuda_jit, x, output)
+        function = cute.compile(packed_swiglu_forward_cuda_jit, x, output)
         packed_swiglu_forward_cuda.cache[key] = function
 
     function(x, output)
