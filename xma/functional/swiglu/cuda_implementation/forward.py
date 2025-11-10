@@ -12,7 +12,9 @@ from ....cute_dsl_utils import LOG_WARP_SIZE, WARP_SIZE, sigmoid, torch_tensor_t
 
 
 @cute.kernel
-def swiglu_forward_cuda_kernel(gG: cute.Tensor, gU: cute.Tensor, gY: cute.Tensor) -> None:
+def swiglu_forward_cuda_kernel(
+    gG: cute.Tensor, gU: cute.Tensor, gY: cute.Tensor, thr_layout: cute.Layout, val_layout: cute.Layout
+) -> None:
     BLOCK_ID, _, _ = cute.arch.block_idx()
     _THREAD_ID, _, _ = cute.arch.thread_idx()
     BLOCK_DIM, _, _ = cute.arch.block_dim()
@@ -38,18 +40,18 @@ def swiglu_forward_cuda_kernel(gG: cute.Tensor, gU: cute.Tensor, gY: cute.Tensor
 
 @cute.jit
 def swiglu_forward_cuda_jit(mG: cute.Tensor, mU: cute.Tensor, mY: cute.Tensor) -> None:
-    BLOCK_SIZE = 1024
+    BLOCK_SIZE = 768
     vector_size = 128 // mG.element_type.width
 
     thr_layout = cute.make_ordered_layout((BLOCK_SIZE >> LOG_WARP_SIZE, WARP_SIZE), order=(1, 0))
     val_layout = cute.make_ordered_layout((1, vector_size), order=(1, 0))
-    tiler_mn, tv_layout = cute.make_tv_layout(thr_layout, val_layout)
+    tiler_mn, tv_layout = cute.make_layout_tv(thr_layout, val_layout)
 
     gG = cute.zipped_divide(mG, tiler_mn)
     gU = cute.zipped_divide(mU, tiler_mn)
     gY = cute.zipped_divide(mY, tiler_mn)
 
-    NUM_BLOCKS = cute.size(tv_layout)
+    NUM_BLOCKS = cute.size(gG, mode=[1])
 
     kernel = swiglu_forward_cuda_kernel(gG, gU, gY, thr_layout, val_layout)
     kernel.launch(grid=(NUM_BLOCKS, 1, 1), block=(BLOCK_SIZE, 1, 1))
