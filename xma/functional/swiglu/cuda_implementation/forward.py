@@ -12,30 +12,24 @@ from ....cute_dsl_utils import LOG_WARP_SIZE, WARP_SIZE, sigmoid, torch_tensor_t
 
 
 @cute.kernel
-def swiglu_forward_cuda_kernel(
-    gG: cute.Tensor, gU: cute.Tensor, gY: cute.Tensor, thr_layout: cute.Layout, val_layout: cute.Layout
-) -> None:
+def swiglu_forward_cuda_kernel(gG: cute.Tensor, gU: cute.Tensor, gY: cute.Tensor, tv_layout: cute.Layout) -> None:
     BLOCK_ID, _, _ = cute.arch.block_idx()
-    _THREAD_ID, _, _ = cute.arch.thread_idx()
-    BLOCK_DIM, _, _ = cute.arch.block_dim()
+    THREAD_ID, _, _ = cute.arch.thread_idx()
 
-    THREAD_ID = BLOCK_ID * BLOCK_DIM + _THREAD_ID
+    bG = gG[None, BLOCK_ID]
+    bU = gU[None, BLOCK_ID]
+    bY = gY[None, BLOCK_ID]
 
-    N = gG.shape[1]
+    tidfrgG = cute.composition(bG, tv_layout)
+    tidfrgU = cute.composition(bU, tv_layout)
+    tidfrgY = cute.composition(bY, tv_layout)
 
-    row = THREAD_ID // N
-    col = THREAD_ID % N
+    g = tidfrgG[THREAD_ID, None].load()
+    u = tidfrgU[THREAD_ID, None].load()
 
-    g = gG[row, col]
-    u = gU[row, col]
-
-    dtype = g.dtype
-
-    g = g.to(cute.Float32)
     y = u * g * sigmoid(g)
-    y = y.to(dtype)
 
-    gY[row, col] = y
+    tidfrgY[THREAD_ID, None] = y
 
 
 @cute.jit
@@ -53,7 +47,7 @@ def swiglu_forward_cuda_jit(mG: cute.Tensor, mU: cute.Tensor, mY: cute.Tensor) -
 
     NUM_BLOCKS = cute.size(gG, mode=[1])
 
-    kernel = swiglu_forward_cuda_kernel(gG, gU, gY, thr_layout, val_layout)
+    kernel = swiglu_forward_cuda_kernel(gG, gU, gY, tv_layout)
     kernel.launch(grid=(NUM_BLOCKS, 1, 1), block=(BLOCK_SIZE, 1, 1))
 
 
