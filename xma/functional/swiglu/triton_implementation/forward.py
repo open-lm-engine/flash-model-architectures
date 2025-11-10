@@ -15,11 +15,11 @@ from ....utils import get_num_elements_and_hidden_size
 
 @triton.jit
 def swiglu_forward_triton_kernel(
-    gate_ptr,
+    g_ptr,
     gate_stride_b,
-    up_ptr,
-    output_ptr,
-    output_stride_b,
+    u_ptr,
+    y_ptr,
+    y_stride_b,
     B,
     H,
     BLOCK_SIZE_B: tl.constexpr,
@@ -37,13 +37,13 @@ def swiglu_forward_triton_kernel(
 
     indices = indices_b[:, None] * gate_stride_b + indices_h[None, :]
 
-    gate = tl.load(gate_ptr + indices, mask=mask).to(tl.float32)
-    up = tl.load(up_ptr + indices, mask=mask)
+    g = tl.load(g_ptr + indices, mask=mask).to(tl.float32)
+    u = tl.load(u_ptr + indices, mask=mask)
 
-    output = up * gate * sigmoid(gate)
+    y = u * g * sigmoid(g)
 
-    indices = indices_b[:, None] * output_stride_b + indices_h[None, :]
-    tl.store(output_ptr + indices, output, mask=mask)
+    indices = indices_b[:, None] * y_stride_b + indices_h[None, :]
+    tl.store(y_ptr + indices, y, mask=mask)
 
 
 @custom_op(f"{LIBRARY_NAME}::swiglu_forward_triton", mutates_args={"output"})
@@ -55,11 +55,11 @@ def swiglu_forward_triton(gate: torch.Tensor, up: torch.Tensor, output: torch.Te
     # second last stride can be used to iterate the token dimension
     with torch.device(gate.device):
         swiglu_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), ceil_divide(H, BLOCK_SIZE_H)](
-            gate_ptr=gate,
+            g_ptr=gate,
             gate_stride_b=gate.stride(-2),
-            up_ptr=up,
-            output_ptr=output,
-            output_stride_b=output.stride(-2),
+            u_ptr=up,
+            y_ptr=output,
+            y_stride_b=output.stride(-2),
             B=B,
             H=H,
             BLOCK_SIZE_B=BLOCK_SIZE_B,
