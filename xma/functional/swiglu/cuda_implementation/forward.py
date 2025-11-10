@@ -7,7 +7,6 @@ from torch.library import custom_op
 
 import cutlass.cute as cute
 from cutlass import Boolean, Float32, range_constexpr
-from cutlass.cute import CopyAtom, Shape, TiledCopy
 
 from ....constants import LIBRARY_NAME
 from ....cute_dsl_utils import LOG_WARP_SIZE, WARP_SIZE, sigmoid, torch_tensor_to_cute_tensor
@@ -19,9 +18,9 @@ def swiglu_forward_cuda_kernel(
     gU: cute.Tensor,
     gY: cute.Tensor,
     gID: cute.Tensor,
-    copy_atom: CopyAtom,
-    tiled_copy: TiledCopy,
-    shape: Shape,
+    copy_atom: cute.CopyAtom,
+    tiled_copy: cute.TiledCopy,
+    shape: cute.Shape,
 ) -> None:
     BLOCK_ID, _, _ = cute.arch.block_idx()
     THREAD_ID, _, _ = cute.arch.thread_idx()
