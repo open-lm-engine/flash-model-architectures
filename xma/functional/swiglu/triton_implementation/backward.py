@@ -15,8 +15,8 @@ from ....utils import get_num_elements_and_hidden_size
 
 @triton.jit
 def swiglu_backward_triton_kernel(
-    gate_ptr,
-    gate_stride_b,
+    g_ptr,
+    g_stride,
     up_ptr,
     output_grad_ptr,
     output_grad_stride_b,
@@ -37,10 +37,10 @@ def swiglu_backward_triton_kernel(
     mask_h = indices_h < H
     mask = mask_b[:, None] & mask_h[None, :]
 
-    indices_gate = indices_b[:, None] * gate_stride_b + indices_h[None, :]
+    indices_gate = indices_b[:, None] * g_stride[0] + indices_h[None, :] * g_stride[1]
     indices_output = indices_b[:, None] * output_grad_stride_b + indices_h[None, :]
 
-    gate = tl.load(gate_ptr + indices_gate, mask=mask).to(tl.float32)
+    gate = tl.load(g_ptr + indices_gate, mask=mask).to(tl.float32)
     up = tl.load(up_ptr + indices_gate, mask=mask)
 
     output_grad = tl.load(output_grad_ptr + indices_output, mask=mask)
@@ -69,8 +69,8 @@ def swiglu_backward_triton(
 
     with torch.device(gate.device):
         swiglu_backward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), ceil_divide(H, BLOCK_SIZE_H)](
-            gate_ptr=gate,
-            gate_stride_b=gate.stride(-2),
+            g_ptr=gate,
+            g_stride=gate.stride(),
             up_ptr=up,
             output_grad_ptr=output_grad,
             output_grad_stride_b=output_grad.stride(-2),
