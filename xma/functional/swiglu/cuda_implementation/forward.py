@@ -27,7 +27,9 @@ def swiglu_forward_cuda_kernel(gG: cute.Tensor, gU: cute.Tensor, gY: cute.Tensor
     g = tidfrgG[THREAD_ID, None].load()
     u = tidfrgU[THREAD_ID, None].load()
 
+    dtype = g.dtype
     y = u * g * sigmoid(g)
+    y = y.to(dtype)
 
     tidfrgY[THREAD_ID, None] = y
 
