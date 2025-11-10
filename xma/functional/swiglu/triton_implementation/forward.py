@@ -15,11 +15,12 @@ from ....utils import get_num_elements_and_hidden_size
 
 @triton.jit
 def swiglu_forward_triton_kernel(
-    gate_ptr,
-    gate_stride_b,
-    up_ptr,
-    output_ptr,
-    output_stride_b,
+    g_ptr,
+    g_stride,
+    u_ptr,
+    u_stride,
+    y_ptr,
+    y_stride,
     B,
     H,
     BLOCK_SIZE_B: tl.constexpr,
@@ -28,22 +29,19 @@ def swiglu_forward_triton_kernel(
     BLOCK_ID_B = tl.program_id(axis=0)
     BLOCK_ID_H = tl.program_id(axis=1)
 
-    indices_b = BLOCK_ID_B * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
-    indices_h = BLOCK_ID_H * BLOCK_SIZE_H + tl.arange(0, BLOCK_SIZE_H)
+    BLOCK_B = BLOCK_ID_B * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
+    BLOCK_H = BLOCK_ID_H * BLOCK_SIZE_H + tl.arange(0, BLOCK_SIZE_H)
 
-    mask_b = indices_b < B
-    mask_h = indices_h < H
-    mask = mask_b[:, None] & mask_h[None, :]
+    MASK_B = BLOCK_B < B
+    MASK_H = BLOCK_H < H
+    MASK = MASK_B[:, None] & MASK_H[None, :]
 
-    indices = indices_b[:, None] * gate_stride_b + indices_h[None, :]
+    g = tl.load(g_ptr + BLOCK_B[:, None] * g_stride[0] + BLOCK_H[None, :] * g_stride[1], mask=MASK).to(tl.float32)
+    u = tl.load(u_ptr + BLOCK_B[:, None] * u_stride[0] + BLOCK_H[None, :] * u_stride[1], mask=MASK)
 
-    gate = tl.load(gate_ptr + indices, mask=mask).to(tl.float32)
-    up = tl.load(up_ptr + indices, mask=mask)
+    y = u * g * sigmoid(g)
 
-    output = up * gate * sigmoid(gate)
-
-    indices = indices_b[:, None] * output_stride_b + indices_h[None, :]
-    tl.store(output_ptr + indices, output, mask=mask)
+    tl.store(y_ptr + BLOCK_B[:, None] * y_stride[0] + BLOCK_H[None, :] * y_stride[1], y, mask=MASK)
 
 
 @custom_op(f"{LIBRARY_NAME}::swiglu_forward_triton", mutates_args={"output"})
@@ -55,11 +53,12 @@ def swiglu_forward_triton(gate: torch.Tensor, up: torch.Tensor, output: torch.Te
     # second last stride can be used to iterate the token dimension
     with torch.device(gate.device):
         swiglu_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), ceil_divide(H, BLOCK_SIZE_H)](
-            gate_ptr=gate,
-            gate_stride_b=gate.stride(-2),
-            up_ptr=up,
-            output_ptr=output,
-            output_stride_b=output.stride(-2),
+            g_ptr=gate,
+            g_stride=gate.stride(),
+            u_ptr=up,
+            u_stride=up.stride(),
+            y_ptr=output,
+            y_stride=output.stride(),
             B=B,
             H=H,
             BLOCK_SIZE_B=BLOCK_SIZE_B,
