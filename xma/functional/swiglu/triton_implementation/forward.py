@@ -56,7 +56,7 @@ def swiglu_forward_triton(gate: torch.Tensor, up: torch.Tensor, output: torch.Te
     with torch.device(gate.device):
         swiglu_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), ceil_divide(H, BLOCK_SIZE_H)](
             g_ptr=gate,
-            g_stride_b=gate.stride(-2),
+            g_stride_b=gate.stride(),
             u_ptr=up,
             y_ptr=output,
             y_stride_b=output.stride(-2),
