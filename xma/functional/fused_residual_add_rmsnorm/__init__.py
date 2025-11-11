@@ -65,10 +65,9 @@ class _FusedResidualAddRMSNorm(CustomOp):
         output = empty_like_contiguous(x)
         added_x_residual = empty_like_contiguous(x) if has_residual else None
 
-        if ctx_needs_gradients(ctx):
-            rmsnorm_denominator = None if memory_efficient else torch.empty(B, device=x.device, dtype=torch.float32)
-        else:
-            rmsnorm_denominator = None
+        rmsnorm_denominator = None
+        if ctx_needs_gradients(ctx) and not memory_efficient:
+            rmsnorm_denominator = torch.empty(B, device=x.device, dtype=torch.float32)
 
         fused_residual_add_rmsnorm_forward_triton(
             x=x,
