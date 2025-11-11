@@ -7,9 +7,10 @@ import torch
 from .math import get_powers_of_2
 
 
-LIBRARY_NAME = "flash_model_architectures"
+LIBRARY_NAME = "xma"
 
 WARP_SIZE = 32
+LOG_WARP_SIZE = 5
 
 MAX_CUDA_BLOCK_SIZE = 1024
 COMMON_CUDA_BLOCK_SIZES_POWERS_OF_2 = get_powers_of_2(32, MAX_CUDA_BLOCK_SIZE)

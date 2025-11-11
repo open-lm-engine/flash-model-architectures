@@ -23,7 +23,12 @@ class SwiGLUTest(TestCommons):
         )
     )
     def test_swiglu(
-        self, size: tuple[int], device: torch.device, dtype: torch.dtype, kernel_backend: str, function: Callable
+        self,
+        size: tuple[int],
+        device: torch.device,
+        dtype: torch.dtype,
+        kernel_backend: KernelBackend,
+        function: Callable,
     ) -> None:
         x_kernel, x_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype)
         y_kernel, y_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype)
@@ -44,16 +49,27 @@ class SwiGLUTest(TestCommons):
             TestCommons.get_2d_tensor_sizes(),  # size
             [torch.device("cuda")],  # device
             TestCommons.get_dtypes(),  # dtype
+            [KernelBackend.cuda, KernelBackend.triton],  # kernel_backend
             [swiglu_packed, torch.compile(swiglu_packed, fullgraph=True)],  # function
         )
     )
     def test_swiglu_packed(
-        self, size: tuple[int], device: torch.device, dtype: torch.dtype, function: Callable
+        self,
+        size: tuple[int],
+        device: torch.device,
+        dtype: torch.dtype,
+        kernel_backend: KernelBackend,
+        function: Callable,
     ) -> None:
-        size = (size[0], ceil_divide(size[-1], 2) * 2)
+        multiple = 2
+        if kernel_backend == KernelBackend.cuda:
+            multiple *= 16 // dtype.itemsize
+
+        size = (size[0], ceil_divide(size[-1], multiple) * multiple)
+
         x_kernel, x_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype)
 
-        z_kernel = function(x_kernel, kernel_backend=KernelBackend.triton)
+        z_kernel = function(x_kernel, kernel_backend=kernel_backend)
         z_expected = swiglu_packed(x_expected, kernel_backend=KernelBackend.torch)
 
         self.assert_equal_tensors(z_kernel, z_expected, False, atol_float32=4.9e-5, rtol_float32=0)
