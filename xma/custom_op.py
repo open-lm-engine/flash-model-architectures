@@ -81,7 +81,7 @@ class CustomOp(torch.autograd.Function):
         return grads + (None, None)
 
     @classmethod
-    def can_dispatch_cuda(cls, *args, **kwargs) -> Any:
+    def can_dispatch_cuda(cls, *args, **kwargs) -> bool:
         return True
 
     @classmethod
