@@ -25,18 +25,10 @@ class CustomOp(torch.autograd.Function):
     @classmethod
     def run(cls, kernel_backend: KernelBackend | None = None, **kwargs) -> Any:
         if kernel_backend is None:
-            # infer the kernel backend using args
-            for tensor in args:
+            for tensor in kwargs.values():
                 if isinstance(tensor, torch.Tensor):
                     kernel_backend = KernelBackend.get_kernel_backend_from_device(tensor)
                     break
-
-            # infer the kernel backend using kwargs if it can't be inferred from kwargs
-            if kernel_backend is None:
-                for tensor in kwargs.values():
-                    if isinstance(tensor, torch.Tensor):
-                        kernel_backend = KernelBackend.get_kernel_backend_from_device(tensor)
-                        break
         else:
             KernelBackend.verify_kernel_backend(kernel_backend)
 
@@ -55,7 +47,7 @@ class CustomOp(torch.autograd.Function):
                 KernelBackend.triton: (cls.forward_triton, cls.backward_triton),
             }
 
-            if kernel_backend == KernelBackend.cuda and not cls.can_dispatch_cuda(*args, **kwargs):
+            if kernel_backend == KernelBackend.cuda and not cls.can_dispatch_cuda(**kwargs):
                 kernel_backend = KernelBackend.triton
 
             increment_counter(kernel_backend)
