@@ -86,6 +86,10 @@ class _SwigluPacked(CustomOp):
         return swiglu(gate=gate, up=up, kernel_backend=KernelBackend.torch)
 
     @staticmethod
+    def can_dispatch_cuda(x: torch.Tensor) -> torch.Tensor:
+        return x.size(-1) % (32 // x.dtype.itemsize) == 0
+
+    @staticmethod
     def forward_cuda(ctx, x: torch.Tensor) -> torch.Tensor:
         ctx_save_for_backward(ctx, x)
 
@@ -95,10 +99,6 @@ class _SwigluPacked(CustomOp):
         swiglu_forward_cuda(gate=gate, up=up, output=output)
 
         return output
-
-    @staticmethod
-    def forward_cuda(x: torch.Tensor) -> torch.Tensor:
-        return x.size(-1) % (32 // x.dtype.itemsize) == 0
 
     @staticmethod
     def forward_triton(ctx, x: torch.Tensor) -> torch.Tensor:
