@@ -69,7 +69,7 @@ def swiglu_backward_triton(
     GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), ceil_divide(H, meta["BLOCK_SIZE_H"]))
 
     with torch.device(gate.device):
-        swiglu_backward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), ceil_divide(H, BLOCK_SIZE_H)](
+        swiglu_backward_triton_kernel[GRID](
             g_ptr=gate,
             g_stride=gate.stride(),
             u_ptr=up,
