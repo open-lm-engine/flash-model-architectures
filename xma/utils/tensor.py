@@ -25,8 +25,8 @@ def get_alignment(x: torch.Tensor) -> int:
     alignment = 4
     for i in get_powers_of_2(4, 16):
         if x.data_ptr() % i != 0:
-            return alignment
+            break
         else:
             alignment = i
 
-    raise ValueError(f"unexpected alignment of tensor ({x.data_ptr()})")
+    return alignment
