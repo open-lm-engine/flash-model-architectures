@@ -97,11 +97,11 @@ def swiglu_backward_cuda_kernel(
 def swiglu_backward_cuda_jit(
     mG: cute.Tensor, mU: cute.Tensor, mdY: cute.Tensor, mdG: cute.Tensor, mdU: cute.Tensor
 ) -> None:
-    BLOCK_SIZE = 1024
+    BLOCK_SIZE = 128
     vector_size = 128 // mG.element_type.width
 
     thr_layout = cute.make_ordered_layout((BLOCK_SIZE >> LOG_WARP_SIZE, WARP_SIZE), order=(1, 0))
-    val_layout = cute.make_ordered_layout((1, vector_size), order=(1, 0))
+    val_layout = cute.make_ordered_layout((4, vector_size), order=(1, 0))
     tiler_mn, tv_layout = cute.make_layout_tv(thr_layout, val_layout)
 
     gG = cute.zipped_divide(mG, tiler_mn)
