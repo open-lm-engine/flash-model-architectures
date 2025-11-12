@@ -30,6 +30,10 @@ class SwiGLUTest(TestCommons):
         kernel_backend: KernelBackend,
         function: Callable,
     ) -> None:
+        if kernel_backend == KernelBackend.cuda:
+            multiple = 16 // dtype.itemsize
+            size = (size[0], ceil_divide(size[1], multiple) * multiple)
+
         x_kernel, x_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype)
         y_kernel, y_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype)
 
@@ -64,7 +68,6 @@ class SwiGLUTest(TestCommons):
         multiple = 2
         if kernel_backend == KernelBackend.cuda:
             multiple *= 16 // dtype.itemsize
-
         size = (size[0], ceil_divide(size[-1], multiple) * multiple)
 
         x_kernel, x_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype)

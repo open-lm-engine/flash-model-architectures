@@ -30,10 +30,11 @@ def tanh(x: Numeric | TensorSSA, output_dtype: Numeric | None = None) -> Numeric
         output_dtype = x.dtype
 
     if const_expr(isinstance(x, TensorSSA)):
-        y = cute.make_fragment(x.shape, output_dtype)
+        y = cute.make_fragment(x.shape, Float32)
+        y.store(x.to(Float32))
 
-        for i in range_constexpr(cute.size(x.shape)):
-            y[i] = _tanh(x[i].to(Float32))
+        for i in range_constexpr(cute.size(y.shape)):
+            y[i] = _tanh(y[i])
 
         y = y.load()
     else:

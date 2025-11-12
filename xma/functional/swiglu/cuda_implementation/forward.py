@@ -47,28 +47,38 @@ def swiglu_forward_cuda_kernel(
     for i in range_constexpr(cute.size(fragID)):
         fragID[i] = cute.elem_less(tID[i], shape)
 
-    cute.copy(copy_atom, tG, fragG, pred=fragID)
-    cute.copy(copy_atom, tU, fragU, pred=fragID)
+    is_within_boundary = cute.elem_less(tID[cute.size(tID) - 1], shape)
 
-    # convert rmem Tensor to TensorSSA
+    if is_within_boundary:
+        cute.copy(copy_atom, tG, fragG)
+        cute.copy(copy_atom, tU, fragU)
+    else:
+        cute.copy(copy_atom, tG, fragG, pred=fragID)
+        cute.copy(copy_atom, tU, fragU, pred=fragID)
+
     g = fragG.load()
     u = fragU.load()
 
     dtype = g.dtype
-    y = u * g * sigmoid(g, output_dtype=Float32)
+    g = g.to(Float32)
+    y = u * g * sigmoid(g)
     y = y.to(dtype)
 
     fragY.store(y)
-    cute.copy(copy_atom, fragY, tY, pred=fragID)
+
+    if is_within_boundary:
+        cute.copy(copy_atom, fragY, tY)
+    else:
+        cute.copy(copy_atom, fragY, tY, pred=fragID)
 
 
 @cute.jit
 def swiglu_forward_cuda_jit(mG: cute.Tensor, mU: cute.Tensor, mY: cute.Tensor) -> None:
-    BLOCK_SIZE = 1024
+    BLOCK_SIZE = 128
     vector_size = 128 // mG.element_type.width
 
     thr_layout = cute.make_ordered_layout((BLOCK_SIZE >> LOG_WARP_SIZE, WARP_SIZE), order=(1, 0))
-    val_layout = cute.make_ordered_layout((1, vector_size), order=(1, 0))
+    val_layout = cute.make_ordered_layout((4, vector_size), order=(1, 0))
     tiler_mn, tv_layout = cute.make_layout_tv(thr_layout, val_layout)
 
     gG = cute.zipped_divide(mG, tiler_mn)
@@ -92,9 +102,7 @@ def swiglu_forward_cuda_jit(mG: cute.Tensor, mU: cute.Tensor, mY: cute.Tensor) -
 
 @custom_op(f"{LIBRARY_NAME}::swiglu_forward_cuda", mutates_args={"output"})
 def swiglu_forward_cuda(gate: torch.Tensor, up: torch.Tensor, output: torch.Tensor) -> None:
-    gate = torch_tensor_to_cute_tensor(gate, leading_dim=1)
-    up = torch_tensor_to_cute_tensor(up, leading_dim=1)
-    output = torch_tensor_to_cute_tensor(output, leading_dim=1)
+    gate, up, output = [torch_tensor_to_cute_tensor(i, leading_dim=1) for i in (gate, up, output)]
 
     key = gate.element_type
     function = swiglu_forward_cuda.cache.get(key, None)

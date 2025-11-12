@@ -35,8 +35,9 @@ class CustomOp(torch.autograd.Function):
         if kernel_backend is None:
             raise ValueError("code is not supposed to reach here! kernel_backend was not inferrable")
 
+        increment_counter(cls._get_key(kernel_backend))
+
         if kernel_backend == KernelBackend.torch:
-            increment_counter(cls._get_key(KernelBackend.torch))
             output = cls.forward_backward_torch(**kwargs)
         else:
             function_map = {
@@ -46,11 +47,6 @@ class CustomOp(torch.autograd.Function):
                 KernelBackend.nki: (cls.forward_nki, cls.backward_nki),
                 KernelBackend.triton: (cls.forward_triton, cls.backward_triton),
             }
-
-            if kernel_backend == KernelBackend.cuda and not cls.can_dispatch_cuda(**kwargs):
-                kernel_backend = KernelBackend.triton
-
-            increment_counter(kernel_backend)
 
             forward_function, backward_function = function_map[kernel_backend]
             args = tuple(kwargs.values()) + (forward_function, backward_function)
@@ -75,10 +71,6 @@ class CustomOp(torch.autograd.Function):
             grads = (grads,)
 
         return grads + (None, None)
-
-    @classmethod
-    def can_dispatch_cuda(cls, *args, **kwargs) -> bool:
-        return True
 
     @classmethod
     def forward_cuda(cls, ctx, *args, **kwargs) -> Any:

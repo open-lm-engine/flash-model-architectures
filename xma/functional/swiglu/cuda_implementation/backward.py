@@ -55,16 +55,23 @@ def swiglu_backward_cuda_kernel(
     for i in range_constexpr(cute.size(fragID)):
         fragID[i] = cute.elem_less(tID[i], shape)
 
-    cute.copy(copy_atom, tG, fragG, pred=fragID)
-    cute.copy(copy_atom, tU, fragU, pred=fragID)
-    cute.copy(copy_atom, tdY, fragdY, pred=fragID)
+    is_within_boundary = cute.elem_less(tID[cute.size(tID) - 1], shape)
 
-    # convert rmem Tensor to TensorSSA
+    if is_within_boundary:
+        cute.copy(copy_atom, tG, fragG)
+        cute.copy(copy_atom, tU, fragU)
+        cute.copy(copy_atom, tdY, fragdY)
+    else:
+        cute.copy(copy_atom, tG, fragG, pred=fragID)
+        cute.copy(copy_atom, tU, fragU, pred=fragID)
+        cute.copy(copy_atom, tdY, fragdY, pred=fragID)
+
     g = fragG.load()
     u = fragU.load()
     dy = fragdY.load()
 
     dtype = g.dtype
+    g = g.to(Float32)
 
     g_sigmoid = sigmoid(g, output_dtype=Float32)
     g_silu = g * g_sigmoid
@@ -78,8 +85,12 @@ def swiglu_backward_cuda_kernel(
     fragdG.store(dg)
     fragdU.store(du)
 
-    cute.copy(copy_atom, fragdG, tdG, pred=fragID)
-    cute.copy(copy_atom, fragdU, tdU, pred=fragID)
+    if is_within_boundary:
+        cute.copy(copy_atom, fragdG, tdG)
+        cute.copy(copy_atom, fragdU, tdU)
+    else:
+        cute.copy(copy_atom, fragdG, tdG, pred=fragID)
+        cute.copy(copy_atom, fragdU, tdU, pred=fragID)
 
 
 @cute.jit
@@ -118,11 +129,9 @@ def swiglu_backward_cuda_jit(
 def swiglu_backward_cuda(
     gate: torch.Tensor, up: torch.Tensor, output_grad: torch.Tensor, gate_grad: torch.Tensor, up_grad: torch.Tensor
 ) -> None:
-    gate = torch_tensor_to_cute_tensor(gate, leading_dim=1)
-    up = torch_tensor_to_cute_tensor(up, leading_dim=1)
-    output_grad = torch_tensor_to_cute_tensor(output_grad, leading_dim=1)
-    gate_grad = torch_tensor_to_cute_tensor(gate_grad, leading_dim=1)
-    up_grad = torch_tensor_to_cute_tensor(up_grad, leading_dim=1)
+    gate, up, output_grad, gate_grad, up_grad = [
+        torch_tensor_to_cute_tensor(i, leading_dim=1) for i in (gate, up, output_grad, gate_grad, up_grad)
+    ]
 
     key = gate.element_type
     function = swiglu_backward_cuda.cache.get(key, None)
