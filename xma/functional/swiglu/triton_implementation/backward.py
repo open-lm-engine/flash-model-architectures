@@ -11,8 +11,10 @@ from ....constants import LIBRARY_NAME
 from ....math import ceil_divide
 from ....triton_utils import sigmoid
 from ....utils import get_num_elements_and_hidden_size
+from .forward import _get_autotune_configs
 
 
+@triton.autotune(configs=_get_autotune_configs(), key=[])
 @triton.jit
 def swiglu_backward_triton_kernel(
     g_ptr,
@@ -64,8 +66,7 @@ def swiglu_backward_triton(
     up_grad: torch.Tensor,
 ) -> None:
     B, H = get_num_elements_and_hidden_size(gate)
-    BLOCK_SIZE_B = 64
-    BLOCK_SIZE_H = 64
+    GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), ceil_divide(H, meta["BLOCK_SIZE_H"]))
 
     with torch.device(gate.device):
         swiglu_backward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), ceil_divide(H, BLOCK_SIZE_H)](
@@ -81,6 +82,4 @@ def swiglu_backward_triton(
             du_stride=up_grad.stride(),
             B=B,
             H=H,
-            BLOCK_SIZE_B=BLOCK_SIZE_B,
-            BLOCK_SIZE_H=BLOCK_SIZE_H,
         )

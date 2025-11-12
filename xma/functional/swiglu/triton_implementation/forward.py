@@ -60,7 +60,6 @@ def swiglu_forward_triton_kernel(
 @custom_op(f"{LIBRARY_NAME}::swiglu_forward_triton", mutates_args={"output"})
 def swiglu_forward_triton(gate: torch.Tensor, up: torch.Tensor, output: torch.Tensor) -> None:
     B, H = get_num_elements_and_hidden_size(gate)
-
     GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), ceil_divide(H, meta["BLOCK_SIZE_H"]))
 
     # second last stride can be used to iterate the token dimension
