@@ -27,23 +27,25 @@ table = []
 B = 16 * 4096
 H = 4096
 
-run_forward = True
+run_forward = False
 
 for dtype in [torch.float16, torch.bfloat16, torch.float32]:
     row = [str(dtype)]
-    u = torch.randn(B, H, device=torch.cuda.current_device(), dtype=dtype)
-    g = torch.randn(B, H, device=torch.cuda.current_device(), dtype=dtype)
+    u = torch.randn(B, H, device=torch.cuda.current_device(), dtype=dtype, requires_grad=not run_forward)
+    g = torch.randn(B, H, device=torch.cuda.current_device(), dtype=dtype, requires_grad=not run_forward)
 
     if not run_forward:
         dy = torch.randn(B, H, device=torch.cuda.current_device(), dtype=dtype)
-        z = kernel(g, u)
 
     for kernel in kernels:
+        if not run_forward:
+            z = kernel(g, u)
+
         for i in range(n):
             if run_forward:
                 z = kernel(g, u)
             else:
-                torch.autograd.backward((u, g), dy)
+                torch.autograd.grad(z, (g, u), grad_outputs=dy, retain_graph=True)
 
         s = torch.cuda.Event(enable_timing=True)
         e = torch.cuda.Event(enable_timing=True)
@@ -53,7 +55,7 @@ for dtype in [torch.float16, torch.bfloat16, torch.float32]:
             if run_forward:
                 z = kernel(g, u)
             else:
-                torch.autograd.backward((u, g), dy)
+                torch.autograd.grad(z, (g, u), grad_outputs=dy, retain_graph=True)
         e.record()
 
         device_synchronize()
