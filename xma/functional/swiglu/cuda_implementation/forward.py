@@ -24,6 +24,7 @@ def swiglu_forward_cuda_kernel(
 ) -> None:
     BLOCK_ID, _, _ = cute.arch.block_idx()
     THREAD_ID, _, _ = cute.arch.thread_idx()
+    NUM_BLOCKS, _, _ = cute.arch.grid_dim()
 
     block_coord = ((None, None), BLOCK_ID)
 
@@ -43,12 +44,18 @@ def swiglu_forward_cuda_kernel(
     fragU = cute.make_fragment_like(tU)
     fragY = cute.make_fragment_like(tY)
 
+    is_last_block = BLOCK_ID == NUM_BLOCKS - 1
+
     fragID = cute.make_fragment(tID.shape, Boolean)
     for i in range_constexpr(cute.size(fragID)):
         fragID[i] = cute.elem_less(tID[i], shape)
 
-    cute.copy(copy_atom, tG, fragG, pred=fragID)
-    cute.copy(copy_atom, tU, fragU, pred=fragID)
+    if is_last_block:
+        cute.copy(copy_atom, tG, fragG, pred=fragID)
+        cute.copy(copy_atom, tU, fragU, pred=fragID)
+    else:
+        cute.copy(copy_atom, tG, fragG)
+        cute.copy(copy_atom, tU, fragU)
 
     # convert rmem Tensor to TensorSSA
     g = fragG.load()
@@ -59,16 +66,20 @@ def swiglu_forward_cuda_kernel(
     y = y.to(dtype)
 
     fragY.store(y)
-    cute.copy(copy_atom, fragY, tY, pred=fragID)
+
+    if is_last_block:
+        cute.copy(copy_atom, fragY, tY, pred=fragID)
+    else:
+        cute.copy(copy_atom, fragY, tY)
 
 
 @cute.jit
 def swiglu_forward_cuda_jit(mG: cute.Tensor, mU: cute.Tensor, mY: cute.Tensor) -> None:
-    BLOCK_SIZE = 1024
+    BLOCK_SIZE = 128
     vector_size = 128 // mG.element_type.width
 
     thr_layout = cute.make_ordered_layout((BLOCK_SIZE >> LOG_WARP_SIZE, WARP_SIZE), order=(1, 0))
-    val_layout = cute.make_ordered_layout((1, vector_size), order=(1, 0))
+    val_layout = cute.make_ordered_layout((4, vector_size), order=(1, 0))
     tiler_mn, tv_layout = cute.make_layout_tv(thr_layout, val_layout)
 
     gG = cute.zipped_divide(mG, tiler_mn)
