@@ -55,11 +55,17 @@ def swiglu_backward_cuda_kernel(
     for i in range_constexpr(cute.size(fragID)):
         fragID[i] = cute.elem_less(tID[i], shape)
 
-    cute.copy(copy_atom, tG, fragG, pred=fragID)
-    cute.copy(copy_atom, tU, fragU, pred=fragID)
-    cute.copy(copy_atom, tdY, fragdY, pred=fragID)
+    is_within_boundary = cute.elem_less(tID[cute.size(tID) - 1], shape)
 
-    # convert rmem Tensor to TensorSSA
+    if is_within_boundary:
+        cute.copy(copy_atom, tG, fragG)
+        cute.copy(copy_atom, tU, fragU)
+        cute.copy(copy_atom, tdY, fragdY)
+    else:
+        cute.copy(copy_atom, tG, fragG, pred=fragID)
+        cute.copy(copy_atom, tU, fragU, pred=fragID)
+        cute.copy(copy_atom, tdY, fragdY, pred=fragID)
+
     g = fragG.load()
     u = fragU.load()
     dy = fragdY.load()
@@ -78,8 +84,12 @@ def swiglu_backward_cuda_kernel(
     fragdG.store(dg)
     fragdU.store(du)
 
-    cute.copy(copy_atom, fragdG, tdG, pred=fragID)
-    cute.copy(copy_atom, fragdU, tdU, pred=fragID)
+    if is_within_boundary:
+        cute.copy(copy_atom, fragdG, tdG)
+        cute.copy(copy_atom, fragdU, tdU)
+    else:
+        cute.copy(copy_atom, fragdG, tdG, pred=fragID)
+        cute.copy(copy_atom, fragdU, tdU, pred=fragID)
 
 
 @cute.jit
