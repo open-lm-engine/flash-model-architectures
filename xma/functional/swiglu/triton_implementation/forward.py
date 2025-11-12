@@ -8,11 +8,24 @@ import triton.language as tl
 from torch.library import custom_op
 
 from ....constants import LIBRARY_NAME
-from ....math import ceil_divide
+from ....math import ceil_divide, get_powers_of_2
 from ....triton_utils import sigmoid
 from ....utils import get_num_elements_and_hidden_size
 
 
+def _get_autotune_configs() -> list[triton.Config]:
+    configs = []
+    for BLOCK_SIZE_B in get_powers_of_2(16, 64):
+        for BLOCK_SIZE_H in get_powers_of_2(16, 64):
+            for num_warps in get_powers_of_2(4, 8):
+                configs.append(
+                    triton.Config({"BLOCK_SIZE_B": BLOCK_SIZE_B, "BLOCK_SIZE_H": BLOCK_SIZE_H}, num_warps=num_warps)
+                )
+
+    return configs
+
+
+@triton.autotune(configs=_get_autotune_configs(), key=[])
 @triton.jit
 def swiglu_forward_triton_kernel(
     g_ptr,
@@ -47,12 +60,11 @@ def swiglu_forward_triton_kernel(
 @custom_op(f"{LIBRARY_NAME}::swiglu_forward_triton", mutates_args={"output"})
 def swiglu_forward_triton(gate: torch.Tensor, up: torch.Tensor, output: torch.Tensor) -> None:
     B, H = get_num_elements_and_hidden_size(gate)
-    BLOCK_SIZE_B = 64
-    BLOCK_SIZE_H = 64
+    GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), ceil_divide(H, meta["BLOCK_SIZE_H"]))
 
     # second last stride can be used to iterate the token dimension
     with torch.device(gate.device):
-        swiglu_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B), ceil_divide(H, BLOCK_SIZE_H)](
+        swiglu_forward_triton_kernel[GRID](
             g_ptr=gate,
             g_stride=gate.stride(),
             u_ptr=up,
@@ -61,6 +73,4 @@ def swiglu_forward_triton(gate: torch.Tensor, up: torch.Tensor, output: torch.Te
             y_stride=output.stride(),
             B=B,
             H=H,
-            BLOCK_SIZE_B=BLOCK_SIZE_B,
-            BLOCK_SIZE_H=BLOCK_SIZE_H,
         )

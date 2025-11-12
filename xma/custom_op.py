@@ -23,45 +23,37 @@ def ctx_save_for_backward(ctx, *args) -> None:
 
 class CustomOp(torch.autograd.Function):
     @classmethod
-    def run(cls, *args, kernel_backend: KernelBackend | None = None, **kwargs) -> Any:
+    def run(cls, kernel_backend: KernelBackend | None = None, **kwargs) -> Any:
         if kernel_backend is None:
-            # infer the kernel backend using args
-            for tensor in args:
+            for tensor in kwargs.values():
                 if isinstance(tensor, torch.Tensor):
                     kernel_backend = KernelBackend.get_kernel_backend_from_device(tensor)
                     break
-
-            # infer the kernel backend using kwargs if it can't be inferred from kwargs
-            if kernel_backend is None:
-                for tensor in kwargs.values():
-                    if isinstance(tensor, torch.Tensor):
-                        kernel_backend = KernelBackend.get_kernel_backend_from_device(tensor)
-                        break
         else:
             KernelBackend.verify_kernel_backend(kernel_backend)
 
         if kernel_backend is None:
             raise ValueError("code is not supposed to reach here! kernel_backend was not inferrable")
 
-        increment_counter(cls._get_key(kernel_backend))
-
         if kernel_backend == KernelBackend.torch:
-            output = cls.forward_backward_torch(*args, **kwargs)
+            increment_counter(cls._get_key(KernelBackend.torch))
+            output = cls.forward_backward_torch(**kwargs)
         else:
-            args = args + tuple(kwargs.values())
+            function_map = {
+                KernelBackend.cuda: (cls.forward_cuda, cls.backward_cuda),
+                KernelBackend.rocm: (cls.forward_rocm, cls.backward_rocm),
+                KernelBackend.pallas: (cls.forward_pallas, cls.backward_pallas),
+                KernelBackend.nki: (cls.forward_nki, cls.backward_nki),
+                KernelBackend.triton: (cls.forward_triton, cls.backward_triton),
+            }
 
-            if kernel_backend == KernelBackend.cuda:
-                args += (cls.forward_cuda, cls.backward_cuda)
-            elif kernel_backend == KernelBackend.rocm:
-                args += (cls.forward_rocm, cls.backward_rocm)
-            elif kernel_backend == KernelBackend.pallas:
-                args += (cls.forward_pallas, cls.backward_pallas)
-            elif kernel_backend == KernelBackend.nki:
-                args += (cls.forward_nki, cls.backward_nki)
-            elif kernel_backend == KernelBackend.triton:
-                args += (cls.forward_triton, cls.backward_triton)
-            else:
-                raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
+            if kernel_backend == KernelBackend.cuda and not cls.can_dispatch_cuda(**kwargs):
+                kernel_backend = KernelBackend.triton
+
+            increment_counter(kernel_backend)
+
+            forward_function, backward_function = function_map[kernel_backend]
+            args = tuple(kwargs.values()) + (forward_function, backward_function)
 
             output = cls.apply(*args)
 
@@ -69,11 +61,11 @@ class CustomOp(torch.autograd.Function):
 
     @staticmethod
     def forward(ctx, *args) -> Any:
-        *op_args, forward_function, backward_function = args
+        *args, forward_function, backward_function = args
 
         ctx.backward_function = backward_function
 
-        return forward_function(ctx, *op_args)
+        return forward_function(ctx, *args)
 
     @staticmethod
     def backward(ctx, *grad_outputs) -> Any:
@@ -83,6 +75,10 @@ class CustomOp(torch.autograd.Function):
             grads = (grads,)
 
         return grads + (None, None)
+
+    @classmethod
+    def can_dispatch_cuda(cls, *args, **kwargs) -> bool:
+        return True
 
     @classmethod
     def forward_cuda(cls, ctx, *args, **kwargs) -> Any:
