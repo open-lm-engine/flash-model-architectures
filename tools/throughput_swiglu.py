@@ -29,10 +29,10 @@ H = 4096
 
 for dtype in [torch.float16, torch.bfloat16, torch.float32]:
     row = [str(dtype)]
-    for kernel in kernels:
-        u = torch.randn(B, H, device=torch.cuda.current_device(), dtype=dtype)
-        g = torch.randn(B, H, device=torch.cuda.current_device(), dtype=dtype)
+    u = torch.randn(B, H, device=torch.cuda.current_device(), dtype=dtype)
+    g = torch.randn(B, H, device=torch.cuda.current_device(), dtype=dtype)
 
+    for kernel in kernels:
         for i in range(n):
             z = kernel(g, u)
 
