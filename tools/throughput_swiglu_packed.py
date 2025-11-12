@@ -27,26 +27,40 @@ table = []
 B = 16 * 4096
 H = 4096
 
+run_forward = False
+
 for dtype in [torch.float16, torch.bfloat16, torch.float32]:
     row = [str(dtype)]
-    x = torch.randn(B, 2 * H, device=torch.cuda.current_device(), dtype=dtype)
+    x = torch.randn(B, 2 * H, device=torch.cuda.current_device(), dtype=dtype, requires_grad=not run_forward)
+
+    if not run_forward:
+        dy = torch.randn(B, H, device=torch.cuda.current_device(), dtype=dtype)
 
     for kernel in kernels:
-        for i in range(n):
+        if run_forward:
             z = kernel(x)
+
+        for i in range(n):
+            if run_forward:
+                z = kernel(x)
+            else:
+                torch.autograd.grad(z, x, grad_outputs=dy, retain_graph=True)
 
         s = torch.cuda.Event(enable_timing=True)
         e = torch.cuda.Event(enable_timing=True)
 
         s.record()
         for i in range(n):
-            z = kernel(x)
+            if run_forward:
+                z = kernel(x)
+            else:
+                torch.autograd.grad(z, x, grad_outputs=dy, retain_graph=True)
         e.record()
 
         device_synchronize()
 
         t = s.elapsed_time(e) / n / 1e3
-        row.append(3 * B * H * dtype.itemsize / t / 1e12)
+        row.append((3 if run_forward else 5) * B * H * dtype.itemsize / t / 1e12)
 
     table.append(row)
 
