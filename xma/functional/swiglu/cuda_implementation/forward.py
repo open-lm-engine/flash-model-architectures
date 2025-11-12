@@ -55,7 +55,8 @@ def swiglu_forward_cuda_kernel(
     u = fragU.load()
 
     dtype = g.dtype
-    y = u * g * sigmoid(g, output_dtype=Float32)
+    g = g.to(Float32)
+    y = u * g * sigmoid(g)
     y = y.to(dtype)
 
     fragY.store(y)
