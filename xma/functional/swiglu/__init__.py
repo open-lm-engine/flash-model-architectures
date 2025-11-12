@@ -101,6 +101,18 @@ class _SwigluPacked(CustomOp):
         return output
 
     @staticmethod
+    def backward_cuda(ctx, output_grad: torch.Tensor) -> torch.Tensor:
+        x = ctx.saved_tensors[0]
+        x_grad = empty_like_contiguous(x)
+
+        up, gate = x.chunk(2, dim=-1)
+        up_grad, gate_grad = x_grad.chunk(2, dim=-1)
+
+        swiglu_backward_cuda(gate=gate, up=up, output_grad=output_grad, gate_grad=gate_grad, up_grad=up_grad)
+
+        return x_grad
+
+    @staticmethod
     def forward_triton(ctx, x: torch.Tensor) -> torch.Tensor:
         ctx_save_for_backward(ctx, x)
 
