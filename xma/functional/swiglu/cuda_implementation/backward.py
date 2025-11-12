@@ -129,11 +129,9 @@ def swiglu_backward_cuda_jit(
 def swiglu_backward_cuda(
     gate: torch.Tensor, up: torch.Tensor, output_grad: torch.Tensor, gate_grad: torch.Tensor, up_grad: torch.Tensor
 ) -> None:
-    gate = torch_tensor_to_cute_tensor(gate)
-    up = torch_tensor_to_cute_tensor(up)
-    output_grad = torch_tensor_to_cute_tensor(output_grad)
-    gate_grad = torch_tensor_to_cute_tensor(gate_grad)
-    up_grad = torch_tensor_to_cute_tensor(up_grad)
+    gate, up, output_grad, gate_grad, up_grad = [
+        torch_tensor_to_cute_tensor(i) for i in (gate, up, output_grad, gate_grad, up_grad)
+    ]
 
     key = gate.element_type
     function = swiglu_backward_cuda.cache.get(key, None)
