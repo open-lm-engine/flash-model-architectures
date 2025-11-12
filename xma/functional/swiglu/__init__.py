@@ -98,7 +98,7 @@ class _SwigluPacked(CustomOp):
         output = torch.empty(*x.size()[:-1], divide_if_divisible(x.size(-1), 2), device=x.device, dtype=x.dtype)
         up, gate = x.chunk(2, dim=-1)
 
-        if all([get_alignment(i) == 16 for i in (up, gate)]):
+        if all([get_alignment(i) == 16 for i in (up, gate, output)]):
             swiglu_forward_cuda(gate=gate, up=up, output=output)
         else:
             swiglu_forward_triton(gate=gate, up=up, output=output)
