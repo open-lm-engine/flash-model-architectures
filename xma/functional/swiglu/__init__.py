@@ -8,13 +8,7 @@ import torch.nn.functional as F
 from ...custom_op import CustomOp, ctx_save_for_backward
 from ...enums import KernelBackend
 from ...math import divide_if_divisible
-from ...utils import (
-    empty_like_contiguous,
-    ensure_contiguous,
-    get_alignment,
-    is_cute_dsl_available,
-    is_triton_available,
-)
+from ...utils import empty_like_contiguous, ensure_contiguous, is_cute_dsl_available, is_triton_available
 
 
 if is_cute_dsl_available():
@@ -98,10 +92,7 @@ class _SwigluPacked(CustomOp):
         output = torch.empty(*x.size()[:-1], divide_if_divisible(x.size(-1), 2), device=x.device, dtype=x.dtype)
         up, gate = x.chunk(2, dim=-1)
 
-        if all([get_alignment(i) == 16 for i in (up, gate, output)]):
-            swiglu_forward_cuda(gate=gate, up=up, output=output)
-        else:
-            swiglu_forward_triton(gate=gate, up=up, output=output)
+        swiglu_forward_cuda(gate=gate, up=up, output=output)
 
         return output
 
@@ -113,10 +104,7 @@ class _SwigluPacked(CustomOp):
         up, gate = x.chunk(2, dim=-1)
         up_grad, gate_grad = x_grad.chunk(2, dim=-1)
 
-        if all([get_alignment(i) == 16 for i in (up, gate, output_grad, gate_grad, up_grad)]):
-            swiglu_backward_cuda(gate=gate, up=up, output_grad=output_grad, gate_grad=gate_grad, up_grad=up_grad)
-        else:
-            swiglu_backward_triton(gate=gate, up=up, output_grad=output_grad, gate_grad=gate_grad, up_grad=up_grad)
+        swiglu_backward_cuda(gate=gate, up=up, output_grad=output_grad, gate_grad=gate_grad, up_grad=up_grad)
 
         return x_grad
 
