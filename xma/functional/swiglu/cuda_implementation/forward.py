@@ -39,18 +39,27 @@ def swiglu_forward_cuda_kernel(
     tY = thr_copy.partition_D(bY)
     tID = thr_copy.partition_S(bID)
 
+    # Check if this entire thread's work is in bounds
+    last_idx = tID[cute.size(tID) - 1]
+    all_valid = cute.elem_less(last_idx, shape)
+
     fragG = cute.make_fragment_like(tG)
     fragU = cute.make_fragment_like(tU)
     fragY = cute.make_fragment_like(tY)
 
-    fragID = cute.make_fragment(tID.shape, Boolean)
-    for i in range_constexpr(cute.size(fragID)):
-        fragID[i] = cute.elem_less(tID[i], shape)
+    if all_valid:
+        # Fast path: no predication needed
+        cute.copy(copy_atom, tG, fragG)
+        cute.copy(copy_atom, tU, fragU)
+    else:
+        # Slow path: use predication
+        fragID = cute.make_fragment(tID.shape, Boolean)
+        for i in range_constexpr(cute.size(fragID)):
+            fragID[i] = cute.elem_less(tID[i], shape)
 
-    cute.copy(copy_atom, tG, fragG, pred=fragID)
-    cute.copy(copy_atom, tU, fragU, pred=fragID)
+        cute.copy(copy_atom, tG, fragG, pred=fragID)
+        cute.copy(copy_atom, tU, fragU, pred=fragID)
 
-    # convert rmem Tensor to TensorSSA
     g = fragG.load()
     u = fragU.load()
 
@@ -61,7 +70,13 @@ def swiglu_forward_cuda_kernel(
 
     fragY.store(y)
 
-    cute.copy(copy_atom, fragY, tY, pred=fragID)
+    if all_valid:
+        cute.copy(copy_atom, fragY, tY)
+    else:
+        fragID = cute.make_fragment(tID.shape, Boolean)
+        for i in range_constexpr(cute.size(fragID)):
+            fragID[i] = cute.elem_less(tID[i], shape)
+        cute.copy(copy_atom, fragY, tY, pred=fragID)
 
 
 @cute.jit
