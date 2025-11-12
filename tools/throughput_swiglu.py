@@ -61,7 +61,7 @@ for dtype in [torch.float16, torch.bfloat16, torch.float32]:
         device_synchronize()
 
         t = s.elapsed_time(e) / n / 1e3
-        row.append(3 * B * H * dtype.itemsize / t / (1024**4))
+        row.append((3 if run_forward else 5) * B * H * dtype.itemsize / t / (1024**4))
 
     table.append(row)
 
