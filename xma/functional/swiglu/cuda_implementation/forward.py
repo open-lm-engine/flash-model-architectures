@@ -24,7 +24,6 @@ def swiglu_forward_cuda_kernel(
 ) -> None:
     BLOCK_ID, _, _ = cute.arch.block_idx()
     THREAD_ID, _, _ = cute.arch.thread_idx()
-    NUM_BLOCKS, _, _ = cute.arch.grid_dim()
 
     block_coord = ((None, None), BLOCK_ID)
 
@@ -50,12 +49,8 @@ def swiglu_forward_cuda_kernel(
         fragID[i] = cute.elem_less(tID[i], shape)
         needs_predication |= ~fragID[i]
 
-    if needs_predication:
-        cute.copy(copy_atom, tG, fragG, pred=fragID)
-        cute.copy(copy_atom, tU, fragU, pred=fragID)
-    else:
-        cute.copy(copy_atom, tG, fragG)
-        cute.copy(copy_atom, tU, fragU)
+    cute.copy(copy_atom, tG, fragG, pred=fragID)
+    cute.copy(copy_atom, tU, fragU, pred=fragID)
 
     # convert rmem Tensor to TensorSSA
     g = fragG.load()
