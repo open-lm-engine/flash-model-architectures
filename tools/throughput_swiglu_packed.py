@@ -37,7 +37,7 @@ for dtype in [torch.float16, torch.bfloat16, torch.float32]:
         dy = torch.randn(B, H, device=torch.cuda.current_device(), dtype=dtype)
 
     for kernel in kernels:
-        if run_forward:
+        if not run_forward:
             z = kernel(x)
 
         for i in range(n):
