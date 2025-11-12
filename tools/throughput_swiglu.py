@@ -27,21 +27,33 @@ table = []
 B = 16 * 4096
 H = 4096
 
+run_forward = True
+
 for dtype in [torch.float16, torch.bfloat16, torch.float32]:
     row = [str(dtype)]
     u = torch.randn(B, H, device=torch.cuda.current_device(), dtype=dtype)
     g = torch.randn(B, H, device=torch.cuda.current_device(), dtype=dtype)
 
+    if not run_forward:
+        dy = torch.randn(B, H, device=torch.cuda.current_device(), dtype=dtype)
+        z = kernel(g, u)
+
     for kernel in kernels:
         for i in range(n):
-            z = kernel(g, u)
+            if run_forward:
+                z = kernel(g, u)
+            else:
+                torch.autograd.backward((u, g), dy)
 
         s = torch.cuda.Event(enable_timing=True)
         e = torch.cuda.Event(enable_timing=True)
 
         s.record()
         for i in range(n):
-            z = kernel(g, u)
+            if run_forward:
+                z = kernel(g, u)
+            else:
+                torch.autograd.backward((u, g), dy)
         e.record()
 
         device_synchronize()
