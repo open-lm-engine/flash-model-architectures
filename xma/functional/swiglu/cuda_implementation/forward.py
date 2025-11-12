@@ -94,9 +94,7 @@ def swiglu_forward_cuda_jit(mG: cute.Tensor, mU: cute.Tensor, mY: cute.Tensor) -
     copy_atom = cute.make_copy_atom(cute.nvgpu.CopyUniversalOp(), gG.element_type)
     tiled_copy = cute.make_tiled_copy_tv(copy_atom, thr_layout, val_layout)
 
-    kernel = swiglu_forward_cuda_kernel(
-        gG=gG, gU=gU, gY=gY, gID=gID, copy_atom=copy_atom, tiled_copy=tiled_copy, shape=mG.shape
-    )
+    kernel = swiglu_forward_cuda_kernel(gG=gG, gU=gU, gY=gY, gID=gID, tiled_copy=tiled_copy, shape=mG.shape)
 
     kernel.launch(grid=(gG.shape[1][1], gG.shape[1][0], 1), block=(BLOCK_SIZE, 1, 1))
 
