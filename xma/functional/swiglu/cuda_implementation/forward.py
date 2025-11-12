@@ -102,7 +102,7 @@ def swiglu_forward_cuda_jit(mG: cute.Tensor, mU: cute.Tensor, mY: cute.Tensor) -
 
 @custom_op(f"{LIBRARY_NAME}::swiglu_forward_cuda", mutates_args={"output"})
 def swiglu_forward_cuda(gate: torch.Tensor, up: torch.Tensor, output: torch.Tensor) -> None:
-    gate, up, output = [torch_tensor_to_cute_tensor(i) for i in (gate, up, output)]
+    gate, up, output = [torch_tensor_to_cute_tensor(i, leading_dim=1) for i in (gate, up, output)]
 
     key = gate.element_type
     function = swiglu_forward_cuda.cache.get(key, None)
