@@ -18,14 +18,14 @@ def swiglu_forward_cuda_kernel(
     gU: cute.Tensor,
     gY: cute.Tensor,
     gID: cute.Tensor,
+    copy_atom: cute.CopyAtom,
     tiled_copy: cute.TiledCopy,
     shape: cute.Shape,
 ) -> None:
-    BLOCK_ID_X, BLOCK_ID_Y, _ = cute.arch.block_idx()
+    BLOCK_ID, _, _ = cute.arch.block_idx()
     THREAD_ID, _, _ = cute.arch.thread_idx()
-    NUM_BLOCKS_X, NUM_BLOCKS_Y, _ = cute.arch.grid_dim()
 
-    block_coord = ((None, None), (BLOCK_ID_Y, BLOCK_ID_X))
+    block_coord = ((None, None), BLOCK_ID)
 
     bG = gG[block_coord]
     bU = gU[block_coord]
@@ -43,21 +43,12 @@ def swiglu_forward_cuda_kernel(
     fragU = cute.make_fragment_like(tU)
     fragY = cute.make_fragment_like(tY)
 
-    needs_predication = (BLOCK_ID_X == NUM_BLOCKS_X - 1) or (BLOCK_ID_Y == NUM_BLOCKS_Y - 1)
-
     fragID = cute.make_fragment(tID.shape, Boolean)
-    if needs_predication:
-        for i in range_constexpr(cute.size(fragID)):
-            fragID[i] = cute.elem_less(tID[i], shape)
+    for i in range_constexpr(cute.size(fragID)):
+        fragID[i] = cute.elem_less(tID[i], shape)
 
-        cute.basic_copy_if(fragID, tG, fragG)
-        cute.basic_copy_if(fragID, tU, fragU)
-    else:
-        for i in range_constexpr(cute.size(fragID)):
-            fragID[i] = True
-
-        cute.basic_copy(tG, fragG)
-        cute.basic_copy(tU, fragU)
+    cute.copy(copy_atom, tG, fragG, pred=fragID)
+    cute.copy(copy_atom, tU, fragU, pred=fragID)
 
     # convert rmem Tensor to TensorSSA
     g = fragG.load()
@@ -69,10 +60,7 @@ def swiglu_forward_cuda_kernel(
 
     fragY.store(y)
 
-    if needs_predication:
-        cute.basic_copy_if(fragID, fragY, tY)
-    else:
-        cute.basic_copy(fragY, tY)
+    cute.copy(copy_atom, fragY, tY, pred=fragID)
 
 
 @cute.jit
@@ -94,9 +82,13 @@ def swiglu_forward_cuda_jit(mG: cute.Tensor, mU: cute.Tensor, mY: cute.Tensor) -
     copy_atom = cute.make_copy_atom(cute.nvgpu.CopyUniversalOp(), gG.element_type)
     tiled_copy = cute.make_tiled_copy_tv(copy_atom, thr_layout, val_layout)
 
-    kernel = swiglu_forward_cuda_kernel(gG=gG, gU=gU, gY=gY, gID=gID, tiled_copy=tiled_copy, shape=mG.shape)
+    NUM_BLOCKS = cute.size(gG, mode=[1])
 
-    kernel.launch(grid=(gG.shape[1][1], gG.shape[1][0], 1), block=(BLOCK_SIZE, 1, 1))
+    kernel = swiglu_forward_cuda_kernel(
+        gG=gG, gU=gU, gY=gY, gID=gID, copy_atom=copy_atom, tiled_copy=tiled_copy, shape=mG.shape
+    )
+
+    kernel.launch(grid=(NUM_BLOCKS, 1, 1), block=(BLOCK_SIZE, 1, 1))
 
 
 @custom_op(f"{LIBRARY_NAME}::swiglu_forward_cuda", mutates_args={"output"})
