@@ -44,13 +44,13 @@ def swiglu_forward_cuda_kernel(
     fragU = cute.make_fragment_like(tU)
     fragY = cute.make_fragment_like(tY)
 
-    is_last_block = BLOCK_ID == NUM_BLOCKS - 1
-
     fragID = cute.make_fragment(tID.shape, Boolean)
+    needs_predication = False
     for i in range_constexpr(cute.size(fragID)):
         fragID[i] = cute.elem_less(tID[i], shape)
+        needs_predication |= ~fragID[i]
 
-    if is_last_block:
+    if needs_predication:
         cute.copy(copy_atom, tG, fragG, pred=fragID)
         cute.copy(copy_atom, tU, fragU, pred=fragID)
     else:
@@ -67,7 +67,7 @@ def swiglu_forward_cuda_kernel(
 
     fragY.store(y)
 
-    if is_last_block:
+    if needs_predication:
         cute.copy(copy_atom, fragY, tY, pred=fragID)
     else:
         cute.copy(copy_atom, fragY, tY)
