@@ -4,6 +4,8 @@
 
 import torch
 
+from ..math import get_powers_of_2
+
 
 def get_num_elements_and_hidden_size(x: torch.Tensor) -> tuple[int]:
     hidden_size = x.size(-1)
@@ -17,3 +19,14 @@ def empty_like_contiguous(x: torch.Tensor, dtype: torch.dtype | None = None) -> 
 
 def zeros_like_contiguous(x: torch.Tensor, dtype: torch.dtype | None = None) -> torch.Tensor:
     return torch.zeros_like(x, dtype=dtype, memory_format=torch.contiguous_format)
+
+
+def get_alignment(x: torch.Tensor) -> int:
+    alignment = 4
+    for i in get_powers_of_2(4, 16):
+        if x.data_ptr() % i != 0:
+            return alignment
+        else:
+            alignment = i
+
+    raise ValueError(f"unexpected alignment of tensor ({x.data_ptr()})")
