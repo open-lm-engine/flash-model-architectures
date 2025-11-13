@@ -62,7 +62,8 @@ class RNNTest(TestCommons):
                     input_size=state_size,
                     state_size=state_size,
                     output_size=state_size,
-                    num_heads=num_heads,
+                    num_input_heads=num_heads,
+                    num_weight_heads=num_heads,
                     add_bias=False,
                     gradient_clipping=None,
                 ).to(dtype)
@@ -156,7 +157,8 @@ class RNNTest(TestCommons):
                 input_size=state_size,
                 state_size=state_size,
                 output_size=state_size,
-                num_heads=num_heads,
+                num_input_heads=num_heads,
+                num_weight_heads=num_heads,
                 add_bias=False,
                 gradient_clipping=None,
             ).to(dtype)
@@ -250,7 +252,8 @@ class RNNTest(TestCommons):
                     input_size=state_size,
                     state_size=state_size,
                     output_size=state_size,
-                    num_heads=num_heads,
+                    num_input_heads=num_heads,
+                    num_weight_heads=num_heads,
                     add_bias=False,
                     gradient_clipping=None,
                 ).to(dtype)
