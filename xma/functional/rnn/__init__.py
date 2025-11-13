@@ -63,6 +63,9 @@ class _RNN(CustomOp):
             start = cu_seqlens[:-1]
             end = cu_seqlens[1:]
 
+            if isinstance(max_seqlen, torch.Tensor):
+                max_seqlen = max_seqlen.item()
+
             for s in range(max_seqlen):
                 offset = start + s
                 unfinished = offset < end
