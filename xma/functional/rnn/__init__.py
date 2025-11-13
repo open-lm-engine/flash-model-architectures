@@ -41,8 +41,9 @@ class _RNN(CustomOp):
         output = torch.empty(*output_shape, device=input.device, dtype=input.dtype)
 
         if cu_seqlens is None:
-            B, S = input.size()[:2]
+            B, S, _, H = input.size()
         else:
+            _, _, H = input.size()
             B = cu_seqlens.size(0) - 1
             S = max_seqlen.item() if isinstance(max_seqlen, torch.Tensor) else max_seqlen
 
