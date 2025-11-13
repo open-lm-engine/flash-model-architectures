@@ -33,22 +33,26 @@ class _RNN(CustomOp):
         cu_seqlens: torch.Tensor | None,
         max_seqlen: torch.Tensor | int | None,
     ) -> torch.Tensor:
-        output = torch.empty_like(input)
+        Nw = weight.size(0)
 
         if cu_seqlens is None:
-            assert max_seqlen is None
-            B, S, N, H = input.size()
+            B, S, Nx, H = input.size()
+        else:
+            T, Nx, H = input.size()
+            B = cu_seqlens.size(0) - 1
 
-            if input_state is None:
-                input_state = torch.zeros(B, N, H, device=input.device, dtype=input.dtype)
+        N = max(Nx, Nw)
+        W = weight[None, ...]
 
-            # input -> (B, S, N, H)
-            # weight -> (N, H, H)
-            # input_state -> (B, N, H)
+        if input_state is None:
+            input_state = torch.zeros(B, N, H, device=input.device, dtype=input.dtype)
+
+        if cu_seqlens is None:
+            output = torch.empty(B, S, N, H, device=input.device, dtype=input.dtype)
 
             for s in range(S):
-                # (B, N, 1, H) = (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
-                input_state = input_state.unsqueeze(-2) @ weight.unsqueeze(0) + input[:, s].unsqueeze(-2)
+                # (B, N, 1, H) = (B, N, 1, H) @ (1, Nw, H, H) + (B, Nx, 1, H)
+                input_state = input_state[..., None, :] @ W + input[:, s, None, :]
                 input_state = tanh(input_state)
                 input_state = input_state.squeeze(-2)
 
@@ -57,18 +61,8 @@ class _RNN(CustomOp):
 
                 output[:, s] = input_state
         else:
-            assert max_seqlen is not None
-            B = cu_seqlens.numel() - 1
-            _, N, H = input.size()
-
-            if input_state is None:
-                input_state = torch.zeros(B, N, H, device=input.device, dtype=input.dtype)
-            else:
-                input_state = input_state.clone()
-
-            # input -> (cu_seqlens[-1], N, H)
-            # weight -> (N, H, H)
-            # input_state -> (B, N, H)
+            input_state = input_state.clone()
+            output = torch.empty(T, N, H, device=input.device, dtype=input.dtype)
 
             start = cu_seqlens[:-1]
             end = cu_seqlens[1:]
@@ -80,17 +74,13 @@ class _RNN(CustomOp):
                 offset_unfinished = offset[unfinished]
 
                 # don't update the finished sequences
-                # (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
-                new_state = input_state[unfinished].unsqueeze(-2) @ weight.unsqueeze(0) + input[
-                    offset_unfinished
-                ].unsqueeze(-2)
-
+                # (B, N, 1, H) @ (1, Nw, H, H) + (B, Nx, 1, H)
+                new_state = input_state[unfinished][..., None, :] @ W + input[offset_unfinished][:, s, None, :]
                 new_state = tanh(new_state)
+                new_state = new_state.squeeze(-2)
 
                 if gradient_clipping is not None:
                     new_state = clip_gradients(new_state, gradient_clipping)
-
-                new_state = new_state.squeeze(-2)
 
                 output[offset_unfinished] = new_state
                 input_state[unfinished] = new_state
@@ -177,11 +167,28 @@ def rnn(
         tuple[torch.Tensor, torch.Tensor]: output tensor of shape (B, S, N, H) and output state tensor of shape (B, N, H)
     """
 
-    assert input.dim() in [3, 4]
-    assert weight.dim() == 3
+    if cu_seqlens is None:
+        assert max_seqlen is None
+        assert input.dim() == 4
 
-    N, H = input.size()[-2:]
-    assert weight.size() == (N, H, H)
+        B, _, Nx, H = input.size()
+    else:
+        assert max_seqlen is not None
+        assert input.dim() == 3
+
+        _, Nx, H = input.size()
+        B = cu_seqlens.size(0) - 1
+
+    Nw = weight.size(0)
+    N = max(Nx, Nw)
+
+    assert weight.dim() == 3
+    assert weight.size() == (Nw, H, H)
+    assert N % Nx == 0
+    assert N % Nw == 0
+
+    if input_state is not None:
+        assert input_state.size() == (B, N, H)
 
     if gradient_clipping is not None and gradient_clipping < 0:
         gradient_clipping = -gradient_clipping
