@@ -42,11 +42,16 @@ def rnn_forward_triton_kernel(
     B,
     S,
     H,
+    Gx,
+    Gw,
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
     BLOCK_ID_B = tl.program_id(axis=0)
     BLOCK_ID_N = tl.program_id(axis=1)
+
+    BLOCK_ID_Nx = BLOCK_ID_N // Gx
+    BLOCK_ID_Nw = BLOCK_ID_N // Gw
 
     BLOCK_B = BLOCK_ID_B * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
     BLOCK_H = tl.arange(0, BLOCK_SIZE_H)
@@ -58,7 +63,7 @@ def rnn_forward_triton_kernel(
     MASK_HH = MASK_H[:, None] & MASK_H[None, :]
 
     W = tl.load(
-        W_ptr + BLOCK_ID_N * W_stride[0] + BLOCK_H[:, None] * W_stride[1] + BLOCK_H[None, :] * W_stride[2],
+        W_ptr + BLOCK_ID_Nw * W_stride[0] + BLOCK_H[:, None] * W_stride[1] + BLOCK_H[None, :] * W_stride[2],
         mask=MASK_HH,
     )
 
@@ -77,15 +82,12 @@ def rnn_forward_triton_kernel(
         start = tl.load(cu_seqlens_ptrs, mask=MASK_B[:, None])
         end = tl.load(cu_seqlens_ptrs + cu_seqlens_stride[0], mask=MASK_B[:, None])
 
-        if IS_MAX_SEQLEN_TENSOR:
-            S = tl.load(max_seqlen_ptr)
-        else:
-            S = max_seqlen_ptr
+        S = tl.load(max_seqlen_ptr) if IS_MAX_SEQLEN_TENSOR else max_seqlen_ptr
 
-        x_ptrs = x_ptr + start * x_stride[0] + BLOCK_ID_N * x_stride[1] + BLOCK_H[None, :] * x_stride[2]
+        x_ptrs = x_ptr + start * x_stride[0] + BLOCK_ID_Nx * x_stride[1] + BLOCK_H[None, :] * x_stride[2]
         y_ptrs = y_ptr + start * y_stride[0] + BLOCK_ID_N * y_stride[1] + BLOCK_H[None, :] * y_stride[2]
     else:
-        x_ptrs = x_ptr + BLOCK_B[:, None] * x_stride[0] + BLOCK_ID_N * x_stride[2] + BLOCK_H[None, :] * x_stride[3]
+        x_ptrs = x_ptr + BLOCK_B[:, None] * x_stride[0] + BLOCK_ID_Nx * x_stride[2] + BLOCK_H[None, :] * x_stride[3]
         y_ptrs = y_ptr + BLOCK_B[:, None] * y_stride[0] + BLOCK_ID_N * y_stride[2] + BLOCK_H[None, :] * y_stride[3]
 
     for _ in range(S):
@@ -117,14 +119,14 @@ def rnn_forward_triton(
     max_seqlen: int | None,
 ) -> None:
     if cu_seqlens is None:
-        assert max_seqlen is None
-        assert max_seqlen_tensor is None
-
-        B, S, N, H = input.size()
+        B, S, Nx, H = input.size()
     else:
         B = cu_seqlens.size(0) - 1
         S = None
-        _, N, H = input.size()
+        _, Nx, H = input.size()
+
+    Nw = weight.size(0)
+    N = max(Nx, Nw)
 
     is_max_seqlen_tensor = max_seqlen_tensor is not None
 
@@ -149,5 +151,7 @@ def rnn_forward_triton(
             B=B,
             S=S,
             H=H,
+            Gx=N // Nx,
+            Gw=N // Nw,
             BLOCK_SIZE_H=BLOCK_SIZE_H,
         )
