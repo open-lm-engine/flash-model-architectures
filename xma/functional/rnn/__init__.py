@@ -78,8 +78,8 @@ class _RNN(CustomOp):
                 if gradient_clipping is not None:
                     new_state = clip_gradients(new_state, gradient_clipping)
 
-                output[offset_unfinished] = new_state
                 input_state[unfinished] = new_state
+                output[offset_unfinished] = new_state
 
         return output
 
