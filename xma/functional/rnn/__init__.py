@@ -7,20 +7,16 @@ import torch
 from ...custom_op import CustomOp, ctx_save_for_backward
 from ...enums import KernelBackend
 from ...torch_utils import clip_gradients, tanh
-from ...utils import empty_like_contiguous, is_triton_available, zeros_like_contiguous
+from ...utils import (
+    empty_like_contiguous,
+    get_max_seqlen_and_max_seqlen_tensor,
+    is_triton_available,
+    zeros_like_contiguous,
+)
 
 
 if is_triton_available():
     from .triton_implementation import rnn_backward_triton, rnn_forward_triton
-
-
-def get_max_seqlen_and_max_seqlen_tensor(
-    max_seqlen: torch.Tensor | int | None,
-) -> tuple[torch.Tensor | None, int | None]:
-    if isinstance(max_seqlen, torch.Tensor):
-        return max_seqlen, None
-    else:
-        return None, max_seqlen
 
 
 class _RNN(CustomOp):
