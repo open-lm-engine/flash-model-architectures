@@ -48,7 +48,7 @@ class _RNN(CustomOp):
 
             for s in range(S):
                 # (B, N, 1, H) = (B, N, 1, H) @ (1, Nw, H, H) + (B, Nx, 1, H)
-                input_state = input_state[..., None, :] @ W + input[:, s, None, :]
+                input_state = input_state[..., None, :] @ W + input[:, s, :, None, :]
                 input_state = tanh(input_state)
                 input_state = input_state.squeeze(-2)
 
