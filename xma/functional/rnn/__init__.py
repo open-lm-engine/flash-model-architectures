@@ -29,15 +29,23 @@ class _RNN(CustomOp):
         cu_seqlens: torch.Tensor | None,
         max_seqlen: torch.Tensor | int | None,
     ) -> torch.Tensor:
+        input_shape = input.size()
+
+        Nx = input_shape[-2]
         Nw = weight.size(0)
+        N = max(Nx, Nw)
+
+        output_shape = list(input_shape)
+        output_shape[-2] = N
+
+        output = torch.empty(*output_shape, device=input.device, dtype=input.dtype)
 
         if cu_seqlens is None:
-            B, S, Nx, H = input.size()
+            B, S = input.size()[:2]
         else:
-            T, Nx, H = input.size()
             B = cu_seqlens.size(0) - 1
+            S = max_seqlen.item() if isinstance(max_seqlen, torch.Tensor) else max_seqlen
 
-        N = max(Nx, Nw)
         W = weight[None, ...]
 
         Gx = N // Nx
@@ -50,8 +58,6 @@ class _RNN(CustomOp):
             input_state = torch.zeros(B, N, H, device=input.device, dtype=input.dtype)
 
         if cu_seqlens is None:
-            output = torch.empty(B, S, N, H, device=input.device, dtype=input.dtype)
-
             for s in range(S):
                 # (B, N, 1, H) = (B, N, 1, H) @ (1, Nw, H, H) + (B, Nx, 1, H)
                 input_state = input_state[..., None, :] @ W + input[:, s, :, None, :]
@@ -62,8 +68,6 @@ class _RNN(CustomOp):
                 output[:, s] = input_state
         else:
             input_state = input_state.clone()
-            output = torch.empty(T, N, H, device=input.device, dtype=input.dtype)
-
             start = cu_seqlens[:-1]
             end = cu_seqlens[1:]
 
@@ -97,7 +101,16 @@ class _RNN(CustomOp):
         cu_seqlens: torch.Tensor | None,
         max_seqlen: torch.Tensor | int | None,
     ) -> torch.Tensor:
-        output = empty_like_contiguous(input)
+        input_shape = input.size()
+
+        Nx = input_shape[-2]
+        Nw = weight.size(0)
+        N = max(Nx, Nw)
+
+        output_shape = list(input_shape)
+        output_shape[-2] = N
+
+        output = torch.empty(*output_shape, device=input.device, dtype=input.dtype)
         max_seqlen_tensor, max_seqlen = get_max_seqlen_and_max_seqlen_tensor(max_seqlen)
 
         rnn_forward_triton(
