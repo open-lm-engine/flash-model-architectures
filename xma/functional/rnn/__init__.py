@@ -66,7 +66,6 @@ class _RNN(CustomOp):
             for s in range(max_seqlen):
                 offset = start + s
                 unfinished = offset < end
-
                 offset_unfinished = offset[unfinished]
 
                 # don't update the finished sequences
