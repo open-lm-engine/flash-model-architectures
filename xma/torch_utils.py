@@ -28,4 +28,4 @@ class _ClipGradients(torch.autograd.Function):
 
 
 def clip_gradients(x: torch.Tensor, gradient_clipping: float) -> torch.Tensor:
-    return _ClipGradients.apply(x, gradient_clipping)
+    return x if gradient_clipping is None else _ClipGradients.apply(x, gradient_clipping)

@@ -51,9 +51,7 @@ class _RNN(CustomOp):
                 input_state = input_state[..., None, :] @ W + input[:, s, :, None, :]
                 input_state = tanh(input_state)
                 input_state = input_state.squeeze(-2)
-
-                if gradient_clipping is not None:
-                    input_state = clip_gradients(input_state, gradient_clipping)
+                input_state = clip_gradients(input_state, gradient_clipping)
 
                 output[:, s] = input_state
         else:
@@ -76,9 +74,7 @@ class _RNN(CustomOp):
                 new_state = input_state[unfinished][..., None, :] @ W + input[offset_unfinished][:, s, None, :]
                 new_state = tanh(new_state)
                 new_state = new_state.squeeze(-2)
-
-                if gradient_clipping is not None:
-                    new_state = clip_gradients(new_state, gradient_clipping)
+                new_state = clip_gradients(new_state, gradient_clipping)
 
                 input_state[unfinished] = new_state
                 output[offset_unfinished] = new_state
