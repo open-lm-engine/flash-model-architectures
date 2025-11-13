@@ -40,6 +40,12 @@ class _RNN(CustomOp):
         N = max(Nx, Nw)
         W = weight[None, ...]
 
+        Gx = N // Nx
+        Gw = N // Nw
+
+        input = input.repeat_interleave(Gx, dim=-2)
+        weight = weight.repeat_interleave(Gw, dim=0)
+
         if input_state is None:
             input_state = torch.zeros(B, N, H, device=input.device, dtype=input.dtype)
 
@@ -70,7 +76,7 @@ class _RNN(CustomOp):
                 offset_unfinished = offset[unfinished]
 
                 # don't update the finished sequences
-                # (B, N, 1, H) @ (1, Nw, H, H) + (B, Nx, 1, H)
+                # (B, N, 1, H) = (B, N, 1, H) @ (1, Nw, H, H) + (B, Nx, 1, H)
                 new_state = input_state[unfinished, :, None, :] @ W + input[offset_unfinished, :, None, :]
                 new_state = tanh(new_state)
                 new_state = new_state.squeeze(-2)
