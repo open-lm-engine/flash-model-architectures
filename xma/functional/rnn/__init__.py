@@ -71,7 +71,7 @@ class _RNN(CustomOp):
 
                 # don't update the finished sequences
                 # (B, N, 1, H) @ (1, Nw, H, H) + (B, Nx, 1, H)
-                new_state = input_state[unfinished][..., None, :] @ W + input[offset_unfinished, s, :, None, :]
+                new_state = input_state[unfinished, :, None, :] @ W + input[offset_unfinished, s, :, None, :]
                 new_state = tanh(new_state)
                 new_state = new_state.squeeze(-2)
                 new_state = clip_gradients(new_state, gradient_clipping)
