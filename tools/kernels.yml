@@ -1,0 +1,42 @@
+# **************************************************
+# Copyright (c) 2025, Mayank Mishra
+# **************************************************
+
+layers:
+  GRU:
+    - triton
+  MoE:
+    - cuda
+    - triton
+  RNN:
+    - triton
+
+functional:
+  bmm:
+    - triton
+  continuous_count:
+    - cuda
+  cross_entropy:
+    - triton
+  fused_linear_cross_entropy:
+    - triton
+  fused_residual_add_rmsnorm:
+    - triton
+  grouped_gemm:
+    - cuda
+  rmsnorm:
+    - triton
+  pack_sequence:
+    - cuda
+    - triton
+  softmax:
+    - triton
+  swiglu:
+    - cuda
+    - triton
+  swiglu_packed:
+    - cuda
+    - triton
+  unpack_sequence:
+    - cuda
+    - triton
