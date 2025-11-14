@@ -9,28 +9,28 @@ We are planning on adding lots of experimental and fun model architectures with 
 
 ## layers
 
-| functional | Triton | CUDA |
-|-|-|-|
-| GRU | ✅ | ❌ |
-| MoE | ✅ | ✅ |
-| RNN | ✅ | ❌ |
+| functional | CUDA | Pallas | NKI | ROCm | Triton |
+|-| - | - | - | - | - |
+| GRU | ❌ | ❌ | ❌ | ❌ | ✅ |
+| MoE | ✅ | ❌ | ❌ | ❌ | ✅ |
+| RNN | ❌ | ❌ | ❌ | ❌ | ✅ |
 
 ## functional
 
-| functional | Triton | CUDA |
-|-|-|-|
-| bmm | ✅ | ❌ |
-| continuous_count | ❌ | ✅ |
-| cross_entropy | ✅ | ❌ |
-| fused_linear_cross_entropy | ✅ | ❌ |
-| fused_residual_add_rmsnorm | ✅ | ❌ |
-| grouped_gemm | ❌ | ✅ |
-| rmsnorm | ✅ | ❌ |
-| pack_sequence | ✅ | ✅ |
-| softmax | ✅ | ❌ |
-| swiglu | ✅ | ✅ |
-| swiglu_packed | ✅ | ✅ |
-| unpack_sequence | ✅ | ✅ |
+| functional | CUDA | Pallas | NKI | ROCm | Triton |
+|-| - | - | - | - | - |
+| bmm | ❌ | ❌ | ❌ | ❌ | ✅ |
+| continuous_count | ✅ | ❌ | ❌ | ❌ | ❌ |
+| cross_entropy | ❌ | ❌ | ❌ | ❌ | ✅ |
+| fused_linear_cross_entropy | ❌ | ❌ | ❌ | ❌ | ✅ |
+| fused_residual_add_rmsnorm | ❌ | ❌ | ❌ | ❌ | ✅ |
+| grouped_gemm | ✅ | ❌ | ❌ | ❌ | ❌ |
+| rmsnorm | ❌ | ❌ | ❌ | ❌ | ✅ |
+| pack_sequence | ✅ | ❌ | ❌ | ❌ | ✅ |
+| softmax | ❌ | ❌ | ❌ | ❌ | ✅ |
+| swiglu | ✅ | ❌ | ❌ | ❌ | ✅ |
+| swiglu_packed | ✅ | ❌ | ❌ | ❌ | ✅ |
+| unpack_sequence | ✅ | ❌ | ❌ | ❌ | ✅ |
 
 # Discord Server
 Join the [discord server](https://discord.gg/AFDxmjH5RV) if you are interested in LLM architecture or distributed training/inference research.

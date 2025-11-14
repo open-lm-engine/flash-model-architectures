@@ -10,7 +10,7 @@ NO = "❌"
 
 
 kernels = yaml.full_load(open("tools/kernels.yml"))
-backends = [("Triton", "triton"), ("CUDA", "cuda")]
+backends = [("CUDA", "cuda"), ("Pallas", "pallas"), ("NKI", "nki"), ("ROCm", "rocm"), ("Triton", "triton")]
 
 
 def get_string(key: str) -> str:
@@ -36,13 +36,13 @@ We are planning on adding lots of experimental and fun model architectures with 
 ## layers
 
 | functional | {' | '.join([i[0] for i in backends])} |
-|-|-|-|
+|-| {' | '.join(['-' for _ in range(len(backends))])} |
 {get_string('layers')}
 
 ## functional
 
 | functional | {' | '.join([i[0] for i in backends])} |
-|-|-|-|
+|-| {' | '.join(['-' for _ in range(len(backends))])} |
 {get_string('functional')}
 
 # Discord Server
