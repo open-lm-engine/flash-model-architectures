@@ -61,12 +61,13 @@ class _RNN(CustomOp):
         if cu_seqlens is None:
             for s in range(S):
                 # (B, N, 1, H) = (B, N, 1, H) @ (1, Nw, H, H) + (B, Nx, 1, H)
-                input_state = input_state[..., None, :] @ W + input[:, s, :, None, :]
-                input_state = tanh(input_state)
-                input_state = input_state.squeeze(-2)
-                input_state = clip_gradients(input_state, gradient_clipping)
+                new_state = input_state[..., None, :] @ W + input[:, s, :, None, :]
+                new_state = tanh(new_state)
+                new_state = new_state.squeeze(-2)
+                new_state = clip_gradients(new_state, gradient_clipping)
 
-                output[:, s] = input_state
+                output[:, s] = new_state
+                input_state = new_state
         else:
             input_state = input_state.clone()
             start = cu_seqlens[:-1]
