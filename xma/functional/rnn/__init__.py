@@ -124,14 +124,22 @@ class _RNN(CustomOp):
         ctx_save_for_backward(ctx, weight, output, input_state, cu_seqlens, max_seqlen_tensor)
         ctx.max_seqlen = max_seqlen
         ctx.gradient_clipping = gradient_clipping
+        ctx.Nx = Nx
 
         return output
 
     @staticmethod
     def backward_triton(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor]:
         weight, output, input_state, cu_seqlens, max_seqlen_tensor = ctx.saved_tensors
-        input_grad = empty_like_contiguous(output)
         weight_grad = zeros_like_contiguous(weight, dtype=torch.float32)
+
+        B, S, N, H = output.size()
+        Nx = ctx.Nx
+
+        if Nx == N:
+            input_grad = empty_like_contiguous(output)
+        else:
+            input_grad = torch.zeros(B, S, Nx, H, device=output.device, dtype=torch.float32)
 
         rnn_backward_triton(
             weight=weight,
@@ -145,6 +153,9 @@ class _RNN(CustomOp):
             max_seqlen=ctx.max_seqlen,
             gradient_clipping=ctx.gradient_clipping,
         )
+
+        if Nx != N:
+            input_grad = input_grad.type_as(output)
 
         weight_grad = weight_grad.type_as(weight)
 

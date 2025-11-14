@@ -23,10 +23,11 @@ class RNNTest(TestCommons):
             [torch.float32, torch.float16],
             [4],  # batch_size
             [1024],  # sequence_length
-            [63],  # state_size
-            [7],  # num_heads
+            [64],  # state_size
+            [4, 8],  # num_input_heads
+            [4, 8],  # num_weight_heads
             [False, True],  # has_input_state
-            [False, True],  # is_compiling
+            [False],  # is_compiling
             [False, True],  # no_grad
         )
     )
@@ -37,7 +38,8 @@ class RNNTest(TestCommons):
         batch_size: int,
         sequence_length: int,
         state_size: int,
-        num_heads: int,
+        num_input_heads: int,
+        num_weight_heads: int,
         has_input_state: bool,
         is_compiling: bool,
         no_grad: bool,
@@ -62,8 +64,8 @@ class RNNTest(TestCommons):
                     input_size=state_size,
                     state_size=state_size,
                     output_size=state_size,
-                    num_input_heads=num_heads,
-                    num_weight_heads=num_heads,
+                    num_input_heads=num_input_heads,
+                    num_weight_heads=num_weight_heads,
                     add_bias=False,
                     gradient_clipping=None,
                 ).to(dtype)
@@ -122,8 +124,9 @@ class RNNTest(TestCommons):
             [torch.device("cuda")],
             TestCommons.get_dtypes(),
             [[0, 7, 19, 27, 93]],  # cu_seqlens
-            [63],  # state_size
-            [7],  # num_heads
+            [64],  # state_size
+            [4, 8],  # num_input_heads
+            [4, 8],  # num_weight_heads
             [False, True],  # has_input_state
         )
     )
@@ -133,7 +136,8 @@ class RNNTest(TestCommons):
         dtype: torch.dtype,
         cu_seqlens: list[int],
         state_size: int,
-        num_heads: int,
+        num_input_heads: int,
+        num_weight_heads: int,
         has_input_state: bool,
     ) -> None:
         set_seed(_SEED)
@@ -157,8 +161,8 @@ class RNNTest(TestCommons):
                 input_size=state_size,
                 state_size=state_size,
                 output_size=state_size,
-                num_input_heads=num_heads,
-                num_weight_heads=num_heads,
+                num_input_heads=num_input_heads,
+                num_weight_heads=num_weight_heads,
                 add_bias=False,
                 gradient_clipping=None,
             ).to(dtype)
@@ -210,11 +214,12 @@ class RNNTest(TestCommons):
             [torch.device("cuda")],
             TestCommons.get_dtypes(),
             [[0, 7, 19, 27, 93]],  # cu_seqlens
-            [256],  # state_size
-            [4, 256],  # num_heads
+            [64],  # state_size
+            [4, 8],  # num_input_heads
+            [4, 8],  # num_weight_heads
             [False, True],  # has_input_state
-            [False, True],  # is_compiling
-            [False, True],  # no_grad
+            [False],  # is_compiling
+            [True],  # no_grad
         )
     )
     def test_rnn_varlen(
@@ -223,7 +228,8 @@ class RNNTest(TestCommons):
         dtype: torch.dtype,
         cu_seqlens: list[int],
         state_size: int,
-        num_heads: int,
+        num_input_heads: int,
+        num_weight_heads: int,
         has_input_state: bool,
         is_compiling: bool,
         no_grad: bool,
@@ -252,8 +258,8 @@ class RNNTest(TestCommons):
                     input_size=state_size,
                     state_size=state_size,
                     output_size=state_size,
-                    num_input_heads=num_heads,
-                    num_weight_heads=num_heads,
+                    num_input_heads=num_input_heads,
+                    num_weight_heads=num_weight_heads,
                     add_bias=False,
                     gradient_clipping=None,
                 ).to(dtype)

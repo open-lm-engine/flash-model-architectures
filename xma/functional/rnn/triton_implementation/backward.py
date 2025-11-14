@@ -34,7 +34,7 @@ def _load_input_state(
     return y_prev
 
 
-@triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_H"], reset_to_zero=["dW_ptr"])
+@triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_H"], reset_to_zero=["dx_ptr", "dW_ptr"])
 @triton.jit
 def rnn_backward_triton_kernel(
     W_ptr,
@@ -56,12 +56,17 @@ def rnn_backward_triton_kernel(
     B,
     S,
     H,
+    Gx,
+    Gw,
     gradient_clipping,
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
     BLOCK_ID_B = tl.program_id(axis=0)
     BLOCK_ID_N = tl.program_id(axis=1)
+
+    BLOCK_ID_Nx = BLOCK_ID_N // Gx
+    BLOCK_ID_Nw = BLOCK_ID_N // Gw
 
     BLOCK_B = BLOCK_ID_B * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
     BLOCK_H = tl.arange(0, BLOCK_SIZE_H)
@@ -76,7 +81,7 @@ def rnn_backward_triton_kernel(
     dW = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
 
     W = tl.load(
-        W_ptr + BLOCK_ID_N * W_stride[0] + BLOCK_H[:, None] * W_stride[1] + BLOCK_H[None, :] * W_stride[2],
+        W_ptr + BLOCK_ID_Nw * W_stride[0] + BLOCK_H[:, None] * W_stride[1] + BLOCK_H[None, :] * W_stride[2],
         mask=MASK_HH,
     )
 
@@ -87,16 +92,11 @@ def rnn_backward_triton_kernel(
         start = tl.load(cu_seqlens_ptrs, mask=MASK_B[:, None])
         end = tl.load(cu_seqlens_ptrs + cu_seqlens_stride[0], mask=MASK_B[:, None])
 
-        if IS_MAX_SEQLEN_TENSOR:
-            S = tl.load(max_seqlen_ptr)
-        else:
-            S = max_seqlen_ptr
-
+        S = tl.load(max_seqlen_ptr) if IS_MAX_SEQLEN_TENSOR else max_seqlen_ptr
         end -= 1
 
         y_ptrs = y_ptr + end * y_stride[0] + BLOCK_ID_N * y_stride[1] + BLOCK_H[None, :] * y_stride[2]
-
-        dx_ptrs = dx_ptr + end * dx_stride[0] + BLOCK_ID_N * dx_stride[1] + BLOCK_H[None, :] * dx_stride[2]
+        dx_ptrs = dx_ptr + end * dx_stride[0] + BLOCK_ID_Nx * dx_stride[1] + BLOCK_H[None, :] * dx_stride[2]
         dy_ptrs = dy_ptr + end * dy_stride[0] + BLOCK_ID_N * dy_stride[1] + BLOCK_H[None, :] * dy_stride[2]
 
         MASK = (end >= start) & MASK_H[None, :]
@@ -113,7 +113,7 @@ def rnn_backward_triton_kernel(
             dx_ptr
             + BLOCK_B[:, None] * dx_stride[0]
             + (S - 1) * dx_stride[1]
-            + BLOCK_ID_N * dx_stride[2]
+            + BLOCK_ID_Nx * dx_stride[2]
             + BLOCK_H[None, :] * dx_stride[3]
         )
 
@@ -134,10 +134,7 @@ def rnn_backward_triton_kernel(
         if gradient_clipping is not None:
             dh = clamp(dh, min_value=-gradient_clipping, max_value=gradient_clipping)
 
-        if IS_VARLEN:
-            MASK = (end >= start) & MASK_H[None, :]
-        else:
-            MASK = MASK_BH
+        MASK = ((end >= start) & MASK_H[None, :]) if IS_VARLEN else MASK_BH
 
         dy = tl.load(dy_ptrs, mask=MASK) + dh
 
@@ -179,7 +176,10 @@ def rnn_backward_triton_kernel(
 
         y = y_prev
 
-        tl.store(dx_ptrs, dx, mask=MASK)
+        if Gx == 1:
+            tl.store(dx_ptrs, dx, mask=MASK)
+        else:
+            tl.atomic_add(dx_ptrs, dx, mask=MASK)
 
         dx_ptrs -= dx_stride[1 - IS_VARLEN]
         dy_ptrs -= dy_stride[1 - IS_VARLEN]
@@ -188,7 +188,7 @@ def rnn_backward_triton_kernel(
             end -= 1
 
     tl.atomic_add(
-        dW_ptr + BLOCK_ID_N * dW_stride[0] + BLOCK_H[:, None] * dW_stride[1] + BLOCK_H[None, :] * dW_stride[2],
+        dW_ptr + BLOCK_ID_Nw * dW_stride[0] + BLOCK_H[:, None] * dW_stride[1] + BLOCK_H[None, :] * dW_stride[2],
         dW,
         mask=MASK_HH,
         sem="relaxed",
@@ -209,14 +209,14 @@ def rnn_backward_triton(
     gradient_clipping: float | None,
 ) -> None:
     if cu_seqlens is None:
-        assert max_seqlen is None
-        assert max_seqlen_tensor is None
-
         B, S, N, H = output.size()
     else:
         B = cu_seqlens.size(0) - 1
         S = None
         _, N, H = output.size()
+
+    Nx = input_grad.size(-2)
+    Nw = weight.size(0)
 
     is_max_seqlen_tensor = max_seqlen_tensor is not None
 
@@ -245,6 +245,8 @@ def rnn_backward_triton(
             B=B,
             S=S,
             H=H,
+            Gx=N // Nx,
+            Gw=N // Nw,
             gradient_clipping=gradient_clipping,
             BLOCK_SIZE_H=BLOCK_SIZE_H,
         )
