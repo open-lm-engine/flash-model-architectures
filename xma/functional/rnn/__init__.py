@@ -99,13 +99,11 @@ class _RNN(CustomOp):
         cu_seqlens: torch.Tensor | None,
         max_seqlen: torch.Tensor | int | None,
     ) -> torch.Tensor:
-        input_shape = input.size()
-
-        Nx = input_shape[-2]
+        Nx = input.size(-2)
         Nw = weight.size(0)
         N = max(Nx, Nw)
 
-        output_shape = list(input_shape)
+        output_shape = list(input.size())
         output_shape[-2] = N
 
         output = torch.empty(*output_shape, device=input.device, dtype=input.dtype)
@@ -133,13 +131,15 @@ class _RNN(CustomOp):
         weight, output, input_state, cu_seqlens, max_seqlen_tensor = ctx.saved_tensors
         weight_grad = zeros_like_contiguous(weight, dtype=torch.float32)
 
-        B, S, N, H = output.size()
         Nx = ctx.Nx
+        N = output.size(-2)
 
         if Nx == N:
             input_grad = empty_like_contiguous(output)
         else:
-            input_grad = torch.zeros(B, S, Nx, H, device=output.device, dtype=torch.float32)
+            input_shape = list(output.size())
+            input_shape[-2] = Nx
+            input_grad = torch.zeros(input_shape, device=output.device, dtype=torch.float32)
 
         rnn_backward_triton(
             weight=weight,
