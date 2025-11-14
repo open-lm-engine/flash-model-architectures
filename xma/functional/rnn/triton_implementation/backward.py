@@ -179,7 +179,7 @@ def rnn_backward_triton_kernel(
         if Gx == 1:
             tl.store(dx_ptrs, dx, mask=MASK)
         else:
-            tl.atomic_add(dx_ptrs, dx, mask=MASK)
+            tl.atomic_add(dx_ptrs, dx, mask=MASK, sem="relaxed")
 
         dx_ptrs -= dx_stride[1 - IS_VARLEN]
         dy_ptrs -= dy_stride[1 - IS_VARLEN]
