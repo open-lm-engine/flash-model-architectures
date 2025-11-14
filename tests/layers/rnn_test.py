@@ -24,7 +24,7 @@ class RNNTest(TestCommons):
             [4],  # batch_size
             [1024],  # sequence_length
             [64],  # state_size
-            [(4, 8), (8, 4)],  # num_input_heads, num_weight_heads
+            [(4, 8), (8, 4), (8, 8)],  # num_input_heads, num_weight_heads
             [False, True],  # has_input_state
             [False, True],  # is_compiling
             [False, True],  # no_grad
@@ -124,7 +124,7 @@ class RNNTest(TestCommons):
             TestCommons.get_dtypes(),
             [[0, 7, 19, 27, 93]],  # cu_seqlens
             [64],  # state_size
-            [(4, 8), (8, 4)],  # num_input_heads, num_weight_heads
+            [(4, 8), (8, 4), (8, 8)],  # num_input_heads, num_weight_heads
             [False, True],  # has_input_state
         )
     )
@@ -213,7 +213,7 @@ class RNNTest(TestCommons):
             TestCommons.get_dtypes(),
             [[0, 7, 19, 27, 93]],  # cu_seqlens
             [64],  # state_size
-            [(4, 8), (8, 4)],  # num_input_heads, num_weight_heads
+            [(4, 8), (8, 4), (8, 8)],  # num_input_heads, num_weight_heads
             [False, True],  # has_input_state
             [False, True],  # is_compiling
             [False, True],  # no_grad
