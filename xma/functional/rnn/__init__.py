@@ -85,8 +85,8 @@ class _RNN(CustomOp):
                 new_state = new_state.squeeze(-2)
                 new_state = clip_gradients(new_state, gradient_clipping)
 
-                input_state[unfinished] = new_state
                 output[offset_unfinished] = new_state
+                input_state[unfinished] = new_state
 
         return output
 
