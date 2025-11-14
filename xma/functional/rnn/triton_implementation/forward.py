@@ -41,9 +41,9 @@ def rnn_forward_triton_kernel(
     max_seqlen_ptr,
     B,
     S,
-    H,
-    Gx,
-    Gw,
+    H: tl.constexpr,
+    Gx: tl.constexpr,
+    Gw: tl.constexpr,
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
