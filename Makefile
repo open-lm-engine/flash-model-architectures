@@ -20,6 +20,7 @@ update-precommit:
 	pre-commit autoupdate
 
 style:
+	python tools/populate_readme.py
 	python copyright/copyright.py --repo ./ --exclude copyright-exclude.txt --header "Copyright (c) 2025, Mayank Mishra"
 	pre-commit run --all-files
 
