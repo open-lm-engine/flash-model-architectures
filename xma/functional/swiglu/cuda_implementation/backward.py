@@ -73,7 +73,7 @@ def swiglu_backward_cuda_kernel(
     dtype = g.dtype
     g = g.to(Float32)
 
-    g_sigmoid = sigmoid(g, output_dtype=Float32)
+    g_sigmoid = sigmoid(g)
     g_silu = g * g_sigmoid
 
     dg = dy * u * (g_sigmoid + g_silu * (1 - g_sigmoid))
