@@ -106,7 +106,7 @@ class _RNN(CustomOp):
         output_shape = list(input.size())
         output_shape[-2] = N
 
-        output = torch.empty(*output_shape, device=input.device, dtype=input.dtype)
+        output = torch.empty(output_shape, device=input.device, dtype=input.dtype)
         max_seqlen_tensor, max_seqlen = get_max_seqlen_and_max_seqlen_tensor(max_seqlen)
 
         rnn_forward_triton(
