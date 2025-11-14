@@ -58,8 +58,13 @@ class _RNN(CustomOp):
         if input_state is None:
             input_state = torch.zeros(B, N, H, device=input.device, dtype=input.dtype)
 
-        if cu_seqlens is None:
-            for s in range(S):
+        if cu_seqlens is not None:
+            input_state = input_state.clone()
+            start = cu_seqlens[:-1]
+            end = cu_seqlens[1:]
+
+        for s in range(S):
+            if cu_seqlens is None:
                 # (B, N, 1, H) = (B, N, 1, H) @ (1, Nw, H, H) + (B, Nx, 1, H)
                 new_state = input_state[..., None, :] @ W + input[:, s, :, None, :]
                 new_state = tanh(new_state)
@@ -68,12 +73,7 @@ class _RNN(CustomOp):
 
                 output[:, s] = new_state
                 input_state = new_state
-        else:
-            input_state = input_state.clone()
-            start = cu_seqlens[:-1]
-            end = cu_seqlens[1:]
-
-            for s in range(S):
+            else:
                 offset = start + s
                 unfinished = offset < end
                 offset_unfinished = offset[unfinished]
