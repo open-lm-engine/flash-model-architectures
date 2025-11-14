@@ -47,13 +47,13 @@ class _RNN(CustomOp):
             B = cu_seqlens.size(0) - 1
             S = max_seqlen.item() if isinstance(max_seqlen, torch.Tensor) else max_seqlen
 
-        W = weight[None, ...]
-
         Gx = N // Nx
         Gw = N // Nw
 
         input = input.repeat_interleave(Gx, dim=-2)
         weight = weight.repeat_interleave(Gw, dim=0)
+
+        W = weight[None, ...]
 
         if input_state is None:
             input_state = torch.zeros(B, N, H, device=input.device, dtype=input.dtype)
