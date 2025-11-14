@@ -37,7 +37,7 @@ class RNNTest(TestCommons):
         batch_size: int,
         sequence_length: int,
         state_size: int,
-        num_input_heads_num_weight_heads: int,
+        num_input_heads_num_weight_heads: tuple[int, int],
         has_input_state: bool,
         is_compiling: bool,
         no_grad: bool,
@@ -124,8 +124,7 @@ class RNNTest(TestCommons):
             TestCommons.get_dtypes(),
             [[0, 7, 19, 27, 93]],  # cu_seqlens
             [64],  # state_size
-            [4, 8],  # num_input_heads
-            [4, 8],  # num_weight_heads
+            [(4, 8), (8, 4)],  # num_input_heads, num_weight_heads
             [False, True],  # has_input_state
         )
     )
@@ -135,8 +134,7 @@ class RNNTest(TestCommons):
         dtype: torch.dtype,
         cu_seqlens: list[int],
         state_size: int,
-        num_input_heads: int,
-        num_weight_heads: int,
+        num_input_heads_num_weight_heads: tuple[int, int],
         has_input_state: bool,
     ) -> None:
         set_seed(_SEED)
@@ -144,6 +142,7 @@ class RNNTest(TestCommons):
         batch_size = len(cu_seqlens) - 1
         cu_seqlens = torch.tensor(cu_seqlens, device=device)
         max_seqlen = (cu_seqlens[1:] - cu_seqlens[:-1]).max()
+        num_input_heads, num_weight_heads = num_input_heads_num_weight_heads
 
         x_packed_kernel, x_packed_torch, input_state_kernel, input_state_torch = self._get_packed_tensor_inputs(
             batch_size=batch_size,
@@ -214,8 +213,7 @@ class RNNTest(TestCommons):
             TestCommons.get_dtypes(),
             [[0, 7, 19, 27, 93]],  # cu_seqlens
             [64],  # state_size
-            [4, 8],  # num_input_heads
-            [4, 8],  # num_weight_heads
+            [(4, 8), (8, 4)],  # num_input_heads, num_weight_heads
             [False, True],  # has_input_state
             [False, True],  # is_compiling
             [False, True],  # no_grad
@@ -227,8 +225,7 @@ class RNNTest(TestCommons):
         dtype: torch.dtype,
         cu_seqlens: list[int],
         state_size: int,
-        num_input_heads: int,
-        num_weight_heads: int,
+        num_input_heads_num_weight_heads: tuple[int, int],
         has_input_state: bool,
         is_compiling: bool,
         no_grad: bool,
@@ -236,6 +233,7 @@ class RNNTest(TestCommons):
         set_seed(_SEED)
 
         context = torch.no_grad if no_grad else nullcontext
+        num_input_heads, num_weight_heads = num_input_heads_num_weight_heads
 
         with context():
             batch_size = len(cu_seqlens) - 1
