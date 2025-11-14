@@ -27,7 +27,7 @@ class RNNTest(TestCommons):
             [4, 8],  # num_input_heads
             [4, 8],  # num_weight_heads
             [False, True],  # has_input_state
-            [False],  # is_compiling
+            [False, True],  # is_compiling
             [False, True],  # no_grad
         )
     )
