@@ -25,8 +25,7 @@ class _FusedLinearCrossEntropy(CustomOp):
         M: float | None,
     ) -> torch.Tensor:
         x = F.linear(x, W)
-        x = cross_entropy(x=x, labels=y, reduction=reduction, logits_multiplier=M, kernel_backend=KernelBackend.torch)
-
+        l = cross_entropy(x=x, labels=y, reduction=reduction, logits_multiplier=M, kernel_backend=KernelBackend.torch)
         return x
 
     @staticmethod
