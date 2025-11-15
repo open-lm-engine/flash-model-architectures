@@ -22,10 +22,13 @@ class _FusedLinearCrossEntropy(CustomOp):
         W: torch.Tensor,
         y: torch.Tensor,
         reduction: str,
-        M: float | None,
+        logits_multiplier: float | None,
     ) -> torch.Tensor:
         x = F.linear(x, W)
-        l = cross_entropy(x=x, labels=y, reduction=reduction, logits_multiplier=M, kernel_backend=KernelBackend.torch)
+        l = cross_entropy(
+            x=x, labels=y, reduction=reduction, logits_multiplier=logits_multiplier, kernel_backend=KernelBackend.torch
+        )
+
         return l
 
     @staticmethod
@@ -35,7 +38,7 @@ class _FusedLinearCrossEntropy(CustomOp):
         W: torch.Tensor,
         y: torch.Tensor,
         reduction: str,
-        M: float | None,
+        logits_multiplier: float | None,
     ) -> torch.Tensor:
         B, H = x.size()
         V = W.size(0)
@@ -64,7 +67,7 @@ class _FusedLinearCrossEntropy(CustomOp):
             _y = y[start:end]
 
             cross_entropy_forward_backward_triton(
-                x=_h, labels=_y, loss=l, x_grad=_dh, logits_multiplier=M, reduction="sum"
+                x=_h, labels=_y, loss=l, x_grad=_dh, logits_multiplier=logits_multiplier, reduction="sum"
             )
 
             if needs_grad:
