@@ -72,7 +72,7 @@ def fused_residual_add_rmsnorm_forward_triton_kernel(
 
 @custom_op(
     f"{LIBRARY_NAME}::fused_residual_add_rmsnorm_forward_triton",
-    mutates_args={"y", "xr", "rstd"},
+    mutates_args={"y", "xr", "s"},
 )
 def fused_residual_add_rmsnorm_forward_triton(
     x: torch.Tensor,
@@ -82,7 +82,7 @@ def fused_residual_add_rmsnorm_forward_triton(
     eps: float,
     multiplier: float | None,
     xr: torch.Tensor | None,
-    rstd: torch.Tensor | None,
+    s: torch.Tensor | None,
 ) -> None:
     B, H = get_num_elements_and_hidden_size(x)
 
@@ -103,8 +103,8 @@ def fused_residual_add_rmsnorm_forward_triton(
             y_stride=y.stride(),
             xr_ptr=xr,
             xr_stride=None if xr is None else xr.stride(),
-            s_ptr=rstd,
-            s_stride=None if rstd is None else rstd.stride(),
+            s_ptr=s,
+            s_stride=None if s is None else s.stride(),
             eps=eps,
             multiplier=multiplier,
             B=B,

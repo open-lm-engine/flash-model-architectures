@@ -65,13 +65,13 @@ class _FusedResidualAddRMSNorm(CustomOp):
         y = empty_like_contiguous(x)
         xr = empty_like_contiguous(x) if has_residual else None
 
-        rstd = None
+        s = None
         if ctx_needs_gradients(ctx) and not memory_efficient:
-            rstd = torch.empty(B, device=x.device, dtype=torch.float32)
+            s = torch.empty(B, device=x.device, dtype=torch.float32)
 
-        fused_residual_add_rmsnorm_forward_triton(x=x, r=r, W=W, y=y, eps=eps, multiplier=multiplier, xr=xr, rstd=rstd)
+        fused_residual_add_rmsnorm_forward_triton(x=x, r=r, W=W, y=y, eps=eps, multiplier=multiplier, xr=xr, s=s)
 
-        ctx_save_for_backward(ctx, xr if has_residual else x, W, rstd)
+        ctx_save_for_backward(ctx, xr if has_residual else x, W, s)
         ctx.eps = eps
         ctx.has_residual = has_residual
         ctx.multiplier = multiplier
@@ -86,7 +86,7 @@ class _FusedResidualAddRMSNorm(CustomOp):
         has_residual = ctx.has_residual
         deterministic = ctx.deterministic
 
-        xr, W, rstd = ctx.saved_tensors
+        xr, W, s = ctx.saved_tensors
         dx = empty_like_contiguous(xr)
         dr = empty_like_contiguous(xr) if has_residual else None
 
@@ -106,7 +106,7 @@ class _FusedResidualAddRMSNorm(CustomOp):
             W=W,
             dy=dy,
             dxr=dxr,
-            rstd=rstd,
+            s=s,
             dx=dx,
             dr=dr,
             dW=dW,
