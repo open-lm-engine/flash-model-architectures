@@ -26,7 +26,7 @@ class _FusedLinearCrossEntropy(CustomOp):
     ) -> torch.Tensor:
         x = F.linear(x, W)
         l = cross_entropy(x=x, labels=y, reduction=reduction, logits_multiplier=M, kernel_backend=KernelBackend.torch)
-        return x
+        return l
 
     @staticmethod
     def forward_triton(
@@ -50,7 +50,7 @@ class _FusedLinearCrossEntropy(CustomOp):
 
         needs_grad = ctx_needs_gradients(ctx)
         dx = empty_like_contiguous(x) if needs_grad else None
-        dW = zeros_like_contiguous() if needs_grad else None
+        dW = zeros_like_contiguous(W) if needs_grad else None
 
         for i in range(num_chunks):
             start = i * chunk_size
