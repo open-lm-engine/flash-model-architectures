@@ -69,14 +69,14 @@ class _FusedLinearCrossEntropy(CustomOp):
 
             if needs_grad:
                 dx[start:end] = _dh @ W
-                torch.addmm(dW, _dh.T, _x, alpha=1, beta=1, out=weight_grad)
+                torch.addmm(dW, _dh.T, _x, alpha=1, beta=1, out=dW)
 
         if reduction == "mean":
             l /= B
-            x_grad /= B
-            weight_grad /= B
+            dx /= B
+            dW /= B
 
-        ctx_save_for_backward(ctx, x_grad, weight_grad)
+        ctx_save_for_backward(ctx, dx, dW)
 
         return l
 
