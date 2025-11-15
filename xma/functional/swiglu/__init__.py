@@ -21,26 +21,26 @@ if is_triton_available():
 
 class _Swiglu(CustomOp):
     @staticmethod
-    def forward_backward_torch(gate: torch.Tensor, up: torch.Tensor) -> torch.Tensor:
-        dtype = gate.dtype
+    def forward_backward_torch(g: torch.Tensor, u: torch.Tensor) -> torch.Tensor:
+        dtype = g.dtype
 
-        gate = gate.float()
-        up = up.float()
+        g = g.float()
+        u = u.float()
 
-        output = up * F.silu(gate)
-        output = output.to(dtype)
+        y = u * F.silu(g)
+        y = y.to(dtype)
 
-        return output
+        return y
 
     @staticmethod
     @ensure_contiguous
-    def forward_cuda(ctx, gate: torch.Tensor, up: torch.Tensor) -> torch.Tensor:
-        output = empty_like_contiguous(gate)
-        swiglu_forward_cuda(gate=gate.flatten(0, -2), up=up.flatten(0, -2), output=output.flatten(0, -2))
+    def forward_cuda(ctx, g: torch.Tensor, u: torch.Tensor) -> torch.Tensor:
+        y = empty_like_contiguous(g)
+        swiglu_forward_cuda(g=g.flatten(0, -2), u=u.flatten(0, -2), y=y.flatten(0, -2))
 
-        ctx_save_for_backward(ctx, gate, up)
+        ctx_save_for_backward(ctx, g, u)
 
-        return output
+        return y
 
     @staticmethod
     @ensure_contiguous
@@ -60,13 +60,13 @@ class _Swiglu(CustomOp):
         return gate_grad, up_grad
 
     @staticmethod
-    def forward_triton(ctx, gate: torch.Tensor, up: torch.Tensor) -> torch.Tensor:
-        output = empty_like_contiguous(gate)
-        swiglu_forward_triton(gate=gate, up=up, output=output)
+    def forward_triton(ctx, g: torch.Tensor, u: torch.Tensor) -> torch.Tensor:
+        y = empty_like_contiguous(g)
+        swiglu_forward_triton(g=g, u=u, y=y)
 
-        ctx_save_for_backward(ctx, gate, up)
+        ctx_save_for_backward(ctx, g, u)
 
-        return output
+        return y
 
     @staticmethod
     def backward_triton(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
@@ -146,7 +146,7 @@ def swiglu(gate: torch.Tensor, up: torch.Tensor, *, kernel_backend: KernelBacken
     assert gate.size() == up.size(), "tensors gate and up should have same shape"
     assert gate.type() == up.type(), "tensors gate and up should have same dtype"
 
-    return _Swiglu.run(gate=gate, up=up, kernel_backend=kernel_backend)
+    return _Swiglu.run(g=gate, u=up, kernel_backend=kernel_backend)
 
 
 def swiglu_packed(x: torch.Tensor, *, kernel_backend: KernelBackend | None = None) -> torch.Tensor:

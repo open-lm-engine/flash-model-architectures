@@ -100,18 +100,18 @@ def swiglu_forward_cuda_jit(mG: cute.Tensor, mU: cute.Tensor, mY: cute.Tensor) -
     kernel.launch(grid=(NUM_BLOCKS, 1, 1), block=(BLOCK_SIZE, 1, 1))
 
 
-@custom_op(f"{LIBRARY_NAME}::swiglu_forward_cuda", mutates_args={"output"})
-def swiglu_forward_cuda(gate: torch.Tensor, up: torch.Tensor, output: torch.Tensor) -> None:
-    gate, up, output = [torch_tensor_to_cute_tensor(i, leading_dim=1) for i in (gate, up, output)]
+@custom_op(f"{LIBRARY_NAME}::swiglu_forward_cuda", mutates_args={"y"})
+def swiglu_forward_cuda(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> None:
+    g, u, y = [torch_tensor_to_cute_tensor(i, leading_dim=1) for i in (g, u, y)]
 
-    key = gate.element_type
+    key = g.element_type
     function = swiglu_forward_cuda.cache.get(key, None)
 
     if function is None:
-        function = cute.compile(swiglu_forward_cuda_jit, gate, up, output)
+        function = cute.compile(swiglu_forward_cuda_jit, g, u, y)
         swiglu_forward_cuda.cache[key] = function
 
-    function(gate, up, output)
+    function(g, u, y)
 
 
 swiglu_forward_cuda.cache = {}
