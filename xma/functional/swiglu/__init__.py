@@ -89,47 +89,47 @@ class _SwigluPacked(CustomOp):
     def forward_cuda(ctx, x: torch.Tensor) -> torch.Tensor:
         ctx_save_for_backward(ctx, x)
 
-        output = torch.empty(*x.size()[:-1], divide_if_divisible(x.size(-1), 2), device=x.device, dtype=x.dtype)
-        up, gate = x.chunk(2, dim=-1)
+        y = torch.empty(*x.size()[:-1], divide_if_divisible(x.size(-1), 2), device=x.device, dtype=x.dtype)
+        u, g = x.chunk(2, dim=-1)
 
-        swiglu_forward_cuda(gate=gate, up=up, output=output)
+        swiglu_forward_cuda(g=g, u=u, y=y)
 
-        return output
+        return y
 
     @staticmethod
     def backward_cuda(ctx, output_grad: torch.Tensor) -> torch.Tensor:
         x = ctx.saved_tensors[0]
-        x_grad = empty_like_contiguous(x)
+        dx = empty_like_contiguous(x)
 
-        up, gate = x.chunk(2, dim=-1)
-        up_grad, gate_grad = x_grad.chunk(2, dim=-1)
+        u, g = x.chunk(2, dim=-1)
+        du, dg = dx.chunk(2, dim=-1)
 
-        swiglu_backward_cuda(gate=gate, up=up, output_grad=output_grad, gate_grad=gate_grad, up_grad=up_grad)
+        swiglu_backward_cuda(g=g, u=u, dy=dy, dg=dg, du=du)
 
-        return x_grad
+        return dx
 
     @staticmethod
     def forward_triton(ctx, x: torch.Tensor) -> torch.Tensor:
         ctx_save_for_backward(ctx, x)
 
-        output = torch.empty(*x.size()[:-1], divide_if_divisible(x.size(-1), 2), device=x.device, dtype=x.dtype)
-        up, gate = x.chunk(2, dim=-1)
+        y = torch.empty(*x.size()[:-1], divide_if_divisible(x.size(-1), 2), device=x.device, dtype=x.dtype)
+        u, g = x.chunk(2, dim=-1)
 
-        swiglu_forward_triton(gate=gate, up=up, output=output)
+        swiglu_forward_triton(g=g, u=u, y=y)
 
-        return output
+        return y
 
     @staticmethod
-    def backward_triton(ctx, output_grad: torch.Tensor) -> torch.Tensor:
+    def backward_triton(ctx, dy: torch.Tensor) -> torch.Tensor:
         x = ctx.saved_tensors[0]
-        x_grad = empty_like_contiguous(x)
+        dx = empty_like_contiguous(x)
 
-        up, gate = x.chunk(2, dim=-1)
-        up_grad, gate_grad = x_grad.chunk(2, dim=-1)
+        u, g = x.chunk(2, dim=-1)
+        du, dg = dx.chunk(2, dim=-1)
 
-        swiglu_backward_triton(gate=gate, up=up, output_grad=output_grad, gate_grad=gate_grad, up_grad=up_grad)
+        swiglu_backward_triton(g=g, u=u, dy=dy, dg=dg, du=du)
 
-        return x_grad
+        return dx
 
 
 def swiglu(gate: torch.Tensor, up: torch.Tensor, *, kernel_backend: KernelBackend | None = None) -> torch.Tensor:
