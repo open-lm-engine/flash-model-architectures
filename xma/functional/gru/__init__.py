@@ -67,7 +67,7 @@ class _GRU(CustomOp):
         else:
             assert max_seqlen is not None
             B = cu_seqlens.numel() - 1
-            _, N, H = input.size()
+            _, N, H = x.size()
 
             h0 = torch.zeros(B, N, H, device=x.device, dtype=x.dtype) if h0 is None else h0.clone()
 
