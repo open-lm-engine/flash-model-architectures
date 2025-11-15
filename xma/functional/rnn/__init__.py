@@ -55,7 +55,7 @@ class _RNN(CustomOp):
         h0 = torch.zeros(B, N, H, device=x.device, dtype=x.dtype) if h0 is None else h0
 
         if cu_seqlens is not None:
-            h = h.clone()
+            h0 = h0.clone()
             start = cu_seqlens[:-1]
             end = cu_seqlens[1:]
 
