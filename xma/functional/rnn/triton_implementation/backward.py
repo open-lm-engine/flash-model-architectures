@@ -199,7 +199,7 @@ def rnn_backward_triton_kernel(
 def rnn_backward_triton(
     W: torch.Tensor,
     y: torch.Tensor,
-    h: torch.Tensor | None,
+    h0: torch.Tensor | None,
     dy: torch.Tensor,
     dx: torch.Tensor,
     dW: torch.Tensor,
@@ -228,8 +228,8 @@ def rnn_backward_triton(
         rnn_backward_triton_kernel[GRID](
             W_ptr=W,
             W_stride=W.stride(),
-            h0_ptr=h,
-            h0_stride=None if h is None else h.stride(),
+            h0_ptr=h0,
+            h0_stride=None if h0 is None else h0.stride(),
             y_ptr=y,
             y_stride=y.stride(),
             dx_ptr=dx,
