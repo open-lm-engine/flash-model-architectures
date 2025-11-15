@@ -22,132 +22,128 @@ if is_triton_available():
 class _RNN(CustomOp):
     @staticmethod
     def forward_backward_torch(
-        input: torch.Tensor,
-        weight: torch.Tensor,
-        input_state: torch.Tensor | None,
+        x: torch.Tensor,
+        W: torch.Tensor,
+        h0: torch.Tensor | None,
         gradient_clipping: float | None,
         cu_seqlens: torch.Tensor | None,
         max_seqlen: torch.Tensor | int | None,
     ) -> torch.Tensor:
-        input_shape = input.size()
+        x_shape = x.size()
 
-        Nx = input_shape[-2]
-        Nw = weight.size(0)
+        Nx = x_shape[-2]
+        Nw = W.size(0)
         N = max(Nx, Nw)
 
-        output_shape = list(input_shape)
-        output_shape[-2] = N
+        y_shape = list(x_shape)
+        y_shape[-2] = N
 
-        output = torch.empty(*output_shape, device=input.device, dtype=input.dtype)
+        y = torch.empty(y_shape, device=x.device, dtype=x.dtype)
 
         if cu_seqlens is None:
-            B, S, _, H = input.size()
+            B, S, _, H = x.size()
         else:
-            _, _, H = input.size()
+            _, _, H = x.size()
             B = cu_seqlens.size(0) - 1
             S = max_seqlen.item() if isinstance(max_seqlen, torch.Tensor) else max_seqlen
 
         Gx = N // Nx
         Gw = N // Nw
 
-        input = input.repeat_interleave(Gx, dim=-2)
-        weight = weight.repeat_interleave(Gw, dim=0)
-
-        W = weight[None, ...]
-
-        if input_state is None:
-            input_state = torch.zeros(B, N, H, device=input.device, dtype=input.dtype)
+        x = x.repeat_interleave(Gx, dim=-2)
+        W = W.repeat_interleave(Gw, dim=0)[None, ...]
+        h0 = torch.zeros(B, N, H, device=x.device, dtype=x.dtype) if h0 is None else h0
 
         if cu_seqlens is not None:
-            input_state = input_state.clone()
+            h0 = h0.clone()
             start = cu_seqlens[:-1]
             end = cu_seqlens[1:]
 
         for s in range(S):
             if cu_seqlens is None:
-                # (B, N, 1, H) = (B, N, 1, H) @ (1, Nw, H, H) + (B, Nx, 1, H)
-                new_state = input_state[..., None, :] @ W + input[:, s, :, None, :]
+                # (B, N, 1, H) = (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
+                h = h0[..., None, :] @ W + x[:, s, :, None, :]
             else:
                 offset = start + s
                 unfinished = offset < end
                 offset_unfinished = offset[unfinished]
 
                 # don't update the finished sequences
-                # (B, N, 1, H) = (B, N, 1, H) @ (1, Nw, H, H) + (B, Nx, 1, H)
-                new_state = input_state[unfinished, :, None, :] @ W + input[offset_unfinished, :, None, :]
+                # (B, N, 1, H) = (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
+                h = h0[unfinished, :, None, :] @ W + x[offset_unfinished, :, None, :]
 
-            new_state = tanh(new_state)
-            new_state = new_state.squeeze(-2)
-            new_state = clip_gradients(new_state, gradient_clipping)
+            h = tanh(h)
+            h = h.squeeze(-2)
+            h = clip_gradients(h, gradient_clipping)
 
             if cu_seqlens is None:
-                output[:, s] = new_state
-                input_state = new_state
+                y[:, s] = h
+                h0 = h
             else:
-                output[offset_unfinished] = new_state
-                input_state[unfinished] = new_state
+                y[offset_unfinished] = h
+                h0[unfinished] = h
 
-        return output
+        return y
 
     @staticmethod
     def forward_triton(
         ctx,
-        input: torch.Tensor,
-        weight: torch.Tensor,
-        input_state: torch.Tensor | None,
+        x: torch.Tensor,
+        W: torch.Tensor,
+        h0: torch.Tensor | None,
         gradient_clipping: float | None,
         cu_seqlens: torch.Tensor | None,
         max_seqlen: torch.Tensor | int | None,
     ) -> torch.Tensor:
-        Nx = input.size(-2)
-        Nw = weight.size(0)
+        Nx = x.size(-2)
+        Nw = W.size(0)
         N = max(Nx, Nw)
 
-        output_shape = list(input.size())
-        output_shape[-2] = N
+        y_shape = list(x.size())
+        y_shape[-2] = N
 
-        output = torch.empty(output_shape, device=input.device, dtype=input.dtype)
+        y = torch.empty(y_shape, device=x.device, dtype=x.dtype)
         max_seqlen_tensor, max_seqlen = get_max_seqlen_and_max_seqlen_tensor(max_seqlen)
 
         rnn_forward_triton(
-            input=input,
-            weight=weight,
-            input_state=input_state,
-            output=output,
+            x=x,
+            W=W,
+            h0=h0,
+            y=y,
             cu_seqlens=cu_seqlens,
             max_seqlen_tensor=max_seqlen_tensor,
             max_seqlen=max_seqlen,
         )
 
-        ctx_save_for_backward(ctx, weight, output, input_state, cu_seqlens, max_seqlen_tensor)
+        ctx_save_for_backward(ctx, W, y, h0, cu_seqlens, max_seqlen_tensor)
         ctx.max_seqlen = max_seqlen
         ctx.gradient_clipping = gradient_clipping
         ctx.Nx = Nx
 
-        return output
+        return y
 
     @staticmethod
-    def backward_triton(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor]:
-        weight, output, input_state, cu_seqlens, max_seqlen_tensor = ctx.saved_tensors
-        weight_grad = zeros_like_contiguous(weight, dtype=torch.float32)
+    def backward_triton(ctx, dy: torch.Tensor) -> tuple[torch.Tensor]:
+        W, y, h0, cu_seqlens, max_seqlen_tensor = ctx.saved_tensors
+        dW = zeros_like_contiguous(W, dtype=torch.float32)
 
         Nx = ctx.Nx
-        N = output.size(-2)
+        N = y.size(-2)
 
         if Nx == N:
-            input_grad = empty_like_contiguous(output)
+            dx = empty_like_contiguous(y)
         else:
-            input_shape = list(output.size())
-            input_shape[-2] = Nx
-            input_grad = torch.zeros(input_shape, device=output.device, dtype=torch.float32)
+            x_shape = list(y.size())
+            x_shape[-2] = Nx
+            dx = torch.zeros(x_shape, device=y.device, dtype=torch.float32)
 
         rnn_backward_triton(
-            weight=weight,
-            output=output,
-            input_state=input_state,
-            output_grad=output_grad,
-            input_grad=input_grad,
-            weight_grad=weight_grad,
+            W=W,
+            y=y,
+            h0=h0,
+            dy=dy,
+            dx=dx,
+            dW=dW,
             cu_seqlens=cu_seqlens,
             max_seqlen_tensor=max_seqlen_tensor,
             max_seqlen=ctx.max_seqlen,
@@ -155,11 +151,11 @@ class _RNN(CustomOp):
         )
 
         if Nx != N:
-            input_grad = input_grad.type_as(output)
+            dx = dx.type_as(y)
 
-        weight_grad = weight_grad.type_as(weight)
+        dW = dW.type_as(W)
 
-        return input_grad, weight_grad, *[None] * 4
+        return dx, dW, *[None] * 4
 
 
 def rnn(
@@ -189,14 +185,14 @@ def rnn(
         tuple[torch.Tensor, torch.Tensor]: output tensor of shape (B, S, N, H) and output state tensor of shape (B, N, H)
     """
 
+    assert input.dim() == 3 + (cu_seqlens is None)
+
     if cu_seqlens is None:
         assert max_seqlen is None
-        assert input.dim() == 4
-
         B, _, Nx, H = input.size()
     else:
         assert max_seqlen is not None
-        assert input.dim() == 3
+        assert cu_seqlens.dim() == 1
 
         _, Nx, H = input.size()
         B = cu_seqlens.size(0) - 1
@@ -204,7 +200,6 @@ def rnn(
     Nw = weight.size(0)
     N = max(Nx, Nw)
 
-    assert weight.dim() == 3
     assert weight.size() == (Nw, H, H)
     assert N % Nx == 0
     assert N % Nw == 0
@@ -215,16 +210,16 @@ def rnn(
     if gradient_clipping is not None and gradient_clipping < 0:
         gradient_clipping = -gradient_clipping
 
-    output = _RNN.run(
-        input=input,
-        weight=weight,
-        input_state=input_state,
+    input = _RNN.run(
+        x=input,
+        W=weight,
+        h0=input_state,
         gradient_clipping=gradient_clipping,
         cu_seqlens=cu_seqlens,
         max_seqlen=max_seqlen,
         kernel_backend=kernel_backend,
     )
 
-    output_state = output[:, -1] if cu_seqlens is None else output[cu_seqlens[1:] - 1]
+    input_state = input[:, -1] if cu_seqlens is None else input[cu_seqlens[1:] - 1]
 
-    return output, output_state
+    return input, input_state

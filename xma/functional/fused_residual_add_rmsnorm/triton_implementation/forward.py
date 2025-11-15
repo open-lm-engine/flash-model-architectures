@@ -72,17 +72,17 @@ def fused_residual_add_rmsnorm_forward_triton_kernel(
 
 @custom_op(
     f"{LIBRARY_NAME}::fused_residual_add_rmsnorm_forward_triton",
-    mutates_args={"output", "added_x_residual", "rmsnorm_denominator"},
+    mutates_args={"y", "xr", "s"},
 )
 def fused_residual_add_rmsnorm_forward_triton(
     x: torch.Tensor,
-    residual: torch.Tensor | None,
-    weight: torch.Tensor | None,
-    output: torch.Tensor,
+    r: torch.Tensor | None,
+    W: torch.Tensor | None,
+    y: torch.Tensor,
     eps: float,
     multiplier: float | None,
-    added_x_residual: torch.Tensor | None,
-    rmsnorm_denominator: torch.Tensor | None,
+    xr: torch.Tensor | None,
+    s: torch.Tensor | None,
 ) -> None:
     B, H = get_num_elements_and_hidden_size(x)
 
@@ -95,16 +95,16 @@ def fused_residual_add_rmsnorm_forward_triton(
         fused_residual_add_rmsnorm_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](
             x_ptr=x,
             x_stride=x.stride(),
-            r_ptr=residual,
-            r_stride=None if residual is None else residual.stride(),
-            W_ptr=weight,
-            W_stride=None if weight is None else weight.stride(),
-            y_ptr=output,
-            y_stride=output.stride(),
-            xr_ptr=added_x_residual,
-            xr_stride=None if added_x_residual is None else added_x_residual.stride(),
-            s_ptr=rmsnorm_denominator,
-            s_stride=None if rmsnorm_denominator is None else rmsnorm_denominator.stride(),
+            r_ptr=r,
+            r_stride=None if r is None else r.stride(),
+            W_ptr=W,
+            W_stride=None if W is None else W.stride(),
+            y_ptr=y,
+            y_stride=y.stride(),
+            xr_ptr=xr,
+            xr_stride=None if xr is None else xr.stride(),
+            s_ptr=s,
+            s_stride=None if s is None else s.stride(),
             eps=eps,
             multiplier=multiplier,
             B=B,

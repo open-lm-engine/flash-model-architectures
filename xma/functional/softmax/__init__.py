@@ -30,25 +30,23 @@ class _Softmax(CustomOp):
 
     @staticmethod
     def forward_triton(ctx, x: torch.Tensor, logits_multiplier: float | None) -> torch.Tensor:
-        output = empty_like_contiguous(x)
+        y = empty_like_contiguous(x)
 
-        softmax_forward_triton(x=x, output=output, logits_multiplier=logits_multiplier)
+        softmax_forward_triton(x=x, y=y, logits_multiplier=logits_multiplier)
 
-        ctx_save_for_backward(ctx, output)
+        ctx_save_for_backward(ctx, y)
         ctx.logits_multiplier = logits_multiplier
 
-        return output
+        return y
 
     @staticmethod
-    def backward_triton(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
-        output = ctx.saved_tensors[0]
-        x_grad = empty_like_contiguous(output)
+    def backward_triton(ctx, dy: torch.Tensor) -> tuple[torch.Tensor | None]:
+        y = ctx.saved_tensors[0]
+        dx = empty_like_contiguous(y)
 
-        softmax_backward_triton(
-            output=output, output_grad=output_grad, x_grad=x_grad, logits_multiplier=ctx.logits_multiplier
-        )
+        softmax_backward_triton(y=y, dy=dy, dx=dx, logits_multiplier=ctx.logits_multiplier)
 
-        return x_grad, None
+        return dx, None
 
 
 def softmax(

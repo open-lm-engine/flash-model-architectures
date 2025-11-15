@@ -57,29 +57,25 @@ def swiglu_backward_triton_kernel(
     tl.store(du_ptr + BLOCK_B[:, None] * du_stride[0] + BLOCK_H[None, :] * du_stride[1], du, mask=MASK)
 
 
-@custom_op(f"{LIBRARY_NAME}::swiglu_backward_triton", mutates_args={"gate_grad", "up_grad"})
+@custom_op(f"{LIBRARY_NAME}::swiglu_backward_triton", mutates_args={"dg", "du"})
 def swiglu_backward_triton(
-    gate: torch.Tensor,
-    up: torch.Tensor,
-    output_grad: torch.Tensor,
-    gate_grad: torch.Tensor,
-    up_grad: torch.Tensor,
+    g: torch.Tensor, u: torch.Tensor, dy: torch.Tensor, dg: torch.Tensor, du: torch.Tensor
 ) -> None:
-    B, H = get_num_elements_and_hidden_size(gate)
+    B, H = get_num_elements_and_hidden_size(g)
     GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), ceil_divide(H, meta["BLOCK_SIZE_H"]))
 
-    with torch.device(gate.device):
+    with torch.device(g.device):
         swiglu_backward_triton_kernel[GRID](
-            g_ptr=gate,
-            g_stride=gate.stride(),
-            u_ptr=up,
-            u_stride=up.stride(),
-            dy_ptr=output_grad,
-            dy_stride=output_grad.stride(),
-            dg_ptr=gate_grad,
-            dg_stride=gate_grad.stride(),
-            du_ptr=up_grad,
-            du_stride=up_grad.stride(),
+            g_ptr=g,
+            g_stride=g.stride(),
+            u_ptr=u,
+            u_stride=u.stride(),
+            dy_ptr=dy,
+            dy_stride=dy.stride(),
+            dg_ptr=dg,
+            dg_stride=dg.stride(),
+            du_ptr=du,
+            du_stride=du.stride(),
             B=B,
             H=H,
         )

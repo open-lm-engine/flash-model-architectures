@@ -108,51 +108,48 @@ def fused_residual_add_rmsnorm_backward_triton_kernel(
             tl.store(dW_ptr + BLOCK_ID * dW_stride[0] + BLOCK_H * dW_stride[1], dW, mask=MASK_H)
 
 
-@custom_op(
-    f"{LIBRARY_NAME}::fused_residual_add_rmsnorm_backward_triton",
-    mutates_args={"x_grad", "residual_grad", "weight_grad"},
-)
+@custom_op(f"{LIBRARY_NAME}::fused_residual_add_rmsnorm_backward_triton", mutates_args={"dx", "dr", "dW"})
 def fused_residual_add_rmsnorm_backward_triton(
-    added_x_residual: torch.Tensor,
-    weight: torch.Tensor | None,
-    output_grad: torch.Tensor,
-    added_x_residual_grad: torch.Tensor | None,
-    rmsnorm_denominator: torch.Tensor | None,
-    x_grad: torch.Tensor,
-    residual_grad: torch.Tensor | None,
-    weight_grad: torch.Tensor | None,
+    xr: torch.Tensor,
+    W: torch.Tensor | None,
+    dy: torch.Tensor,
+    dxr: torch.Tensor | None,
+    s: torch.Tensor | None,
+    dx: torch.Tensor,
+    dr: torch.Tensor | None,
+    dW: torch.Tensor | None,
     eps: float,
     multiplier: float | None,
     deterministic: bool,
 ) -> None:
-    B, H = get_num_elements_and_hidden_size(added_x_residual)
+    B, H = get_num_elements_and_hidden_size(xr)
 
     BLOCK_SIZE_B = 1
     BLOCK_SIZE_H = get_next_power_of_2(H)
     assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
     NUM_WARPS = 8
 
-    sm_count = get_sm_count(added_x_residual.device)
+    sm_count = get_sm_count(xr.device)
     NUM_BLOCKS = min(sm_count, ceil_divide(B, BLOCK_SIZE_B))
 
-    with torch.device(added_x_residual.device):
+    with torch.device(xr.device):
         fused_residual_add_rmsnorm_backward_triton_kernel[NUM_BLOCKS,](
-            xr_ptr=added_x_residual,
-            xr_stride=None if added_x_residual is None else added_x_residual.stride(),
-            W_ptr=weight,
-            W_stride=None if weight is None else weight.stride(),
-            dy_ptr=output_grad,
-            dy_stride=output_grad.stride(),
-            dxr_ptr=added_x_residual_grad,
-            dxr_stride=None if added_x_residual_grad is None else added_x_residual_grad.stride(),
-            dx_ptr=x_grad,
-            dx_stride=x_grad.stride(),
-            dr_ptr=residual_grad,
-            dr_stride=None if residual_grad is None else residual_grad.stride(),
-            dW_ptr=weight_grad,
-            dW_stride=None if weight_grad is None else weight_grad.stride(),
-            s_ptr=rmsnorm_denominator,
-            s_stride=None if rmsnorm_denominator is None else rmsnorm_denominator.stride(),
+            xr_ptr=xr,
+            xr_stride=None if xr is None else xr.stride(),
+            W_ptr=W,
+            W_stride=None if W is None else W.stride(),
+            dy_ptr=dy,
+            dy_stride=dy.stride(),
+            dxr_ptr=dxr,
+            dxr_stride=None if dxr is None else dxr.stride(),
+            dx_ptr=dx,
+            dx_stride=dx.stride(),
+            dr_ptr=dr,
+            dr_stride=None if dr is None else dr.stride(),
+            dW_ptr=dW,
+            dW_stride=None if dW is None else dW.stride(),
+            s_ptr=s,
+            s_stride=None if s is None else s.stride(),
             eps=eps,
             multiplier=multiplier,
             B=B,

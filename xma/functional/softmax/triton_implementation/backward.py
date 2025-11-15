@@ -77,23 +77,23 @@ def softmax_backward_triton_kernel(
         dx_ptrs += BLOCK_SIZE_H * dx_stride[1]
 
 
-@custom_op(f"{LIBRARY_NAME}::softmax_backward_triton", mutates_args={"x_grad"})
+@custom_op(f"{LIBRARY_NAME}::softmax_backward_triton", mutates_args={"dx"})
 def softmax_backward_triton(
-    output: torch.Tensor, output_grad: torch.Tensor, x_grad: torch.Tensor, logits_multiplier: float | None
+    y: torch.Tensor, dy: torch.Tensor, dx: torch.Tensor, logits_multiplier: float | None
 ) -> None:
-    B, H = get_num_elements_and_hidden_size(x_grad)
+    B, H = get_num_elements_and_hidden_size(dx)
 
     BLOCK_SIZE_B = 1
-    BLOCK_SIZE_H = min(get_next_power_of_2(H), 4096 if output.dtype == torch.float32 else 8192)
+    BLOCK_SIZE_H = min(get_next_power_of_2(H), 4096 if y.dtype == torch.float32 else 8192)
 
-    with torch.device(x_grad.device):
+    with torch.device(dx.device):
         softmax_backward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](
-            y_ptr=output,
-            y_stride=output.stride(),
-            dy_ptr=output_grad,
-            dy_stride=output_grad.stride(),
-            dx_ptr=x_grad,
-            dx_stride=x_grad.stride(),
+            y_ptr=y,
+            y_stride=y.stride(),
+            dy_ptr=dy,
+            dy_stride=dy.stride(),
+            dx_ptr=dx,
+            dx_stride=dx.stride(),
             logits_multiplier=logits_multiplier,
             B=B,
             H=H,

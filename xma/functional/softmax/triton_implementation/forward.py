@@ -83,8 +83,8 @@ def softmax_forward_triton_kernel(
         y_ptrs += BLOCK_SIZE_H * y_stride[1]
 
 
-@custom_op(f"{LIBRARY_NAME}::softmax_forward_triton", mutates_args={"output"})
-def softmax_forward_triton(x: torch.Tensor, output: torch.Tensor, logits_multiplier: float | None) -> None:
+@custom_op(f"{LIBRARY_NAME}::softmax_forward_triton", mutates_args={"y"})
+def softmax_forward_triton(x: torch.Tensor, y: torch.Tensor, logits_multiplier: float | None) -> None:
     if x.dim() == 1:
         B = 1
         H = x.size(-1)
@@ -98,8 +98,8 @@ def softmax_forward_triton(x: torch.Tensor, output: torch.Tensor, logits_multipl
         softmax_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](
             x_ptr=x,
             x_stride=x.stride(),
-            y_ptr=output,
-            y_stride=output.stride(),
+            y_ptr=y,
+            y_stride=y.stride(),
             logits_multiplier=logits_multiplier,
             B=B,
             H=H,

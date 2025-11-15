@@ -178,21 +178,19 @@ def gru_forward_triton_kernel(
             start += 1
 
 
-@custom_op(
-    f"{LIBRARY_NAME}::gru_forward_triton", mutates_args={"forget_gate", "reset_gate", "output_update", "output"}
-)
+@custom_op(f"{LIBRARY_NAME}::gru_forward_triton", mutates_args={"f", "r", "z", "y"})
 def gru_forward_triton(
-    input: torch.Tensor,
-    weight: torch.Tensor,
-    forget_input: torch.Tensor,
-    forget_weight: torch.Tensor,
-    forget_gate: torch.Tensor | None,
-    reset_input: torch.Tensor,
-    reset_weight: torch.Tensor,
-    reset_gate: torch.Tensor | None,
-    output_update: torch.Tensor | None,
-    input_state: torch.Tensor | None,
-    output: torch.Tensor,
+    x: torch.Tensor,
+    W: torch.Tensor,
+    xf: torch.Tensor,
+    Wf: torch.Tensor,
+    f: torch.Tensor | None,
+    xr: torch.Tensor,
+    Wr: torch.Tensor,
+    r: torch.Tensor | None,
+    z: torch.Tensor | None,
+    h0: torch.Tensor | None,
+    y: torch.Tensor,
     cu_seqlens: torch.Tensor | None,
     max_seqlen_tensor: torch.Tensor | None,
     max_seqlen: int | None,
@@ -201,11 +199,11 @@ def gru_forward_triton(
         assert max_seqlen is None
         assert max_seqlen_tensor is None
 
-        B, S, N, H = input.size()
+        B, S, N, H = x.size()
     else:
         B = cu_seqlens.size(0) - 1
         S = None
-        _, N, H = input.size()
+        _, N, H = x.size()
 
     is_max_seqlen_tensor = max_seqlen_tensor is not None
 
@@ -213,30 +211,30 @@ def gru_forward_triton(
     BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
     GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), N)
 
-    with torch.device(input.device):
+    with torch.device(x.device):
         gru_forward_triton_kernel[GRID](
-            x_ptr=input,
-            x_stride=input.stride(),
-            xf_ptr=forget_input,
-            xf_stride=forget_input.stride(),
-            xr_ptr=reset_input,
-            xr_stride=reset_input.stride(),
-            W_ptr=weight,
-            W_stride=weight.stride(),
-            Wf_ptr=forget_weight,
-            Wf_stride=forget_weight.stride(),
-            Wr_ptr=reset_weight,
-            Wr_stride=reset_weight.stride(),
-            z_ptr=output_update,
-            z_stride=None if output_update is None else output_update.stride(),
-            f_ptr=forget_gate,
-            f_stride=None if forget_gate is None else forget_gate.stride(),
-            r_ptr=reset_gate,
-            r_stride=None if reset_gate is None else reset_gate.stride(),
-            h0_ptr=input_state,
-            h0_stride=None if input_state is None else input_state.stride(),
-            y_ptr=output,
-            y_stride=output.stride(),
+            x_ptr=x,
+            x_stride=x.stride(),
+            xf_ptr=xf,
+            xf_stride=xf.stride(),
+            xr_ptr=xr,
+            xr_stride=xr.stride(),
+            W_ptr=W,
+            W_stride=W.stride(),
+            Wf_ptr=Wf,
+            Wf_stride=Wf.stride(),
+            Wr_ptr=Wr,
+            Wr_stride=Wr.stride(),
+            z_ptr=z,
+            z_stride=None if z is None else z.stride(),
+            f_ptr=f,
+            f_stride=None if f is None else f.stride(),
+            r_ptr=r,
+            r_stride=None if r is None else r.stride(),
+            h0_ptr=h0,
+            h0_stride=None if h0 is None else h0.stride(),
+            y_ptr=y,
+            y_stride=y.stride(),
             cu_seqlens_ptr=cu_seqlens,
             cu_seqlens_stride=None if cu_seqlens is None else cu_seqlens.stride(),
             IS_MAX_SEQLEN_TENSOR=is_max_seqlen_tensor,

@@ -21,62 +21,62 @@ if is_triton_available():
 
 class _Swiglu(CustomOp):
     @staticmethod
-    def forward_backward_torch(gate: torch.Tensor, up: torch.Tensor) -> torch.Tensor:
-        dtype = gate.dtype
+    def forward_backward_torch(g: torch.Tensor, u: torch.Tensor) -> torch.Tensor:
+        dtype = g.dtype
 
-        gate = gate.float()
-        up = up.float()
+        g = g.float()
+        u = u.float()
 
-        output = up * F.silu(gate)
-        output = output.to(dtype)
+        y = u * F.silu(g)
+        y = y.to(dtype)
 
-        return output
-
-    @staticmethod
-    @ensure_contiguous
-    def forward_cuda(ctx, gate: torch.Tensor, up: torch.Tensor) -> torch.Tensor:
-        output = empty_like_contiguous(gate)
-        swiglu_forward_cuda(gate=gate.flatten(0, -2), up=up.flatten(0, -2), output=output.flatten(0, -2))
-
-        ctx_save_for_backward(ctx, gate, up)
-
-        return output
+        return y
 
     @staticmethod
     @ensure_contiguous
-    def backward_cuda(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        gate, up = ctx.saved_tensors
-        gate_grad = empty_like_contiguous(gate)
-        up_grad = empty_like_contiguous(up)
+    def forward_cuda(ctx, g: torch.Tensor, u: torch.Tensor) -> torch.Tensor:
+        y = empty_like_contiguous(g)
+        swiglu_forward_cuda(g=g.flatten(0, -2), u=u.flatten(0, -2), y=y.flatten(0, -2))
+
+        ctx_save_for_backward(ctx, g, u)
+
+        return y
+
+    @staticmethod
+    @ensure_contiguous
+    def backward_cuda(ctx, dy: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        g, u = ctx.saved_tensors
+        dg = empty_like_contiguous(g)
+        du = empty_like_contiguous(u)
 
         swiglu_backward_cuda(
-            gate=gate.flatten(0, -2),
-            up=up.flatten(0, -2),
-            output_grad=output_grad.flatten(0, -2),
-            gate_grad=gate_grad.flatten(0, -2),
-            up_grad=up_grad.flatten(0, -2),
+            g=g.flatten(0, -2),
+            u=u.flatten(0, -2),
+            dy=dy.flatten(0, -2),
+            dg=dg.flatten(0, -2),
+            du=du.flatten(0, -2),
         )
 
-        return gate_grad, up_grad
+        return dg, du
 
     @staticmethod
-    def forward_triton(ctx, gate: torch.Tensor, up: torch.Tensor) -> torch.Tensor:
-        output = empty_like_contiguous(gate)
-        swiglu_forward_triton(gate=gate, up=up, output=output)
+    def forward_triton(ctx, g: torch.Tensor, u: torch.Tensor) -> torch.Tensor:
+        y = empty_like_contiguous(g)
+        swiglu_forward_triton(g=g, u=u, y=y)
 
-        ctx_save_for_backward(ctx, gate, up)
+        ctx_save_for_backward(ctx, g, u)
 
-        return output
+        return y
 
     @staticmethod
-    def backward_triton(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        gate, up = ctx.saved_tensors
-        gate_grad = empty_like_contiguous(gate)
-        up_grad = empty_like_contiguous(up)
+    def backward_triton(ctx, dy: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        g, u = ctx.saved_tensors
+        dg = empty_like_contiguous(g)
+        du = empty_like_contiguous(u)
 
-        swiglu_backward_triton(gate=gate, up=up, output_grad=output_grad, gate_grad=gate_grad, up_grad=up_grad)
+        swiglu_backward_triton(g=g, u=u, dy=dy, dg=dg, du=du)
 
-        return gate_grad, up_grad
+        return dg, du
 
 
 class _SwigluPacked(CustomOp):
@@ -89,47 +89,47 @@ class _SwigluPacked(CustomOp):
     def forward_cuda(ctx, x: torch.Tensor) -> torch.Tensor:
         ctx_save_for_backward(ctx, x)
 
-        output = torch.empty(*x.size()[:-1], divide_if_divisible(x.size(-1), 2), device=x.device, dtype=x.dtype)
-        up, gate = x.chunk(2, dim=-1)
+        y = torch.empty(*x.size()[:-1], divide_if_divisible(x.size(-1), 2), device=x.device, dtype=x.dtype)
+        u, g = x.chunk(2, dim=-1)
 
-        swiglu_forward_cuda(gate=gate, up=up, output=output)
+        swiglu_forward_cuda(g=g, u=u, y=y)
 
-        return output
+        return y
 
     @staticmethod
-    def backward_cuda(ctx, output_grad: torch.Tensor) -> torch.Tensor:
+    def backward_cuda(ctx, dy: torch.Tensor) -> torch.Tensor:
         x = ctx.saved_tensors[0]
-        x_grad = empty_like_contiguous(x)
+        dx = empty_like_contiguous(x)
 
-        up, gate = x.chunk(2, dim=-1)
-        up_grad, gate_grad = x_grad.chunk(2, dim=-1)
+        u, g = x.chunk(2, dim=-1)
+        du, dg = dx.chunk(2, dim=-1)
 
-        swiglu_backward_cuda(gate=gate, up=up, output_grad=output_grad, gate_grad=gate_grad, up_grad=up_grad)
+        swiglu_backward_cuda(g=g, u=u, dy=dy, dg=dg, du=du)
 
-        return x_grad
+        return dx
 
     @staticmethod
     def forward_triton(ctx, x: torch.Tensor) -> torch.Tensor:
         ctx_save_for_backward(ctx, x)
 
-        output = torch.empty(*x.size()[:-1], divide_if_divisible(x.size(-1), 2), device=x.device, dtype=x.dtype)
-        up, gate = x.chunk(2, dim=-1)
+        y = torch.empty(*x.size()[:-1], divide_if_divisible(x.size(-1), 2), device=x.device, dtype=x.dtype)
+        u, g = x.chunk(2, dim=-1)
 
-        swiglu_forward_triton(gate=gate, up=up, output=output)
+        swiglu_forward_triton(g=g, u=u, y=y)
 
-        return output
+        return y
 
     @staticmethod
-    def backward_triton(ctx, output_grad: torch.Tensor) -> torch.Tensor:
+    def backward_triton(ctx, dy: torch.Tensor) -> torch.Tensor:
         x = ctx.saved_tensors[0]
-        x_grad = empty_like_contiguous(x)
+        dx = empty_like_contiguous(x)
 
-        up, gate = x.chunk(2, dim=-1)
-        up_grad, gate_grad = x_grad.chunk(2, dim=-1)
+        u, g = x.chunk(2, dim=-1)
+        du, dg = dx.chunk(2, dim=-1)
 
-        swiglu_backward_triton(gate=gate, up=up, output_grad=output_grad, gate_grad=gate_grad, up_grad=up_grad)
+        swiglu_backward_triton(g=g, u=u, dy=dy, dg=dg, du=du)
 
-        return x_grad
+        return dx
 
 
 def swiglu(gate: torch.Tensor, up: torch.Tensor, *, kernel_backend: KernelBackend | None = None) -> torch.Tensor:
@@ -146,7 +146,7 @@ def swiglu(gate: torch.Tensor, up: torch.Tensor, *, kernel_backend: KernelBacken
     assert gate.size() == up.size(), "tensors gate and up should have same shape"
     assert gate.type() == up.type(), "tensors gate and up should have same dtype"
 
-    return _Swiglu.run(gate=gate, up=up, kernel_backend=kernel_backend)
+    return _Swiglu.run(g=gate, u=up, kernel_backend=kernel_backend)
 
 
 def swiglu_packed(x: torch.Tensor, *, kernel_backend: KernelBackend | None = None) -> torch.Tensor:
