@@ -116,7 +116,7 @@ class _FusedResidualAddRMSNorm(CustomOp):
         )
 
         if dW is not None:
-            dW = dW.sum(0) if deterministic else dW.type_as(weight)
+            dW = dW.sum(0) if deterministic else dW.type_as(W)
 
         return dx, dr, dW, *[None] * 4
 
