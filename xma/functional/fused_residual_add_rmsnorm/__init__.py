@@ -27,8 +27,8 @@ class _FusedResidualAddRMSNorm(CustomOp):
     @staticmethod
     def forward_backward_torch(
         x: torch.Tensor,
-        residual: torch.Tensor | None,
-        weight: torch.Tensor | None,
+        r: torch.Tensor | None,
+        W: torch.Tensor | None,
         eps: float | None,
         multiplier: float | None,
         memory_efficient: bool,
@@ -37,20 +37,20 @@ class _FusedResidualAddRMSNorm(CustomOp):
         if multiplier not in [None, 1]:
             x = x * multiplier
 
-        if residual is not None:
-            x = x + residual
-            residual = x
+        if r is not None:
+            x = x + r
+            r = x
 
-        x = F.rms_norm(x, normalized_shape=(x.size(-1),), weight=weight, eps=eps)
+        x = F.rms_norm(x, normalized_shape=(x.size(-1),), weight=W, eps=eps)
 
-        return x, residual
+        return x, r
 
     @staticmethod
     def forward_triton(
         ctx,
         x: torch.Tensor,
-        residual: torch.Tensor | None,
-        weight: torch.Tensor | None,
+        r: torch.Tensor | None,
+        W: torch.Tensor | None,
         eps: float | None,
         multiplier: float | None,
         memory_efficient: bool,
@@ -60,79 +60,65 @@ class _FusedResidualAddRMSNorm(CustomOp):
             eps = torch.finfo(x.dtype).eps
 
         B, _ = get_num_elements_and_hidden_size(x)
-        has_residual = residual is not None
+        has_residual = r is not None
 
-        output = empty_like_contiguous(x)
-        added_x_residual = empty_like_contiguous(x) if has_residual else None
+        y = empty_like_contiguous(x)
+        xr = empty_like_contiguous(x) if has_residual else None
 
-        rmsnorm_denominator = None
+        rstd = None
         if ctx_needs_gradients(ctx) and not memory_efficient:
-            rmsnorm_denominator = torch.empty(B, device=x.device, dtype=torch.float32)
+            rstd = torch.empty(B, device=x.device, dtype=torch.float32)
 
-        fused_residual_add_rmsnorm_forward_triton(
-            x=x,
-            residual=residual,
-            weight=weight,
-            output=output,
-            eps=eps,
-            multiplier=multiplier,
-            added_x_residual=added_x_residual,
-            rmsnorm_denominator=rmsnorm_denominator,
-        )
+        fused_residual_add_rmsnorm_forward_triton(x=x, r=r, W=W, y=y, eps=eps, multiplier=multiplier, xr=xr, rstd=rstd)
 
-        ctx_save_for_backward(ctx, added_x_residual if has_residual else x, weight, rmsnorm_denominator)
+        ctx_save_for_backward(ctx, xr if has_residual else x, W, rstd)
         ctx.eps = eps
         ctx.has_residual = has_residual
         ctx.multiplier = multiplier
         ctx.deterministic = deterministic
 
-        return output, added_x_residual
+        return y, xr
 
     @staticmethod
     def backward_triton(
-        ctx, output_grad: torch.Tensor, added_x_residual_grad: torch.Tensor
+        ctx, dy: torch.Tensor, dxr: torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor | None, torch.Tensor | None, None, None, None, None]:
         has_residual = ctx.has_residual
         deterministic = ctx.deterministic
 
-        added_x_residual, weight, rmsnorm_denominator = ctx.saved_tensors
-        x_grad = empty_like_contiguous(added_x_residual)
-        residual_grad = empty_like_contiguous(added_x_residual) if has_residual else None
+        xr, W, rstd = ctx.saved_tensors
+        dx = empty_like_contiguous(xr)
+        dr = empty_like_contiguous(xr) if has_residual else None
 
-        if weight is not None:
+        if W is not None:
             if deterministic:
-                weight_grad = torch.empty(
-                    get_sm_count(x_grad.device), *weight.size(), dtype=weight.dtype, device=weight.device
-                )
+                dW = torch.empty(get_sm_count(dx.device), *W.size(), dtype=W.dtype, device=W.device)
             else:
-                weight_grad = zeros_like_contiguous(weight, dtype=torch.float32)
+                dW = zeros_like_contiguous(W, dtype=torch.float32)
         else:
-            weight_grad = None
+            dW = None
 
         if not has_residual:
-            assert added_x_residual_grad is None
+            assert dxr is None
 
         fused_residual_add_rmsnorm_backward_triton(
-            added_x_residual=added_x_residual,
-            weight=weight,
-            output_grad=output_grad,
-            added_x_residual_grad=added_x_residual_grad,
-            rmsnorm_denominator=rmsnorm_denominator,
-            x_grad=x_grad,
-            residual_grad=residual_grad,
-            weight_grad=weight_grad,
+            xr=xr,
+            W=W,
+            dy=dy,
+            dxr=dxr,
+            rstd=rstd,
+            dx=dx,
+            dr=dr,
+            dW=dW,
             eps=ctx.eps,
             multiplier=ctx.multiplier,
             deterministic=deterministic,
         )
 
-        if weight_grad is not None:
-            if deterministic:
-                weight_grad = weight_grad.sum(0)
-            else:
-                weight_grad = weight_grad.type_as(weight)
+        if dW is not None:
+            dW = dW.sum(0) if deterministic else dW.type_as(weight)
 
-        return x_grad, residual_grad, weight_grad, *[None] * 4
+        return dx, dr, dW, *[None] * 4
 
 
 def fused_residual_add_rmsnorm(
