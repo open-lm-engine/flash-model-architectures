@@ -163,8 +163,8 @@ def fused_residual_add_rmsnorm(
 
     x, residual = _FusedResidualAddRMSNorm.run(
         x=x,
-        residual=residual,
-        weight=weight,
+        r=residual,
+        W=weight,
         eps=eps,
         multiplier=multiplier,
         memory_efficient=memory_efficient,
