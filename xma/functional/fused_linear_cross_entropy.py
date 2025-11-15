@@ -127,7 +127,7 @@ def fused_linear_cross_entropy(
         W=weight,
         y=labels,
         reduction=reduction,
-        M=logits_multiplier,
+        logits_multiplier=logits_multiplier,
         kernel_backend=kernel_backend,
     )
 
