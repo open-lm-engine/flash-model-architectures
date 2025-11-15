@@ -24,7 +24,7 @@ class _RNN(CustomOp):
     def forward_backward_torch(
         x: torch.Tensor,
         W: torch.Tensor,
-        h: torch.Tensor | None,
+        h0: torch.Tensor | None,
         gradient_clipping: float | None,
         cu_seqlens: torch.Tensor | None,
         max_seqlen: torch.Tensor | int | None,
