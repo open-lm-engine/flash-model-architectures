@@ -110,7 +110,7 @@ def fused_residual_add_rmsnorm_backward_triton_kernel(
 
 @custom_op(
     f"{LIBRARY_NAME}::fused_residual_add_rmsnorm_backward_triton",
-    mutates_args={"x_grad", "residual_grad", "weight_grad"},
+    mutates_args={"dx", "dr", "dW"},
 )
 def fused_residual_add_rmsnorm_backward_triton(
     xr: torch.Tensor,
