@@ -44,20 +44,20 @@ class _Swiglu(CustomOp):
 
     @staticmethod
     @ensure_contiguous
-    def backward_cuda(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        gate, up = ctx.saved_tensors
-        gate_grad = empty_like_contiguous(gate)
-        up_grad = empty_like_contiguous(up)
+    def backward_cuda(ctx, dy: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        g, u = ctx.saved_tensors
+        dg = empty_like_contiguous(g)
+        du = empty_like_contiguous(u)
 
         swiglu_backward_cuda(
-            gate=gate.flatten(0, -2),
-            up=up.flatten(0, -2),
-            output_grad=output_grad.flatten(0, -2),
-            gate_grad=gate_grad.flatten(0, -2),
-            up_grad=up_grad.flatten(0, -2),
+            g=g.flatten(0, -2),
+            u=u.flatten(0, -2),
+            dy=dy.flatten(0, -2),
+            dg=dg.flatten(0, -2),
+            du=du.flatten(0, -2),
         )
 
-        return gate_grad, up_grad
+        return dg, du
 
     @staticmethod
     def forward_triton(ctx, g: torch.Tensor, u: torch.Tensor) -> torch.Tensor:
@@ -69,14 +69,14 @@ class _Swiglu(CustomOp):
         return y
 
     @staticmethod
-    def backward_triton(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        gate, up = ctx.saved_tensors
-        gate_grad = empty_like_contiguous(gate)
-        up_grad = empty_like_contiguous(up)
+    def backward_triton(ctx, dy: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        g, u = ctx.saved_tensors
+        dg = empty_like_contiguous(g)
+        du = empty_like_contiguous(u)
 
-        swiglu_backward_triton(gate=gate, up=up, output_grad=output_grad, gate_grad=gate_grad, up_grad=up_grad)
+        swiglu_backward_triton(g=g, u=u, dy=dy, dg=dg, du=du)
 
-        return gate_grad, up_grad
+        return dg, du
 
 
 class _SwigluPacked(CustomOp):
