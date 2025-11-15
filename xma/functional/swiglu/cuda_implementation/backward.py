@@ -125,7 +125,7 @@ def swiglu_backward_cuda_jit(
     kernel.launch(grid=(NUM_BLOCKS, 1, 1), block=(BLOCK_SIZE, 1, 1))
 
 
-@custom_op(f"{LIBRARY_NAME}::swiglu_backward_cuda", mutates_args={"gate_grad", "up_grad"})
+@custom_op(f"{LIBRARY_NAME}::swiglu_backward_cuda", mutates_args={"dg", "du"})
 def swiglu_backward_cuda(
     gate: torch.Tensor, up: torch.Tensor, output_grad: torch.Tensor, gate_grad: torch.Tensor, up_grad: torch.Tensor
 ) -> None:
