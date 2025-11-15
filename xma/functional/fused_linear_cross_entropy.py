@@ -19,19 +19,13 @@ if is_triton_available():
 class _FusedLinearCrossEntropy(CustomOp):
     def forward_backward_torch(
         x: torch.Tensor,
-        weight: torch.Tensor,
-        labels: torch.Tensor,
+        W: torch.Tensor,
+        y: torch.Tensor,
         reduction: str,
-        logits_multiplier: float | None,
+        M: float | None,
     ) -> torch.Tensor:
-        x = F.linear(x, weight)
-        x = cross_entropy(
-            x=x,
-            labels=labels,
-            reduction=reduction,
-            logits_multiplier=logits_multiplier,
-            kernel_backend=KernelBackend.torch,
-        )
+        x = F.linear(x, W)
+        x = cross_entropy(x=x, labels=y, reduction=reduction, logits_multiplier=M, kernel_backend=KernelBackend.torch)
 
         return x
 
@@ -39,13 +33,13 @@ class _FusedLinearCrossEntropy(CustomOp):
     def forward_triton(
         ctx,
         x: torch.Tensor,
-        weight: torch.Tensor,
-        labels: torch.Tensor,
+        W: torch.Tensor,
+        y: torch.Tensor,
         reduction: str,
-        logits_multiplier: float | None,
+        M: float | None,
     ) -> torch.Tensor:
         B, H = x.size()
-        V = weight.size(0)
+        V = W.size(0)
 
         # NOTE chunking is copied from liger kernel
         memory_increase_factor = ceil_divide(V, H)
@@ -53,11 +47,11 @@ class _FusedLinearCrossEntropy(CustomOp):
         chunk_size = get_next_power_of_2(ceil_divide(B, memory_increase_factor))
         num_chunks = ceil_divide(B, chunk_size)
 
-        loss = torch.zeros((), device=x.device, dtype=torch.float32)
+        l = torch.zeros((), device=x.device, dtype=torch.float32)
 
         needs_grad = ctx_needs_gradients(ctx)
-        x_grad = empty_like_contiguous(x) if needs_grad else None
-        weight_grad = zeros_like_contiguous(weight) if needs_grad else None
+        dx = empty_like_contiguous(x) if needs_grad else None
+        dW = zeros_like_contiguous() if needs_grad else None
 
         for i in range(num_chunks):
             start = i * chunk_size
@@ -65,41 +59,36 @@ class _FusedLinearCrossEntropy(CustomOp):
             end = min(end, B)
 
             _x = x[start:end]
-            _logits = _x @ weight.T
+            _h = _x @ W.T
 
-            _logits_grad = empty_like_contiguous(_logits)
-            _labels = labels[start:end]
+            _dh = empty_like_contiguous(_h)
+            _y = y[start:end]
 
             cross_entropy_forward_backward_triton(
-                x=_logits,
-                labels=_labels,
-                loss=loss,
-                x_grad=_logits_grad,
-                logits_multiplier=logits_multiplier,
-                reduction="sum",
+                x=_h, labels=_y, loss=l, x_grad=_dh, logits_multiplier=M, reduction="sum"
             )
 
             if needs_grad:
-                x_grad[start:end] = _logits_grad @ weight
-                torch.addmm(weight_grad, _logits_grad.T, _x, alpha=1, beta=1, out=weight_grad)
+                dx[start:end] = _dh @ W
+                torch.addmm(dW, _dh.T, _x, alpha=1, beta=1, out=weight_grad)
 
         if reduction == "mean":
-            loss /= B
+            l /= B
             x_grad /= B
             weight_grad /= B
 
         ctx_save_for_backward(ctx, x_grad, weight_grad)
 
-        return loss
+        return l
 
     @staticmethod
-    def backward_triton(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor | None, None, None, None]:
-        x_grad, weight_grad = ctx.saved_tensors
+    def backward_triton(ctx, dl: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor | None, None, None, None]:
+        dx, dW = ctx.saved_tensors
 
-        x_grad *= output_grad
-        weight_grad *= output_grad
+        dx *= dl
+        dW *= dl
 
-        return x_grad, weight_grad, None, None, None
+        return dx, dW, None, None, None
 
 
 def fused_linear_cross_entropy(
@@ -133,10 +122,10 @@ def fused_linear_cross_entropy(
 
     x = _FusedLinearCrossEntropy.run(
         x=x,
-        weight=weight,
-        labels=labels,
+        W=weight,
+        y=labels,
         reduction=reduction,
-        logits_multiplier=logits_multiplier,
+        M=logits_multiplier,
         kernel_backend=kernel_backend,
     )
 
