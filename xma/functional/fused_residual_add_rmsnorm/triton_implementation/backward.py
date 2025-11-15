@@ -108,10 +108,7 @@ def fused_residual_add_rmsnorm_backward_triton_kernel(
             tl.store(dW_ptr + BLOCK_ID * dW_stride[0] + BLOCK_H * dW_stride[1], dW, mask=MASK_H)
 
 
-@custom_op(
-    f"{LIBRARY_NAME}::fused_residual_add_rmsnorm_backward_triton",
-    mutates_args={"dx", "dr", "dW"},
-)
+@custom_op(f"{LIBRARY_NAME}::fused_residual_add_rmsnorm_backward_triton", mutates_args={"dx", "dr", "dW"})
 def fused_residual_add_rmsnorm_backward_triton(
     xr: torch.Tensor,
     W: torch.Tensor | None,
