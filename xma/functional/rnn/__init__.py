@@ -213,7 +213,7 @@ def rnn(
     input = _RNN.run(
         x=input,
         W=weight,
-        h=input_state,
+        h0=input_state,
         gradient_clipping=gradient_clipping,
         cu_seqlens=cu_seqlens,
         max_seqlen=max_seqlen,
