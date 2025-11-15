@@ -127,20 +127,18 @@ def swiglu_backward_cuda_jit(
 
 @custom_op(f"{LIBRARY_NAME}::swiglu_backward_cuda", mutates_args={"dg", "du"})
 def swiglu_backward_cuda(
-    gate: torch.Tensor, up: torch.Tensor, output_grad: torch.Tensor, gate_grad: torch.Tensor, up_grad: torch.Tensor
+    g: torch.Tensor, u: torch.Tensor, dy: torch.Tensor, dg: torch.Tensor, du: torch.Tensor
 ) -> None:
-    gate, up, output_grad, gate_grad, up_grad = [
-        torch_tensor_to_cute_tensor(i, leading_dim=1) for i in (gate, up, output_grad, gate_grad, up_grad)
-    ]
+    g, u, dy, dg, du = [torch_tensor_to_cute_tensor(i, leading_dim=1) for i in (g, u, dy, dg, du)]
 
-    key = gate.element_type
+    key = g.element_type
     function = swiglu_backward_cuda.cache.get(key, None)
 
     if function is None:
-        function = cute.compile(swiglu_backward_cuda_jit, gate, up, output_grad, gate_grad, up_grad)
+        function = cute.compile(swiglu_backward_cuda_jit, g, u, dy, dg, du)
         swiglu_backward_cuda.cache[key] = function
 
-    function(gate, up, output_grad, gate_grad, up_grad)
+    function(g, u, dy, dg, du)
 
 
 swiglu_backward_cuda.cache = {}
