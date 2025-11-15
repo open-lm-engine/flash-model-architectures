@@ -97,7 +97,7 @@ class _SwigluPacked(CustomOp):
         return y
 
     @staticmethod
-    def backward_cuda(ctx, output_grad: torch.Tensor) -> torch.Tensor:
+    def backward_cuda(ctx, dy: torch.Tensor) -> torch.Tensor:
         x = ctx.saved_tensors[0]
         dx = empty_like_contiguous(x)
 
