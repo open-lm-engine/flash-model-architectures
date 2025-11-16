@@ -4,7 +4,7 @@
 
 import torch
 
-from ...enums import KernelBackend
+from ...kernel_backend import KernelBackend
 from .cuda_implementation import continuous_count_cuda
 
 
@@ -31,7 +31,7 @@ def continuous_count(x: torch.Tensor, bins: int, *, kernel_backend: KernelBacken
     if kernel_backend is None:
         kernel_backend = KernelBackend.get_kernel_backend_from_device(x)
     else:
-        KernelBackend.verify_kernel_backend(kernel_backend)
+        kernel_backend.verify_kernel_backend()
 
     if kernel_backend == KernelBackend.torch:
         output = x.bincount(minlength=bins).to(torch.uint32)

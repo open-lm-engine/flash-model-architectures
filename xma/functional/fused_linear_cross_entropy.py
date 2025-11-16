@@ -6,7 +6,7 @@ import torch
 import torch.nn.functional as F
 
 from ..custom_op import CustomOp, ctx_needs_gradients, ctx_save_for_backward
-from ..enums import KernelBackend
+from ..kernel_backend import KernelBackend
 from ..math import ceil_divide, get_next_power_of_2
 from ..utils import empty_like_contiguous, is_triton_available, zeros_like_contiguous
 from .cross_entropy import cross_entropy

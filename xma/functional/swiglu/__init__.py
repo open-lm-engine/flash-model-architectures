@@ -6,7 +6,7 @@ import torch
 import torch.nn.functional as F
 
 from ...custom_op import CustomOp, ctx_save_for_backward
-from ...enums import KernelBackend
+from ...kernel_backend import KernelBackend
 from ...math import divide_if_divisible
 from ...utils import empty_like_contiguous, ensure_contiguous, is_cute_dsl_available, is_triton_available
 
