@@ -8,7 +8,13 @@ import torch.nn.functional as F
 from ...custom_op import CustomOp, ctx_save_for_backward
 from ...kernel_backend import KernelBackend
 from ...math import divide_if_divisible
-from ...utils import empty_like_contiguous, ensure_contiguous, is_cute_dsl_available, is_triton_available
+from ...utils import (
+    empty_like_contiguous,
+    ensure_contiguous,
+    is_cute_dsl_available,
+    is_torch_xla_available,
+    is_triton_available,
+)
 
 
 if is_cute_dsl_available():
@@ -17,6 +23,8 @@ if is_cute_dsl_available():
 
 if is_triton_available():
     from .triton_implementation import swiglu_backward_triton, swiglu_forward_triton
+if is_torch_xla_available():
+    from .pallas_implementation import swiglu_forward_pallas
 
 
 class _Swiglu(CustomOp):
@@ -58,6 +66,12 @@ class _Swiglu(CustomOp):
         )
 
         return dg, du
+
+    @staticmethod
+    @ensure_contiguous
+    def forward_pallas(ctx, g: torch.Tensor, u: torch.Tensor) -> torch.Tensor:
+        ctx_save_for_backward(ctx, g, u)
+        return swiglu_forward_pallas(g=g, u=u)
 
     @staticmethod
     def forward_triton(ctx, g: torch.Tensor, u: torch.Tensor) -> torch.Tensor:
