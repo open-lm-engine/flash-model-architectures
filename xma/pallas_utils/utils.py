@@ -13,4 +13,8 @@ def pad_tensor_for_pallas(x: torch.Tensor, padding: tuple[int, int, int, int] = 
         ceil_divide(x.size(-2), padding[-2]) * padding[-2] - x.size(-2),
         ceil_divide(x.size(-1), padding[-1]) * padding[-1] - x.size(-1),
     )
-    return F.pad(x, pad=padding)
+
+    if padding != (0, 0):
+        x = F.pad(x, pad=padding)
+
+    return x
