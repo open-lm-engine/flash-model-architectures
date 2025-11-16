@@ -33,9 +33,10 @@ class ContiguousCountTest(TestCommons):
         function: Callable,
     ) -> None:
         self.skip_if_incompatible_kernel_backend(kernel_backend)
+        device = kernel_backend.get_current_device()
 
         set_seed(_SEED)
-        x = torch.randint(0, _MAX_EXPERTS, (bins,), device=kernel_backend.get_current_device(), dtype=dtype)
+        x = torch.randint(0, _MAX_EXPERTS, (bins,), device=device, dtype=dtype)
 
         z_kernel = function(x=x, bins=_MAX_EXPERTS, kernel_backend=KernelBackend.cuda)
         z_expected = continuous_count(x.view(-1), bins=_MAX_EXPERTS, kernel_backend=KernelBackend.torch)
