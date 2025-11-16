@@ -39,7 +39,7 @@ class KernelBackend(Enum):
         else:
             kernel_backend = KernelBackend.triton
 
-        KernelBackend.verify_kernel_backend(kernel_backend)
+        assert kernel_backend.is_kernel_backend_compatible_with_current_device()
 
         return kernel_backend
 
@@ -48,9 +48,6 @@ class KernelBackend(Enum):
             return torch.cuda.current_device()
         elif self == KernelBackend.pallas:
             return xla_device()
-
-    def verify_kernel_backend(self) -> None:
-        assert self.is_kernel_backend_compatible_with_current_device()
 
     def is_kernel_backend_compatible_with_current_device(self) -> bool:
         if self == KernelBackend.cuda:
