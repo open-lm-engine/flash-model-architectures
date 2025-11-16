@@ -41,7 +41,7 @@ class RNNTest(TestCommons):
         no_grad: bool,
     ) -> None:
         assert kernel_backend.is_kernel_backend_compatible_with_current_device()
-        device = KernelBackend.get_current_device()
+        device = kernel_backend.get_current_device()
 
         set_seed(_SEED)
 
@@ -143,7 +143,7 @@ class RNNTest(TestCommons):
         has_input_state: bool,
     ) -> None:
         assert kernel_backend.is_kernel_backend_compatible_with_current_device()
-        device = KernelBackend.get_current_device()
+        device = kernel_backend.get_current_device()
 
         set_seed(_SEED)
 
@@ -237,7 +237,7 @@ class RNNTest(TestCommons):
         no_grad: bool,
     ) -> None:
         assert kernel_backend.is_kernel_backend_compatible_with_current_device()
-        device = KernelBackend.get_current_device()
+        device = kernel_backend.get_current_device()
 
         set_seed(_SEED)
 
