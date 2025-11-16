@@ -33,7 +33,7 @@ class KernelBackend(Enum):
         else:
             kernel_backend = KernelBackend.triton
 
-        KernelBackend.verify_kernel_backend(kernel_backend)
+        kernel_backend.verify_kernel_backend()
 
         return kernel_backend
 
