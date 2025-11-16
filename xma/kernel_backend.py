@@ -50,15 +50,14 @@ class KernelBackend(Enum):
             return xla_device()
 
     def verify_kernel_backend(self) -> None:
-        assert KernelBackend.is_kernel_backend_compatible_with_current_device(self)
+        assert self.is_kernel_backend_compatible_with_current_device()
 
-    @staticmethod
-    def is_kernel_backend_compatible_with_current_device(kernel_backend: KernelBackend) -> bool:
-        if kernel_backend == KernelBackend.cuda:
+    def is_kernel_backend_compatible_with_current_device(self) -> bool:
+        if self == KernelBackend.cuda:
             return not _IS_ROCM_AVAILABLE and torch.cuda.is_available() and is_cute_dsl_available()
-        elif kernel_backend == KernelBackend.pallas:
+        elif self == KernelBackend.pallas:
             return is_torch_xla_available()
-        elif kernel_backend == KernelBackend.rocm:
+        elif self == KernelBackend.rocm:
             return _IS_ROCM_AVAILABLE and torch.cuda.is_available()
-        elif kernel_backend == KernelBackend.triton:
+        elif self == KernelBackend.triton:
             return torch.cuda.is_available() and is_triton_available()
