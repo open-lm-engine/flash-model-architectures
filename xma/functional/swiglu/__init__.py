@@ -44,7 +44,7 @@ class _Swiglu(CustomOp):
     @ensure_contiguous
     def forward_cuda(ctx, g: torch.Tensor, u: torch.Tensor) -> torch.Tensor:
         y = empty_like_contiguous(g)
-        swiglu_forward_cuda(g=g.flatten(0, -2), u=u.flatten(0, -2), y=y.flatten(0, -2))
+        swiglu_forward_cuda(g=g, u=u, y=y)
 
         ctx_save_for_backward(ctx, g, u)
 
@@ -57,13 +57,7 @@ class _Swiglu(CustomOp):
         dg = empty_like_contiguous(g)
         du = empty_like_contiguous(u)
 
-        swiglu_backward_cuda(
-            g=g.flatten(0, -2),
-            u=u.flatten(0, -2),
-            dy=dy.flatten(0, -2),
-            dg=dg.flatten(0, -2),
-            du=du.flatten(0, -2),
-        )
+        swiglu_backward_cuda(g=g, u=u, dy=dy, dg=dg, du=du)
 
         return dg, du
 
@@ -160,7 +154,14 @@ def swiglu(gate: torch.Tensor, up: torch.Tensor, *, kernel_backend: KernelBacken
     assert gate.size() == up.size(), "tensors gate and up should have same shape"
     assert gate.type() == up.type(), "tensors gate and up should have same dtype"
 
-    return _Swiglu.run(g=gate, u=up, kernel_backend=kernel_backend)
+    original_shape = gate.size()
+    gate = gate.flatten(0, -2)
+    up = up.flatten(0, -2)
+
+    y = _Swiglu.run(g=gate, u=up, kernel_backend=kernel_backend)
+    y = y.view(original_shape)
+
+    return y
 
 
 def swiglu_packed(x: torch.Tensor, *, kernel_backend: KernelBackend | None = None) -> torch.Tensor:
@@ -173,4 +174,10 @@ def swiglu_packed(x: torch.Tensor, *, kernel_backend: KernelBackend | None = Non
         torch.Tensor: output tensor
     """
 
-    return _SwigluPacked.run(x=x, kernel_backend=kernel_backend)
+    original_shape = x.size()
+    x = x.flatten(0, -2)
+
+    y = _SwigluPacked.run(x=x, kernel_backend=kernel_backend)
+    y = y.view(original_shape)
+
+    return y
