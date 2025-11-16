@@ -23,7 +23,7 @@ class RMSNormTest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(
             _get_sizes(),  # size
-            [KernelBackend.cuda],  # KernelBackend
+            [KernelBackend.triton],  # KernelBackend
             [torch.float32, torch.float16],  # dtype
             [True, False],  # memory_efficient
             [True, False],  # has_weight
@@ -32,7 +32,7 @@ class RMSNormTest(TestCommons):
         )
         + TestCommons.make_args_matrix(
             [(400, 77)],  # size
-            [KernelBackend.cuda],  # KernelBackend
+            [KernelBackend.triton],  # KernelBackend
             [torch.float32, torch.float16],  # dtype
             [True, False],  # memory_efficient
             [True, False],  # has_weight
