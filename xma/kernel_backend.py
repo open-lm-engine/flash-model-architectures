@@ -43,11 +43,17 @@ class KernelBackend(Enum):
 
     def get_current_device(self) -> torch.device:
         if self in [KernelBackend.cuda, KernelBackend.rocm, KernelBackend.triton]:
-            return torch.cuda.current_device()
+    def get_current_device(self) -> torch.device:
+        if self in [KernelBackend.cuda, KernelBackend.rocm, KernelBackend.triton]:
+            return torch.device("cuda")
         elif self == KernelBackend.pallas:
             return xla_device()
-
-    def is_kernel_backend_compatible_with_current_device(self) -> bool:
+        elif self == KernelBackend.torch:
+            if torch.cuda.is_available():
+                return torch.device("cuda")
+            if is_torch_xla_available():
+                return xla_device()
+            return torch.device("cpu")
         if self == KernelBackend.cuda:
             return not _IS_ROCM_AVAILABLE and torch.cuda.is_available() and is_cute_dsl_available()
         elif self == KernelBackend.pallas:
