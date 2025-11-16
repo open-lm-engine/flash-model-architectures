@@ -20,7 +20,7 @@ def swiglu_forward_pallas_kernel(g_ref, u_ref, y_ref):
     g = g_ref[...]
     u = u_ref[...]
 
-    y = g + u
+    y = u * g * sigmoid(g)
 
     y_ref[...] = y
 
