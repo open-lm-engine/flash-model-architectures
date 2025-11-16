@@ -21,3 +21,7 @@ dev = [
 cuda = [
     "nvidia-cutlass-dsl>=4.2.1",
 ]
+tpu = [
+    "torch==2.8.0",
+    "torch-xla[pallas,tpu]==2.8.0",
+]
