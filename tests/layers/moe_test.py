@@ -16,7 +16,6 @@ _SEED = 42
 class MoETest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(
-            [torch.device("cuda")],
             TestCommons.get_dtypes(),
             [2, 4, 6, 8],  # num_experts
             [2, 4],  # num_experts_per_tok
@@ -27,7 +26,6 @@ class MoETest(TestCommons):
             [True, False],  # is_compiling
         )
         + TestCommons.make_args_matrix(
-            [torch.device("cuda")],
             TestCommons.get_dtypes(),
             [128],  # num_experts
             [8],  # num_experts_per_tok
@@ -38,7 +36,6 @@ class MoETest(TestCommons):
             [True, False],  # is_compiling
         )
         + TestCommons.make_args_matrix(
-            [torch.device("cuda")],
             [torch.bfloat16],
             [2, 4, 6, 8],  # num_experts
             [2, 4],  # num_experts_per_tok
@@ -49,7 +46,6 @@ class MoETest(TestCommons):
             [False],  # is_compiling
         )
         + TestCommons.make_args_matrix(
-            [torch.device("cuda")],
             [torch.bfloat16],
             [128],  # num_experts
             [8],  # num_experts_per_tok
@@ -62,7 +58,6 @@ class MoETest(TestCommons):
     )
     def test_moe(
         self,
-        device: torch.device,
         dtype: torch.dtype,
         num_experts: int,
         num_experts_per_tok: int,
@@ -72,7 +67,12 @@ class MoETest(TestCommons):
         kernel_backend: KernelBackend,
         is_compiling: bool,
     ) -> None:
-        if kernel_backend == KernelBackend.cuda and torch.cuda.get_device_capability(torch.cuda.current_device()) < (
+        self.skip_if_incompatible_kernel_backend(kernel_backend)
+        device = kernel_backend.get_current_device()
+
+        if kernel_backend == KernelBackend.cuda and torch.cuda.get_device_capability(
+            kernel_backend.get_current_device()
+        ) < (
             10,
             0,
         ):
