@@ -19,7 +19,7 @@ _SEED = 42
 class RNNTest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(
-            [torch.device("cuda")],
+            [KernelBackend.triton],  # KernelBackend
             [torch.float32, torch.float16],
             [4],  # batch_size
             [1024],  # sequence_length
@@ -31,7 +31,7 @@ class RNNTest(TestCommons):
     )
     def test_rnn(
         self,
-        device: torch.device,
+        kernel_backend: KernelBackend,
         dtype: torch.dtype,
         batch_size: int,
         sequence_length: int,
@@ -40,6 +40,9 @@ class RNNTest(TestCommons):
         is_compiling: bool,
         no_grad: bool,
     ) -> None:
+        assert kernel_backend.is_kernel_backend_compatible_with_current_device()
+        device = KernelBackend.get_current_device()
+
         set_seed(_SEED)
 
         context = torch.no_grad if no_grad else nullcontext
@@ -133,12 +136,15 @@ class RNNTest(TestCommons):
     )
     def test_rnn_varlen_torch(
         self,
-        device: torch.device,
+        kernel_backend: KernelBackend,
         dtype: torch.dtype,
         cu_seqlens: list[int],
         snn: tuple[int, int, int],
         has_input_state: bool,
     ) -> None:
+        assert kernel_backend.is_kernel_backend_compatible_with_current_device()
+        device = KernelBackend.get_current_device()
+
         set_seed(_SEED)
 
         batch_size = len(cu_seqlens) - 1
@@ -211,7 +217,7 @@ class RNNTest(TestCommons):
 
     @parameterized.expand(
         TestCommons.make_args_matrix(
-            [torch.device("cuda")],
+            [KernelBackend.triton],
             TestCommons.get_dtypes(),
             [[0, 7, 19, 27, 93]],  # cu_seqlens
             [(64, 4, 8), (64, 8, 4), (63, 7, 7)],  # state_size, num_input_heads, num_weight_heads
@@ -222,7 +228,7 @@ class RNNTest(TestCommons):
     )
     def test_rnn_varlen(
         self,
-        device: torch.device,
+        kernel_backend: KernelBackend,
         dtype: torch.dtype,
         cu_seqlens: list[int],
         snn: tuple[int, int, int],
@@ -230,6 +236,9 @@ class RNNTest(TestCommons):
         is_compiling: bool,
         no_grad: bool,
     ) -> None:
+        assert kernel_backend.is_kernel_backend_compatible_with_current_device()
+        device = KernelBackend.get_current_device()
+
         set_seed(_SEED)
 
         context = torch.no_grad if no_grad else nullcontext
