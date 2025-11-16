@@ -43,7 +43,7 @@ class KernelBackend(Enum):
 
         return kernel_backend
 
-    def get_current_device(self) -> None:
+    def get_current_device(self) -> torch.device:
         if self in [KernelBackend.cuda, KernelBackend.rocm, KernelBackend.triton]:
             return torch.cuda.current_device()
         elif self == KernelBackend.pallas:

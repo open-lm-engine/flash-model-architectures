@@ -152,7 +152,7 @@ class GRUTest(TestCommons):
         assert kernel_backend.is_kernel_backend_compatible_with_current_device()
         device = KernelBackend.get_current_device()
 
-        if device.dtype != "cuda":
+        if device.type != "cuda":
             self.skipTest("test is sufficient for CUDA")
 
         set_seed(_SEED)
