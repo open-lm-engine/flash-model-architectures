@@ -16,7 +16,6 @@ class SwiGLUTest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(
             TestCommons.get_2d_tensor_sizes(),  # size
-            [torch.device("cuda")],  # device
             TestCommons.get_dtypes(),  # dtype
             [KernelBackend.cuda, KernelBackend.triton],  # kernel_backend
             [swiglu, torch.compile(swiglu, fullgraph=True)],  # function
@@ -25,11 +24,13 @@ class SwiGLUTest(TestCommons):
     def test_swiglu(
         self,
         size: tuple[int],
-        device: torch.device,
         dtype: torch.dtype,
         kernel_backend: KernelBackend,
         function: Callable,
     ) -> None:
+        self.skip_if_incompatible_kernel_backend(kernel_backend)
+        device = kernel_backend.get_current_device()
+
         if kernel_backend == KernelBackend.cuda:
             multiple = 16 // dtype.itemsize
             size = (size[0], ceil_divide(size[1], multiple) * multiple)
@@ -51,7 +52,6 @@ class SwiGLUTest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(
             TestCommons.get_2d_tensor_sizes(),  # size
-            [torch.device("cuda")],  # device
             TestCommons.get_dtypes(),  # dtype
             [KernelBackend.cuda, KernelBackend.triton],  # kernel_backend
             [swiglu_packed, torch.compile(swiglu_packed, fullgraph=True)],  # function
@@ -60,11 +60,13 @@ class SwiGLUTest(TestCommons):
     def test_swiglu_packed(
         self,
         size: tuple[int],
-        device: torch.device,
         dtype: torch.dtype,
         kernel_backend: KernelBackend,
         function: Callable,
     ) -> None:
+        self.skip_if_incompatible_kernel_backend(kernel_backend)
+        device = kernel_backend.get_current_device()
+
         multiple = 2
         if kernel_backend == KernelBackend.cuda:
             multiple *= 16 // dtype.itemsize
