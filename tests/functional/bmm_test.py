@@ -22,7 +22,7 @@ class BMMTest(TestCommons):
             [False, True],  # is_A_transposed
             [False, True],  # is_B_transposed
             [False, True],  # has_C
-            [torch.device("cuda")],  # device
+            [KernelBackend.triton],  # kernel_backend
             TestCommons.get_dtypes(),  # dtype
             [bmm, torch.compile(bmm, fullgraph=True)],  # function
         )
@@ -33,10 +33,13 @@ class BMMTest(TestCommons):
         is_A_transposed: bool,
         is_B_transposed: bool,
         has_C: bool,
-        device: torch.device,
+        kernel_backend: KernelBackend,
         dtype: torch.dtype,
         function: Callable,
     ) -> None:
+        if not KernelBackend.is_kernel_backend_compatible_with_current_device(kernel_backend):
+            self.skipTest(f"device incompatible with kernel_backend ({kernel_backend})")
+
         set_seed(_SEED)
 
         std = 0.02
