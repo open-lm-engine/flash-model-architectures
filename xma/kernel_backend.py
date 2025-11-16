@@ -45,10 +45,7 @@ class KernelBackend(Enum):
 
     @staticmethod
     def verify_kernel_backend(kernel_backend: KernelBackend) -> None:
-        if kernel_backend == KernelBackend.cuda:
-            assert is_cute_dsl_available()
-        elif kernel_backend == KernelBackend.triton:
-            assert is_triton_available()
+        assert KernelBackend.is_kernel_backend_compatible_with_current_device(kernel_backend)
 
     @staticmethod
     def is_kernel_backend_compatible_with_current_device(kernel_backend: KernelBackend) -> bool:
