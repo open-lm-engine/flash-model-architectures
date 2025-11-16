@@ -25,5 +25,6 @@ PenaltyBreakString: 1000
 PenaltyBreakTemplateDeclaration: 10
 PenaltyExcessCharacter: 1000000
 PenaltyReturnTypeOnItsOwnLine: 200
+PointerAlignment: Right
 IndentPPDirectives: BeforeHash
 NamespaceIndentation: All

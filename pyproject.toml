@@ -1,0 +1,23 @@
+[project]
+name = "flash-model-architectures"
+version = "0.1.0"
+description = "A library for efficient kernels and model architectures for a bunch of different hardware accelerators."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "ninja>=1.13.0",
+    "numpy>=2.3.4",
+    "pyyaml>=6.0.3",
+    "torch>=2.9.1",
+    "tqdm>=4.67.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "parameterized>=0.9.0",
+    "pre-commit>=4.4.0",
+    "pytest>=9.0.1",
+]
+cuda = [
+    "nvidia-cutlass-dsl>=4.2.1",
+]
