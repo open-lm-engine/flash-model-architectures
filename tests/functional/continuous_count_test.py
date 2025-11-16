@@ -16,11 +16,11 @@ _MAX_EXPERTS = 72
 _SEED = 42
 
 
-class ContiguousCountTest(TestCommons):
+class ContinuousCountTest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(
             TestCommons.get_1d_tensor_sizes(),  # size
-            [KernelBackend.triton],  # device
+            [KernelBackend.cuda],  # device
             [torch.long, torch.int],  # dtype
             [continuous_count, torch.compile(continuous_count, fullgraph=True)],  # function
         )
