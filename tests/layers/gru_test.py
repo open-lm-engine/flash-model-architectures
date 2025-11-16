@@ -42,7 +42,7 @@ class GRUTest(TestCommons):
         is_compiling: bool,
         no_grad: bool,
     ) -> None:
-        assert kernel_backend.is_kernel_backend_compatible_with_current_device()
+        self.skip_if_incompatible_kernel_backend(kernel_backend)
         device = KernelBackend.get_current_device()
 
         set_seed(_SEED)
@@ -149,7 +149,7 @@ class GRUTest(TestCommons):
         num_heads: int,
         has_input_state: bool,
     ) -> None:
-        assert kernel_backend.is_kernel_backend_compatible_with_current_device()
+        self.skip_if_incompatible_kernel_backend(kernel_backend)
         device = KernelBackend.get_current_device()
 
         if device is None or device.type != "cuda":
@@ -245,7 +245,7 @@ class GRUTest(TestCommons):
         is_compiling: bool,
         no_grad: bool,
     ) -> None:
-        assert kernel_backend.is_kernel_backend_compatible_with_current_device()
+        self.skip_if_incompatible_kernel_backend(kernel_backend)
         device = KernelBackend.get_current_device()
 
         set_seed(_SEED)
