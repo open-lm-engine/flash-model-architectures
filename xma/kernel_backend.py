@@ -12,8 +12,6 @@ from .utils import is_cute_dsl_available, is_torch_xla_available, is_triton_avai
 
 
 if is_torch_xla_available():
-    from torch_xla.core.xla_model import get_rng_state as xla_get_rng_state
-    from torch_xla.core.xla_model import set_rng_state as xla_set_rng_state
     from torch_xla.core.xla_model import xla_device
 
 
