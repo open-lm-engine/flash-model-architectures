@@ -49,9 +49,8 @@ class KernelBackend(Enum):
         elif self == KernelBackend.pallas:
             return xla_device()
 
-    @staticmethod
-    def verify_kernel_backend(kernel_backend: KernelBackend) -> None:
-        assert KernelBackend.is_kernel_backend_compatible_with_current_device(kernel_backend)
+    def verify_kernel_backend(self) -> None:
+        assert KernelBackend.is_kernel_backend_compatible_with_current_device(self)
 
     @staticmethod
     def is_kernel_backend_compatible_with_current_device(kernel_backend: KernelBackend) -> bool:
