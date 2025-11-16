@@ -28,5 +28,4 @@ jobs:
           curl -LsSf https://astral.sh/uv/install.sh | sh
 
       - name: run formatting tests
-        run: |
-          make style
+        run: make style
