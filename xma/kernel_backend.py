@@ -8,7 +8,13 @@ from enum import Enum
 
 import torch
 
-from .utils import is_cute_dsl_available, is_triton_available
+from .utils import is_cute_dsl_available, is_torch_xla_available, is_triton_available
+
+
+if is_torch_xla_available():
+    from torch_xla.core.xla_model import get_rng_state as xla_get_rng_state
+    from torch_xla.core.xla_model import set_rng_state as xla_set_rng_state
+    from torch_xla.core.xla_model import xla_device
 
 
 _IS_ROCM_AVAILABLE = torch.version.hip is not None
@@ -43,3 +49,14 @@ class KernelBackend(Enum):
             assert is_cute_dsl_available()
         elif kernel_backend == KernelBackend.triton:
             assert is_triton_available()
+
+    @staticmethod
+    def is_kernel_backend_compatible_with_current_device(kernel_backend: KernelBackend) -> bool:
+        if kernel_backend == KernelBackend.cuda:
+            return not _IS_ROCM_AVAILABLE and torch.cuda.is_available() and is_cute_dsl_available()
+        elif kernel_backend == KernelBackend.pallas:
+            return is_torch_xla_available()
+        elif kernel_backend == KernelBackend.rocm:
+            return _IS_ROCM_AVAILABLE and torch.cuda.is_available()
+        elif kernel_backend == KernelBackend.triton:
+            assert torch.cuda.is_available()
