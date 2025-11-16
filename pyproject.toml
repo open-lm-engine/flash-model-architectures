@@ -12,3 +12,9 @@ dependencies = [
     "torch>=2.9.1",
     "tqdm>=4.67.1",
 ]
+
+[project.optional-dependencies]
+dev = [
+    "parameterized>=0.9.0",
+    "pytest>=9.0.1",
+]
