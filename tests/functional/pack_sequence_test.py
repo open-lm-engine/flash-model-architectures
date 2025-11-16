@@ -65,7 +65,6 @@ class PackSequenceTest(TestCommons):
             [(691, 12, 14)],  # size
             [[0, 70, 170, 295, 393, 412, 515, 691]],  # cu_seqlens
             [1000],  # sequence_length
-            [torch.device("cuda")],  # device
             TestCommons.get_dtypes(),  # dtype
             ["left", "right"],  # padding_side
             [KernelBackend.cuda, KernelBackend.triton],  # kernel_backend
@@ -83,6 +82,9 @@ class PackSequenceTest(TestCommons):
         kernel_backend: KernelBackend,
         function: Callable,
     ) -> None:
+        self.skip_if_incompatible_kernel_backend(kernel_backend)
+        device = kernel_backend.get_current_device()
+
         x_kernel, x_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype)
         cu_seqlens = torch.tensor(cu_seqlens, device=device, dtype=torch.uint32)
 
