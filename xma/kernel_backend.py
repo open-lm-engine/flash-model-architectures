@@ -37,8 +37,6 @@ class KernelBackend(Enum):
         else:
             kernel_backend = KernelBackend.triton
 
-        assert kernel_backend.is_kernel_backend_compatible_with_current_device()
-
         return kernel_backend
 
     def get_current_device(self) -> torch.device:
