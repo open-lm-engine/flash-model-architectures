@@ -37,9 +37,8 @@ class KernelBackend(Enum):
 
         return kernel_backend
 
-    @staticmethod
-    def verify_kernel_backend(kernel_backend: KernelBackend) -> None:
-        if kernel_backend == KernelBackend.cuda:
+    def verify_kernel_backend(self) -> None:
+        if self == KernelBackend.cuda:
             assert is_cute_dsl_available()
-        elif kernel_backend == KernelBackend.triton:
+        elif self == KernelBackend.triton:
             assert is_triton_available()
