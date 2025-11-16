@@ -4,7 +4,7 @@
 
 install:
 	git submodule update --init --recursive
-	uv sync
+	uv sync --extra $(1)
 
 install-dev:
 	git submodule update --init --recursive
