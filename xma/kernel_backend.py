@@ -58,3 +58,7 @@ class KernelBackend(Enum):
             return _IS_ROCM_AVAILABLE and torch.cuda.is_available()
         elif self == KernelBackend.triton:
             return torch.cuda.is_available() and is_triton_available()
+        elif self == KernelBackend.torch:
+            return True
+        else:
+            raise ValueError(f"unexpected kernel_backend ({self})")
