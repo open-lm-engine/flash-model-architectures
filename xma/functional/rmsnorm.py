@@ -4,7 +4,7 @@
 
 import torch
 
-from ..enums import KernelBackend
+from ..kernel_backend import KernelBackend
 from .fused_residual_add_rmsnorm import fused_residual_add_rmsnorm
 
 

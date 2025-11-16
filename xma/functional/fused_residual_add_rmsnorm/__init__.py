@@ -6,7 +6,7 @@ import torch
 import torch.nn.functional as F
 
 from ...custom_op import CustomOp, ctx_needs_gradients, ctx_save_for_backward
-from ...enums import KernelBackend
+from ...kernel_backend import KernelBackend
 from ...utils import (
     empty_like_contiguous,
     get_num_elements_and_hidden_size,

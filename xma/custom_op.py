@@ -9,7 +9,7 @@ from typing import Any
 import torch
 
 from .counters import increment_counter
-from .enums import KernelBackend
+from .kernel_backend import KernelBackend
 
 
 def ctx_needs_gradients(ctx) -> bool:

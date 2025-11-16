@@ -4,7 +4,7 @@
 
 import torch
 
-from ...enums import KernelBackend
+from ...kernel_backend import KernelBackend
 from .cuda_implementation import continuous_count_cuda
 
 

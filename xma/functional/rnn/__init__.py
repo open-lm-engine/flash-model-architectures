@@ -5,7 +5,7 @@
 import torch
 
 from ...custom_op import CustomOp, ctx_save_for_backward
-from ...enums import KernelBackend
+from ...kernel_backend import KernelBackend
 from ...torch_utils import clip_gradients, tanh
 from ...utils import (
     empty_like_contiguous,
