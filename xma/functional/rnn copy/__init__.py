@@ -24,7 +24,7 @@ class _RNN(CustomOp):
     def forward_backward_torch(
         x: torch.Tensor,
         W: torch.Tensor,
-        h0: torch.Tensor | None,
+        h: torch.Tensor | None,
         gradient_clipping: float | None,
         cu_seqlens: torch.Tensor | None,
         max_seqlen: torch.Tensor | int | None,
@@ -52,17 +52,17 @@ class _RNN(CustomOp):
 
         x = x.repeat_interleave(Gx, dim=-2)
         W = W.repeat_interleave(Gw, dim=0)[None, ...]
-        h0 = torch.zeros(B, N, H, device=x.device, dtype=x.dtype) if h0 is None else h0
+        h = torch.zeros(B, N, H, device=x.device, dtype=x.dtype) if h is None else h
 
         if cu_seqlens is not None:
-            h0 = h0.clone()
+            h = h.clone()
             start = cu_seqlens[:-1]
             end = cu_seqlens[1:]
 
         for s in range(S):
             if cu_seqlens is None:
                 # (B, N, 1, H) = (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
-                h = h0[..., None, :] @ W + x[:, s, :, None, :]
+                h1 = h[..., None, :] @ W + x[:, s, :, None, :]
             else:
                 offset = start + s
                 unfinished = offset < end
@@ -70,18 +70,18 @@ class _RNN(CustomOp):
 
                 # don't update the finished sequences
                 # (B, N, 1, H) = (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
-                h = h0[unfinished, :, None, :] @ W + x[offset_unfinished, :, None, :]
+                h1 = h[unfinished, :, None, :] @ W + x[offset_unfinished, :, None, :]
 
-            h = tanh(h)
-            h = h.squeeze(-2)
-            h = clip_gradients(h, gradient_clipping)
+            h1 = tanh(h1)
+            h1 = h1.squeeze(-2)
+            h1 = clip_gradients(h1, gradient_clipping)
 
             if cu_seqlens is None:
-                y[:, s] = h
-                h0 = h
+                y[:, s] = h1
+                h = h1
             else:
-                y[offset_unfinished] = h
-                h0[unfinished] = h
+                y[offset_unfinished] = h1
+                h[unfinished] = h1
 
         return y
 
@@ -90,7 +90,7 @@ class _RNN(CustomOp):
         ctx,
         x: torch.Tensor,
         W: torch.Tensor,
-        h0: torch.Tensor | None,
+        h: torch.Tensor | None,
         gradient_clipping: float | None,
         cu_seqlens: torch.Tensor | None,
         max_seqlen: torch.Tensor | int | None,
@@ -108,14 +108,14 @@ class _RNN(CustomOp):
         rnn_forward_triton(
             x=x,
             W=W,
-            h0=h0,
+            h=h,
             y=y,
             cu_seqlens=cu_seqlens,
             max_seqlen_tensor=max_seqlen_tensor,
             max_seqlen=max_seqlen,
         )
 
-        ctx_save_for_backward(ctx, W, y, h0, cu_seqlens, max_seqlen_tensor)
+        ctx_save_for_backward(ctx, W, y, h, cu_seqlens, max_seqlen_tensor)
         ctx.max_seqlen = max_seqlen
         ctx.gradient_clipping = gradient_clipping
         ctx.Nx = Nx
@@ -124,7 +124,7 @@ class _RNN(CustomOp):
 
     @staticmethod
     def backward_triton(ctx, dy: torch.Tensor) -> tuple[torch.Tensor]:
-        W, y, h0, cu_seqlens, max_seqlen_tensor = ctx.saved_tensors
+        W, y, h, cu_seqlens, max_seqlen_tensor = ctx.saved_tensors
         dW = zeros_like_contiguous(W, dtype=torch.float32)
 
         Nx = ctx.Nx
@@ -140,7 +140,7 @@ class _RNN(CustomOp):
         rnn_backward_triton(
             W=W,
             y=y,
-            h0=h0,
+            h=h,
             dy=dy,
             dx=dx,
             dW=dW,
@@ -213,7 +213,7 @@ def rnn(
     input = _RNN.run(
         x=input,
         W=weight,
-        h0=input_state,
+        h=input_state,
         gradient_clipping=gradient_clipping,
         cu_seqlens=cu_seqlens,
         max_seqlen=max_seqlen,

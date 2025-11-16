@@ -8,8 +8,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from ...enums import KernelBackend
 from ...functional import continuous_count
+from ...kernel_backend import KernelBackend
 from ...utils import is_triton_available
 from .cuda_implementation import group_with_padding, grouped_gemm_experts, ungroup_with_padding
 

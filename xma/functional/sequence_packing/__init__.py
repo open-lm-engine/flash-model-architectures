@@ -7,7 +7,7 @@ from typing import Sequence
 import torch
 
 from ...custom_op import CustomOp, ctx_save_for_backward
-from ...enums import KernelBackend
+from ...kernel_backend import KernelBackend
 from ...utils import ensure_contiguous, is_triton_available
 from .cuda_implementation import pack_unpack_sequence_cuda
 

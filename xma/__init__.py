@@ -10,7 +10,6 @@ from .cutotune import (
     get_cartesian_product_cutotune_configs,
     get_cutotune_cache,
 )
-from .enums import KernelBackend
 from .functional import (
     bmm,
     continuous_count,
@@ -26,6 +25,7 @@ from .functional import (
     unpack_sequence,
 )
 from .inductor import enable_kernels, init_inductor
+from .kernel_backend import KernelBackend
 from .layers import GRU, RNN, MoE
 from .math import ceil_divide, divide_if_divisible, get_powers_of_2
 from .utils import device_synchronize, get_ptx_from_triton_kernel, get_triton_num_warps, set_seed
