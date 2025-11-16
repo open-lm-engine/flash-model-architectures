@@ -20,7 +20,7 @@ class FusedLinearCrossEntropyTest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(
             TestCommons.get_2d_tensor_sizes(),  # size
-            [torch.device("cuda")],  # device
+            [KernelBackend.triton],  # device
             [torch.float32, torch.bfloat16],  # dtype
             [None, 0.7],  # logits_multiplier
             [

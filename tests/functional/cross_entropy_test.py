@@ -20,7 +20,7 @@ class CrossEntropyTest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(
             TestCommons.get_2d_tensor_sizes(),  # size
-            [KernelBackend.cuda],  # device
+            [KernelBackend.triton],  # device
             [torch.float32, torch.bfloat16],  # dtype
             [None, 0.7],  # logits_multiplier
             [cross_entropy, torch.compile(cross_entropy, fullgraph=True)],  # function
@@ -28,7 +28,7 @@ class CrossEntropyTest(TestCommons):
         )
         + TestCommons.make_args_matrix(
             [(4, 17)],  # size
-            [KernelBackend.cuda],  # device
+            [KernelBackend.triton],  # device
             [torch.float32, torch.bfloat16],  # dtype
             [None, 0.7],  # logits_multiplier
             [cross_entropy, torch.compile(cross_entropy, fullgraph=True)],  # function

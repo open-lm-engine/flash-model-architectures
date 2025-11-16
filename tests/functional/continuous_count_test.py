@@ -20,7 +20,7 @@ class ContiguousCountTest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(
             TestCommons.get_1d_tensor_sizes(),  # size
-            [KernelBackend.cuda],  # device
+            [KernelBackend.triton],  # device
             [torch.long, torch.int],  # dtype
             [continuous_count, torch.compile(continuous_count, fullgraph=True)],  # function
         )
