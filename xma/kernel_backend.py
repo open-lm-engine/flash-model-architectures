@@ -57,3 +57,4 @@ class KernelBackend(Enum):
             return _IS_ROCM_AVAILABLE and torch.cuda.is_available()
         elif kernel_backend == KernelBackend.triton:
             assert torch.cuda.is_available()
+            assert is_triton_available()
