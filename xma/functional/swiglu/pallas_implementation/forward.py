@@ -7,6 +7,7 @@ from torch.library import custom_op
 from torch_xla.experimental.custom_kernel import jax_import_guard, make_kernel_from_pallas
 
 from ....constants import LIBRARY_NAME
+from ....math import ceil_divide
 
 
 jax_import_guard()
@@ -27,9 +28,15 @@ def swiglu_forward_pallas_kernel(g_ref, u_ref, y_ref):
 
 @jax.jit
 def swiglu_forward_pallas_jit(g: jax.Array, u: jax.Array) -> jax.Array:
-    return pl.pallas_call(swiglu_forward_pallas_kernel, out_shape=jax.ShapeDtypeStruct(shape=g.shape, dtype=g.dtype))(
-        g, u
+    B, H = g.shape
+
+    kernel = pl.pallas_call(
+        swiglu_forward_pallas_kernel,
+        out_shape=jax.ShapeDtypeStruct(shape=g.shape, dtype=g.dtype),
+        grid=(B, ceil_divide(H, 1024)),
     )
+
+    return kernel(g, u)
 
 
 @custom_op(f"{LIBRARY_NAME}::swiglu_forward_pallas", mutates_args={})
