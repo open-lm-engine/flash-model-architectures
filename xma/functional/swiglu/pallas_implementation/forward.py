@@ -4,7 +4,6 @@
 
 import torch
 from torch.library import custom_op
-from torch_xla import device as xla_device
 from torch_xla.experimental.custom_kernel import jax_import_guard, make_kernel_from_pallas
 
 from ....constants import LIBRARY_NAME
