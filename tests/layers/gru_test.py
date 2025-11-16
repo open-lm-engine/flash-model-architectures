@@ -19,7 +19,7 @@ _SEED = 42
 class GRUTest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(
-            [torch.device("cuda")],
+            [KernelBackend.triton],  # KernelBackend
             TestCommons.get_dtypes(),
             [4],  # batch_size
             [1024],  # sequence_length
@@ -32,7 +32,7 @@ class GRUTest(TestCommons):
     )
     def test_gru(
         self,
-        device: torch.device,
+        kernel_backend: KernelBackend,
         dtype: torch.dtype,
         batch_size: int,
         sequence_length: int,
@@ -42,6 +42,9 @@ class GRUTest(TestCommons):
         is_compiling: bool,
         no_grad: bool,
     ) -> None:
+        self.skip_if_incompatible_kernel_backend(kernel_backend)
+        device = kernel_backend.get_current_device()
+
         set_seed(_SEED)
 
         context = torch.no_grad if no_grad else nullcontext
@@ -129,7 +132,7 @@ class GRUTest(TestCommons):
 
     @parameterized.expand(
         TestCommons.make_args_matrix(
-            [torch.device("cuda")],
+            [KernelBackend.torch],  # KernelBackend
             TestCommons.get_dtypes(),
             [[0, 7, 19, 27, 93]],  # cu_seqlens
             [63],  # state_size
@@ -139,13 +142,19 @@ class GRUTest(TestCommons):
     )
     def test_gru_varlen_torch(
         self,
-        device: torch.device,
+        kernel_backend: KernelBackend,
         dtype: torch.dtype,
         cu_seqlens: list[int],
         state_size: int,
         num_heads: int,
         has_input_state: bool,
     ) -> None:
+        self.skip_if_incompatible_kernel_backend(kernel_backend)
+        device = kernel_backend.get_current_device()
+
+        if device is None or device.type != "cuda":
+            self.skipTest("test is sufficient for CUDA")
+
         set_seed(_SEED)
 
         batch_size = len(cu_seqlens) - 1
@@ -215,7 +224,7 @@ class GRUTest(TestCommons):
 
     @parameterized.expand(
         TestCommons.make_args_matrix(
-            [torch.device("cuda")],
+            [KernelBackend.triton],
             TestCommons.get_dtypes(),
             [[0, 7, 19, 27, 93]],  # cu_seqlens
             [256],  # state_size
@@ -227,7 +236,7 @@ class GRUTest(TestCommons):
     )
     def test_gru_varlen(
         self,
-        device: torch.device,
+        kernel_backend: KernelBackend,
         dtype: torch.dtype,
         cu_seqlens: list[int],
         state_size: int,
@@ -236,6 +245,9 @@ class GRUTest(TestCommons):
         is_compiling: bool,
         no_grad: bool,
     ) -> None:
+        self.skip_if_incompatible_kernel_backend(kernel_backend)
+        device = kernel_backend.get_current_device()
+
         set_seed(_SEED)
 
         context = torch.no_grad if no_grad else nullcontext

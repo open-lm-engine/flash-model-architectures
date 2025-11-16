@@ -7,7 +7,7 @@ from typing import Callable
 import torch
 from parameterized import parameterized
 
-from xma import grouped_gemm, set_seed
+from xma import KernelBackend, grouped_gemm, set_seed
 
 from ..test_commons import TestCommons
 
@@ -20,7 +20,7 @@ class GroupedGEMMTest(TestCommons):
         TestCommons.make_args_matrix(
             [False, True],  # is_A_transposed
             [False, True],  # is_B_transposed
-            [torch.device("cuda")],  # device
+            [KernelBackend.cuda],  # KernelBackend
             [torch.bfloat16],  # dtype
             [grouped_gemm, torch.compile(grouped_gemm, fullgraph=True)],  # function
         )
@@ -29,10 +29,13 @@ class GroupedGEMMTest(TestCommons):
         self,
         is_A_transposed: bool,
         is_B_transposed: bool,
-        device: torch.device,
+        kernel_backend: KernelBackend,
         dtype: torch.dtype,
         function: Callable,
     ) -> None:
+        self.skip_if_incompatible_kernel_backend(kernel_backend)
+        device = kernel_backend.get_current_device()
+
         if torch.cuda.get_device_capability(torch.cuda.current_device()) < (10, 0):
             self.skipTest("skipping Blackwell Grouped Gemm since Blackwell GPU is not found")
 

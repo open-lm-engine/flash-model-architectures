@@ -17,7 +17,6 @@ class PackSequenceTest(TestCommons):
         TestCommons.make_args_matrix(
             [(7, 1000, 12, 14)],  # size
             [[0, 70, 170, 295, 393, 412, 515, 691]],  # cu_seqlens
-            [torch.device("cuda")],  # device
             TestCommons.get_dtypes(),  # dtype
             ["left", "right"],  # padding_side
             [KernelBackend.cuda, KernelBackend.triton],  # kernel_backend
@@ -28,12 +27,14 @@ class PackSequenceTest(TestCommons):
         self,
         size: tuple[int],
         cu_seqlens: list[int],
-        device: torch.device,
         dtype: torch.dtype,
         padding_side: str,
         kernel_backend: KernelBackend,
         function: Callable,
     ) -> None:
+        self.skip_if_incompatible_kernel_backend(kernel_backend)
+        device = kernel_backend.get_current_device()
+
         x_kernel, x_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype)
         cu_seqlens = torch.tensor(cu_seqlens, device=device, dtype=torch.uint32)
 
@@ -64,7 +65,6 @@ class PackSequenceTest(TestCommons):
             [(691, 12, 14)],  # size
             [[0, 70, 170, 295, 393, 412, 515, 691]],  # cu_seqlens
             [1000],  # sequence_length
-            [torch.device("cuda")],  # device
             TestCommons.get_dtypes(),  # dtype
             ["left", "right"],  # padding_side
             [KernelBackend.cuda, KernelBackend.triton],  # kernel_backend
@@ -76,12 +76,14 @@ class PackSequenceTest(TestCommons):
         size: tuple[int],
         cu_seqlens: list[int],
         sequence_length: tuple[int],
-        device: torch.device,
         dtype: torch.dtype,
         padding_side: str,
         kernel_backend: KernelBackend,
         function: Callable,
     ) -> None:
+        self.skip_if_incompatible_kernel_backend(kernel_backend)
+        device = kernel_backend.get_current_device()
+
         x_kernel, x_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype)
         cu_seqlens = torch.tensor(cu_seqlens, device=device, dtype=torch.uint32)
 

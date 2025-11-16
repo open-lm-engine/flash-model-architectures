@@ -16,11 +16,11 @@ _MAX_EXPERTS = 72
 _SEED = 42
 
 
-class ContiguousCountTest(TestCommons):
+class ContinuousCountTest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(
             TestCommons.get_1d_tensor_sizes(),  # size
-            [torch.device("cuda")],  # device
+            [KernelBackend.cuda],  # KernelBackend
             [torch.long, torch.int],  # dtype
             [continuous_count, torch.compile(continuous_count, fullgraph=True)],  # function
         )
@@ -28,10 +28,13 @@ class ContiguousCountTest(TestCommons):
     def test_continuous_count(
         self,
         bins: int,
-        device: torch.device,
+        kernel_backend: KernelBackend,
         dtype: torch.dtype,
         function: Callable,
     ) -> None:
+        self.skip_if_incompatible_kernel_backend(kernel_backend)
+        device = kernel_backend.get_current_device()
+
         set_seed(_SEED)
         x = torch.randint(0, _MAX_EXPERTS, (bins,), device=device, dtype=dtype)
 

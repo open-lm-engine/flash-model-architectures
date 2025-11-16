@@ -20,7 +20,7 @@ class SoftmaxTest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(
             _get_sizes(),  # size
-            [torch.device("cuda")],  # device
+            [KernelBackend.triton],  # KernelBackend
             [torch.float32, torch.bfloat16],  # dtype
             [None, 0.7],  # logits_multiplier
             [softmax, torch.compile(softmax, fullgraph=True)],  # function
@@ -29,11 +29,14 @@ class SoftmaxTest(TestCommons):
     def test_softmax(
         self,
         size: tuple[int],
-        device: torch.device,
+        kernel_backend: KernelBackend,
         dtype: torch.dtype,
         logits_multiplier: float | None,
         function: Callable,
     ) -> None:
+        self.skip_if_incompatible_kernel_backend(kernel_backend)
+        device = kernel_backend.get_current_device()
+
         set_seed(_SEED)
 
         if isinstance(size, int):

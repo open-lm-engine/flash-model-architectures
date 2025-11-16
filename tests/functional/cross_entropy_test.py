@@ -20,7 +20,7 @@ class CrossEntropyTest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(
             TestCommons.get_2d_tensor_sizes(),  # size
-            [torch.device("cuda")],  # device
+            [KernelBackend.triton],  # KernelBackend
             [torch.float32, torch.bfloat16],  # dtype
             [None, 0.7],  # logits_multiplier
             [cross_entropy, torch.compile(cross_entropy, fullgraph=True)],  # function
@@ -28,7 +28,7 @@ class CrossEntropyTest(TestCommons):
         )
         + TestCommons.make_args_matrix(
             [(4, 17)],  # size
-            [torch.device("cuda")],  # device
+            [KernelBackend.triton],  # KernelBackend
             [torch.float32, torch.bfloat16],  # dtype
             [None, 0.7],  # logits_multiplier
             [cross_entropy, torch.compile(cross_entropy, fullgraph=True)],  # function
@@ -38,12 +38,15 @@ class CrossEntropyTest(TestCommons):
     def test_cross_entropy(
         self,
         size: tuple[int],
-        device: torch.device,
+        kernel_backend: KernelBackend,
         dtype: torch.dtype,
         logits_multiplier: float | None,
         function: Callable,
         no_grad: bool,
     ) -> None:
+        self.skip_if_incompatible_kernel_backend(kernel_backend)
+        device = kernel_backend.get_current_device()
+
         set_seed(_SEED)
 
         if isinstance(size, int):

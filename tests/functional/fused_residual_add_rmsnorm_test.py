@@ -34,7 +34,7 @@ class FusedResdidualAddRMSNormTest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(
             _get_sizes(),  # size
-            [torch.device("cuda")],  # device
+            [KernelBackend.triton],  # KernelBackend
             [torch.float32],  # dtype
             [True, False],  # memory_efficient
             [True, False],  # has_weight
@@ -48,7 +48,7 @@ class FusedResdidualAddRMSNormTest(TestCommons):
         )
         + TestCommons.make_args_matrix(
             [(400, 77)],  # size
-            [torch.device("cuda")],  # device
+            [KernelBackend.triton],  # KernelBackend
             [torch.float32],  # dtype
             [True, False],  # memory_efficient
             [True, False],  # has_weight
@@ -64,7 +64,7 @@ class FusedResdidualAddRMSNormTest(TestCommons):
     def test_fused_residual_add_rmsnorm(
         self,
         size: tuple[int],
-        device: torch.device,
+        kernel_backend: KernelBackend,
         dtype: torch.dtype,
         memory_efficient: bool,
         has_weight: bool,
@@ -73,6 +73,9 @@ class FusedResdidualAddRMSNormTest(TestCommons):
         function: Callable,
         no_grad: bool,
     ) -> None:
+        self.skip_if_incompatible_kernel_backend(kernel_backend)
+        device = kernel_backend.get_current_device()
+
         set_seed(_SEED)
 
         x_kernel, x_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype)

@@ -8,7 +8,11 @@ from enum import Enum
 
 import torch
 
-from .utils import is_cute_dsl_available, is_triton_available
+from .utils import is_cute_dsl_available, is_torch_xla_available, is_triton_available
+
+
+if is_torch_xla_available():
+    from torch_xla.core.xla_model import xla_device
 
 
 _IS_ROCM_AVAILABLE = torch.version.hip is not None
@@ -33,12 +37,31 @@ class KernelBackend(Enum):
         else:
             kernel_backend = KernelBackend.triton
 
-        kernel_backend.verify_kernel_backend()
-
         return kernel_backend
 
-    def verify_kernel_backend(self) -> None:
+    def get_current_device(self) -> torch.device:
+        if self in [KernelBackend.cuda, KernelBackend.rocm, KernelBackend.triton]:
+            return torch.cuda.current_device()
+        elif self == KernelBackend.pallas:
+            return xla_device()
+        elif self == KernelBackend.torch:
+            if torch.cuda.is_available():
+                return torch.device("cuda")
+            elif is_torch_xla_available():
+                return xla_device()
+
+        raise ValueError("no device found")
+
+    def is_kernel_backend_compatible_with_current_device(self) -> bool:
         if self == KernelBackend.cuda:
-            assert is_cute_dsl_available()
+            return not _IS_ROCM_AVAILABLE and torch.cuda.is_available() and is_cute_dsl_available()
+        elif self == KernelBackend.pallas:
+            return is_torch_xla_available()
+        elif self == KernelBackend.rocm:
+            return _IS_ROCM_AVAILABLE and torch.cuda.is_available()
         elif self == KernelBackend.triton:
-            assert is_triton_available()
+            return torch.cuda.is_available() and is_triton_available()
+        elif self == KernelBackend.torch:
+            return True
+        else:
+            raise ValueError(f"unexpected kernel_backend ({self})")

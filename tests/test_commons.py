@@ -11,10 +11,14 @@ import torch
 import torch.nn as nn
 from torch.testing import assert_close
 
-from xma import init_inductor
+from xma import KernelBackend, init_inductor
 
 
 class TestCommons(TestCase):
+    def skip_if_incompatible_kernel_backend(self, kernel_backend) -> None:
+        if not KernelBackend.is_kernel_backend_compatible_with_current_device(kernel_backend):
+            self.skipTest(f"device incompatible with kernel_backend ({kernel_backend})")
+
     def setUp(self) -> None:
         return init_inductor(cache_size_limit=1024)
 
