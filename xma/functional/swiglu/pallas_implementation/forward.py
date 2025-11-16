@@ -13,7 +13,7 @@ jax_import_guard()
 
 import jax
 import jax.experimental.pallas as pl
-import jax.numpy as jnp
+from jax.nn import sigmoid
 
 
 def swiglu_forward_pallas_kernel(g_ref, u_ref, y_ref):
@@ -47,6 +47,9 @@ def swiglu_forward_pallas(g: torch.Tensor, u: torch.Tensor) -> torch.Tensor:
 
 @swiglu_forward_pallas.register_fake
 def _(g: torch.Tensor, u: torch.Tensor) -> torch.Tensor:
+    assert g.is_contiguous()
+    assert u.is_contiguous()
+
     return torch.empty_like(g)
 
 
