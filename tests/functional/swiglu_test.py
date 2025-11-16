@@ -17,7 +17,7 @@ class SwiGLUTest(TestCommons):
         TestCommons.make_args_matrix(
             TestCommons.get_2d_tensor_sizes(),  # size
             TestCommons.get_dtypes(),  # dtype
-            [KernelBackend.cuda, KernelBackend.triton],  # kernel_backend
+            [KernelBackend.cuda, KernelBackend.pallas, KernelBackend.triton],  # kernel_backend
             [swiglu, torch.compile(swiglu, fullgraph=True)],  # function
         )
     )
