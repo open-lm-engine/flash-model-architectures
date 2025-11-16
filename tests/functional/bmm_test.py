@@ -38,8 +38,9 @@ class BMMTest(TestCommons):
         function: Callable,
     ) -> None:
         self.skip_if_incompatible_kernel_backend(kernel_backend)
-        set_seed(_SEED)
+        device = kernel_backend
 
+        set_seed(_SEED)
         std = 0.02
 
         L = 7
