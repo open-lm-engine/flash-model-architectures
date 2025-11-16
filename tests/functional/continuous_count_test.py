@@ -20,7 +20,7 @@ class ContiguousCountTest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(
             TestCommons.get_1d_tensor_sizes(),  # size
-            [torch.device("cuda")],  # device
+            [KernelBackend.cuda],  # device
             [torch.long, torch.int],  # dtype
             [continuous_count, torch.compile(continuous_count, fullgraph=True)],  # function
         )
@@ -28,14 +28,14 @@ class ContiguousCountTest(TestCommons):
     def test_continuous_count(
         self,
         bins: int,
-        device: torch.device,
+        kernel_backend: KernelBackend,
         dtype: torch.dtype,
         function: Callable,
     ) -> None:
         self.skip_if_incompatible_kernel_backend(kernel_backend)
 
         set_seed(_SEED)
-        x = torch.randint(0, _MAX_EXPERTS, (bins,), device=device, dtype=dtype)
+        x = torch.randint(0, _MAX_EXPERTS, (bins,), device=kernel_backend.get_current_device(), dtype=dtype)
 
         z_kernel = function(x=x, bins=_MAX_EXPERTS, kernel_backend=KernelBackend.cuda)
         z_expected = continuous_count(x.view(-1), bins=_MAX_EXPERTS, kernel_backend=KernelBackend.torch)
