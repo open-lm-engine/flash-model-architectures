@@ -76,7 +76,6 @@ class PackSequenceTest(TestCommons):
         size: tuple[int],
         cu_seqlens: list[int],
         sequence_length: tuple[int],
-        device: torch.device,
         dtype: torch.dtype,
         padding_side: str,
         kernel_backend: KernelBackend,
