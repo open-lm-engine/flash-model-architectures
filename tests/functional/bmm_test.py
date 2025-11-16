@@ -37,9 +37,7 @@ class BMMTest(TestCommons):
         dtype: torch.dtype,
         function: Callable,
     ) -> None:
-        if not KernelBackend.is_kernel_backend_compatible_with_current_device(kernel_backend):
-            self.skipTest(f"device incompatible with kernel_backend ({kernel_backend})")
-
+        self.skip_if_incompatible_kernel_backend(kernel_backend)
         set_seed(_SEED)
 
         std = 0.02
