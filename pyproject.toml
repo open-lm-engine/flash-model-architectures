@@ -1,56 +1,7 @@
-# **************************************************
-# Copyright (c) 2025, Mayank Mishra
-# **************************************************
-
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
 [project]
-name = "accelerated-model-architectures"
-version = "0.0.0.dev"
-description = "A collection of high-performance model architectures."
+name = "flash-model-architectures"
+version = "0.1.0"
+description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.10"
-authors = [
-    { name = "Mayank Mishra", email = "mayank31398@gmail.com" },
-]
-
-dependencies = [
-    "torch",
-    "pybind11",
-    "numpy",
-    "pyyaml",
-    "tqdm",
-]
-
-[project.urls]
-Homepage = "https://github.com/open-lm-engine/accelerated-model-architectures"
-Repository = "https://github.com/open-lm-engine/accelerated-model-architectures"
-
-[project.optional-dependencies]
-dev = [
-    "pytest",
-    "parameterized",
-    "pre-commit",
-]
-
-[tool.hatch.build.targets.wheel]
-packages = ["xma"]
-
-[tool.hatch.build.targets.wheel.force-include]
-"xma/**/*.cu" = "xma"
-"xma/**/*.cpp" = "xma"
-"xma/**/*.cuh" = "xma"
-"xma/**/*.h" = "xma"
-"xma/**/*.pyx" = "xma"
-"xma/**/*.yml" = "xma"
-
-[tool.isort]
-ensure_newline_before_comments = true
-force_grid_wrap = 0
-include_trailing_comma = true
-line_length = 119
-lines_after_imports = 2
-multi_line_output = 3
-use_parentheses = true
+requires-python = ">=3.12"
+dependencies = []
