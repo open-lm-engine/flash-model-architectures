@@ -41,7 +41,7 @@ class RNNTest(TestCommons):
         no_grad: bool,
     ) -> None:
         self.skip_if_incompatible_kernel_backend(kernel_backend)
-        device = KernelBackend.get_current_device()
+        device = kernel_backend.get_current_device()
 
         set_seed(_SEED)
 
@@ -143,7 +143,7 @@ class RNNTest(TestCommons):
         has_input_state: bool,
     ) -> None:
         self.skip_if_incompatible_kernel_backend(kernel_backend)
-        device = KernelBackend.get_current_device()
+        device = kernel_backend.get_current_device()
 
         if device is None or device.type != "cuda":
             self.skipTest("test is sufficient for CUDA")
@@ -240,7 +240,7 @@ class RNNTest(TestCommons):
         no_grad: bool,
     ) -> None:
         self.skip_if_incompatible_kernel_backend(kernel_backend)
-        device = KernelBackend.get_current_device()
+        device = kernel_backend.get_current_device()
 
         set_seed(_SEED)
 
