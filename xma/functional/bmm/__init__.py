@@ -4,7 +4,7 @@
 
 import torch
 
-from ...accelerator import KernelBackend
+from ...accelerator import Accelerator, KernelBackend
 from ...utils import is_triton_available
 
 
@@ -58,7 +58,7 @@ def bmm(
         assert C.size() == (L, M, N)
 
     if kernel_backend is None:
-        kernel_backend = KernelBackend.get_kernel_backend_from_device(A)
+        kernel_backend = Accelerator.get_accelerator().get_kernel_backend()
     else:
         assert kernel_backend.verify_accelerator()
 

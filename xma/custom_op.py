@@ -8,7 +8,7 @@ from typing import Any
 
 import torch
 
-from .accelerator import KernelBackend
+from .accelerator import Accelerator, KernelBackend
 from .counters import increment_counter
 
 
@@ -25,10 +25,7 @@ class CustomOp(torch.autograd.Function):
     @classmethod
     def run(cls, kernel_backend: KernelBackend | None = None, **kwargs) -> Any:
         if kernel_backend is None:
-            for tensor in kwargs.values():
-                if isinstance(tensor, torch.Tensor):
-                    kernel_backend = KernelBackend.get_kernel_backend_from_device(tensor)
-                    break
+            kernel_backend = Accelerator.get_accelerator().get_kernel_backend()
         else:
             assert kernel_backend.verify_accelerator()
 

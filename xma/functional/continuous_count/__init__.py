@@ -4,7 +4,7 @@
 
 import torch
 
-from ...accelerator import KernelBackend
+from ...accelerator import Accelerator, KernelBackend
 from .cuda_implementation import continuous_count_cuda
 
 
@@ -29,7 +29,7 @@ def continuous_count(x: torch.Tensor, bins: int, *, kernel_backend: KernelBacken
     assert x.dtype in [torch.int32, torch.long]
 
     if kernel_backend is None:
-        kernel_backend = KernelBackend.get_kernel_backend_from_device(x)
+        kernel_backend = Accelerator.get_accelerator().get_kernel_backend()
     else:
         assert kernel_backend.verify_accelerator()
 
