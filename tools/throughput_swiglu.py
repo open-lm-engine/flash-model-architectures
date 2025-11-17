@@ -2,8 +2,6 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
-from functools import partial
-
 import torch
 from tabulate import tabulate
 
@@ -17,11 +15,11 @@ n = 100
 
 headers = ["dtype", "torch BW", "torch compile BW", "CUDA BW", "triton BW"]
 kernels = [
-    partial(swiglu, kernel_backend=KernelBackend.cuda),
-    partial(swiglu, kernel_backend=KernelBackend.pallas),
-    partial(swiglu, kernel_backend=KernelBackend.torch),
-    partial(torch.compile(swiglu, dynamic=True), kernel_backend=KernelBackend.torch),
-    partial(swiglu, kernel_backend=KernelBackend.triton),
+    (swiglu, KernelBackend.cuda),
+    (swiglu, KernelBackend.pallas),
+    (swiglu, KernelBackend.torch),
+    (torch.compile(swiglu, dynamic=True), KernelBackend.torch),
+    (swiglu, KernelBackend.triton),
 ]
 
 table = []
@@ -38,13 +36,13 @@ for dtype in [torch.float16, torch.bfloat16, torch.float32]:
     if not run_forward:
         dy = torch.randn(B, H, device=torch.cuda.current_device(), dtype=dtype)
 
-    for kernel in kernels:
+    for kernel, kernel_backend in kernels:
         if not run_forward:
-            z = kernel(g, u)
+            z = kernel(g, u, kernel_backend=kernel_backend)
 
         for i in range(n):
             if run_forward:
-                z = kernel(g, u)
+                z = kernel(g, u, kernel_backend=kernel_backend)
             else:
                 torch.autograd.grad(z, (g, u), grad_outputs=dy, retain_graph=True)
 
@@ -54,7 +52,7 @@ for dtype in [torch.float16, torch.bfloat16, torch.float32]:
         s.record()
         for i in range(n):
             if run_forward:
-                z = kernel(g, u)
+                z = kernel(g, u, kernel_backend=kernel_backend)
             else:
                 torch.autograd.grad(z, (g, u), grad_outputs=dy, retain_graph=True)
         e.record()
