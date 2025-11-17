@@ -9,7 +9,7 @@ from typing import Any, Callable
 import torch
 from tqdm import tqdm
 
-from ..utils import device_synchronize, get_boolean_env_variable
+from ..utils import get_boolean_env_variable
 from .cache import get_cutotune_cache
 from .config import CutoTuneConfig
 from .parameter import CutoTuneParameter

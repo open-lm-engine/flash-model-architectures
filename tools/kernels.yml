@@ -33,9 +33,11 @@ functional:
     - triton
   swiglu:
     - cuda
+    - pallas
     - triton
   swiglu_packed:
     - cuda
+    - pallas
     - triton
   unpack_sequence:
     - cuda

@@ -2,12 +2,10 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
-from functools import partial
-
 import torch
 from tabulate import tabulate
 
-from xma import KernelBackend, device_synchronize, swiglu
+from xma import Accelerator, KernelBackend, swiglu
 
 
 torch._inductor.config.max_autotune_gemm_backends = "TRITON"
@@ -15,35 +13,46 @@ torch.backends.cuda.matmul.allow_tf32 = True
 
 n = 100
 
-headers = ["dtype", "torch BW", "torch compile BW", "CUDA BW", "triton BW"]
 kernels = [
-    partial(swiglu, kernel_backend=KernelBackend.torch),
-    partial(torch.compile(swiglu, dynamic=True), kernel_backend=KernelBackend.torch),
-    partial(swiglu, kernel_backend=KernelBackend.cuda),
-    partial(swiglu, kernel_backend=KernelBackend.triton),
+    (swiglu, KernelBackend.cuda, "CUDA"),
+    (swiglu, KernelBackend.pallas, "pallas"),
+    (swiglu, KernelBackend.torch, "torch"),
+    (torch.compile(swiglu, dynamic=True), KernelBackend.torch, "torch compile"),
+    (swiglu, KernelBackend.triton, "triton"),
 ]
-
+dtypes = [torch.float32, torch.bfloat16, torch.float16]
+headers = ["kernel"] + dtypes
 table = []
+
 B = 16 * 4096
 H = 4096
 
 run_forward = False
 
-for dtype in [torch.float16, torch.bfloat16, torch.float32]:
-    row = [str(dtype)]
-    u = torch.randn(B, H, device=torch.cuda.current_device(), dtype=dtype, requires_grad=not run_forward)
-    g = torch.randn(B, H, device=torch.cuda.current_device(), dtype=dtype, requires_grad=not run_forward)
+for kernel, kernel_backend, row_header in kernels:
+    row = [row_header]
 
-    if not run_forward:
-        dy = torch.randn(B, H, device=torch.cuda.current_device(), dtype=dtype)
+    if not kernel_backend.verify_accelerator():
+        for _ in range(len(dtypes)):
+            row.append("NA")
+        table.append(row)
+        continue
 
-    for kernel in kernels:
+    device = kernel_backend.get_compatible_accelerator().get_current_device()
+
+    for dtype in dtypes:
+        u = torch.randn(B, H, device=device, dtype=dtype, requires_grad=not run_forward)
+        g = torch.randn(B, H, device=device, dtype=dtype, requires_grad=not run_forward)
+
         if not run_forward:
-            z = kernel(g, u)
+            dy = torch.randn(B, H, device=device, dtype=dtype)
+
+        if not run_forward:
+            z = kernel(g, u, kernel_backend=kernel_backend)
 
         for i in range(n):
             if run_forward:
-                z = kernel(g, u)
+                z = kernel(g, u, kernel_backend=kernel_backend)
             else:
                 torch.autograd.grad(z, (g, u), grad_outputs=dy, retain_graph=True)
 
@@ -53,12 +62,12 @@ for dtype in [torch.float16, torch.bfloat16, torch.float32]:
         s.record()
         for i in range(n):
             if run_forward:
-                z = kernel(g, u)
+                z = kernel(g, u, kernel_backend=kernel_backend)
             else:
                 torch.autograd.grad(z, (g, u), grad_outputs=dy, retain_graph=True)
         e.record()
 
-        device_synchronize()
+        Accelerator.synchronize()
 
         t = s.elapsed_time(e) / n / 1e3
         row.append((3 if run_forward else 5) * B * H * dtype.itemsize / t / 1e12)

@@ -1,5 +1,5 @@
 [project]
-name = "flash-model-architectures"
+name = "accelerated-model-architectures"
 version = "0.1.0"
 description = "A library for efficient kernels and model architectures for a bunch of different hardware accelerators."
 readme = "README.md"
@@ -11,8 +11,12 @@ dependencies = [
     "tqdm>=4.67.1",
 ]
 
+[tool.setuptools]
+packages = ["xma"]
+
 [project.optional-dependencies]
 dev = [
+    "accelerated-model-architectures",
     "parameterized>=0.9.0",
     "pre-commit>=4.4.0",
     "pytest>=9.0.1",
@@ -20,9 +24,19 @@ dev = [
 cuda = [
     "torch>=2.8.0",
     "nvidia-cutlass-dsl>=4.2.1",
+    "tabulate>=0.9.0",
 ]
 tpu = [
     "torch==2.8.0",
     "torch-xla[tpu]==2.8.0",
     "torch-xla[pallas,tpu]==2.8.0",
+    "tabulate>=0.9.0",
 ]
+
+[tool.uv.workspace]
+members = [
+    ".",
+]
+
+[tool.uv.sources]
+accelerated-model-architectures = { workspace = true, editable = true }
