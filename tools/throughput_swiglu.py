@@ -17,9 +17,10 @@ n = 100
 
 headers = ["dtype", "torch BW", "torch compile BW", "CUDA BW", "triton BW"]
 kernels = [
+    partial(swiglu, kernel_backend=KernelBackend.cuda),
+    partial(swiglu, kernel_backend=KernelBackend.pallas),
     partial(swiglu, kernel_backend=KernelBackend.torch),
     partial(torch.compile(swiglu, dynamic=True), kernel_backend=KernelBackend.torch),
-    partial(swiglu, kernel_backend=KernelBackend.cuda),
     partial(swiglu, kernel_backend=KernelBackend.triton),
 ]
 
