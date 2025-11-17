@@ -62,6 +62,12 @@ class SwiGLUTest(TestCommons):
             [KernelBackend.cuda, KernelBackend.triton],  # kernel_backend
             [swiglu_packed, torch.compile(swiglu_packed, fullgraph=True)],  # function
         )
+        + TestCommons.make_args_matrix(
+            [(4100, 3700)],  # size
+            TestCommons.get_dtypes()[:1],  # dtype
+            [KernelBackend.pallas],  # kernel_backend
+            [swiglu_packed],  # function
+        )
     )
     def test_swiglu_packed(
         self,
