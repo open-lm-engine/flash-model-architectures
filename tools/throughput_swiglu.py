@@ -13,7 +13,7 @@ torch.backends.cuda.matmul.allow_tf32 = True
 
 n = 100
 
-headers = ["dtype", "torch BW", "torch compile BW", "CUDA BW", "triton BW"]
+headers = ["kernel", "torch BW", "torch compile BW", "CUDA BW", "triton BW"]
 kernels = [
     (swiglu, KernelBackend.cuda),
     (swiglu, KernelBackend.pallas),
@@ -28,7 +28,11 @@ H = 4096
 
 run_forward = False
 
-for dtype in [torch.float16, torch.bfloat16, torch.float32]:
+for kernel, kernel_backend in kernels:
+    if not kernel_backend.is_kernel_backend_compatible_with_current_device():
+        row.append("NA")
+        continue
+
     row = [str(dtype)]
     u = torch.randn(B, H, device=kernel_backend.get_current_device(), dtype=dtype, requires_grad=not run_forward)
     g = torch.randn(B, H, device=kernel_backend.get_current_device(), dtype=dtype, requires_grad=not run_forward)
@@ -36,11 +40,7 @@ for dtype in [torch.float16, torch.bfloat16, torch.float32]:
     if not run_forward:
         dy = torch.randn(B, H, device=kernel_backend.get_current_device(), dtype=dtype)
 
-    for kernel, kernel_backend in kernels:
-        if not kernel_backend.is_kernel_backend_compatible_with_current_device():
-            row.append("NA")
-            continue
-
+    for dtype in [torch.float16, torch.bfloat16, torch.float32]:
         if not run_forward:
             z = kernel(g, u, kernel_backend=kernel_backend)
 
