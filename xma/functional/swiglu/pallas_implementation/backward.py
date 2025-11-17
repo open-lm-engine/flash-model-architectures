@@ -17,17 +17,23 @@ import jax.experimental.pallas as pl
 from jax.nn import sigmoid
 
 
-def swiglu_backward_pallas_kernel(g_ref, u_ref, y_ref):
+def swiglu_backward_pallas_kernel(g_ref, u_ref, dy_ref, dg_ref, du_ref):
     g = g_ref[...]
     u = u_ref[...]
+    dy = dy_ref[...]
 
-    y = u * g * sigmoid(g)
+    g_sigmoid = sigmoid(g)
+    g_silu = g * g_sigmoid
 
-    y_ref[...] = y
+    dg = dy * u * (g_sigmoid + g_silu * (1 - g_sigmoid))
+    du = dy * g_silu
+
+    dg_ref[...] = dg
+    du_ref[...] = du
 
 
 @jax.jit
-def swiglu_forward_pallas_jit(g: jax.Array, u: jax.Array) -> jax.Array:
+def swiglu_backward_pallas_jit(g: jax.Array, u: jax.Array, du: jax.Array) -> tuple[jax.Array, jax.Array]:
     B, H = g.shape
 
     kernel = pl.pallas_call(
@@ -45,24 +51,25 @@ def swiglu_forward_pallas_jit(g: jax.Array, u: jax.Array) -> jax.Array:
 
 
 @custom_op(f"{LIBRARY_NAME}::swiglu_backward_pallas", mutates_args={})
-def swiglu_backward_pallas(g: torch.Tensor, u: torch.Tensor) -> torch.Tensor:
+def swiglu_backward_pallas(g: torch.Tensor, u: torch.Tensor, dy: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
     assert g.is_contiguous()
     assert u.is_contiguous()
 
     if swiglu_backward_pallas.cache is None:
         swiglu_backward_pallas.cache = make_kernel_from_pallas(
-            swiglu_forward_pallas_jit, lambda g, u: [(g.shape, g.dtype)]
+            swiglu_backward_pallas_jit, lambda g, u: [(g.shape, g.dtype)]
         )
 
-    return swiglu_backward_pallas.cache(g, u)
+    return swiglu_backward_pallas.cache(g=g, u=u, dy=dy)
 
 
 @swiglu_backward_pallas.register_fake
-def _(g: torch.Tensor, u: torch.Tensor) -> torch.Tensor:
+def _(g: torch.Tensor, u: torch.Tensor, dy: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
     assert g.is_contiguous()
     assert u.is_contiguous()
+    assert dy.is_contiguous()
 
-    return torch.empty_like(g)
+    return torch.empty_like(g), torch.empty_like(u)
 
 
 swiglu_backward_pallas.cache = None

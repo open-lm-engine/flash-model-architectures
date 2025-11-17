@@ -24,7 +24,7 @@ if is_triton_available():
     from .triton_implementation import swiglu_backward_triton, swiglu_forward_triton
 
 if is_torch_xla_available():
-    from .pallas_implementation import swiglu_forward_pallas
+    from .pallas_implementation import swiglu_backward_pallas, swiglu_forward_pallas
 
 
 class _Swiglu(CustomOp):
@@ -66,6 +66,12 @@ class _Swiglu(CustomOp):
     def forward_pallas(ctx, g: torch.Tensor, u: torch.Tensor) -> torch.Tensor:
         ctx_save_for_backward(ctx, g, u)
         return swiglu_forward_pallas(g=g, u=u)
+
+    @staticmethod
+    @ensure_contiguous
+    def backward_pallas(ctx, dy: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        g, u = ctx.saved_tensors
+        return swiglu_backward_pallas(g=g, u=u, dy=dy)
 
     @staticmethod
     def forward_triton(ctx, g: torch.Tensor, u: torch.Tensor) -> torch.Tensor:
