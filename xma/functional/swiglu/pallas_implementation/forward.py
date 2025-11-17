@@ -22,10 +22,12 @@ def swiglu_forward_pallas_kernel(g_ref, u_ref, y_ref):
     g = g_ref[...]
     u = u_ref[...]
 
+    dtype = g.dtype
     g = g.astype(jnp.float32)
+
     y = u * g * sigmoid(g)
 
-    y_ref[...] = y
+    y_ref[...] = y.astype(dtype)
 
 
 @jax.jit

@@ -23,15 +23,17 @@ def swiglu_backward_pallas_kernel(g_ref, u_ref, dy_ref, dg_ref, du_ref):
     u = u_ref[...]
     dy = dy_ref[...]
 
+    dtype = g.dtype
     g = g.astype(jnp.float32)
+
     g_sigmoid = sigmoid(g)
     g_silu = g * g_sigmoid
 
     dg = dy * u * (g_sigmoid + g_silu * (1 - g_sigmoid))
     du = dy * g_silu
 
-    dg_ref[...] = dg
-    du_ref[...] = du
+    dg_ref[...] = dg.astype(dtype)
+    du_ref[...] = du.astype(dtype)
 
 
 @jax.jit
