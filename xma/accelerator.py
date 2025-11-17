@@ -26,9 +26,13 @@ class KernelBackend(Enum):
     torch = "torch"
     triton = "triton"
 
-    def get_accelerator(self) -> Accelerator:
-        if self in [KernelBackend.torch, KernelBackend.triton]:
-            return Accelerator.get_accelerator()
+    def get_compatible_accelerator(self) -> Accelerator:
+        found_accelerator = Accelerator.get_accelerator()
+
+        if self == KernelBackend.torch or (
+            self == KernelBackend.triton and found_accelerator in [Accelerator.cuda, Accelerator.rocm]
+        ):
+            return found_accelerator
 
         mapping = {
             KernelBackend.cuda: Accelerator.cuda,
@@ -37,10 +41,10 @@ class KernelBackend(Enum):
             KernelBackend.rocm: Accelerator.rocm,
         }
 
-        return mapping[self]
+        return mapping.get(self, None)
 
     def verify_accelerator(self) -> bool:
-        expected_accelerator = self.get_accelerator()
+        expected_accelerator = self.get_compatible_accelerator()
         found_accelerator = Accelerator.get_accelerator()
         return expected_accelerator == found_accelerator
 

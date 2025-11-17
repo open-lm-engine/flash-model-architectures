@@ -68,10 +68,10 @@ class MoETest(TestCommons):
         is_compiling: bool,
     ) -> None:
         self.skip_if_incompatible_kernel_backend(kernel_backend)
-        device = kernel_backend.get_accelerator().get_current_device()
+        device = kernel_backend.get_compatible_accelerator().get_current_device()
 
         if kernel_backend == KernelBackend.cuda and torch.cuda.get_device_capability(
-            kernel_backend.get_accelerator().get_current_device()
+            kernel_backend.get_compatible_accelerator().get_current_device()
         ) < (
             10,
             0,

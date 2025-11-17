@@ -33,7 +33,7 @@ class ContinuousCountTest(TestCommons):
         function: Callable,
     ) -> None:
         self.skip_if_incompatible_kernel_backend(kernel_backend)
-        device = kernel_backend.get_accelerator().get_current_device()
+        device = kernel_backend.get_compatible_accelerator().get_current_device()
 
         set_seed(_SEED)
         x = torch.randint(0, _MAX_EXPERTS, (bins,), device=device, dtype=dtype)

@@ -33,7 +33,7 @@ class PackSequenceTest(TestCommons):
         function: Callable,
     ) -> None:
         self.skip_if_incompatible_kernel_backend(kernel_backend)
-        device = kernel_backend.get_accelerator().get_current_device()
+        device = kernel_backend.get_compatible_accelerator().get_current_device()
 
         x_kernel, x_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype)
         cu_seqlens = torch.tensor(cu_seqlens, device=device, dtype=torch.uint32)
@@ -82,7 +82,7 @@ class PackSequenceTest(TestCommons):
         function: Callable,
     ) -> None:
         self.skip_if_incompatible_kernel_backend(kernel_backend)
-        device = kernel_backend.get_accelerator().get_current_device()
+        device = kernel_backend.get_compatible_accelerator().get_current_device()
 
         x_kernel, x_expected = self.get_random_duplicated_tensors(size, device=device, dtype=dtype)
         cu_seqlens = torch.tensor(cu_seqlens, device=device, dtype=torch.uint32)
