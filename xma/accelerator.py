@@ -39,7 +39,7 @@ class KernelBackend(Enum):
 
         return mapping[self]
 
-    def is_kernel_backend_compatible_with_current_accelerator(self) -> bool:
+    def verify_accelerator(self) -> bool:
         expected_accelerator = self.get_accelerator()
         found_accelerator = Accelerator.get_accelerator()
         return expected_accelerator == found_accelerator

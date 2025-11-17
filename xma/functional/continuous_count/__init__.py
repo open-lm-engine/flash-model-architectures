@@ -31,7 +31,7 @@ def continuous_count(x: torch.Tensor, bins: int, *, kernel_backend: KernelBacken
     if kernel_backend is None:
         kernel_backend = KernelBackend.get_kernel_backend_from_device(x)
     else:
-        assert kernel_backend.is_kernel_backend_compatible_with_current_device()
+        assert kernel_backend.verify_accelerator()
 
     if kernel_backend == KernelBackend.torch:
         output = x.bincount(minlength=bins).to(torch.uint32)

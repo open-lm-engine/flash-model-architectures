@@ -30,7 +30,7 @@ class CustomOp(torch.autograd.Function):
                     kernel_backend = KernelBackend.get_kernel_backend_from_device(tensor)
                     break
         else:
-            assert kernel_backend.is_kernel_backend_compatible_with_current_device()
+            assert kernel_backend.verify_accelerator()
 
         if kernel_backend is None:
             raise ValueError("code is not supposed to reach here! kernel_backend was not inferrable")

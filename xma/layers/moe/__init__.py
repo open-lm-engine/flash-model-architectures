@@ -216,7 +216,7 @@ class MoE(nn.Module):
         if kernel_backend is None:
             kernel_backend = KernelBackend.get_kernel_backend_from_device(hidden_states)
         else:
-            assert kernel_backend.is_kernel_backend_compatible_with_current_device()
+            assert kernel_backend.verify_accelerator()
 
         with torch.no_grad():
             sorted_expert_idxs, sorted_scattered_idxs = selected_experts.flatten().sort()
