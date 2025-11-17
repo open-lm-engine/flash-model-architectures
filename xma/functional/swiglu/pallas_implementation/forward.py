@@ -14,7 +14,6 @@ jax_import_guard()
 
 import jax
 import jax.experimental.pallas as pl
-import jax.experimental.pallas.tpu as pltpu
 from jax.nn import sigmoid
 
 
