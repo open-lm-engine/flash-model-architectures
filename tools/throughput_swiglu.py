@@ -23,14 +23,14 @@ kernels = [
 ]
 dtypes = [torch.float16, torch.bfloat16, torch.float32]
 
-table = []
+table = [str(dtype) for dtype in dtypes]
 B = 16 * 4096
 H = 4096
 
 run_forward = False
 
 for kernel, kernel_backend in kernels:
-    row = [str(dtype)]
+    row = []
 
     if not kernel_backend.is_kernel_backend_compatible_with_current_device():
         for _ in range(len(dtypes)):
