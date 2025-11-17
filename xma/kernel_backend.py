@@ -26,31 +26,18 @@ class KernelBackend(Enum):
     torch = "torch"
     triton = "triton"
 
-    @staticmethod
-    def get_kernel_backend_from_device(x: torch.Tensor) -> KernelBackend:
-        device_type = x.device.type
+    def get_accelerator(self) -> Accelerator:
+        if self in [KernelBackend.torch, KernelBackend.triton]:
+            return Accelerator.get_accelerator()
 
-        if device_type == "cuda":
-            kernel_backend = KernelBackend.rocm if _IS_ROCM_AVAILABLE else KernelBackend.cuda
-        elif device_type == "xla":
-            kernel_backend = KernelBackend.pallas
-        else:
-            kernel_backend = KernelBackend.triton
+        mapping = {
+            KernelBackend.cuda: Accelerator.cuda,
+            KernelBackend.nki: Accelerator.trainium,
+            KernelBackend.pallas: Accelerator.tpu,
+            KernelBackend.rocm: Accelerator.rocm,
+        }
 
-        return kernel_backend
-
-    def get_current_device(self) -> torch.device:
-        if self in [KernelBackend.cuda, KernelBackend.rocm, KernelBackend.triton]:
-            return torch.cuda.current_device()
-        elif self == KernelBackend.pallas:
-            return xla_device()
-        elif self == KernelBackend.torch:
-            if torch.cuda.is_available():
-                return torch.device("cuda")
-            elif is_torch_xla_available():
-                return xla_device()
-
-        raise ValueError("no device found")
+        return mapping[self]
 
     def is_kernel_backend_compatible_with_current_device(self) -> bool:
         if self == KernelBackend.cuda:
@@ -65,3 +52,45 @@ class KernelBackend(Enum):
             return True
         else:
             raise ValueError(f"unexpected kernel_backend ({self})")
+
+
+class Accelerator(Enum):
+    cpu = "cpu"
+    cuda = "cuda"
+    rocm = "rocm"
+    tpu = "tpu"
+    trainium = "trainium"
+
+    @staticmethod
+    def get_accelerator() -> Accelerator:
+        if torch.cuda.is_available():
+            return Accelerator.rocm if _IS_ROCM_AVAILABLE else Accelerator.cuda
+        elif is_torch_xla_available():
+            return Accelerator.tpu
+
+        return Accelerator.cpu
+
+    @staticmethod
+    def get_current_device() -> int | str:
+        accelerator = Accelerator.get_accelerator()
+
+        if accelerator in [Accelerator.cuda, Accelerator.rocm]:
+            device = torch.cuda.current_device()
+        elif accelerator == Accelerator.tpu:
+            device = xla_device()
+        elif accelerator == Accelerator.cpu:
+            device = "cpu"
+
+        return device
+
+    def get_kernel_backend(self) -> KernelBackend:
+        accelerator = Accelerator.get_accelerator()
+
+        if accelerator == Accelerator.cuda:
+            kernel_backend = KernelBackend.rocm if _IS_ROCM_AVAILABLE else KernelBackend.cuda
+        elif accelerator == Accelerator.tpu:
+            kernel_backend = KernelBackend.pallas
+        else:
+            kernel_backend = KernelBackend.triton
+
+        return kernel_backend
