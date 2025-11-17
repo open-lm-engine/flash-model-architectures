@@ -13,8 +13,8 @@ import torch
 from torch._inductor.fx_passes.joint_graph import patterns
 from torch._inductor.pattern_matcher import fwd_only, joint_fwd_bwd, register_replacement
 
+from .accelerator import KernelBackend
 from .functional import fused_residual_add_rmsnorm, rmsnorm
-from .kernel_backend import KernelBackend
 
 
 _ALL_TRACE_FUNCTIONS = [joint_fwd_bwd, fwd_only]
