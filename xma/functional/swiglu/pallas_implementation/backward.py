@@ -39,7 +39,7 @@ def swiglu_backward_pallas_kernel(g_ref, u_ref, dy_ref, dg_ref, du_ref):
 @jax.jit
 def swiglu_backward_pallas_jit(g: jax.Array, u: jax.Array, dy: jax.Array) -> tuple[jax.Array, jax.Array]:
     B, H = g.shape
-    BLOCK_SIZE_B = 1024
+    BLOCK_SIZE_B = 768
     BLOCK_SIZE_H = 1024
 
     block_spec = pl.BlockSpec(block_shape=(BLOCK_SIZE_B, BLOCK_SIZE_H), index_map=lambda x, y: (x, y))
