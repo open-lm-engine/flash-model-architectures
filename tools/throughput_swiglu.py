@@ -28,8 +28,8 @@ H = 4096
 
 run_forward = False
 
-for kernel, kernel_backend in kernels:
-    row = []
+for kernel, kernel_backend, row_header in kernels:
+    row = [row_header]
 
     if not kernel_backend.is_kernel_backend_compatible_with_current_device():
         for _ in range(len(dtypes)):
