@@ -34,4 +34,4 @@ tpu = [
 ]
 
 [tool.uv.sources]
-accelerated-model-architectures = { editable = true }
+accelerated-model-architectures = { path = ".", editable = true }
