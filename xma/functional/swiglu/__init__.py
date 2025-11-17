@@ -100,6 +100,7 @@ class _SwigluPacked(CustomOp):
         return swiglu(gate=gate, up=up, kernel_backend=KernelBackend.torch)
 
     @staticmethod
+    @ensure_contiguous
     def forward_cuda(ctx, x: torch.Tensor) -> torch.Tensor:
         ctx_save_for_backward(ctx, x)
 
@@ -111,6 +112,7 @@ class _SwigluPacked(CustomOp):
         return y
 
     @staticmethod
+    @ensure_contiguous
     def backward_cuda(ctx, dy: torch.Tensor) -> torch.Tensor:
         x = ctx.saved_tensors[0]
         dx = empty_like_contiguous(x)
@@ -121,6 +123,13 @@ class _SwigluPacked(CustomOp):
         swiglu_backward_cuda(g=g, u=u, dy=dy, dg=dg, du=du)
 
         return dx
+
+    @staticmethod
+    @ensure_contiguous
+    def forward_pallas(ctx, x: torch.Tensor) -> torch.Tensor:
+        ctx_save_for_backward(ctx, x)
+        u, g = x.chunk(2, dim=-1)
+        return swiglu_forward_pallas(g=g, u=u)
 
     @staticmethod
     def forward_triton(ctx, x: torch.Tensor) -> torch.Tensor:
