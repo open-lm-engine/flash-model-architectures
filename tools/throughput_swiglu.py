@@ -20,7 +20,7 @@ kernels = [
     (torch.compile(swiglu, dynamic=True), KernelBackend.torch, "torch compile"),
     (swiglu, KernelBackend.triton, "triton"),
 ]
-dtypes = [torch.float16, torch.bfloat16, torch.float32]
+dtypes = [torch.float32]
 headers = ["kernel"] + dtypes
 table = [headers]
 
