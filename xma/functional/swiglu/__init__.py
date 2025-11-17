@@ -202,9 +202,9 @@ def swiglu_packed(x: torch.Tensor, *, kernel_backend: KernelBackend | None = Non
     original_shape = x.size()
     x = x.flatten(0, -2)
 
-    assert original_shape[-1] % 2 == 0
+    H = divide_if_divisible(original_shape[-1], 2)
 
     y = _SwigluPacked.run(x=x, kernel_backend=kernel_backend)
-    y = y.view(*original_shape[:-1], original_shape[-1] // 2)
+    y = y.view(*original_shape[:-1], H)
 
     return y
