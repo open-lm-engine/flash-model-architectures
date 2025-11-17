@@ -12,6 +12,7 @@ from .utils import is_torch_xla_available
 
 
 if is_torch_xla_available():
+    from torch_xla.core.xla_model import wait_device_ops as xla_wait_device_ops
     from torch_xla.core.xla_model import xla_device
 
 
@@ -91,3 +92,12 @@ class Accelerator(Enum):
             kernel_backend = KernelBackend.triton
 
         return kernel_backend
+
+    @staticmethod
+    def synchronize() -> None:
+        accelerator = Accelerator.get_accelerator()
+
+        if accelerator == Accelerator.cuda:
+            torch.cuda.synchronize()
+        elif accelerator == Accelerator.tpu:
+            xla_wait_device_ops()
