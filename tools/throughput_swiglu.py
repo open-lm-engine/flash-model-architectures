@@ -37,12 +37,14 @@ for kernel, kernel_backend, row_header in kernels:
             row.append("NA")
         continue
 
+    device = kernel_backend.get_compatible_accelerator().get_current_device()
+
     for dtype in dtypes:
-        u = torch.randn(B, H, device=kernel_backend.get_current_device(), dtype=dtype, requires_grad=not run_forward)
-        g = torch.randn(B, H, device=kernel_backend.get_current_device(), dtype=dtype, requires_grad=not run_forward)
+        u = torch.randn(B, H, device=device, dtype=dtype, requires_grad=not run_forward)
+        g = torch.randn(B, H, device=device, dtype=dtype, requires_grad=not run_forward)
 
         if not run_forward:
-            dy = torch.randn(B, H, device=kernel_backend.get_current_device(), dtype=dtype)
+            dy = torch.randn(B, H, device=device, dtype=dtype)
 
         if not run_forward:
             z = kernel(g, u, kernel_backend=kernel_backend)
