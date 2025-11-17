@@ -2,6 +2,8 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
+accelerator=cuda
+
 install:
 	git submodule update --init --recursive
 	uv sync --extra $(accelerator)
