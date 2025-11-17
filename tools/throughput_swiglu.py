@@ -21,6 +21,7 @@ kernels = [
     (torch.compile(swiglu, dynamic=True), KernelBackend.torch),
     (swiglu, KernelBackend.triton),
 ]
+dtypes = [torch.float16, torch.bfloat16, torch.float32]
 
 table = []
 B = 16 * 4096
@@ -29,18 +30,20 @@ H = 4096
 run_forward = False
 
 for kernel, kernel_backend in kernels:
+    row = [str(dtype)]
+
     if not kernel_backend.is_kernel_backend_compatible_with_current_device():
-        row.append("NA")
+        for _ in range(len(dtypes)):
+            row.append("NA")
         continue
 
-    row = [str(dtype)]
     u = torch.randn(B, H, device=kernel_backend.get_current_device(), dtype=dtype, requires_grad=not run_forward)
     g = torch.randn(B, H, device=kernel_backend.get_current_device(), dtype=dtype, requires_grad=not run_forward)
 
     if not run_forward:
         dy = torch.randn(B, H, device=kernel_backend.get_current_device(), dtype=dtype)
 
-    for dtype in [torch.float16, torch.bfloat16, torch.float32]:
+    for dtype in dtypes:
         if not run_forward:
             z = kernel(g, u, kernel_backend=kernel_backend)
 
