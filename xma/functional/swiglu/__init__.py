@@ -139,7 +139,10 @@ class _SwigluPacked(CustomOp):
         u, g = x.chunk(2, dim=-1)
         du, dg = dx.chunk(2, dim=-1)
 
-        return swiglu_backward_pallas(g=g, u=u, dy=dy, dg=dg, du=du)
+        dg, du = swiglu_backward_pallas(g=g, u=u, dy=dy, dg=dg, du=du)
+        dx = torch.cat([du, dg], dim=-1)
+
+        return dx
 
     @staticmethod
     def forward_triton(ctx, x: torch.Tensor) -> torch.Tensor:
