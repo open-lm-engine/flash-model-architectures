@@ -1,9 +1,20 @@
+# **************************************************
+# Copyright (c) 2025, Mayank Mishra
+# **************************************************
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "accelerated-model-architectures"
 version = "0.1.0"
 description = "A library for efficient kernels and model architectures for a bunch of different hardware accelerators."
 readme = "README.md"
 requires-python = ">=3.12"
+authors = [
+    { name = "Mayank Mishra", email = "mayank31398@gmail.com" },
+]
 dependencies = [
     "ninja>=1.13.0",
     "numpy>=2.3.4",
@@ -11,12 +22,12 @@ dependencies = [
     "tqdm>=4.67.1",
 ]
 
-[tool.setuptools]
-packages = ["xma"]
+[project.urls]
+Homepage = "https://github.com/open-lm-engine/accelerated-model-architectures"
+Repository = "https://github.com/open-lm-engine/accelerated-model-architectures"
 
 [project.optional-dependencies]
 dev = [
-    "accelerated-model-architectures",
     "parameterized>=0.9.0",
     "pre-commit>=4.4.0",
     "pytest>=9.0.1",
@@ -33,5 +44,14 @@ tpu = [
     "tabulate>=0.9.0",
 ]
 
-[tool.uv.sources]
-accelerated-model-architectures = { path = ".", editable = true }
+[tool.hatch.build.targets.wheel]
+packages = ["xma"]
+
+[tool.isort]
+ensure_newline_before_comments = true
+force_grid_wrap = 0
+include_trailing_comma = true
+line_length = 119
+lines_after_imports = 2
+multi_line_output = 3
+use_parentheses = true
