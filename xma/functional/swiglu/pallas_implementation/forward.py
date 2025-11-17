@@ -34,7 +34,7 @@ def swiglu_forward_pallas_kernel(g_ref, u_ref, y_ref):
 def swiglu_forward_pallas_jit(g: jax.Array, u: jax.Array) -> jax.Array:
     B, H = g.shape
     BLOCK_SIZE_B = 1024
-    BLOCK_SIZE_H = 1024
+    BLOCK_SIZE_H = min(ceil_divide(H, 128) * 128, 1024)
 
     kernel = pl.pallas_call(
         swiglu_forward_pallas_kernel,
