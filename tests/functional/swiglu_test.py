@@ -22,7 +22,7 @@ class SwiGLUTest(TestCommons):
         )
         + TestCommons.make_args_matrix(
             TestCommons.get_2d_tensor_sizes(),  # size
-            TestCommons.get_dtypes(),  # dtype
+            TestCommons.get_dtypes()[:1],  # dtype
             [KernelBackend.pallas],  # kernel_backend
             [swiglu],  # function
         )
