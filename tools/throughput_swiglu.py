@@ -22,7 +22,7 @@ kernels = [
 ]
 dtypes = [torch.float32]
 headers = ["kernel"] + dtypes
-table = [headers]
+table = []
 
 B = 16 * 4096
 H = 4096
