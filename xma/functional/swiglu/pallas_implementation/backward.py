@@ -43,11 +43,15 @@ def swiglu_backward_pallas_jit(g: jax.Array, u: jax.Array, du: jax.Array) -> tup
         in_specs=[
             pl.BlockSpec(block_shape=(8, 1024), index_map=lambda x, y: (x, y)),
             pl.BlockSpec(block_shape=(8, 1024), index_map=lambda x, y: (x, y)),
+            pl.BlockSpec(block_shape=(8, 1024), index_map=lambda x, y: (x, y)),
         ],
-        out_specs=pl.BlockSpec(block_shape=(8, 1024), index_map=lambda x, y: (x, y)),
+        out_specs=[
+            pl.BlockSpec(block_shape=(8, 1024), index_map=lambda x, y: (x, y)),
+            pl.BlockSpec(block_shape=(8, 1024), index_map=lambda x, y: (x, y)),
+        ],
     )
 
-    return kernel(g, u)
+    return kernel(g, u, dy)
 
 
 @custom_op(f"{LIBRARY_NAME}::swiglu_backward_pallas", mutates_args={})
