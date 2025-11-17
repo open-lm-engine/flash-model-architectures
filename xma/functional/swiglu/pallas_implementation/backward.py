@@ -42,8 +42,6 @@ def swiglu_backward_pallas_jit(g: jax.Array, u: jax.Array, dy: jax.Array) -> tup
     BLOCK_SIZE_B = 768
     BLOCK_SIZE_H = 1024
 
-    block_spec = pl.BlockSpec(block_shape=(BLOCK_SIZE_B, BLOCK_SIZE_H), index_map=lambda x, y: (x, y))
-
     kernel = pl.pallas_call(
         swiglu_backward_pallas_kernel,
         out_shape=[
@@ -51,8 +49,15 @@ def swiglu_backward_pallas_jit(g: jax.Array, u: jax.Array, dy: jax.Array) -> tup
             jax.ShapeDtypeStruct(shape=g.shape, dtype=g.dtype),
         ],
         grid=(ceil_divide(B, BLOCK_SIZE_B), ceil_divide(H, BLOCK_SIZE_H)),
-        in_specs=[block_spec, block_spec, block_spec],
-        out_specs=[block_spec, block_spec],
+        in_specs=[
+            pl.BlockSpec(block_shape=(BLOCK_SIZE_B, BLOCK_SIZE_H), index_map=lambda x, y: (x, y)),
+            pl.BlockSpec(block_shape=(BLOCK_SIZE_B, BLOCK_SIZE_H), index_map=lambda x, y: (x, y)),
+            pl.BlockSpec(block_shape=(BLOCK_SIZE_B, BLOCK_SIZE_H), index_map=lambda x, y: (x, y)),
+        ],
+        out_specs=[
+            pl.BlockSpec(block_shape=(BLOCK_SIZE_B, BLOCK_SIZE_H), index_map=lambda x, y: (x, y)),
+            pl.BlockSpec(block_shape=(BLOCK_SIZE_B, BLOCK_SIZE_H), index_map=lambda x, y: (x, y)),
+        ],
     )
 
     return kernel(g, u, dy)
