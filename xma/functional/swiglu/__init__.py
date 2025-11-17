@@ -132,6 +132,16 @@ class _SwigluPacked(CustomOp):
         return swiglu_forward_pallas(g=g, u=u)
 
     @staticmethod
+    def backward_pallas(ctx, dy: torch.Tensor) -> torch.Tensor:
+        x = ctx.saved_tensors[0]
+        dx = empty_like_contiguous(x)
+
+        u, g = x.chunk(2, dim=-1)
+        du, dg = dx.chunk(2, dim=-1)
+
+        return swiglu_backward_pallas(g=g, u=u, dy=dy, dg=dg, du=du)
+
+    @staticmethod
     def forward_triton(ctx, x: torch.Tensor) -> torch.Tensor:
         ctx_save_for_backward(ctx, x)
 
@@ -192,7 +202,9 @@ def swiglu_packed(x: torch.Tensor, *, kernel_backend: KernelBackend | None = Non
     original_shape = x.size()
     x = x.flatten(0, -2)
 
+    assert original_shape[-1] % 2 == 0
+
     y = _SwigluPacked.run(x=x, kernel_backend=kernel_backend)
-    y = y.view(original_shape)
+    y = y.view(*original_shape[:-1], original_shape[-1] // 2)
 
     return y
