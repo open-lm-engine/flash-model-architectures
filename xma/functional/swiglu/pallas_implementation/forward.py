@@ -14,6 +14,7 @@ jax_import_guard()
 
 import jax
 import jax.experimental.pallas as pl
+import jax.experimental.pallas.tpu as pltpu
 from jax.nn import sigmoid
 
 
@@ -33,12 +34,12 @@ def swiglu_forward_pallas_jit(g: jax.Array, u: jax.Array) -> jax.Array:
     kernel = pl.pallas_call(
         swiglu_forward_pallas_kernel,
         out_shape=jax.ShapeDtypeStruct(shape=g.shape, dtype=g.dtype),
-        grid=(B, ceil_divide(H, 1024)),
+        grid=(ceil_divide(B, 8), ceil_divide(H, 1024)),
         in_specs=[
-            pl.BlockSpec(block_shape=(1, 1024), index_map=lambda x, y: (x, y)),
-            pl.BlockSpec(block_shape=(1, 1024), index_map=lambda x, y: (x, y)),
+            pl.BlockSpec(block_shape=(8, 1024), index_map=lambda x, y: (x, y)),
+            pl.BlockSpec(block_shape=(8, 1024), index_map=lambda x, y: (x, y)),
         ],
-        out_specs=pl.BlockSpec(block_shape=(1, 1024), index_map=lambda x, y: (x, y)),
+        out_specs=pl.BlockSpec(block_shape=(8, 1024), index_map=lambda x, y: (x, y)),
     )
 
     return kernel(g, u)
