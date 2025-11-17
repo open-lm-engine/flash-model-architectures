@@ -145,9 +145,6 @@ class RNNTest(TestCommons):
         self.skip_if_incompatible_kernel_backend(kernel_backend)
         device = kernel_backend.get_compatible_accelerator().get_current_device()
 
-        if device is None or device.type != "cuda":
-            self.skipTest("test is sufficient for CUDA")
-
         set_seed(_SEED)
 
         batch_size = len(cu_seqlens) - 1
