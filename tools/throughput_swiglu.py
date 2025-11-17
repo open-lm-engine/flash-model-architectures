@@ -30,11 +30,11 @@ run_forward = False
 
 for dtype in [torch.float16, torch.bfloat16, torch.float32]:
     row = [str(dtype)]
-    u = torch.randn(B, H, device=torch.cuda.current_device(), dtype=dtype, requires_grad=not run_forward)
-    g = torch.randn(B, H, device=torch.cuda.current_device(), dtype=dtype, requires_grad=not run_forward)
+    u = torch.randn(B, H, device=kernel_backend.get_current_device(), dtype=dtype, requires_grad=not run_forward)
+    g = torch.randn(B, H, device=kernel_backend.get_current_device(), dtype=dtype, requires_grad=not run_forward)
 
     if not run_forward:
-        dy = torch.randn(B, H, device=torch.cuda.current_device(), dtype=dtype)
+        dy = torch.randn(B, H, device=kernel_backend.get_current_device(), dtype=dtype)
 
     for kernel, kernel_backend in kernels:
         if not run_forward:
