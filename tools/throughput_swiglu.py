@@ -37,6 +37,10 @@ for dtype in [torch.float16, torch.bfloat16, torch.float32]:
         dy = torch.randn(B, H, device=kernel_backend.get_current_device(), dtype=dtype)
 
     for kernel, kernel_backend in kernels:
+        if not kernel_backend.is_kernel_backend_compatible_with_current_device():
+            row.append("NA")
+            continue
+
         if not run_forward:
             z = kernel(g, u, kernel_backend=kernel_backend)
 
