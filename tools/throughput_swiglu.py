@@ -35,6 +35,7 @@ for kernel, kernel_backend, row_header in kernels:
     if not kernel_backend.verify_accelerator():
         for _ in range(len(dtypes)):
             row.append("NA")
+        table.append(row)
         continue
 
     device = kernel_backend.get_compatible_accelerator().get_current_device()
