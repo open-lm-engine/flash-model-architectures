@@ -28,6 +28,7 @@ functional:
     - triton
   pack_sequence:
     - cuda
+    - pallas
     - triton
   softmax:
     - triton
@@ -36,6 +37,7 @@ functional:
     - triton
   swiglu_packed:
     - cuda
+    - pallas
     - triton
   unpack_sequence:
     - cuda

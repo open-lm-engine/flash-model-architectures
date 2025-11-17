@@ -26,10 +26,10 @@ We are planning on adding lots of experimental and fun model architectures with 
 | fused_residual_add_rmsnorm | ❌ | ❌ | ❌ | ❌ | ✅ |
 | grouped_gemm | ✅ | ❌ | ❌ | ❌ | ❌ |
 | rmsnorm | ❌ | ❌ | ❌ | ❌ | ✅ |
-| pack_sequence | ✅ | ❌ | ❌ | ❌ | ✅ |
+| pack_sequence | ✅ | ✅ | ❌ | ❌ | ✅ |
 | softmax | ❌ | ❌ | ❌ | ❌ | ✅ |
 | swiglu | ✅ | ❌ | ❌ | ❌ | ✅ |
-| swiglu_packed | ✅ | ❌ | ❌ | ❌ | ✅ |
+| swiglu_packed | ✅ | ✅ | ❌ | ❌ | ✅ |
 | unpack_sequence | ✅ | ❌ | ❌ | ❌ | ✅ |
 
 # Discord Server
