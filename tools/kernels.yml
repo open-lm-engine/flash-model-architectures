@@ -28,12 +28,12 @@ functional:
     - triton
   pack_sequence:
     - cuda
-    - pallas
     - triton
   softmax:
     - triton
   swiglu:
     - cuda
+    - pallas
     - triton
   swiglu_packed:
     - cuda
