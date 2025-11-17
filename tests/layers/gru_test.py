@@ -8,7 +8,7 @@ import torch
 import torch.nn as nn
 from parameterized import parameterized
 
-from xma import GRU, KernelBackend, set_seed
+from xma import GRU, Accelerator, KernelBackend, set_seed
 
 from ..test_commons import TestCommons
 
@@ -149,6 +149,9 @@ class GRUTest(TestCommons):
         num_heads: int,
         has_input_state: bool,
     ) -> None:
+        if Accelerator.get_accelerator() != Accelerator.cuda:
+            self.skipTest("Sufficient to run on CUDA device")
+
         self.skip_if_incompatible_kernel_backend(kernel_backend)
         device = kernel_backend.get_compatible_accelerator().get_current_device()
 

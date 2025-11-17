@@ -8,7 +8,7 @@ import torch
 import torch.nn as nn
 from parameterized import parameterized
 
-from xma import RNN, KernelBackend, set_seed
+from xma import RNN, Accelerator, KernelBackend, set_seed
 
 from ..test_commons import TestCommons
 
@@ -142,6 +142,9 @@ class RNNTest(TestCommons):
         snn: tuple[int, int, int],
         has_input_state: bool,
     ) -> None:
+        if Accelerator.get_accelerator() != Accelerator.cuda:
+            self.skipTest("Sufficient to run on CUDA device")
+
         self.skip_if_incompatible_kernel_backend(kernel_backend)
         device = kernel_backend.get_compatible_accelerator().get_current_device()
 
