@@ -32,7 +32,7 @@ run_forward = False
 for kernel, kernel_backend, row_header in kernels:
     row = [row_header]
 
-    if not kernel_backend.is_kernel_backend_compatible_with_current_device():
+    if not kernel_backend.verify_accelerator():
         for _ in range(len(dtypes)):
             row.append("NA")
         continue
