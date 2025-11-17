@@ -8,8 +8,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from ...accelerator import Accelerator, KernelBackend
 from ...functional import continuous_count
-from ...kernel_backend import KernelBackend
 from ...utils import is_triton_available
 from .cuda_implementation import group_with_padding, grouped_gemm_experts, ungroup_with_padding
 
@@ -214,9 +214,9 @@ class MoE(nn.Module):
         kernel_backend: KernelBackend | None = None,
     ) -> torch.Tensor:
         if kernel_backend is None:
-            kernel_backend = KernelBackend.get_kernel_backend_from_device(hidden_states)
+            kernel_backend = Accelerator.get_accelerator().get_kernel_backend()
         else:
-            assert kernel_backend.is_kernel_backend_compatible_with_current_device()
+            assert kernel_backend.verify_accelerator()
 
         with torch.no_grad():
             sorted_expert_idxs, sorted_scattered_idxs = selected_experts.flatten().sort()

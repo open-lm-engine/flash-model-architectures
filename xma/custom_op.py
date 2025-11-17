@@ -8,8 +8,8 @@ from typing import Any
 
 import torch
 
+from .accelerator import Accelerator, KernelBackend
 from .counters import increment_counter
-from .kernel_backend import KernelBackend
 
 
 def ctx_needs_gradients(ctx) -> bool:
@@ -25,12 +25,9 @@ class CustomOp(torch.autograd.Function):
     @classmethod
     def run(cls, kernel_backend: KernelBackend | None = None, **kwargs) -> Any:
         if kernel_backend is None:
-            for tensor in kwargs.values():
-                if isinstance(tensor, torch.Tensor):
-                    kernel_backend = KernelBackend.get_kernel_backend_from_device(tensor)
-                    break
+            kernel_backend = Accelerator.get_accelerator().get_kernel_backend()
         else:
-            assert kernel_backend.is_kernel_backend_compatible_with_current_device()
+            assert kernel_backend.verify_accelerator()
 
         if kernel_backend is None:
             raise ValueError("code is not supposed to reach here! kernel_backend was not inferrable")

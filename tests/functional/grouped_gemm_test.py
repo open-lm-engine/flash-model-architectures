@@ -34,7 +34,7 @@ class GroupedGEMMTest(TestCommons):
         function: Callable,
     ) -> None:
         self.skip_if_incompatible_kernel_backend(kernel_backend)
-        device = kernel_backend.get_current_device()
+        device = kernel_backend.get_compatible_accelerator().get_current_device()
 
         if torch.cuda.get_device_capability(torch.cuda.current_device()) < (10, 0):
             self.skipTest("skipping Blackwell Grouped Gemm since Blackwell GPU is not found")

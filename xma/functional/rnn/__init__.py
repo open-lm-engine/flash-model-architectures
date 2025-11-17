@@ -4,8 +4,8 @@
 
 import torch
 
+from ...accelerator import KernelBackend
 from ...custom_op import CustomOp, ctx_save_for_backward
-from ...kernel_backend import KernelBackend
 from ...torch_utils import clip_gradients, tanh
 from ...utils import (
     empty_like_contiguous,
