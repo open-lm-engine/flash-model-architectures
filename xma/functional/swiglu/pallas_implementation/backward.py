@@ -14,6 +14,7 @@ jax_import_guard()
 
 import jax
 import jax.experimental.pallas as pl
+import jax.numpy as jnp
 from jax.nn import sigmoid
 
 
@@ -22,6 +23,7 @@ def swiglu_backward_pallas_kernel(g_ref, u_ref, dy_ref, dg_ref, du_ref):
     u = u_ref[...]
     dy = dy_ref[...]
 
+    g = g.astype(jnp.float32)
     g_sigmoid = sigmoid(g)
     g_silu = g * g_sigmoid
 
