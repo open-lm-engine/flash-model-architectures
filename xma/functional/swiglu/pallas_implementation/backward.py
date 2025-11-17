@@ -61,13 +61,14 @@ def swiglu_backward_pallas_jit(g: jax.Array, u: jax.Array, dy: jax.Array) -> tup
 def swiglu_backward_pallas(g: torch.Tensor, u: torch.Tensor, dy: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
     assert g.is_contiguous()
     assert u.is_contiguous()
+    assert dy.is_contiguous()
 
     if swiglu_backward_pallas.cache is None:
         swiglu_backward_pallas.cache = make_kernel_from_pallas(
-            swiglu_backward_pallas_jit, lambda g, u: [(g.shape, g.dtype)]
+            swiglu_backward_pallas_jit, lambda g, u, dy: [(g.shape, g.dtype), (g.shape, g.dtype)]
         )
 
-    return swiglu_backward_pallas.cache(g=g, u=u, dy=dy)
+    return swiglu_backward_pallas.cache(g, u, dy)
 
 
 @swiglu_backward_pallas.register_fake
