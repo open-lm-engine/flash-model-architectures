@@ -17,7 +17,7 @@ import jax.experimental.pallas as pl
 from jax.nn import sigmoid
 
 
-def swiglu_forward_pallas_kernel(g_ref, u_ref, y_ref):
+def swiglu_backward_pallas_kernel(g_ref, u_ref, y_ref):
     g = g_ref[...]
     u = u_ref[...]
 
@@ -31,7 +31,7 @@ def swiglu_forward_pallas_jit(g: jax.Array, u: jax.Array) -> jax.Array:
     B, H = g.shape
 
     kernel = pl.pallas_call(
-        swiglu_forward_pallas_kernel,
+        swiglu_backward_pallas_kernel,
         out_shape=jax.ShapeDtypeStruct(shape=g.shape, dtype=g.dtype),
         grid=(ceil_divide(B, 8), ceil_divide(H, 1024)),
         in_specs=[
@@ -44,20 +44,20 @@ def swiglu_forward_pallas_jit(g: jax.Array, u: jax.Array) -> jax.Array:
     return kernel(g, u)
 
 
-@custom_op(f"{LIBRARY_NAME}::swiglu_forward_pallas", mutates_args={})
-def swiglu_forward_pallas(g: torch.Tensor, u: torch.Tensor) -> torch.Tensor:
+@custom_op(f"{LIBRARY_NAME}::swiglu_backward_pallas", mutates_args={})
+def swiglu_backward_pallas(g: torch.Tensor, u: torch.Tensor) -> torch.Tensor:
     assert g.is_contiguous()
     assert u.is_contiguous()
 
-    if swiglu_forward_pallas.cache is None:
-        swiglu_forward_pallas.cache = make_kernel_from_pallas(
+    if swiglu_backward_pallas.cache is None:
+        swiglu_backward_pallas.cache = make_kernel_from_pallas(
             swiglu_forward_pallas_jit, lambda g, u: [(g.shape, g.dtype)]
         )
 
-    return swiglu_forward_pallas.cache(g, u)
+    return swiglu_backward_pallas.cache(g, u)
 
 
-@swiglu_forward_pallas.register_fake
+@swiglu_backward_pallas.register_fake
 def _(g: torch.Tensor, u: torch.Tensor) -> torch.Tensor:
     assert g.is_contiguous()
     assert u.is_contiguous()
@@ -65,4 +65,4 @@ def _(g: torch.Tensor, u: torch.Tensor) -> torch.Tensor:
     return torch.empty_like(g)
 
 
-swiglu_forward_pallas.cache = None
+swiglu_backward_pallas.cache = None
