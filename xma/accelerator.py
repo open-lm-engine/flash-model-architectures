@@ -8,7 +8,7 @@ from enum import Enum
 
 import torch
 
-from .utils import is_cute_dsl_available, is_torch_xla_available, is_triton_available
+from .utils import is_torch_xla_available
 
 
 if is_torch_xla_available():
@@ -39,19 +39,10 @@ class KernelBackend(Enum):
 
         return mapping[self]
 
-    def is_kernel_backend_compatible_with_current_device(self) -> bool:
-        if self == KernelBackend.cuda:
-            return not _IS_ROCM_AVAILABLE and torch.cuda.is_available() and is_cute_dsl_available()
-        elif self == KernelBackend.pallas:
-            return is_torch_xla_available()
-        elif self == KernelBackend.rocm:
-            return _IS_ROCM_AVAILABLE and torch.cuda.is_available()
-        elif self == KernelBackend.triton:
-            return torch.cuda.is_available() and is_triton_available()
-        elif self == KernelBackend.torch:
-            return True
-        else:
-            raise ValueError(f"unexpected kernel_backend ({self})")
+    def is_kernel_backend_compatible_with_current_accelerator(self) -> bool:
+        expected_accelerator = self.get_accelerator()
+        found_accelerator = Accelerator.get_accelerator()
+        return expected_accelerator == found_accelerator
 
 
 class Accelerator(Enum):
@@ -64,11 +55,13 @@ class Accelerator(Enum):
     @staticmethod
     def get_accelerator() -> Accelerator:
         if torch.cuda.is_available():
-            return Accelerator.rocm if _IS_ROCM_AVAILABLE else Accelerator.cuda
+            accelerator = Accelerator.rocm if _IS_ROCM_AVAILABLE else Accelerator.cuda
         elif is_torch_xla_available():
-            return Accelerator.tpu
+            accelerator = Accelerator.tpu
+        else:
+            accelerator = Accelerator.cpu
 
-        return Accelerator.cpu
+        return accelerator
 
     @staticmethod
     def get_current_device() -> int | str:

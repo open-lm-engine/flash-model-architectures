@@ -4,7 +4,7 @@
 
 import torch
 
-from ...kernel_backend import KernelBackend
+from ...accelerator import KernelBackend
 from ...utils import is_triton_available
 
 

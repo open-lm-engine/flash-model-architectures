@@ -4,7 +4,7 @@
 
 import torch
 
-from ...kernel_backend import KernelBackend
+from ...accelerator import KernelBackend
 from .cuda_implementation import grouped_gemm_cuda
 
 

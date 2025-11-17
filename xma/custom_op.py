@@ -8,8 +8,8 @@ from typing import Any
 
 import torch
 
+from .accelerator import KernelBackend
 from .counters import increment_counter
-from .kernel_backend import KernelBackend
 
 
 def ctx_needs_gradients(ctx) -> bool:
