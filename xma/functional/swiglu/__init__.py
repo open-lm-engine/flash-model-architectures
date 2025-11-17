@@ -20,11 +20,11 @@ from ...utils import (
 if is_cute_dsl_available():
     from .cuda_implementation import swiglu_backward_cuda, swiglu_forward_cuda
 
-if is_triton_available():
-    from .triton_implementation import swiglu_backward_triton, swiglu_forward_triton
-
 if is_torch_xla_available():
     from .pallas_implementation import swiglu_backward_pallas, swiglu_forward_pallas
+
+if is_triton_available():
+    from .triton_implementation import swiglu_backward_triton, swiglu_forward_triton
 
 
 class _Swiglu(CustomOp):
