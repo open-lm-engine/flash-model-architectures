@@ -90,10 +90,7 @@ def gru_forward_triton_kernel(
         start = tl.load(cu_seqlens_ptrs, mask=MASK_B[:, None])
         end = tl.load(cu_seqlens_ptrs + cu_seqlens_stride[0], mask=MASK_B[:, None])
 
-        if IS_MAX_SEQLEN_TENSOR:
-            S = tl.load(max_seqlen_ptr)
-        else:
-            S = max_seqlen_ptr
+        S = tl.load(max_seqlen_ptr) if IS_MAX_SEQLEN_TENSOR else max_seqlen_ptr
 
         x_ptrs = x_ptr + start * x_stride[0] + BLOCK_ID_N * x_stride[1] + BLOCK_H[None, :] * x_stride[2]
         xr_ptrs = xr_ptr + start * xr_stride[0] + BLOCK_ID_N * xr_stride[1] + BLOCK_H[None, :] * xr_stride[2]
@@ -130,10 +127,7 @@ def gru_forward_triton_kernel(
         y_ptrs = y_ptr + BLOCK_B[:, None] * y_stride[0] + BLOCK_ID_N * y_stride[2] + BLOCK_H[None, :] * y_stride[3]
 
     for _ in range(S):
-        if IS_VARLEN:
-            MASK = (start < end) & MASK_H[None, :]
-        else:
-            MASK = MASK_BH
+        MASK = ((start < end) & MASK_H[None, :]) if IS_VARLEN else MASK_BH
 
         x = tl.load(xr_ptrs, mask=MASK)
         r = matmul(A=h, B=Wr, C=x, output_dtype=tl.float32)
