@@ -87,27 +87,18 @@ class _GRU(CustomOp):
                 offset_unfinished = offset[unfinished]
 
             if cu_seqlens is None:
-                # (B, N, 1, H) = (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
                 f = h0[..., None, :] @ Wf + xf[:, s, :, None, :]
-                f = sigmoid(f)
-
-                # (B, N, 1, H) = (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
                 r = h0[..., None, :] @ Wr + xr[:, s, :, None, :]
-                r = sigmoid(r)
+            else:
+                f = h0[unfinished, :, None, :] @ Wf.unsqueeze(0) + xf[offset_unfinished].unsqueeze(-2)
+                r = h0[unfinished, :, None, :] @ Wr.unsqueeze(0) + xr[offset_unfinished].unsqueeze(-2)
 
-                # (B, N, 1, H) = [(B, N, 1, H) * (B, N, 1, H)] @ (1, N, H, H) + (B, N, 1, H)
+            f = sigmoid(f)
+            r = sigmoid(r)
+
+            if cu_seqlens is None:
                 z = (h0[..., None, :] * r) @ W + x[:, s, :, None, :]
             else:
-                # don't update the finished sequences
-                # (B, N, 1, H) = (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
-                f = h0[unfinished, :, None, :] @ Wf.unsqueeze(0) + xf[offset_unfinished].unsqueeze(-2)
-                f = sigmoid(f)
-
-                # (B, N, 1, H) = (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
-                r = h0[unfinished, :, None, :] @ Wr.unsqueeze(0) + xr[offset_unfinished].unsqueeze(-2)
-                r = sigmoid(r)
-
-                # (B, N, 1, H) = [(B, N, 1, H) * (B, N, 1, H)] @ (1, N, H, H) + (B, N, 1, H)
                 z = (h0[unfinished, :, None, :] * r) @ W.unsqueeze(0) + x[offset_unfinished].unsqueeze(-2)
 
             z = tanh(z)
