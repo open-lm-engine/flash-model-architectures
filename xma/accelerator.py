@@ -82,11 +82,9 @@ class Accelerator(Enum):
         return device
 
     def get_kernel_backend(self) -> KernelBackend:
-        accelerator = Accelerator.get_accelerator()
-
-        if accelerator == Accelerator.cuda:
+        if self == Accelerator.cuda:
             kernel_backend = KernelBackend.rocm if _IS_ROCM_AVAILABLE else KernelBackend.cuda
-        elif accelerator == Accelerator.tpu:
+        elif self == Accelerator.tpu:
             kernel_backend = KernelBackend.pallas
         else:
             kernel_backend = KernelBackend.triton
