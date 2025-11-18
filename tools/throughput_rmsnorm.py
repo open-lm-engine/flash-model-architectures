@@ -24,7 +24,7 @@ table = []
 B = 16 * 4096
 H = 4096
 
-run_forward = False
+run_forward = True
 
 for kernel, kernel_backend, row_header in kernels:
     row = [row_header]
