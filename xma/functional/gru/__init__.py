@@ -97,14 +97,6 @@ class _GRU(CustomOp):
 
                 # (B, N, 1, H) = [(B, N, 1, H) * (B, N, 1, H)] @ (1, N, H, H) + (B, N, 1, H)
                 z = (h0[..., None, :] * r) @ W + x[:, s, :, None, :]
-                z = tanh(z)
-
-                h = f * h0[..., None, :] + (1 - f) * z
-                h = h.squeeze(-2)
-                h = clip_gradients(h, gradient_clipping)
-
-                y[:, s] = h
-                h0 = h
             else:
                 # don't update the finished sequences
                 # (B, N, 1, H) = (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
@@ -117,12 +109,21 @@ class _GRU(CustomOp):
 
                 # (B, N, 1, H) = [(B, N, 1, H) * (B, N, 1, H)] @ (1, N, H, H) + (B, N, 1, H)
                 z = (h0[unfinished, :, None, :] * r) @ W.unsqueeze(0) + x[offset_unfinished].unsqueeze(-2)
-                z = tanh(z)
 
+            z = tanh(z)
+
+            if cu_seqlens is None:
+                h = f * h0[..., None, :] + (1 - f) * z
+            else:
                 h = f * h0[unfinished, :, None, :] + (1 - f) * z
-                h = h.squeeze(-2)
-                h = clip_gradients(h, gradient_clipping)
 
+            h = h.squeeze(-2)
+            h = clip_gradients(h, gradient_clipping)
+
+            if cu_seqlens is None:
+                y[:, s] = h
+                h0 = h
+            else:
                 y[offset_unfinished] = h
                 h0[unfinished] = h
 
