@@ -88,10 +88,7 @@ class RNNTest(TestCommons):
             )
 
             y_torch, output_state_torch = rnn_torch(
-                input=x_torch,
-                input_state=input_state_torch,
-                deterministic=deterministic,
-                kernel_backend=KernelBackend.torch,
+                input=x_torch, input_state=input_state_torch, kernel_backend=KernelBackend.torch
             )
 
             self.assert_equal_tensors(
@@ -233,6 +230,7 @@ class RNNTest(TestCommons):
             [[0, 7, 19, 27, 93]],  # cu_seqlens
             [(64, 4, 8), (64, 8, 4), (63, 7, 7)],  # state_size, num_input_heads, num_weight_heads
             [False, True],  # has_input_state
+            [False, True],  # deterministic
             [False, True],  # is_compiling
             [False, True],  # no_grad
         )
@@ -244,6 +242,7 @@ class RNNTest(TestCommons):
         cu_seqlens: list[int],
         snn: tuple[int, int, int],
         has_input_state: bool,
+        deterministic: bool,
         is_compiling: bool,
         no_grad: bool,
     ) -> None:
@@ -294,6 +293,7 @@ class RNNTest(TestCommons):
                 input_state=input_state_kernel,
                 cu_seqlens=cu_seqlens,
                 max_seqlen=max_seqlen,
+                deterministic=deterministic,
                 kernel_backend=KernelBackend.triton,
             )
 
