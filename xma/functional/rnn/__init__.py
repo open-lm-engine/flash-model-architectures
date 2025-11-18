@@ -166,13 +166,11 @@ class _RNN(CustomOp):
             deterministic=deterministic,
         )
 
-        if Nx != N:
-            dx = dx.type_as(y)
-
         if deterministic:
             dW = dW.view(-1, Nw, H, H)
             dW = dW.sum(0)
 
+        dx = dx.type_as(y)
         dW = dW.type_as(W)
 
         return dx, dW, *[None] * 5
