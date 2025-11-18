@@ -27,7 +27,7 @@ def _get_num_heads(
     xr: torch.Tensor,
     Wr: torch.Tensor,
     run_check: bool,
-) -> tuple[int, int, int, int, int, int]:
+) -> tuple[int, int, int, int, int, int, int]:
     Nx = x.size(-2)
     Nxf = xf.size(-2)
     Nxr = xr.size(-2)
