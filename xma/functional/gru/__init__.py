@@ -209,6 +209,7 @@ class _GRU(CustomOp):
         gru_backward_triton(
             x=x,
             W=W,
+            y=y,
             xf=xf,
             Wf=Wf,
             dxf=dxf,
