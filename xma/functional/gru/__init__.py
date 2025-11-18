@@ -90,8 +90,8 @@ class _GRU(CustomOp):
                 f = h0[..., None, :] @ Wf + xf[:, s, :, None, :]
                 r = h0[..., None, :] @ Wr + xr[:, s, :, None, :]
             else:
-                f = h0[unfinished, :, None, :] @ Wf.unsqueeze(0) + xf[offset_unfinished].unsqueeze(-2)
-                r = h0[unfinished, :, None, :] @ Wr.unsqueeze(0) + xr[offset_unfinished].unsqueeze(-2)
+                f = h0[unfinished, :, None, :] @ Wf + xf[offset_unfinished, :, None, :]
+                r = h0[unfinished, :, None, :] @ Wr + xr[offset_unfinished, :, None, :]
 
             f = sigmoid(f)
             r = sigmoid(r)
