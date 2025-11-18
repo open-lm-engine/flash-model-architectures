@@ -195,7 +195,22 @@ class _GRU(CustomOp):
             max_seqlen=max_seqlen,
         )
 
-        ctx_save_for_backward(ctx, W, Wf, f, Wr, r, z, y, h0, cu_seqlens, max_seqlen_tensor)
+        ctx_save_for_backward(
+            ctx,
+            W,
+            Wf,
+            f,
+            Wr,
+            r,
+            z,
+            y,
+            h0,
+            cu_seqlens,
+            max_seqlen_tensor,
+            x if z is None else None,
+            xf if f is None else xf,
+            xr if r is None else None,
+        )
         ctx.max_seqlen = max_seqlen
         ctx.gradient_clipping = gradient_clipping
         ctx.num_heads = Nx, Nxf, Nxr, Nw, Nwf, Nwr, N
@@ -204,7 +219,7 @@ class _GRU(CustomOp):
 
     @staticmethod
     def backward_triton(ctx, dy: torch.Tensor) -> tuple[torch.Tensor | None]:
-        W, Wf, f, Wr, r, z, y, h0, cu_seqlens, max_seqlen_tensor = ctx.saved_tensors
+        W, Wf, f, Wr, r, z, y, h0, cu_seqlens, max_seqlen_tensor, x, xf, xr = ctx.saved_tensors
         Nx, Nxf, Nxr, Nw, Nwf, Nwr, N = ctx.num_heads
 
         dx = _get_backward_tensor(y=y, Nx=Nx, N=y.size(-2))
