@@ -5,12 +5,11 @@
 import torch
 import torch.nn.functional as F
 
-from ...accelerator import KernelBackend
+from ...accelerator import Accelerator, KernelBackend
 from ...custom_op import CustomOp, ctx_needs_gradients, ctx_save_for_backward
 from ...utils import (
     empty_like_contiguous,
     get_num_elements_and_hidden_size,
-    get_sm_count,
     is_triton_available,
     zeros_like_contiguous,
 )
@@ -90,13 +89,12 @@ class _FusedResidualAddRMSNorm(CustomOp):
         dx = empty_like_contiguous(xr)
         dr = empty_like_contiguous(xr) if has_residual else None
 
-        if W is not None:
-            if deterministic:
-                dW = torch.empty(get_sm_count(dx.device), *W.size(), dtype=W.dtype, device=W.device)
-            else:
-                dW = zeros_like_contiguous(W, dtype=torch.float32)
-        else:
+        if W is None:
             dW = None
+        elif deterministic:
+            dW = torch.empty(Accelerator.get_sm_count(dx.device), *W.size(), dtype=torch.float32, device=dx.device)
+        else:
+            dW = zeros_like_contiguous(W, dtype=torch.float32)
 
         if not has_residual:
             assert dxr is None
@@ -116,7 +114,10 @@ class _FusedResidualAddRMSNorm(CustomOp):
         )
 
         if dW is not None:
-            dW = dW.sum(0) if deterministic else dW.type_as(W)
+            if deterministic:
+                dW = dW.sum(0)
+
+            dW = dW.type_as(W)
 
         return dx, dr, dW, *[None] * 4
 
