@@ -44,7 +44,7 @@ for kernel, kernel_backend, row_header in kernels:
         W = torch.randn(H, device=device, dtype=dtype, requires_grad=not run_forward)
 
         if not run_forward:
-            dy = torch.randn_like(x)
+            dy = torch.randn(B, H, device=device, dtype=dtype, requires_grad=not run_forward)
             z = kernel(x=x, weight=W, eps=None, kernel_backend=kernel_backend)
 
         for i in range(n):
