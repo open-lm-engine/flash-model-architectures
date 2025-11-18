@@ -5,7 +5,6 @@
 from .contiguous import ensure_contiguous, ensure_same_strides
 from .cu_seqlens import get_max_seqlen_and_max_seqlen_tensor
 from .debugging import print_gradient
-from .device import is_hip, is_nvidia_gpu
 from .env import get_boolean_env_variable
 from .packages import is_cute_dsl_available, is_torch_xla_available, is_triton_available
 from .ptx import get_ptx_from_triton_kernel
