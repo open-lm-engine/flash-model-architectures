@@ -70,10 +70,7 @@ def fused_residual_add_rmsnorm_forward_triton_kernel(
     tl.store(y_ptr + BLOCK_B[:, None] * y_stride[0] + BLOCK_H[None, :] * y_stride[1], x, mask=MASK_BH)
 
 
-@custom_op(
-    f"{LIBRARY_NAME}::fused_residual_add_rmsnorm_forward_triton",
-    mutates_args={"y", "xr", "s"},
-)
+@custom_op(f"{LIBRARY_NAME}::fused_residual_add_rmsnorm_forward_triton", mutates_args={"y", "xr", "s"})
 def fused_residual_add_rmsnorm_forward_triton(
     x: torch.Tensor,
     r: torch.Tensor | None,
