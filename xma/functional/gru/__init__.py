@@ -163,9 +163,9 @@ class _GRU(CustomOp):
         needs_grad = ctx_needs_gradients(ctx)
 
         y = torch.empty(y_shape, device=x.device, dtype=x.dtype)
-        f = torch.empty(y_shape, device=x.device, dtype=x.dtype) if needs_grad else None
-        r = torch.empty(y_shape, device=x.device, dtype=x.dtype) if needs_grad else None
-        z = torch.empty(y_shape, device=x.device, dtype=x.dtype) if needs_grad else None
+        f = torch.empty(y_shape, device=x.device, dtype=x.dtype) if needs_grad and Nxf == N else None
+        r = torch.empty(y_shape, device=x.device, dtype=x.dtype) if needs_grad and Nxr == N else None
+        z = torch.empty(y_shape, device=x.device, dtype=x.dtype) if needs_grad and Nx == N else None
 
         gru_forward_triton(
             x=x,
