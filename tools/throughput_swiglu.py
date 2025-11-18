@@ -46,8 +46,6 @@ for kernel, kernel_backend, row_header in kernels:
 
         if not run_forward:
             dy = torch.randn(B, H, device=device, dtype=dtype)
-
-        if not run_forward:
             z = kernel(g, u, kernel_backend=kernel_backend)
 
         for i in range(n):
