@@ -17,10 +17,16 @@ from .forward import _get_autotune_configs
 @triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_H"], reset_to_zero=["dW_ptr", "dWf_ptr", "dWr_ptr"])
 @triton.jit
 def gru_backward_triton_kernel(
+    x_ptr,
+    x_stride,
     W_ptr,
     W_stride,
+    xf_ptr,
+    xf_stride,
     Wf_ptr,
     Wf_stride,
+    xr_ptr,
+    xr_stride,
     Wr_ptr,
     Wr_stride,
     z_ptr,
@@ -326,6 +332,8 @@ def gru_backward_triton(
 
     with torch.device(y.device):
         gru_backward_triton_kernel[GRID](
+            x_ptr=x,
+            x_stride=None if x is None else x.stride(),
             W_ptr=W,
             W_stride=W.stride(),
             Wf_ptr=Wf,
