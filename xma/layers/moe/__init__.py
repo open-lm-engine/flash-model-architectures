@@ -214,7 +214,7 @@ class MoE(nn.Module):
         kernel_backend: KernelBackend | None = None,
     ) -> torch.Tensor:
         if kernel_backend is None:
-            kernel_backend = Accelerator.get_accelerator().get_kernel_backend()
+            kernel_backend = Accelerator.get_kernel_backend()
         else:
             assert kernel_backend.verify_accelerator()
 
