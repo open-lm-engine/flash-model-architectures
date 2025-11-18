@@ -42,7 +42,7 @@ for kernel, kernel_backend, row_header in kernels:
         W = torch.randn(H, device=device, dtype=dtype, requires_grad=not run_forward)
 
         for i in range(n):
-            z = kernel(x=x, weight=W)
+            z = kernel(x=x, weight=W, eps=None)
 
         s = torch.cuda.Event(enable_timing=True)
         e = torch.cuda.Event(enable_timing=True)
@@ -50,7 +50,7 @@ for kernel, kernel_backend, row_header in kernels:
         s.record()
         for i in range(n):
             if run_forward:
-                z = kernel(x=x, weight=W, kernel_backend=kernel_backend)
+                z = kernel(x=x, weight=W, eps=None, kernel_backend=kernel_backend)
             else:
                 torch.autograd.grad(z, (g, u), grad_outputs=dy, retain_graph=True)
         e.record()
