@@ -93,7 +93,7 @@ class _FusedResidualAddRMSNorm(CustomOp):
         if W is None:
             dW = None
         elif deterministic:
-            dW = torch.empty(get_sm_count(dx.device), *W.size(), dtype=W.dtype, device=W.device)
+            dW = torch.empty(get_sm_count(dx.device), *W.size(), dtype=torch.float32, device=W.device)
         else:
             dW = zeros_like_contiguous(W, dtype=torch.float32)
 
@@ -115,7 +115,10 @@ class _FusedResidualAddRMSNorm(CustomOp):
         )
 
         if dW is not None:
-            dW = dW.sum(0) if deterministic else dW.type_as(W)
+            if deterministic:
+                dW = dW.sum(0)
+
+            dW = dW.type_as(W)
 
         return dx, dr, dW, *[None] * 4
 
