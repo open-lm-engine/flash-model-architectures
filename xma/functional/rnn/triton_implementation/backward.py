@@ -61,6 +61,7 @@ def rnn_backward_triton_kernel(
     gradient_clipping,
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
+    ATOMIC_ADD: tl.constexpr,
 ):
     BLOCK_ID_B = tl.program_id(axis=0)
     BLOCK_ID_N = tl.program_id(axis=1)
@@ -187,12 +188,23 @@ def rnn_backward_triton_kernel(
         if IS_VARLEN:
             end -= 1
 
-    tl.atomic_add(
-        dW_ptr + BLOCK_ID_Nw * dW_stride[0] + BLOCK_H[:, None] * dW_stride[1] + BLOCK_H[None, :] * dW_stride[2],
-        dW,
-        mask=MASK_HH,
-        sem="relaxed",
-    )
+    if ATOMIC_ADD:
+        tl.atomic_add(
+            dW_ptr + BLOCK_ID_Nw * dW_stride[0] + BLOCK_H[:, None] * dW_stride[1] + BLOCK_H[None, :] * dW_stride[2],
+            dW,
+            mask=MASK_HH,
+            sem="relaxed",
+        )
+    else:
+        tl.store(
+            dW_ptr
+            + BLOCK_ID_B * dW_stride[0]
+            + BLOCK_ID_N * dW_stride[1]
+            + BLOCK_H[:, None] * dW_stride[2]
+            + BLOCK_H[None, :] * dW_stride[3],
+            dW,
+            mask=MASK_HH,
+        )
 
 
 @custom_op(f"{LIBRARY_NAME}::rnn_backward_triton", mutates_args={"dx", "dW"})
@@ -207,6 +219,7 @@ def rnn_backward_triton(
     max_seqlen_tensor: torch.Tensor | None,
     max_seqlen: int | None,
     gradient_clipping: float | None,
+    deterministic: bool,
 ) -> None:
     if cu_seqlens is None:
         B, S, N, H = y.size()
@@ -249,4 +262,5 @@ def rnn_backward_triton(
             Gw=N // Nw,
             gradient_clipping=gradient_clipping,
             BLOCK_SIZE_H=BLOCK_SIZE_H,
+            ATOMIC_ADD=not deterministic,
         )
