@@ -7,7 +7,7 @@ from functools import partial
 import torch
 from tabulate import tabulate
 
-from xma import RNN, Accelerator, KernelBackend, rmsnorm
+from xma import Accelerator, KernelBackend, rmsnorm
 
 
 torch._functorch.config.donated_buffer = False
