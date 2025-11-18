@@ -7,9 +7,10 @@ import triton
 import triton.language as tl
 from torch.library import custom_op
 
+from ....accelerator import Accelerator
 from ....constants import LIBRARY_NAME, MAX_TRITON_BLOCK_SIZE
 from ....math import ceil_divide, get_next_power_of_2
-from ....utils import get_num_elements_and_hidden_size, get_sm_count
+from ....utils import get_num_elements_and_hidden_size
 
 
 @triton.jit
@@ -125,7 +126,7 @@ def fused_residual_add_rmsnorm_backward_triton(
     assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
     NUM_WARPS = 8
 
-    sm_count = get_sm_count(xr.device)
+    sm_count = Accelerator.get_sm_count(xr.device)
     NUM_BLOCKS = min(sm_count, ceil_divide(B, BLOCK_SIZE_B))
 
     with torch.device(xr.device):
