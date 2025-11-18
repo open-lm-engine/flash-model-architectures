@@ -130,6 +130,7 @@ class _RNN(CustomOp):
         W, y, h0, cu_seqlens, max_seqlen_tensor = ctx.saved_tensors
         deterministic = ctx.deterministic
         Nx = ctx.Nx
+        Nw = W.size(0)
 
         if cu_seqlens is None:
             B, _, N, H = y.size()
@@ -169,6 +170,7 @@ class _RNN(CustomOp):
             dx = dx.type_as(y)
 
         if deterministic:
+            dW = dW.view(-1, Nw, H, H)
             dW = dW.sum(0)
 
         dW = dW.type_as(W)
