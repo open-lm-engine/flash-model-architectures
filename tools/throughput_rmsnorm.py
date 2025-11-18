@@ -10,14 +10,17 @@ from tabulate import tabulate
 from xma import RNN, Accelerator, KernelBackend, rmsnorm
 
 
+torch._functorch.config.donated_buffer = False
+
+
 n = 100
 
 kernels = [
-    (rmsnorm, KernelBackend.torch, "torch"),
-    (torch.compile(rmsnorm, dynamic=True), KernelBackend.torch, "torch compile"),
-    (rmsnorm, KernelBackend.triton, "triton"),
     (partial(rmsnorm, deterministic=False), KernelBackend.triton, "triton with atomic_add"),
     (partial(rmsnorm, deterministic=True), KernelBackend.triton, "triton without atomic_add"),
+    (rmsnorm, KernelBackend.torch, "torch"),
+    (torch.compile(rmsnorm), KernelBackend.torch, "torch compile static"),
+    (torch.compile(rmsnorm, dynamic=True), KernelBackend.torch, "torch compile dynamic"),
 ]
 dtypes = [torch.float32, torch.bfloat16, torch.float16]
 headers = ["kernel"] + dtypes
@@ -67,7 +70,12 @@ for kernel, kernel_backend, row_header in kernels:
         Accelerator.synchronize()
 
         t = s.elapsed_time(e) / n / 1e3
-        row.append(((B + 1) * H if run_forward else 5) * dtype.itemsize / t / 1e12)
+
+        elements = (B + 1) * H
+        if not run_forward:
+            elements += B * H
+
+        row.append(elements * dtype.itemsize / t / 1e12)
 
     table.append(row)
 
