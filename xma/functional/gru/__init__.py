@@ -19,6 +19,37 @@ if is_triton_available():
     from .triton_implementation import gru_backward_triton, gru_forward_triton
 
 
+def _get_num_heads(
+    x: torch.Tensor,
+    W: torch.Tensor,
+    xf: torch.Tensor,
+    Wf: torch.Tensor,
+    xr: torch.Tensor,
+    Wr: torch.Tensor,
+    run_check: bool,
+) -> tuple[int, int, int, int, int, int]:
+    Nx = x.size(-2)
+    Nxf = xf.size(-2)
+    Nxr = xr.size(-2)
+
+    Nw = W.size(0)
+    Nwf = Wf.size(0)
+    Nwr = Wr.size(0)
+
+    N = max(Nx, Nxf, Nxr, Nw, Nwf, Nwr)
+
+    if run_check:
+        assert N % Nx == 0
+        assert N % Nxf == 0
+        assert N % Nxr == 0
+
+        assert N % Nw == 0
+        assert N % Nwf == 0
+        assert N % Nwr == 0
+
+    return Nx, Nxf, Nxr, Nw, Nwf, Nwr, N
+
+
 class _GRU(CustomOp):
     @staticmethod
     def forward_backward_torch(
@@ -33,19 +64,9 @@ class _GRU(CustomOp):
         cu_seqlens: torch.Tensor | None,
         max_seqlen: torch.Tensor | int | None,
     ) -> torch.Tensor:
-        x_shape = x.size()
+        Nx, Nxf, Nxr, Nw, Nwf, Nwr, N = _get_num_heads(x=x, W=W, xf=xf, Wf=Wf, xr=xr, Wr=Wr, run_check=False)
 
-        Nx = x_shape[-2]
-        Nxf = xf.size(-2)
-        Nxr = xr.size(-2)
-
-        Nw = W.size(0)
-        Nwf = Wf.size(0)
-        Nwr = Wr.size(0)
-
-        N = max(Nx, Nxf, Nxr, Nw, Nwf, Nwr)
-
-        y_shape = list(x_shape)
+        y_shape = list(x.size())
         y_shape[-2] = N
 
         y = torch.empty(y_shape, device=x.device, dtype=x.dtype)
@@ -133,6 +154,8 @@ class _GRU(CustomOp):
         cu_seqlens: torch.Tensor | None,
         max_seqlen: torch.Tensor | int | None,
     ) -> torch.Tensor:
+        Nx, Nxf, Nxr, Nw, Nwf, Nwr, N = _get_num_heads(x=x, W=W, xf=xf, Wf=Wf, xr=xr, Wr=Wr, run_check=False)
+
         needs_grad = ctx_needs_gradients(ctx)
 
         y = empty_like_contiguous(x)
@@ -240,34 +263,24 @@ def gru(
 
     if cu_seqlens is None:
         assert max_seqlen is None
-        B, _, Nx, H = input.size()
+        B, _, _, H = input.size()
     else:
         assert max_seqlen is not None
         assert cu_seqlens.dim() == 1
 
-        _, Nx, H = input.size()
         B = cu_seqlens.size(0) - 1
+        H = input.size(-1)
 
-    Nxf = forget_input.size(-2)
-    Nxr = reset_input.size(-2)
-
-    Nw = weight.size(0)
-    Nwf = forget_weight.size(0)
-    Nwr = reset_weight.size(0)
-
-    N = max(Nx, Nxf, Nxr, Nw, Nwf, Nwr)
+    _, _, _, Nw, Nwf, Nwr, N = _get_num_heads(
+        x=input, W=weight, xf=forget_input, Wf=forget_weight, xr=reset_input, Wr=reset_weight, run_check=True
+    )
 
     assert weight.size() == (Nw, H, H)
     assert forget_weight.size() == (Nwf, H, H)
     assert reset_weight.size() == (Nwr, H, H)
 
-    assert N % Nx == 0
-    assert N % Nxf == 0
-    assert N % Nxr == 0
-
-    assert N % Nw == 0
-    assert N % Nwf == 0
-    assert N % Nwr == 0
+    if input_state is not None:
+        assert input_state.size() == (B, N, H)
 
     if gradient_clipping is not None and gradient_clipping < 0:
         gradient_clipping = -gradient_clipping

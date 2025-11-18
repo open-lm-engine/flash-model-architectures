@@ -19,10 +19,14 @@ if is_triton_available():
     from .triton_implementation import rnn_backward_triton, rnn_forward_triton
 
 
-def _get_num_heads(x: torch.Tensor, W: torch.Tensor) -> tuple[int, int, int]:
+def _get_num_heads(x: torch.Tensor, W: torch.Tensor, run_check: bool) -> tuple[int, int, int]:
     Nx = x.size(-2)
     Nw = W.size(0)
     N = max(Nx, Nw)
+
+    if run_check:
+        assert N % Nx == 0
+        assert N % Nw == 0
 
     return Nx, Nw, N
 
@@ -37,7 +41,7 @@ class _RNN(CustomOp):
         cu_seqlens: torch.Tensor | None,
         max_seqlen: torch.Tensor | int | None,
     ) -> torch.Tensor:
-        Nx, Nw, N = _get_num_heads(x=x, W=W)
+        Nx, Nw, N = _get_num_heads(x=x, W=W, run_check=False)
 
         y_shape = list(x.size())
         y_shape[-2] = N
@@ -96,7 +100,7 @@ class _RNN(CustomOp):
         cu_seqlens: torch.Tensor | None,
         max_seqlen: torch.Tensor | int | None,
     ) -> torch.Tensor:
-        Nx, _, N = _get_num_heads(x=x, W=W)
+        Nx, _, N = _get_num_heads(x=x, W=W, run_check=False)
 
         y_shape = list(x.size())
         y_shape[-2] = N
@@ -196,11 +200,9 @@ def rnn(
         B = cu_seqlens.size(0) - 1
         H = input.size(-1)
 
-    Nx, Nw, N = _get_num_heads(x=input, W=weight)
+    _, Nw, N = _get_num_heads(x=input, W=weight, run_check=True)
 
     assert weight.size() == (Nw, H, H)
-    assert N % Nx == 0
-    assert N % Nw == 0
 
     if input_state is not None:
         assert input_state.size() == (B, N, H)
