@@ -28,12 +28,6 @@ def gru_forward_triton_kernel(
     Wf_stride,
     Wr_ptr,
     Wr_stride,
-    z_ptr,
-    z_stride,
-    f_ptr,
-    f_stride,
-    r_ptr,
-    r_stride,
     h0_ptr,
     h0_stride,
     y_ptr,
@@ -95,16 +89,6 @@ def gru_forward_triton_kernel(
         x_ptrs = x_ptr + start * x_stride[0] + BLOCK_ID_N * x_stride[1] + BLOCK_H[None, :] * x_stride[2]
         xr_ptrs = xr_ptr + start * xr_stride[0] + BLOCK_ID_N * xr_stride[1] + BLOCK_H[None, :] * xr_stride[2]
         xf_ptrs = xf_ptr + start * xf_stride[0] + BLOCK_ID_N * xf_stride[1] + BLOCK_H[None, :] * xf_stride[2]
-
-        if z_ptr is not None:
-            z_ptrs = z_ptr + start * z_stride[0] + BLOCK_ID_N * z_stride[1] + BLOCK_H[None, :] * z_stride[2]
-
-        if r_ptr is not None:
-            r_ptrs = r_ptr + start * r_stride[0] + BLOCK_ID_N * r_stride[1] + BLOCK_H[None, :] * r_stride[2]
-
-        if f_ptr is not None:
-            f_ptrs = f_ptr + start * f_stride[0] + BLOCK_ID_N * f_stride[1] + BLOCK_H[None, :] * f_stride[2]
-
         y_ptrs = y_ptr + start * y_stride[0] + BLOCK_ID_N * y_stride[1] + BLOCK_H[None, :] * y_stride[2]
     else:
         x_ptrs = x_ptr + BLOCK_B[:, None] * x_stride[0] + BLOCK_ID_N * x_stride[2] + BLOCK_H[None, :] * x_stride[3]
@@ -114,16 +98,6 @@ def gru_forward_triton_kernel(
         xf_ptrs = (
             xf_ptr + BLOCK_B[:, None] * xf_stride[0] + BLOCK_ID_N * xf_stride[2] + BLOCK_H[None, :] * xf_stride[3]
         )
-
-        if z_ptr is not None:
-            z_ptrs = z_ptr + BLOCK_B[:, None] * z_stride[0] + BLOCK_ID_N * z_stride[2] + BLOCK_H[None, :] * z_stride[3]
-
-        if r_ptr is not None:
-            r_ptrs = r_ptr + BLOCK_B[:, None] * r_stride[0] + BLOCK_ID_N * r_stride[2] + BLOCK_H[None, :] * r_stride[3]
-
-        if f_ptr is not None:
-            f_ptrs = f_ptr + BLOCK_B[:, None] * f_stride[0] + BLOCK_ID_N * f_stride[2] + BLOCK_H[None, :] * f_stride[3]
-
         y_ptrs = y_ptr + BLOCK_B[:, None] * y_stride[0] + BLOCK_ID_N * y_stride[2] + BLOCK_H[None, :] * y_stride[3]
 
     for _ in range(S):
@@ -133,22 +107,13 @@ def gru_forward_triton_kernel(
         r = matmul(A=h, B=Wr, C=x, output_dtype=tl.float32)
         r = sigmoid(r, output_dtype=x.dtype)
 
-        if r_ptr is not None:
-            tl.store(r_ptrs, r, mask=MASK)
-
         x = tl.load(x_ptrs, mask=MASK)
         z = matmul(A=h * r, B=W, C=x, output_dtype=tl.float32)
         z = tanh(z, output_dtype=x.dtype)
 
-        if z_ptr is not None:
-            tl.store(z_ptrs, z, mask=MASK)
-
         x = tl.load(xf_ptrs, mask=MASK)
         f = matmul(A=h, B=Wf, C=x, output_dtype=tl.float32)
         f = sigmoid(f, output_dtype=x.dtype)
-
-        if f_ptr is not None:
-            tl.store(f_ptrs, f, mask=MASK)
 
         h = f * h + (1 - f) * z
         tl.store(y_ptrs, h, mask=MASK)
@@ -156,15 +121,6 @@ def gru_forward_triton_kernel(
         x_ptrs += x_stride[1 - IS_VARLEN]
         xr_ptrs += xr_stride[1 - IS_VARLEN]
         xf_ptrs += xf_stride[1 - IS_VARLEN]
-
-        if z_ptr is not None:
-            z_ptrs += z_stride[1 - IS_VARLEN]
-
-        if r_ptr is not None:
-            r_ptrs += r_stride[1 - IS_VARLEN]
-
-        if f_ptr is not None:
-            f_ptrs += f_stride[1 - IS_VARLEN]
 
         y_ptrs += y_stride[1 - IS_VARLEN]
 
@@ -178,11 +134,8 @@ def gru_forward_triton(
     W: torch.Tensor,
     xf: torch.Tensor,
     Wf: torch.Tensor,
-    f: torch.Tensor | None,
     xr: torch.Tensor,
     Wr: torch.Tensor,
-    r: torch.Tensor | None,
-    z: torch.Tensor | None,
     h0: torch.Tensor | None,
     y: torch.Tensor,
     cu_seqlens: torch.Tensor | None,
@@ -219,12 +172,6 @@ def gru_forward_triton(
             Wf_stride=Wf.stride(),
             Wr_ptr=Wr,
             Wr_stride=Wr.stride(),
-            z_ptr=z,
-            z_stride=None if z is None else z.stride(),
-            f_ptr=f,
-            f_stride=None if f is None else f.stride(),
-            r_ptr=r,
-            r_stride=None if r is None else r.stride(),
             h0_ptr=h0,
             h0_stride=None if h0 is None else h0.stride(),
             y_ptr=y,
