@@ -98,7 +98,7 @@ class _GRU(CustomOp):
             if cu_seqlens is None:
                 z = (h0[..., None, :] * r) @ W + x[:, s, :, None, :]
             else:
-                z = (h0[unfinished, :, None, :] * r) @ W.unsqueeze(0) + x[offset_unfinished].unsqueeze(-2)
+                z = (h0[unfinished, :, None, :] * r) @ W + x[offset_unfinished, :, None, :]
 
             z = tanh(z)
 
