@@ -50,6 +50,17 @@ def _get_num_heads(
     return Nx, Nxf, Nxr, Nw, Nwf, Nwr, N
 
 
+def _get_backward_tensor(y: torch.Tensor, Nx: int, N: int) -> torch.Tensor:
+    if Nx == N:
+        dx = empty_like_contiguous(y)
+    else:
+        x_shape = list(y.size())
+        x_shape[-2] = Nx
+        dx = torch.zeros(x_shape, device=y.device, dtype=torch.float32)
+
+    return dx
+
+
 class _GRU(CustomOp):
     @staticmethod
     def forward_backward_torch(
@@ -185,19 +196,20 @@ class _GRU(CustomOp):
         )
 
         ctx_save_for_backward(ctx, W, Wf, f, Wr, r, z, y, h0, cu_seqlens, max_seqlen_tensor)
-
         ctx.max_seqlen = max_seqlen
         ctx.gradient_clipping = gradient_clipping
+        ctx.num_heads = Nx, Nxf, Nxr, Nw, Nwf, Nwr, N
 
         return y
 
     @staticmethod
     def backward_triton(ctx, dy: torch.Tensor) -> tuple[torch.Tensor | None]:
         W, Wf, f, Wr, r, z, y, h0, cu_seqlens, max_seqlen_tensor = ctx.saved_tensors
+        Nx, Nxf, Nxr, Nw, Nwf, Nwr, N = ctx.num_heads
 
-        dx = empty_like_contiguous(y)
-        dxf = empty_like_contiguous(y)
-        dxr = empty_like_contiguous(y)
+        dx = _get_backward_tensor(y=y, Nx=Nx, N=y.size(-2))
+        dxf = _get_backward_tensor(y=y, Nx=Nxf, N=y.size(-2))
+        dxr = _get_backward_tensor(y=y, Nx=Nxr, N=y.size(-2))
         dW = zeros_like_contiguous(W, dtype=torch.float32)
         dWf = zeros_like_contiguous(W, dtype=torch.float32)
         dWr = zeros_like_contiguous(W, dtype=torch.float32)
@@ -223,6 +235,15 @@ class _GRU(CustomOp):
             max_seqlen=ctx.max_seqlen,
             gradient_clipping=ctx.gradient_clipping,
         )
+
+        if Nx != N:
+            dx = dx.type_as(y)
+
+        if Nxf != N:
+            dxf = dxf.type_as(y)
+
+        if Nxr != N:
+            dxr = dxr.type_as(y)
 
         dW = dW.type_as(W)
         dWf = dWf.type_as(Wf)
