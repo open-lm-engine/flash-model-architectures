@@ -171,23 +171,15 @@ class _GRU(CustomOp):
         y_shape = list(x.size())
         y_shape[-2] = N
 
-        needs_grad = ctx_needs_gradients(ctx)
-
         y = torch.empty(y_shape, device=x.device, dtype=x.dtype)
-        f = torch.empty(y_shape, device=x.device, dtype=x.dtype) if needs_grad and Nxf == N else None
-        r = torch.empty(y_shape, device=x.device, dtype=x.dtype) if needs_grad and Nxr == N else None
-        z = torch.empty(y_shape, device=x.device, dtype=x.dtype) if needs_grad and Nx == N else None
 
         gru_forward_triton(
             x=x,
             W=W,
             xf=xf,
             Wf=Wf,
-            f=f,
             xr=xr,
             Wr=Wr,
-            r=r,
-            z=z,
             h0=h0,
             y=y,
             cu_seqlens=cu_seqlens,
@@ -195,23 +187,7 @@ class _GRU(CustomOp):
             max_seqlen=max_seqlen,
         )
 
-        ctx_save_for_backward(
-            ctx,
-            W,
-            Wf,
-            f,
-            Wr,
-            r,
-            z,
-            y,
-            h0,
-            cu_seqlens,
-            max_seqlen_tensor,
-            x if z is None else None,
-            xf if f is None else xf,
-            xr if r is None else None,
-        )
-
+        ctx_save_for_backward(ctx, x, W, xf, Wf, xr, Wr, y, h0, cu_seqlens, max_seqlen_tensor)
         ctx.max_seqlen = max_seqlen
         ctx.gradient_clipping = gradient_clipping
         ctx.num_heads = Nx, Nxf, Nxr, Nw, Nwf, Nwr, N
@@ -220,7 +196,7 @@ class _GRU(CustomOp):
 
     @staticmethod
     def backward_triton(ctx, dy: torch.Tensor) -> tuple[torch.Tensor | None]:
-        W, Wf, f, Wr, r, z, y, h0, cu_seqlens, max_seqlen_tensor, x, xf, xr = ctx.saved_tensors
+        x, W, xf, Wf, xr, Wr, y, h0, cu_seqlens, max_seqlen_tensor = ctx.saved_tensors
         Nx, Nxf, Nxr, Nw, Nwf, Nwr, N = ctx.num_heads
 
         dx = _get_backward_tensor(y=y, Nx=Nx, N=y.size(-2))
@@ -233,18 +209,14 @@ class _GRU(CustomOp):
         gru_backward_triton(
             x=x,
             W=W,
-            y=y,
             xf=xf,
             Wf=Wf,
-            f=f,
             dxf=dxf,
             dWf=dWf,
             xr=xr,
             Wr=Wr,
-            r=r,
             dxr=dxr,
             dWr=dWr,
-            z=z,
             h0=h0,
             dy=dy,
             dx=dx,
