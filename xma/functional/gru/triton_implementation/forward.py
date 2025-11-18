@@ -128,7 +128,7 @@ def gru_forward_triton_kernel(
             start += 1
 
 
-@custom_op(f"{LIBRARY_NAME}::gru_forward_triton", mutates_args={"f", "r", "z", "y"})
+@custom_op(f"{LIBRARY_NAME}::gru_forward_triton", mutates_args={"y"})
 def gru_forward_triton(
     x: torch.Tensor,
     W: torch.Tensor,
