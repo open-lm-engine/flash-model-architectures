@@ -283,17 +283,7 @@ def gru_backward_triton_kernel(
     )
 
 
-@custom_op(
-    f"{LIBRARY_NAME}::gru_backward_triton",
-    mutates_args={
-        "dxf",
-        "dWf",
-        "dxr",
-        "dWr",
-        "dx",
-        "dW",
-    },
-)
+@custom_op(f"{LIBRARY_NAME}::gru_backward_triton", mutates_args={"dxf", "dWf", "dxr", "dWr", "dx", "dW"})
 def gru_backward_triton(
     W: torch.Tensor,
     y: torch.Tensor,
