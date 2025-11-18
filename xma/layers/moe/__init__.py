@@ -218,9 +218,8 @@ class MoE(nn.Module):
         else:
             assert kernel_backend.verify_accelerator()
 
-        with torch.no_grad():
-            sorted_expert_idxs, sorted_scattered_idxs = selected_experts.flatten().sort()
-            expert_frequency = continuous_count(sorted_expert_idxs, self.num_experts)
+        sorted_expert_idxs, sorted_scattered_idxs = selected_experts.flatten().sort()
+        expert_frequency = continuous_count(sorted_expert_idxs, self.num_experts)
 
         T = hidden_states.size(0)
 
