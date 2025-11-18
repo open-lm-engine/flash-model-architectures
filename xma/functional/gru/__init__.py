@@ -81,6 +81,11 @@ class _GRU(CustomOp):
             end = cu_seqlens[1:]
 
         for s in range(S):
+            if cu_seqlens is not None:
+                offset = start + s
+                unfinished = offset < end
+                offset_unfinished = offset[unfinished]
+
             if cu_seqlens is None:
                 # (B, N, 1, H) = (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
                 f = h0[..., None, :] @ Wf + xf[:, s, :, None, :]
@@ -101,10 +106,6 @@ class _GRU(CustomOp):
                 y[:, s] = h
                 h0 = h
             else:
-                offset = start + s
-                unfinished = offset < end
-                offset_unfinished = offset[unfinished]
-
                 # don't update the finished sequences
                 # (B, N, 1, H) = (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
                 f = h0[unfinished, :, None, :] @ Wf.unsqueeze(0) + xf[offset_unfinished].unsqueeze(-2)
