@@ -16,8 +16,8 @@ kernels = [
     (rmsnorm, KernelBackend.torch, "torch"),
     (torch.compile(rmsnorm, dynamic=True), KernelBackend.torch, "torch compile"),
     (rmsnorm, KernelBackend.triton, "triton"),
-    (partial(rmsnorm, deterministic=False), KernelBackend.triton, "triton"),
-    (partial(rmsnorm, deterministic=True), KernelBackend.triton, "triton"),
+    (partial(rmsnorm, deterministic=False), KernelBackend.triton, "triton with atomic_add"),
+    (partial(rmsnorm, deterministic=True), KernelBackend.triton, "triton without atomic_add"),
 ]
 dtypes = [torch.float32, torch.bfloat16, torch.float16]
 headers = ["kernel"] + dtypes
