@@ -103,11 +103,7 @@ def gru_backward_triton_kernel(
         start = tl.load(cu_seqlens_ptrs, mask=MASK_B[:, None])
         end = tl.load(cu_seqlens_ptrs + cu_seqlens_stride[0], mask=MASK_B[:, None])
 
-        if IS_MAX_SEQLEN_TENSOR:
-            S = tl.load(max_seqlen_ptr)
-        else:
-            S = max_seqlen_ptr
-
+        S = tl.load(max_seqlen_ptr) if IS_MAX_SEQLEN_TENSOR else max_seqlen_ptr
         end -= 1
 
         z_ptrs = z_ptr + end * z_stride[0] + BLOCK_ID_N * z_stride[1] + BLOCK_H[None, :] * z_stride[2]
@@ -190,13 +186,9 @@ def gru_backward_triton_kernel(
         if gradient_clipping is not None:
             dh = clamp(dh, min_value=-gradient_clipping, max_value=gradient_clipping)
 
-        if IS_VARLEN:
-            MASK = (end >= start) & MASK_H[None, :]
-        else:
-            MASK = MASK_BH
+        MASK = ((end >= start) & MASK_H[None, :]) if IS_VARLEN else MASK_BH
 
         dy = tl.load(dy_ptrs, mask=MASK) + dh
-
         z = tl.load(z_ptrs, mask=MASK)
         f = tl.load(f_ptrs, mask=MASK)
         r = tl.load(r_ptrs, mask=MASK)
