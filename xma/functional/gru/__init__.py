@@ -264,7 +264,7 @@ class _GRU(CustomOp):
         dWf = dWf.type_as(Wf)
         dWr = dWr.type_as(Wr)
 
-        return dx, dW, dxf, dWf, dxr, dWr, *[None] * 5
+        return dx, dW, dxf, dWf, dxr, dWr, *[None] * 4
 
 
 def gru(
