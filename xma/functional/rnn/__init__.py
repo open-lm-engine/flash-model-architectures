@@ -120,7 +120,6 @@ class _RNN(CustomOp):
         ctx_save_for_backward(ctx, W, y, h0, cu_seqlens, max_seqlen_tensor)
         ctx.max_seqlen = max_seqlen
         ctx.gradient_clipping = gradient_clipping
-        ctx.B = B
         ctx.Nx = Nx
         ctx.deterministic = deterministic
 
@@ -130,10 +129,13 @@ class _RNN(CustomOp):
     def backward_triton(ctx, dy: torch.Tensor) -> tuple[torch.Tensor]:
         W, y, h0, cu_seqlens, max_seqlen_tensor = ctx.saved_tensors
         deterministic = ctx.deterministic
-        B = ctx.B
         Nx = ctx.Nx
 
-        N, H = y.size()[-2:]
+        if cu_seqlens is None:
+            B, _, N, H = y.size()
+        else:
+            B = cu_seqlens.size(0) - 1
+            _, N, H = y.size()
 
         if deterministic:
             dW = torch.empty(B, N, H, H, device=W.device, dtype=torch.float32)
