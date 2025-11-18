@@ -154,15 +154,18 @@ class _GRU(CustomOp):
         cu_seqlens: torch.Tensor | None,
         max_seqlen: torch.Tensor | int | None,
     ) -> torch.Tensor:
+        max_seqlen_tensor, max_seqlen = get_max_seqlen_and_max_seqlen_tensor(max_seqlen)
+
         Nx, Nxf, Nxr, Nw, Nwf, Nwr, N = _get_num_heads(x=x, W=W, xf=xf, Wf=Wf, xr=xr, Wr=Wr, run_check=False)
+        y_shape = list(x.size())
+        y_shape[-2] = N
 
         needs_grad = ctx_needs_gradients(ctx)
 
-        y = empty_like_contiguous(x)
-        max_seqlen_tensor, max_seqlen = get_max_seqlen_and_max_seqlen_tensor(max_seqlen)
-        f = empty_like_contiguous(x) if needs_grad else None
-        r = empty_like_contiguous(x) if needs_grad else None
-        z = empty_like_contiguous(x) if needs_grad else None
+        y = torch.empty(y_shape, device=x.device, dtype=x.dtype)
+        f = torch.empty(y_shape, device=x.device, dtype=x.dtype) if needs_grad else None
+        r = torch.empty(y_shape, device=x.device, dtype=x.dtype) if needs_grad else None
+        z = torch.empty(y_shape, device=x.device, dtype=x.dtype) if needs_grad else None
 
         gru_forward_triton(
             x=x,

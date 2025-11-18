@@ -100,13 +100,13 @@ class _RNN(CustomOp):
         cu_seqlens: torch.Tensor | None,
         max_seqlen: torch.Tensor | int | None,
     ) -> torch.Tensor:
-        Nx, _, N = _get_num_heads(x=x, W=W, run_check=False)
+        max_seqlen_tensor, max_seqlen = get_max_seqlen_and_max_seqlen_tensor(max_seqlen)
 
+        Nx, _, N = _get_num_heads(x=x, W=W, run_check=False)
         y_shape = list(x.size())
         y_shape[-2] = N
 
         y = torch.empty(y_shape, device=x.device, dtype=x.dtype)
-        max_seqlen_tensor, max_seqlen = get_max_seqlen_and_max_seqlen_tensor(max_seqlen)
 
         rnn_forward_triton(
             x=x,
