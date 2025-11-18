@@ -211,6 +211,7 @@ class _GRU(CustomOp):
             xf if f is None else xf,
             xr if r is None else None,
         )
+
         ctx.max_seqlen = max_seqlen
         ctx.gradient_clipping = gradient_clipping
         ctx.num_heads = Nx, Nxf, Nxr, Nw, Nwf, Nwr, N
@@ -230,12 +231,15 @@ class _GRU(CustomOp):
         dWr = zeros_like_contiguous(W, dtype=torch.float32)
 
         gru_backward_triton(
+            x=x,
             W=W,
             y=y,
+            xf=xf,
             Wf=Wf,
             f=f,
             dxf=dxf,
             dWf=dWf,
+            xr=xr,
             Wr=Wr,
             r=r,
             dxr=dxr,
