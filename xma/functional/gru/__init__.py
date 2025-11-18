@@ -81,15 +81,14 @@ class _GRU(CustomOp):
             end = cu_seqlens[1:]
 
         for s in range(S):
-            if cu_seqlens is not None:
-                offset = start + s
-                unfinished = offset < end
-                offset_unfinished = offset[unfinished]
-
             if cu_seqlens is None:
                 f = h0[..., None, :] @ Wf + xf[:, s, :, None, :]
                 r = h0[..., None, :] @ Wr + xr[:, s, :, None, :]
             else:
+                offset = start + s
+                unfinished = offset < end
+                offset_unfinished = offset[unfinished]
+
                 f = h0[unfinished, :, None, :] @ Wf + xf[offset_unfinished, :, None, :]
                 r = h0[unfinished, :, None, :] @ Wr + xr[offset_unfinished, :, None, :]
 

@@ -61,15 +61,12 @@ class _RNN(CustomOp):
 
         for s in range(S):
             if cu_seqlens is None:
-                # (B, N, 1, H) = (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
                 h = h0[..., None, :] @ W + x[:, s, :, None, :]
             else:
                 offset = start + s
                 unfinished = offset < end
                 offset_unfinished = offset[unfinished]
 
-                # don't update the finished sequences
-                # (B, N, 1, H) = (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
                 h = h0[unfinished, :, None, :] @ W + x[offset_unfinished, :, None, :]
 
             h = tanh(h)
