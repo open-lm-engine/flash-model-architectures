@@ -19,6 +19,14 @@ if is_triton_available():
     from .triton_implementation import rnn_backward_triton, rnn_forward_triton
 
 
+def _get_num_heads(x: torch.Tensor, W: torch.Tensor) -> tuple[int, int, int]:
+    Nx = x.size(-2)
+    Nw = W.size(0)
+    N = max(Nx, Nw)
+
+    return Nx, Nw, N
+
+
 class _RNN(CustomOp):
     @staticmethod
     def forward_backward_torch(
@@ -29,13 +37,9 @@ class _RNN(CustomOp):
         cu_seqlens: torch.Tensor | None,
         max_seqlen: torch.Tensor | int | None,
     ) -> torch.Tensor:
-        x_shape = x.size()
+        Nx, Nw, N = _get_num_heads(x=x, W=W)
 
-        Nx = x_shape[-2]
-        Nw = W.size(0)
-        N = max(Nx, Nw)
-
-        y_shape = list(x_shape)
+        y_shape = list(x.size())
         y_shape[-2] = N
 
         y = torch.empty(y_shape, device=x.device, dtype=x.dtype)
@@ -43,9 +47,9 @@ class _RNN(CustomOp):
         if cu_seqlens is None:
             B, S, _, H = x.size()
         else:
-            _, _, H = x.size()
             B = cu_seqlens.size(0) - 1
             S = max_seqlen.item() if isinstance(max_seqlen, torch.Tensor) else max_seqlen
+            H = x.size(-1)
 
         Gx = N // Nx
         Gw = N // Nw
@@ -92,9 +96,7 @@ class _RNN(CustomOp):
         cu_seqlens: torch.Tensor | None,
         max_seqlen: torch.Tensor | int | None,
     ) -> torch.Tensor:
-        Nx = x.size(-2)
-        Nw = W.size(0)
-        N = max(Nx, Nw)
+        Nx, _, N = _get_num_heads(x=x, W=W)
 
         y_shape = list(x.size())
         y_shape[-2] = N
@@ -186,16 +188,15 @@ def rnn(
 
     if cu_seqlens is None:
         assert max_seqlen is None
-        B, _, Nx, H = input.size()
+        B, _, _, H = input.size()
     else:
         assert max_seqlen is not None
         assert cu_seqlens.dim() == 1
 
-        _, Nx, H = input.size()
         B = cu_seqlens.size(0) - 1
+        H = input.size(-1)
 
-    Nw = weight.size(0)
-    N = max(Nx, Nw)
+    Nx, Nw, N = _get_num_heads(x=input, W=weight)
 
     assert weight.size() == (Nw, H, H)
     assert N % Nx == 0
