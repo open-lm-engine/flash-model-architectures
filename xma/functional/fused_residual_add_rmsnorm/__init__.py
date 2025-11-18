@@ -90,13 +90,12 @@ class _FusedResidualAddRMSNorm(CustomOp):
         dx = empty_like_contiguous(xr)
         dr = empty_like_contiguous(xr) if has_residual else None
 
-        if W is not None:
-            if deterministic:
-                dW = torch.empty(get_sm_count(dx.device), *W.size(), dtype=W.dtype, device=W.device)
-            else:
-                dW = zeros_like_contiguous(W, dtype=torch.float32)
-        else:
+        if W is None:
             dW = None
+        elif deterministic:
+            dW = torch.empty(get_sm_count(dx.device), *W.size(), dtype=W.dtype, device=W.device)
+        else:
+            dW = zeros_like_contiguous(W, dtype=torch.float32)
 
         if not has_residual:
             assert dxr is None
