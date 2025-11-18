@@ -28,6 +28,7 @@ class _RNN(CustomOp):
         gradient_clipping: float | None,
         cu_seqlens: torch.Tensor | None,
         max_seqlen: torch.Tensor | int | None,
+        deterministic: bool,
     ) -> torch.Tensor:
         x_shape = x.size()
 
@@ -94,6 +95,7 @@ class _RNN(CustomOp):
         gradient_clipping: float | None,
         cu_seqlens: torch.Tensor | None,
         max_seqlen: torch.Tensor | int | None,
+        deterministic: bool,
     ) -> torch.Tensor:
         Nx = x.size(-2)
         Nw = W.size(0)
@@ -119,6 +121,7 @@ class _RNN(CustomOp):
         ctx.max_seqlen = max_seqlen
         ctx.gradient_clipping = gradient_clipping
         ctx.Nx = Nx
+        ctx.deterministic = deterministic
 
         return y
 
@@ -155,7 +158,7 @@ class _RNN(CustomOp):
 
         dW = dW.type_as(W)
 
-        return dx, dW, *[None] * 4
+        return dx, dW, *[None] * 5
 
 
 def rnn(
@@ -165,6 +168,7 @@ def rnn(
     gradient_clipping: float | None = None,
     cu_seqlens: torch.Tensor | None = None,
     max_seqlen: torch.Tensor | int | None = None,
+    deterministic: bool = False,
     *,
     kernel_backend: KernelBackend | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
@@ -180,6 +184,7 @@ def rnn(
             implies no clipping. Defaults to None.
         cu_seqlens (torch.Tensor | None, optional): cumulative sequence length (must contain 0 as first element). Defaults to None.
         max_seqlen (torch.Tensor | int | None, optional): max sequence length in the batch. Defaults to None.
+        deterministic (bool, optional): whether to use deterministic backward. Defaults to False.
 
     Returns:
         tuple[torch.Tensor, torch.Tensor]: output tensor of shape (B, S, N, H) and output state tensor of shape (B, N, H)
@@ -217,6 +222,7 @@ def rnn(
         gradient_clipping=gradient_clipping,
         cu_seqlens=cu_seqlens,
         max_seqlen=max_seqlen,
+        deterministic=deterministic,
         kernel_backend=kernel_backend,
     )
 
