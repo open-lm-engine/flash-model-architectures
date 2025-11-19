@@ -198,6 +198,7 @@ def rnn_backward_triton_kernel(
             sem="relaxed",
         )
     else:
+        tl.static_assert(BLOCK_SIZE_B == 1)
         tl.store(
             dW_ptr
             + BLOCK_ID_B * dW_stride[0]
