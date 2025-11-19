@@ -306,19 +306,31 @@ def gru_backward_triton_kernel(
         dx = dz * tanh_backward(z)
         drh = matmul(A=dx, B=W.T, C=None, output_dtype=dx.dtype)
         dW = matmul(A=(r * y_prev).T, B=dx, C=dW, output_dtype=dW.dtype)
-        tl.store(dx_ptrs, dx, mask=MASK)
+
+        if Gx == 1:
+            tl.store(dx_ptrs, dx, mask=MASK)
+        else:
+            tl.atomic_add(dx_ptrs, dx, mask=MASK, sem="relaxed")
 
         dh += drh * r
 
         dxf = df * sigmoid_backward(f)
         dh = matmul(A=dxf, B=Wf.T, C=dh, output_dtype=dx.dtype)
         dWf = matmul(A=y_prev.T, B=dxf, C=dWf, output_dtype=dW.dtype)
-        tl.store(dxf_ptrs, dxf, mask=MASK)
+
+        if Gxf == 1:
+            tl.store(dxf_ptrs, dxf, mask=MASK)
+        else:
+            tl.atomic_add(dxf_ptrs, dxf, mask=MASK, sem="relaxed")
 
         dxr = drh * y_prev * sigmoid_backward(r)
         dh = matmul(A=dxr, B=Wr.T, C=dh, output_dtype=dx.dtype)
         dWr = matmul(A=y_prev.T, B=dxr, C=dWr, output_dtype=dW.dtype)
-        tl.store(dxr_ptrs, dxr, mask=MASK)
+
+        if Gxr == 1:
+            tl.store(dxr_ptrs, dxr, mask=MASK)
+        else:
+            tl.atomic_add(dxr_ptrs, dxr, mask=MASK, sem="relaxed")
 
         if z_ptr is None:
             x_ptrs -= x_stride[1 - IS_VARLEN]
