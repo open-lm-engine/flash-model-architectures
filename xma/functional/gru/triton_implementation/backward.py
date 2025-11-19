@@ -184,11 +184,7 @@ def gru_backward_triton_kernel(
         if gradient_clipping is not None:
             dh = clamp(dh, min_value=-gradient_clipping, max_value=gradient_clipping)
 
-        if IS_VARLEN:
-            MASK = (end >= start) & MASK_H[None, :]
-        else:
-            MASK = MASK_BH
-
+        MASK = ((end >= start) & MASK_H[None, :]) if IS_VARLEN else MASK_BH
         y_ptrs -= y_stride[1 - IS_VARLEN]
 
         if IS_VARLEN:
