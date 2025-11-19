@@ -229,7 +229,7 @@ def rnn_backward_triton(
     GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), N)
 
     with torch.device(y.device):
-        rnn_backward_triton_kernel_autotuned[GRID](
+        rnn_backward_triton_kernel[GRID](
             W_ptr=W,
             W_stride=W.stride(),
             h0_ptr=h0,
