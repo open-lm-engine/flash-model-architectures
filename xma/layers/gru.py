@@ -76,9 +76,11 @@ class GRU(nn.Module):
         input = self.input_projection(input)
 
         input, forget_gate, reset_gate = input.split(
-            self.num_input_heads * self.state_head_dim,
-            self.num_forget_input_heads * self.state_head_dim,
-            self.num_reset_input_heads * self.state_head_dim,
+            (
+                self.num_input_heads * self.state_head_dim,
+                self.num_forget_input_heads * self.state_head_dim,
+                self.num_reset_input_heads * self.state_head_dim,
+            ),
             dim=-1,
         )
 
