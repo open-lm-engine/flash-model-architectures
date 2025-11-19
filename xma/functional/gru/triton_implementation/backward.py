@@ -283,6 +283,9 @@ def gru_backward_triton_kernel(
         else:
             y_prev = tl.load(y_ptrs, mask=MASK)
 
+        if IS_VARLEN:
+            y_prev = tl.where(MASK, y_prev, 0)
+
         if r_ptr is None:
             x = tl.load(xr_ptrs, mask=MASK)
             r = matmul(A=y_prev, B=Wr, C=x, output_dtype=tl.float32)
