@@ -58,6 +58,7 @@ class GRUTest(TestCommons):
         set_seed(_SEED)
 
         context = torch.no_grad if no_grad else nullcontext
+
         (
             state_size,
             num_input_heads,
@@ -169,7 +170,6 @@ class GRUTest(TestCommons):
         dtype: torch.dtype,
         cu_seqlens: list[int],
         problem_shapes: tuple[int, int, int, int, int, int, int],
-        num_heads: int,
         has_input_state: bool,
     ) -> None:
         if Accelerator.get_accelerator() != Accelerator.cuda:
@@ -265,8 +265,7 @@ class GRUTest(TestCommons):
             [KernelBackend.triton],
             TestCommons.get_dtypes(),
             [[0, 7, 19, 27, 93]],  # cu_seqlens
-            [256],  # state_size
-            [4],  # num_heads
+            _get_problem_shapes(),  # problem_shapes
             [False, True],  # has_input_state
             [False, True],  # is_compiling
             [False, True],  # no_grad
@@ -277,8 +276,7 @@ class GRUTest(TestCommons):
         kernel_backend: KernelBackend,
         dtype: torch.dtype,
         cu_seqlens: list[int],
-        state_size: int,
-        num_heads: int,
+        problem_shapes: tuple[int, int, int, int, int, int, int],
         has_input_state: bool,
         is_compiling: bool,
         no_grad: bool,
@@ -289,6 +287,16 @@ class GRUTest(TestCommons):
         set_seed(_SEED)
 
         context = torch.no_grad if no_grad else nullcontext
+
+        (
+            state_size,
+            num_input_heads,
+            num_forget_input_heads,
+            num_reset_input_heads,
+            num_weight_heads,
+            num_forget_weight_heads,
+            num_reset_weight_heads,
+        ) = problem_shapes
 
         with context():
             batch_size = len(cu_seqlens) - 1
@@ -310,7 +318,12 @@ class GRUTest(TestCommons):
                     input_size=state_size,
                     state_size=state_size,
                     output_size=state_size,
-                    num_heads=num_heads,
+                    num_input_heads=num_input_heads,
+                    num_forget_input_heads=num_forget_input_heads,
+                    num_reset_input_heads=num_reset_input_heads,
+                    num_weight_heads=num_weight_heads,
+                    num_forget_weight_heads=num_forget_weight_heads,
+                    num_reset_weight_heads=num_reset_weight_heads,
                     add_bias=False,
                     gradient_clipping=None,
                 ).to(dtype)
