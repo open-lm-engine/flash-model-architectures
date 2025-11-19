@@ -189,12 +189,6 @@ def gru_backward_triton_kernel(
         else:
             MASK = MASK_BH
 
-        dy = tl.load(dy_ptrs, mask=MASK) + dh
-
-        z = tl.load(z_ptrs, mask=MASK)
-        f = tl.load(f_ptrs, mask=MASK)
-        r = tl.load(r_ptrs, mask=MASK)
-
         y_ptrs -= y_stride[1 - IS_VARLEN]
 
         if IS_VARLEN:
@@ -226,6 +220,11 @@ def gru_backward_triton_kernel(
                 )
         else:
             y_prev = tl.load(y_ptrs, mask=MASK)
+
+        dy = tl.load(dy_ptrs, mask=MASK) + dh
+        z = tl.load(z_ptrs, mask=MASK)
+        f = tl.load(f_ptrs, mask=MASK)
+        r = tl.load(r_ptrs, mask=MASK)
 
         dh = f * dy
         dz = dy * (1 - f)
@@ -283,17 +282,7 @@ def gru_backward_triton_kernel(
     )
 
 
-@custom_op(
-    f"{LIBRARY_NAME}::gru_backward_triton",
-    mutates_args={
-        "dxf",
-        "dWf",
-        "dxr",
-        "dWr",
-        "dx",
-        "dW",
-    },
-)
+@custom_op(f"{LIBRARY_NAME}::gru_backward_triton", mutates_args={"dxf", "dWf", "dxr", "dWr", "dx", "dW"})
 def gru_backward_triton(
     W: torch.Tensor,
     y: torch.Tensor,
