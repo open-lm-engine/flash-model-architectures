@@ -28,7 +28,6 @@ class _RNN(CustomOp):
         gradient_clipping: float | None,
         cu_seqlens: torch.Tensor | None,
         max_seqlen: torch.Tensor | int | None,
-        deterministic: bool,
     ) -> torch.Tensor:
         x_shape = x.size()
 
@@ -95,7 +94,6 @@ class _RNN(CustomOp):
         gradient_clipping: float | None,
         cu_seqlens: torch.Tensor | None,
         max_seqlen: torch.Tensor | int | None,
-        deterministic: bool,
     ) -> torch.Tensor:
         Nx = x.size(-2)
         Nw = W.size(0)
@@ -121,14 +119,12 @@ class _RNN(CustomOp):
         ctx.max_seqlen = max_seqlen
         ctx.gradient_clipping = gradient_clipping
         ctx.Nx = Nx
-        ctx.deterministic = deterministic
 
         return y
 
     @staticmethod
     def backward_triton(ctx, dy: torch.Tensor) -> tuple[torch.Tensor]:
         W, y, h0, cu_seqlens, max_seqlen_tensor = ctx.saved_tensors
-        deterministic = ctx.deterministic
         Nx = ctx.Nx
         Nw = W.size(0)
 
@@ -138,18 +134,14 @@ class _RNN(CustomOp):
             B = cu_seqlens.size(0) - 1
             _, N, H = y.size()
 
-        if deterministic:
+        if Nx == N:
             dx = empty_like_contiguous(y)
-            dW = torch.empty(B, N, H, H, device=W.device, dtype=torch.float32)
         else:
-            if Nx == N:
-                dx = empty_like_contiguous(y)
-            else:
-                x_shape = list(y.size())
-                x_shape[-2] = Nx
-                dx = torch.zeros(x_shape, device=y.device, dtype=torch.float32)
+            x_shape = list(y.size())
+            x_shape[-2] = Nx
+            dx = torch.zeros(x_shape, device=y.device, dtype=torch.float32)
 
-            dW = zeros_like_contiguous(W, dtype=torch.float32)
+        dW = zeros_like_contiguous(W, dtype=torch.float32)
 
         rnn_backward_triton(
             W=W,
@@ -162,15 +154,7 @@ class _RNN(CustomOp):
             max_seqlen_tensor=max_seqlen_tensor,
             max_seqlen=ctx.max_seqlen,
             gradient_clipping=ctx.gradient_clipping,
-            deterministic=deterministic,
         )
-
-        if deterministic:
-            Gw = N // Nw
-
-            dW = dW.view(B, Nw, Gw, H, H)
-            dW = dW.sum(0)
-            dW = dW.sum(1)
 
         dx = dx.type_as(y)
         dW = dW.type_as(W)
@@ -185,7 +169,6 @@ def rnn(
     gradient_clipping: float | None = None,
     cu_seqlens: torch.Tensor | None = None,
     max_seqlen: torch.Tensor | int | None = None,
-    deterministic: bool = False,
     *,
     kernel_backend: KernelBackend | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
@@ -201,7 +184,6 @@ def rnn(
             implies no clipping. Defaults to None.
         cu_seqlens (torch.Tensor | None, optional): cumulative sequence length (must contain 0 as first element). Defaults to None.
         max_seqlen (torch.Tensor | int | None, optional): max sequence length in the batch. Defaults to None.
-        deterministic (bool, optional): whether to use deterministic backward. Defaults to False.
 
     Returns:
         tuple[torch.Tensor, torch.Tensor]: output tensor of shape (B, S, N, H) and output state tensor of shape (B, N, H)
@@ -239,7 +221,6 @@ def rnn(
         gradient_clipping=gradient_clipping,
         cu_seqlens=cu_seqlens,
         max_seqlen=max_seqlen,
-        deterministic=deterministic,
         kernel_backend=kernel_backend,
     )
 

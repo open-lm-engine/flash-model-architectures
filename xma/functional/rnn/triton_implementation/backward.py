@@ -34,6 +34,7 @@ def _load_input_state(
     return y_prev
 
 
+@triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_H"], reset_to_zero=["dx_ptr", "dW_ptr"])
 @triton.jit
 def rnn_backward_triton_kernel(
     W_ptr,
@@ -60,7 +61,6 @@ def rnn_backward_triton_kernel(
     gradient_clipping,
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
-    ATOMIC_ADD: tl.constexpr,
 ):
     BLOCK_ID_B = tl.program_id(axis=0)
     BLOCK_ID_N = tl.program_id(axis=1)
@@ -190,81 +190,11 @@ def rnn_backward_triton_kernel(
         if IS_VARLEN:
             end -= 1
 
-    if ATOMIC_ADD:
-        tl.atomic_add(
-            dW_ptr + BLOCK_ID_Nw * dW_stride[0] + BLOCK_H[:, None] * dW_stride[1] + BLOCK_H[None, :] * dW_stride[2],
-            dW,
-            mask=MASK_HH,
-            sem="relaxed",
-        )
-    else:
-        tl.static_assert(BLOCK_SIZE_B == 1)
-        tl.store(
-            dW_ptr
-            + BLOCK_ID_B * dW_stride[0]
-            + BLOCK_ID_N * dW_stride[1]
-            + BLOCK_H[:, None] * dW_stride[2]
-            + BLOCK_H[None, :] * dW_stride[3],
-            dW,
-            mask=MASK_HH,
-        )
-
-
-@triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_H"], reset_to_zero=["dx_ptr", "dW_ptr"])
-@triton.jit
-def rnn_backward_triton_kernel_autotuned(
-    W_ptr,
-    W_stride,
-    h0_ptr,
-    h0_stride,
-    y_ptr,
-    y_stride,
-    dx_ptr,
-    dx_stride,
-    dW_ptr,
-    dW_stride,
-    dy_ptr,
-    dy_stride,
-    cu_seqlens_ptr,
-    cu_seqlens_stride,
-    IS_MAX_SEQLEN_TENSOR: tl.constexpr,
-    max_seqlen_ptr,
-    B,
-    S,
-    H: tl.constexpr,
-    Gx: tl.constexpr,
-    Gw: tl.constexpr,
-    gradient_clipping,
-    BLOCK_SIZE_B: tl.constexpr,
-    BLOCK_SIZE_H: tl.constexpr,
-    ATOMIC_ADD: tl.constexpr,
-):
-    rnn_backward_triton_kernel(
-        W_ptr=W_ptr,
-        W_stride=W_stride,
-        h0_ptr=h0_ptr,
-        h0_stride=h0_stride,
-        y_ptr=y_ptr,
-        y_stride=y_stride,
-        dx_ptr=dx_ptr,
-        dx_stride=dx_stride,
-        dW_ptr=dW_ptr,
-        dW_stride=dW_stride,
-        dy_ptr=dy_ptr,
-        dy_stride=dy_stride,
-        cu_seqlens_ptr=cu_seqlens_ptr,
-        cu_seqlens_stride=cu_seqlens_stride,
-        IS_MAX_SEQLEN_TENSOR=IS_MAX_SEQLEN_TENSOR,
-        max_seqlen_ptr=max_seqlen_ptr,
-        B=B,
-        S=S,
-        H=H,
-        Gx=Gx,
-        Gw=Gw,
-        gradient_clipping=gradient_clipping,
-        BLOCK_SIZE_B=BLOCK_SIZE_B,
-        BLOCK_SIZE_H=BLOCK_SIZE_H,
-        ATOMIC_ADD=ATOMIC_ADD,
+    tl.atomic_add(
+        dW_ptr + BLOCK_ID_Nw * dW_stride[0] + BLOCK_H[:, None] * dW_stride[1] + BLOCK_H[None, :] * dW_stride[2],
+        dW,
+        mask=MASK_HH,
+        sem="relaxed",
     )
 
 
@@ -280,7 +210,6 @@ def rnn_backward_triton(
     max_seqlen_tensor: torch.Tensor | None,
     max_seqlen: int | None,
     gradient_clipping: float | None,
-    deterministic: bool,
 ) -> None:
     if cu_seqlens is None:
         B, S, N, H = y.size()
@@ -297,37 +226,31 @@ def rnn_backward_triton(
     BLOCK_SIZE_H = get_next_power_of_2(H)
     BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
 
-    kwargs = dict(
-        W_ptr=W,
-        W_stride=W.stride(),
-        h0_ptr=h0,
-        h0_stride=None if h0 is None else h0.stride(),
-        y_ptr=y,
-        y_stride=y.stride(),
-        dx_ptr=dx,
-        dx_stride=dx.stride(),
-        dW_ptr=dW,
-        dW_stride=dW.stride(),
-        dy_ptr=dy,
-        dy_stride=dy.stride(),
-        cu_seqlens_ptr=cu_seqlens,
-        cu_seqlens_stride=None if cu_seqlens is None else cu_seqlens.stride(),
-        IS_MAX_SEQLEN_TENSOR=is_max_seqlen_tensor,
-        max_seqlen_ptr=max_seqlen_tensor if is_max_seqlen_tensor else max_seqlen,
-        B=B,
-        S=S,
-        H=H,
-        Gx=N // Nx,
-        Gw=N // Nw,
-        gradient_clipping=gradient_clipping,
-        BLOCK_SIZE_H=BLOCK_SIZE_H,
-        ATOMIC_ADD=not deterministic,
-    )
+    GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), N)
 
     with torch.device(y.device):
-        if deterministic:
-            kwargs["BLOCK_SIZE_B"] = 1
-            rnn_backward_triton_kernel[B, N](**kwargs)
-        else:
-            GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), N)
-            rnn_backward_triton_kernel_autotuned[GRID](**kwargs)
+        rnn_backward_triton_kernel_autotuned[GRID](
+            W_ptr=W,
+            W_stride=W.stride(),
+            h0_ptr=h0,
+            h0_stride=None if h0 is None else h0.stride(),
+            y_ptr=y,
+            y_stride=y.stride(),
+            dx_ptr=dx,
+            dx_stride=dx.stride(),
+            dW_ptr=dW,
+            dW_stride=dW.stride(),
+            dy_ptr=dy,
+            dy_stride=dy.stride(),
+            cu_seqlens_ptr=cu_seqlens,
+            cu_seqlens_stride=None if cu_seqlens is None else cu_seqlens.stride(),
+            IS_MAX_SEQLEN_TENSOR=is_max_seqlen_tensor,
+            max_seqlen_ptr=max_seqlen_tensor if is_max_seqlen_tensor else max_seqlen,
+            B=B,
+            S=S,
+            H=H,
+            Gx=N // Nx,
+            Gw=N // Nw,
+            gradient_clipping=gradient_clipping,
+            BLOCK_SIZE_H=BLOCK_SIZE_H,
+        )
