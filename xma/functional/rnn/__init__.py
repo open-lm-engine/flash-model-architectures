@@ -31,6 +31,17 @@ def _get_num_heads(x: torch.Tensor, W: torch.Tensor, run_check: bool) -> tuple[i
     return Nx, Nw, N
 
 
+def _get_backward_tensor(y: torch.Tensor, Nx: int, N: int) -> torch.Tensor:
+    if Nx == N:
+        dx = empty_like_contiguous(y)
+    else:
+        x_shape = list(y.size())
+        x_shape[-2] = Nx
+        dx = torch.zeros(x_shape, device=y.device, dtype=torch.float32)
+
+    return dx
+
+
 class _RNN(CustomOp):
     @staticmethod
     def forward_backward_torch(
@@ -129,20 +140,9 @@ class _RNN(CustomOp):
     def backward_triton(ctx, dy: torch.Tensor) -> tuple[torch.Tensor]:
         W, y, h0, cu_seqlens, max_seqlen_tensor = ctx.saved_tensors
         Nx = ctx.Nx
+        N = y.size(-2)
 
-        if cu_seqlens is None:
-            B, _, N, H = y.size()
-        else:
-            B = cu_seqlens.size(0) - 1
-            _, N, H = y.size()
-
-        if Nx == N:
-            dx = empty_like_contiguous(y)
-        else:
-            x_shape = list(y.size())
-            x_shape[-2] = Nx
-            dx = torch.zeros(x_shape, device=y.device, dtype=torch.float32)
-
+        dx = _get_backward_tensor(y=y, Nx=Nx, N=N)
         dW = zeros_like_contiguous(W, dtype=torch.float32)
 
         rnn_backward_triton(

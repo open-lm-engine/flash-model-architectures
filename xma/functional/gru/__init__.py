@@ -13,6 +13,7 @@ from ...utils import (
     is_triton_available,
     zeros_like_contiguous,
 )
+from ..rnn import _get_backward_tensor
 
 
 if is_triton_available():
@@ -48,17 +49,6 @@ def _get_num_heads(
         assert N % Nwr == 0
 
     return Nx, Nxf, Nxr, Nw, Nwf, Nwr, N
-
-
-def _get_backward_tensor(y: torch.Tensor, Nx: int, N: int) -> torch.Tensor:
-    if Nx == N:
-        dx = empty_like_contiguous(y)
-    else:
-        x_shape = list(y.size())
-        x_shape[-2] = Nx
-        dx = torch.zeros(x_shape, device=y.device, dtype=torch.float32)
-
-    return dx
 
 
 class _GRU(CustomOp):
