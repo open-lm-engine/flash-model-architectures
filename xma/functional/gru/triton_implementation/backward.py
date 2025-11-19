@@ -144,12 +144,24 @@ def gru_backward_triton_kernel(
             r_ptrs = r_ptr + end * r_stride[0] + BLOCK_ID_N * r_stride[1] + BLOCK_H[None, :] * r_stride[2]
 
         y_ptrs = y_ptr + end * y_stride[0] + BLOCK_ID_N * y_stride[1] + BLOCK_H[None, :] * y_stride[2]
-
         dx_ptrs = dx_ptr + end * dx_stride[0] + BLOCK_ID_Nx * dx_stride[1] + BLOCK_H[None, :] * dx_stride[2]
         dxf_ptrs = dxf_ptr + end * dxf_stride[0] + BLOCK_ID_Nxf * dxf_stride[1] + BLOCK_H[None, :] * dxf_stride[2]
         dxr_ptrs = dxr_ptr + end * dxr_stride[0] + BLOCK_ID_Nxr * dxr_stride[1] + BLOCK_H[None, :] * dxr_stride[2]
-
         dy_ptrs = dy_ptr + end * dy_stride[0] + BLOCK_ID_N * dy_stride[1] + BLOCK_H[None, :] * dy_stride[2]
+
+        # load before for varlen to avoid loading in the tl.where since it executes both paths
+        if IS_VARLEN:
+            h0 = _load_input_state(
+                h0_ptr=h0_ptr,
+                h0_stride=h0_stride,
+                BLOCK_ID_N=BLOCK_ID_N,
+                BLOCK_B=BLOCK_B,
+                BLOCK_H=BLOCK_H,
+                MASK_BH=MASK_BH,
+                BLOCK_SIZE_B=BLOCK_SIZE_B,
+                BLOCK_SIZE_H=BLOCK_SIZE_H,
+                dtype=W.dtype,
+            )
     else:
         if z_ptr is None:
             tl.static_assert(x_ptr is not None)
@@ -254,37 +266,23 @@ def gru_backward_triton_kernel(
         y_ptrs -= y_stride[1 - IS_VARLEN]
 
         if IS_VARLEN:
-            y_prev = tl.where(
-                start == end,
-                _load_input_state(
-                    h0_ptr=h0_ptr,
-                    h0_stride=h0_stride,
-                    BLOCK_ID_N=BLOCK_ID_N,
-                    BLOCK_B=BLOCK_B,
-                    BLOCK_H=BLOCK_H,
-                    MASK_BH=MASK_BH,
-                    BLOCK_SIZE_B=BLOCK_SIZE_B,
-                    BLOCK_SIZE_H=BLOCK_SIZE_H,
-                    dtype=W.dtype,
-                ),
-                tl.load(y_ptrs, mask=MASK),
-            )
+            y_prev = tl.where(end > start, tl.load(y_ptrs, mask=MASK), h0)
+            # to prevent accumulation of dW when sequence is exhausted
+            y_prev = tl.where(MASK, y_prev, 0)
         elif s == 0:
-            if h0_ptr is None:
-                y_prev = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=W.dtype)
-            else:
-                y_prev = tl.load(
-                    h0_ptr
-                    + BLOCK_B[:, None] * h0_stride[0]
-                    + BLOCK_ID_N * h0_stride[1]
-                    + BLOCK_H[None, :] * h0_stride[2],
-                    mask=MASK,
-                )
+            y_prev = _load_input_state(
+                h0_ptr=h0_ptr,
+                h0_stride=h0_stride,
+                BLOCK_ID_N=BLOCK_ID_N,
+                BLOCK_B=BLOCK_B,
+                BLOCK_H=BLOCK_H,
+                MASK_BH=MASK_BH,
+                BLOCK_SIZE_B=BLOCK_SIZE_B,
+                BLOCK_SIZE_H=BLOCK_SIZE_H,
+                dtype=W.dtype,
+            )
         else:
             y_prev = tl.load(y_ptrs, mask=MASK)
-
-        if IS_VARLEN:
-            y_prev = tl.where(MASK, y_prev, 0)
 
         if r_ptr is None:
             x = tl.load(xr_ptrs, mask=MASK)

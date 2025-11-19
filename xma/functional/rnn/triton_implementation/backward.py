@@ -99,6 +99,20 @@ def rnn_backward_triton_kernel(
         dx_ptrs = dx_ptr + end * dx_stride[0] + BLOCK_ID_Nx * dx_stride[1] + BLOCK_H[None, :] * dx_stride[2]
         dy_ptrs = dy_ptr + end * dy_stride[0] + BLOCK_ID_N * dy_stride[1] + BLOCK_H[None, :] * dy_stride[2]
 
+        # load before for varlen to avoid loading in the tl.where since it executes both paths
+        if IS_VARLEN:
+            h0 = _load_input_state(
+                h0_ptr=h0_ptr,
+                h0_stride=h0_stride,
+                BLOCK_ID_N=BLOCK_ID_N,
+                BLOCK_B=BLOCK_B,
+                BLOCK_H=BLOCK_H,
+                MASK_BH=MASK_BH,
+                BLOCK_SIZE_B=BLOCK_SIZE_B,
+                BLOCK_SIZE_H=BLOCK_SIZE_H,
+                dtype=W.dtype,
+            )
+
         MASK = (end >= start) & MASK_H[None, :]
     else:
         y_ptrs = (
@@ -128,20 +142,6 @@ def rnn_backward_triton_kernel(
         MASK = MASK_BH
 
     y = tl.load(y_ptrs, mask=MASK)
-
-    # load before for varlen to avoid loading in the tl.where since it executes both paths
-    if IS_VARLEN:
-        h0 = _load_input_state(
-            h0_ptr=h0_ptr,
-            h0_stride=h0_stride,
-            BLOCK_ID_N=BLOCK_ID_N,
-            BLOCK_B=BLOCK_B,
-            BLOCK_H=BLOCK_H,
-            MASK_BH=MASK_BH,
-            BLOCK_SIZE_B=BLOCK_SIZE_B,
-            BLOCK_SIZE_H=BLOCK_SIZE_H,
-            dtype=W.dtype,
-        )
 
     # backward counting reduces 1 instruction since we need to compare s == 0, otherwise we have to compare s == S - 1
     for s in range(S - 1, -1, -1):
