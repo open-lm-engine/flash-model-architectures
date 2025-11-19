@@ -25,7 +25,6 @@ class RNNTest(TestCommons):
             [1024],  # sequence_length
             [(64, 4, 8), (64, 8, 4), (63, 7, 7)],  # state_size, num_input_heads, num_weight_heads
             [False, True],  # has_input_state
-            [False, True],  # deterministic
             [False, True],  # is_compiling
             [False, True],  # no_grad
         )
@@ -38,7 +37,6 @@ class RNNTest(TestCommons):
         sequence_length: int,
         snn: tuple[int, int, int],
         has_input_state: bool,
-        deterministic: bool,
         is_compiling: bool,
         no_grad: bool,
     ) -> None:
@@ -81,10 +79,7 @@ class RNNTest(TestCommons):
                 rnn_kernel = torch.compile(rnn_kernel, fullgraph=True)
 
             y_kernel, output_state_kernel = rnn_kernel(
-                input=x_kernel,
-                input_state=input_state_kernel,
-                deterministic=deterministic,
-                kernel_backend=KernelBackend.triton,
+                input=x_kernel, input_state=input_state_kernel, kernel_backend=KernelBackend.triton
             )
 
             y_torch, output_state_torch = rnn_torch(
@@ -230,7 +225,6 @@ class RNNTest(TestCommons):
             [[0, 7, 19, 27, 93]],  # cu_seqlens
             [(64, 4, 8), (64, 8, 4), (63, 7, 7)],  # state_size, num_input_heads, num_weight_heads
             [False, True],  # has_input_state
-            [False, True],  # deterministic
             [False, True],  # is_compiling
             [False, True],  # no_grad
         )
@@ -242,7 +236,6 @@ class RNNTest(TestCommons):
         cu_seqlens: list[int],
         snn: tuple[int, int, int],
         has_input_state: bool,
-        deterministic: bool,
         is_compiling: bool,
         no_grad: bool,
     ) -> None:
@@ -293,7 +286,6 @@ class RNNTest(TestCommons):
                 input_state=input_state_kernel,
                 cu_seqlens=cu_seqlens,
                 max_seqlen=max_seqlen,
-                deterministic=deterministic,
                 kernel_backend=KernelBackend.triton,
             )
 
