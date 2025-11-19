@@ -15,7 +15,11 @@ from ..utils import _get_num_heads
 from .forward import _get_autotune_configs
 
 
-@triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_H"], reset_to_zero=["dW_ptr", "dWf_ptr", "dWr_ptr"])
+@triton.autotune(
+    configs=_get_autotune_configs(),
+    key=["BLOCK_SIZE_H"],
+    reset_to_zero=["dx_ptr", "dxf_ptr", "dxr_ptr", "dW_ptr", "dWf_ptr", "dWr_ptr"],
+)
 @triton.jit
 def gru_backward_triton_kernel(
     x_ptr,
