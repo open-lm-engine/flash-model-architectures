@@ -45,7 +45,6 @@ class RNN(nn.Module):
         input_state: torch.Tensor | None = None,
         cu_seqlens: torch.Tensor | None = None,
         max_seqlen: int | None = None,
-        deterministic: bool = False,
         *,
         kernel_backend: KernelBackend | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
@@ -62,7 +61,6 @@ class RNN(nn.Module):
             gradient_clipping=self.gradient_clipping,
             cu_seqlens=cu_seqlens,
             max_seqlen=max_seqlen,
-            deterministic=deterministic,
             kernel_backend=kernel_backend,
         )
 
