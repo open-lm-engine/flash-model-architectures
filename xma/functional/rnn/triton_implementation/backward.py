@@ -34,7 +34,6 @@ def _load_input_state(
     return y_prev
 
 
-@triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_H"], reset_to_zero=["dx_ptr", "dW_ptr"])
 @triton.jit
 def rnn_backward_triton_kernel(
     W_ptr,
@@ -210,6 +209,64 @@ def rnn_backward_triton_kernel(
         )
 
 
+@triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_H"], reset_to_zero=["dx_ptr", "dW_ptr"])
+@triton.jit
+def rnn_backward_triton_kernel_autotuned(
+    W_ptr,
+    W_stride,
+    h0_ptr,
+    h0_stride,
+    y_ptr,
+    y_stride,
+    dx_ptr,
+    dx_stride,
+    dW_ptr,
+    dW_stride,
+    dy_ptr,
+    dy_stride,
+    cu_seqlens_ptr,
+    cu_seqlens_stride,
+    IS_MAX_SEQLEN_TENSOR: tl.constexpr,
+    max_seqlen_ptr,
+    B,
+    S,
+    H: tl.constexpr,
+    Gx: tl.constexpr,
+    Gw: tl.constexpr,
+    gradient_clipping,
+    BLOCK_SIZE_B: tl.constexpr,
+    BLOCK_SIZE_H: tl.constexpr,
+    ATOMIC_ADD: tl.constexpr,
+):
+    rnn_backward_triton_kernel(
+        W_ptr=W_ptr,
+        W_stride=W_stride,
+        h0_ptr=h0_ptr,
+        h0_stride=h0_stride,
+        y_ptr=y_ptr,
+        y_stride=y_stride,
+        dx_ptr=dx_ptr,
+        dx_stride=dx_stride,
+        dW_ptr=dW_ptr,
+        dW_stride=dW_stride,
+        dy_ptr=dy_ptr,
+        dy_stride=dy_stride,
+        cu_seqlens_ptr=cu_seqlens_ptr,
+        cu_seqlens_stride=cu_seqlens_stride,
+        IS_MAX_SEQLEN_TENSOR=IS_MAX_SEQLEN_TENSOR,
+        max_seqlen_ptr=max_seqlen_ptr,
+        B=B,
+        S=S,
+        H=H,
+        Gx=Gx,
+        Gw=Gw,
+        gradient_clipping=gradient_clipping,
+        BLOCK_SIZE_B=BLOCK_SIZE_B,
+        BLOCK_SIZE_H=BLOCK_SIZE_H,
+        ATOMIC_ADD=ATOMIC_ADD,
+    )
+
+
 @custom_op(f"{LIBRARY_NAME}::rnn_backward_triton", mutates_args={"dx", "dW"})
 def rnn_backward_triton(
     W: torch.Tensor,
@@ -239,32 +296,37 @@ def rnn_backward_triton(
     BLOCK_SIZE_H = get_next_power_of_2(H)
     BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
 
-    GRID = (B, N) if deterministic else lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), N)
+    kwargs = dict(
+        W_ptr=W,
+        W_stride=W.stride(),
+        h0_ptr=h0,
+        h0_stride=None if h0 is None else h0.stride(),
+        y_ptr=y,
+        y_stride=y.stride(),
+        dx_ptr=dx,
+        dx_stride=dx.stride(),
+        dW_ptr=dW,
+        dW_stride=dW.stride(),
+        dy_ptr=dy,
+        dy_stride=dy.stride(),
+        cu_seqlens_ptr=cu_seqlens,
+        cu_seqlens_stride=None if cu_seqlens is None else cu_seqlens.stride(),
+        IS_MAX_SEQLEN_TENSOR=is_max_seqlen_tensor,
+        max_seqlen_ptr=max_seqlen_tensor if is_max_seqlen_tensor else max_seqlen,
+        B=B,
+        S=S,
+        H=H,
+        Gx=N // Nx,
+        Gw=N // Nw,
+        gradient_clipping=gradient_clipping,
+        BLOCK_SIZE_H=BLOCK_SIZE_H,
+        ATOMIC_ADD=not deterministic,
+    )
 
     with torch.device(y.device):
-        rnn_backward_triton_kernel[GRID](
-            W_ptr=W,
-            W_stride=W.stride(),
-            h0_ptr=h0,
-            h0_stride=None if h0 is None else h0.stride(),
-            y_ptr=y,
-            y_stride=y.stride(),
-            dx_ptr=dx,
-            dx_stride=dx.stride(),
-            dW_ptr=dW,
-            dW_stride=dW.stride(),
-            dy_ptr=dy,
-            dy_stride=dy.stride(),
-            cu_seqlens_ptr=cu_seqlens,
-            cu_seqlens_stride=None if cu_seqlens is None else cu_seqlens.stride(),
-            IS_MAX_SEQLEN_TENSOR=is_max_seqlen_tensor,
-            max_seqlen_ptr=max_seqlen_tensor if is_max_seqlen_tensor else max_seqlen,
-            B=B,
-            S=S,
-            H=H,
-            Gx=N // Nx,
-            Gw=N // Nw,
-            gradient_clipping=gradient_clipping,
-            BLOCK_SIZE_H=BLOCK_SIZE_H,
-            ATOMIC_ADD=not deterministic,
-        )
+        if deterministic:
+            kwargs["BLOCK_SIZE_B"] = 1
+            rnn_backward_triton_kernel[B, N](**kwargs)
+        else:
+            GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), N)
+            rnn_backward_triton_kernel_autotuned[GRID](**kwargs)
