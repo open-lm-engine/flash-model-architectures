@@ -167,6 +167,10 @@ class _RNN(CustomOp):
         )
 
         if deterministic:
+            Gw = N // Nw
+
+            dW = dW.view(B, Nw, Gw, H, H)
+            dW = dW.transpose(1, 2)
             dW = dW.view(-1, Nw, H, H)
             dW = dW.sum(0)
 
