@@ -255,14 +255,9 @@ class _GRU(CustomOp):
             gradient_clipping=ctx.gradient_clipping,
         )
 
-        if Nx != N:
-            dx = dx.type_as(y)
-
-        if Nxf != N:
-            dxf = dxf.type_as(y)
-
-        if Nxr != N:
-            dxr = dxr.type_as(y)
+        dx = dx.type_as(y)
+        dxf = dxf.type_as(y)
+        dxr = dxr.type_as(y)
 
         dW = dW.type_as(W)
         dWf = dWf.type_as(Wf)
