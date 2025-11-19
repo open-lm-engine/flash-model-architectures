@@ -139,18 +139,17 @@ class _RNN(CustomOp):
             _, N, H = y.size()
 
         if deterministic:
+            dx = empty_like_contiguous(y)
             dW = torch.empty(B, N, H, H, device=W.device, dtype=torch.float32)
         else:
+            if Nx == N:
+                dx = empty_like_contiguous(y)
+            else:
+                x_shape = list(y.size())
+                x_shape[-2] = Nx
+                dx = torch.zeros(x_shape, device=y.device, dtype=torch.float32)
+
             dW = zeros_like_contiguous(W, dtype=torch.float32)
-
-        N = y.size(-2)
-
-        if Nx == N:
-            dx = empty_like_contiguous(y)
-        else:
-            x_shape = list(y.size())
-            x_shape[-2] = Nx
-            dx = torch.zeros(x_shape, device=y.device, dtype=torch.float32)
 
         rnn_backward_triton(
             W=W,
