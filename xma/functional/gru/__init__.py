@@ -181,6 +181,7 @@ class _GRU(CustomOp):
         dx = _get_backward_tensor(y=y, Nx=Nx, N=y.size(-2))
         dxf = _get_backward_tensor(y=y, Nx=Nxf, N=y.size(-2))
         dxr = _get_backward_tensor(y=y, Nx=Nxr, N=y.size(-2))
+
         dW = zeros_like_contiguous(W, dtype=torch.float32)
         dWf = zeros_like_contiguous(Wf, dtype=torch.float32)
         dWr = zeros_like_contiguous(Wr, dtype=torch.float32)
