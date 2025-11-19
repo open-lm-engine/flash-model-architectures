@@ -153,6 +153,9 @@ def rnn_backward_triton_kernel(
                 ),
                 tl.load(y_ptrs, mask=MASK),
             )
+
+            # needed to mask gradient update for dW
+            y_prev = tl.where(MASK, y_prev, 0)
         elif s == 0:
             if h0_ptr is None:
                 y_prev = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=W.dtype)
@@ -170,11 +173,7 @@ def rnn_backward_triton_kernel(
         dy = tl.load(dy_ptrs, mask=MASK) + dh
         dx = dy * tanh_backward(y)
         dh = matmul(A=dx, B=W.T, C=None, output_dtype=dx.dtype)
-
-        if IS_VARLEN:
-            dW = matmul(A=tl.where(MASK, y_prev, 0).T, B=dx, C=dW, output_dtype=dW.dtype)
-        else:
-            dW = matmul(A=y_prev.T, B=dx, C=dW, output_dtype=dW.dtype)
+        dW = matmul(A=y_prev.T, B=dx, C=dW, output_dtype=dW.dtype)
 
         y = y_prev
 
