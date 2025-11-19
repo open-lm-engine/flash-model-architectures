@@ -305,9 +305,21 @@ def gru_backward_triton_kernel(
         dWr = matmul(A=y_prev.T, B=dxr, C=dWr, output_dtype=dW.dtype)
         tl.store(dxr_ptrs, dxr, mask=MASK)
 
-        x_ptrs -= x_stride[1 - IS_VARLEN]
-        xf_ptrs -= xf_stride[1 - IS_VARLEN]
-        xr_ptrs -= xr_stride[1 - IS_VARLEN]
+        if z_ptr is None:
+            x_ptrs -= x_stride[1 - IS_VARLEN]
+        else:
+            z_ptrs -= z_stride[1 - IS_VARLEN]
+
+        if f_ptr is None:
+            xf_ptrs -= xf_stride[1 - IS_VARLEN]
+        else:
+            f_ptrs -= f_stride[1 - IS_VARLEN]
+
+        if r_ptr is None:
+            xr_ptrs -= xr_stride[1 - IS_VARLEN]
+        else:
+            r_ptrs -= r_stride[1 - IS_VARLEN]
+
         dx_ptrs -= dx_stride[1 - IS_VARLEN]
         dxf_ptrs -= dxf_stride[1 - IS_VARLEN]
         dxr_ptrs -= dxr_stride[1 - IS_VARLEN]
