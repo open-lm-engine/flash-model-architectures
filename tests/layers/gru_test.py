@@ -16,6 +16,18 @@ from ..test_commons import TestCommons
 _SEED = 42
 
 
+def _get_problem_shapes() -> list[tuple[int, int, int, int, int, int, int]]:
+    base = [64, 8, 8, 8, 8, 8, 8]
+
+    result = [(63, 7, 7, 7, 7, 7, 7)]
+    for i in range(1, len(base)):
+        t = base.copy()
+        t[i] = 4
+        result.append(tuple(t))
+
+    return result
+
+
 class GRUTest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(
@@ -23,8 +35,7 @@ class GRUTest(TestCommons):
             TestCommons.get_dtypes(),
             [4],  # batch_size
             [1024],  # sequence_length
-            [63],  # state_size
-            [7],  # num_heads
+            _get_problem_shapes(),  # problem_shapes
             [False, True],  # has_input_state
             [False, True],  # is_compiling
             [False, True],  # no_grad
@@ -36,8 +47,7 @@ class GRUTest(TestCommons):
         dtype: torch.dtype,
         batch_size: int,
         sequence_length: int,
-        state_size: int,
-        num_heads: int,
+        problem_shapes: tuple[int, int, int, int, int, int, int],
         has_input_state: bool,
         is_compiling: bool,
         no_grad: bool,
@@ -48,6 +58,15 @@ class GRUTest(TestCommons):
         set_seed(_SEED)
 
         context = torch.no_grad if no_grad else nullcontext
+        (
+            state_size,
+            num_input_heads,
+            num_forget_input_heads,
+            num_reset_input_heads,
+            num_weight_heads,
+            num_forget_weight_heads,
+            num_reset_weight_heads,
+        ) = problem_shapes
 
         with context():
             x_kernel, x_torch, input_state_kernel, input_state_torch = self._get_packed_tensor_inputs(
@@ -65,7 +84,12 @@ class GRUTest(TestCommons):
                     input_size=state_size,
                     state_size=state_size,
                     output_size=state_size,
-                    num_heads=num_heads,
+                    num_input_heads=num_input_heads,
+                    num_forget_input_heads=num_forget_input_heads,
+                    num_reset_input_heads=num_reset_input_heads,
+                    num_weight_heads=num_weight_heads,
+                    num_forget_weight_heads=num_forget_weight_heads,
+                    num_reset_weight_heads=num_reset_weight_heads,
                     add_bias=False,
                     gradient_clipping=None,
                 ).to(dtype)
