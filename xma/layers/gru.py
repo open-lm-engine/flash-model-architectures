@@ -43,6 +43,14 @@ class GRU(nn.Module):
             num_reset_weight_heads,
         )
 
+        divide_if_divisible(self.num_heads, self.num_input_heads)
+        divide_if_divisible(self.num_heads, self.num_forget_input_heads)
+        divide_if_divisible(self.num_heads, self.num_reset_input_heads)
+
+        divide_if_divisible(self.num_heads, self.num_weight_heads)
+        divide_if_divisible(self.num_heads, self.num_forget_weight_heads)
+        divide_if_divisible(self.num_heads, self.num_reset_weight_heads)
+
         self.gradient_clipping = gradient_clipping
         self.state_head_dim = divide_if_divisible(state_size, self.num_heads)
 
