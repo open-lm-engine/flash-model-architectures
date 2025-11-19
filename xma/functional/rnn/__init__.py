@@ -170,9 +170,8 @@ class _RNN(CustomOp):
             Gw = N // Nw
 
             dW = dW.view(B, Nw, Gw, H, H)
-            dW = dW.transpose(1, 2)
-            dW = dW.reshape(-1, Nw, H, H)
             dW = dW.sum(0)
+            dW = dW.sum(1)
 
         dx = dx.type_as(y)
         dW = dW.type_as(W)
