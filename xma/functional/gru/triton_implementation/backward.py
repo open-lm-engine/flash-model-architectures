@@ -104,9 +104,15 @@ def gru_backward_triton_kernel(
 
         end -= 1
 
-        z_ptrs = z_ptr + end * z_stride[0] + BLOCK_ID_N * z_stride[1] + BLOCK_H[None, :] * z_stride[2]
-        f_ptrs = f_ptr + end * f_stride[0] + BLOCK_ID_N * f_stride[1] + BLOCK_H[None, :] * f_stride[2]
-        r_ptrs = r_ptr + end * r_stride[0] + BLOCK_ID_N * r_stride[1] + BLOCK_H[None, :] * r_stride[2]
+        if z_ptr is not None:
+            z_ptrs = z_ptr + end * z_stride[0] + BLOCK_ID_N * z_stride[1] + BLOCK_H[None, :] * z_stride[2]
+
+        if f_ptr is not None:
+            f_ptrs = f_ptr + end * f_stride[0] + BLOCK_ID_N * f_stride[1] + BLOCK_H[None, :] * f_stride[2]
+
+        if r_ptr is not None:
+            r_ptrs = r_ptr + end * r_stride[0] + BLOCK_ID_N * r_stride[1] + BLOCK_H[None, :] * r_stride[2]
+
         y_ptrs = y_ptr + end * y_stride[0] + BLOCK_ID_N * y_stride[1] + BLOCK_H[None, :] * y_stride[2]
 
         dx_ptrs = dx_ptr + end * dx_stride[0] + BLOCK_ID_N * dx_stride[1] + BLOCK_H[None, :] * dx_stride[2]
@@ -184,17 +190,7 @@ def gru_backward_triton_kernel(
         if gradient_clipping is not None:
             dh = clamp(dh, min_value=-gradient_clipping, max_value=gradient_clipping)
 
-        if IS_VARLEN:
-            MASK = (end >= start) & MASK_H[None, :]
-        else:
-            MASK = MASK_BH
-
-        dy = tl.load(dy_ptrs, mask=MASK) + dh
-
-        z = tl.load(z_ptrs, mask=MASK)
-        f = tl.load(f_ptrs, mask=MASK)
-        r = tl.load(r_ptrs, mask=MASK)
-
+        MASK = ((end >= start) & MASK_H[None, :]) if IS_VARLEN else MASK_BH
         y_ptrs -= y_stride[1 - IS_VARLEN]
 
         if IS_VARLEN:
@@ -226,6 +222,11 @@ def gru_backward_triton_kernel(
                 )
         else:
             y_prev = tl.load(y_ptrs, mask=MASK)
+
+        dy = tl.load(dy_ptrs, mask=MASK) + dh
+        z = tl.load(z_ptrs, mask=MASK)
+        f = tl.load(f_ptrs, mask=MASK)
+        r = tl.load(r_ptrs, mask=MASK)
 
         dh = f * dy
         dz = dy * (1 - f)
@@ -283,17 +284,7 @@ def gru_backward_triton_kernel(
     )
 
 
-@custom_op(
-    f"{LIBRARY_NAME}::gru_backward_triton",
-    mutates_args={
-        "dxf",
-        "dWf",
-        "dxr",
-        "dWr",
-        "dx",
-        "dW",
-    },
-)
+@custom_op(f"{LIBRARY_NAME}::gru_backward_triton", mutates_args={"dxf", "dWf", "dxr", "dWr", "dx", "dW"})
 def gru_backward_triton(
     W: torch.Tensor,
     y: torch.Tensor,
