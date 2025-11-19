@@ -227,8 +227,8 @@ class _GRU(CustomOp):
         dxf = _get_backward_tensor(y=y, Nx=Nxf, N=y.size(-2))
         dxr = _get_backward_tensor(y=y, Nx=Nxr, N=y.size(-2))
         dW = zeros_like_contiguous(W, dtype=torch.float32)
-        dWf = zeros_like_contiguous(W, dtype=torch.float32)
-        dWr = zeros_like_contiguous(W, dtype=torch.float32)
+        dWf = zeros_like_contiguous(Wf, dtype=torch.float32)
+        dWr = zeros_like_contiguous(Wr, dtype=torch.float32)
 
         gru_backward_triton(
             x=x,
