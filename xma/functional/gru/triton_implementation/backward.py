@@ -100,9 +100,25 @@ def gru_backward_triton_kernel(
         S = tl.load(max_seqlen_ptr) if IS_MAX_SEQLEN_TENSOR else max_seqlen_ptr
         end -= 1
 
-        x_ptrs = x_ptr + end * x_stride[0] + BLOCK_ID_N * x_stride[1] + BLOCK_H[None, :] * x_stride[2]
-        xf_ptrs = xf_ptr + end * xf_stride[0] + BLOCK_ID_N * xf_stride[1] + BLOCK_H[None, :] * xf_stride[2]
-        xr_ptrs = xr_ptr + end * xr_stride[0] + BLOCK_ID_N * xr_stride[1] + BLOCK_H[None, :] * xr_stride[2]
+        if z_ptr is None:
+            tl.static_assert(x_ptr is not None)
+            x_ptrs = x_ptr + end * x_stride[0] + BLOCK_ID_N * x_stride[1] + BLOCK_H[None, :] * x_stride[2]
+        else:
+            z_ptrs = z_ptr + end * z_stride[0] + BLOCK_ID_N * z_stride[1] + BLOCK_H[None, :] * z_stride[2]
+
+        if f_ptr is None:
+            tl.static_assert(xf_ptr is not None)
+            xf_ptrs = xf_ptr + end * xf_stride[0] + BLOCK_ID_N * xf_stride[1] + BLOCK_H[None, :] * xf_stride[2]
+        else:
+            f_ptrs = f_ptr + end * f_stride[0] + BLOCK_ID_N * f_stride[1] + BLOCK_H[None, :] * f_stride[2]
+
+        if r_ptr is None:
+            tl.static_assert(xr_ptr is not None)
+            xr_ptrs = xr_ptr + end * xr_stride[0] + BLOCK_ID_N * xr_stride[1] + BLOCK_H[None, :] * xr_stride[2]
+        else:
+            r_ptrs = r_ptr + end * r_stride[0] + BLOCK_ID_N * r_stride[1] + BLOCK_H[None, :] * r_stride[2]
+
+        y_ptrs = y_ptr + end * y_stride[0] + BLOCK_ID_N * y_stride[1] + BLOCK_H[None, :] * y_stride[2]
 
         dx_ptrs = dx_ptr + end * dx_stride[0] + BLOCK_ID_N * dx_stride[1] + BLOCK_H[None, :] * dx_stride[2]
         dxf_ptrs = dxf_ptr + end * dxf_stride[0] + BLOCK_ID_N * dxf_stride[1] + BLOCK_H[None, :] * dxf_stride[2]
@@ -212,20 +228,28 @@ def gru_backward_triton_kernel(
         else:
             y_prev = tl.load(y_ptrs, mask=MASK)
 
-        x = tl.load(xr_ptrs, mask=MASK)
-        r = matmul(A=y_prev, B=Wr, C=x, output_dtype=tl.float32)
-        r = sigmoid(r, output_dtype=x.dtype)
+        if r_ptr is None:
+            x = tl.load(xr_ptrs, mask=MASK)
+            r = matmul(A=y_prev, B=Wr, C=x, output_dtype=tl.float32)
+            r = sigmoid(r, output_dtype=x.dtype)
+        else:
+            r = tl.load(r_ptrs, mask=MASK)
 
-        x = tl.load(x_ptrs, mask=MASK)
-        z = matmul(A=y_prev * r, B=W, C=x, output_dtype=tl.float32)
-        z = tanh(z, output_dtype=x.dtype)
+        if z_ptr is None:
+            x = tl.load(x_ptrs, mask=MASK)
+            z = matmul(A=y_prev * r, B=W, C=x, output_dtype=tl.float32)
+            z = tanh(z, output_dtype=x.dtype)
+        else:
+            z = tl.load(z_ptrs, mask=MASK)
 
-        x = tl.load(xf_ptrs, mask=MASK)
-        f = matmul(A=y_prev, B=Wf, C=x, output_dtype=tl.float32)
-        f = sigmoid(f, output_dtype=x.dtype)
+        if f_ptr is None:
+            x = tl.load(xf_ptrs, mask=MASK)
+            f = matmul(A=y_prev, B=Wf, C=x, output_dtype=tl.float32)
+            f = sigmoid(f, output_dtype=x.dtype)
+        else:
+            f = tl.load(f_ptrs, mask=MASK)
 
         dy = tl.load(dy_ptrs, mask=MASK) + dh
-
         dh = f * dy
         dz = dy * (1 - f)
         df = dy * (y_prev - z)
