@@ -215,7 +215,6 @@ def gru_forward_triton(
         _, _, H = x.size()
 
     Nx, Nxf, Nxr, Nw, Nwf, Nwr, N = _get_num_heads(x=x, W=W, xf=xf, Wf=Wf, xr=xr, Wr=Wr, run_check=False)
-
     is_max_seqlen_tensor = max_seqlen_tensor is not None
 
     BLOCK_SIZE_H = get_next_power_of_2(H)

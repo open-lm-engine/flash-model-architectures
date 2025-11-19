@@ -11,6 +11,7 @@ from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
 from ....triton_utils import clamp, matmul, sigmoid, sigmoid_backward, tanh, tanh_backward
 from ...rnn.triton_implementation.backward import _get_autotune_configs, _load_input_state
+from ..utils import _get_num_heads
 from .forward import _get_autotune_configs
 
 
@@ -59,13 +60,27 @@ def gru_backward_triton_kernel(
     max_seqlen_ptr,
     B,
     S,
-    H,
+    H: tl.constexpr,
+    Gx: tl.constexpr,
+    Gxf: tl.constexpr,
+    Gxr: tl.constexpr,
+    Gw: tl.constexpr,
+    Gwf: tl.constexpr,
+    Gwr: tl.constexpr,
     gradient_clipping,
     BLOCK_SIZE_B: tl.constexpr,
     BLOCK_SIZE_H: tl.constexpr,
 ):
     BLOCK_ID_B = tl.program_id(axis=0)
     BLOCK_ID_N = tl.program_id(axis=1)
+
+    BLOCK_ID_Nx = BLOCK_ID_N // Gx
+    BLOCK_ID_Nxf = BLOCK_ID_N // Gxf
+    BLOCK_ID_Nxr = BLOCK_ID_N // Gxr
+
+    BLOCK_ID_Nw = BLOCK_ID_N // Gw
+    BLOCK_ID_Nwf = BLOCK_ID_N // Gwf
+    BLOCK_ID_Nwr = BLOCK_ID_N // Gwr
 
     BLOCK_B = BLOCK_ID_B * BLOCK_SIZE_B + tl.arange(0, BLOCK_SIZE_B)
     BLOCK_H = tl.arange(0, BLOCK_SIZE_H)
@@ -82,17 +97,17 @@ def gru_backward_triton_kernel(
     dWr = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
 
     W = tl.load(
-        W_ptr + BLOCK_ID_N * W_stride[0] + BLOCK_H[:, None] * W_stride[1] + BLOCK_H[None, :] * W_stride[2],
+        W_ptr + BLOCK_ID_Nw * W_stride[0] + BLOCK_H[:, None] * W_stride[1] + BLOCK_H[None, :] * W_stride[2],
         mask=MASK_HH,
     )
 
     Wf = tl.load(
-        Wf_ptr + BLOCK_ID_N * Wf_stride[0] + BLOCK_H[:, None] * Wf_stride[1] + BLOCK_H[None, :] * Wf_stride[2],
+        Wf_ptr + BLOCK_ID_Nwf * Wf_stride[0] + BLOCK_H[:, None] * Wf_stride[1] + BLOCK_H[None, :] * Wf_stride[2],
         mask=MASK_HH,
     )
 
     Wr = tl.load(
-        Wr_ptr + BLOCK_ID_N * Wr_stride[0] + BLOCK_H[:, None] * Wr_stride[1] + BLOCK_H[None, :] * Wr_stride[2],
+        Wr_ptr + BLOCK_ID_Nwr * Wr_stride[0] + BLOCK_H[:, None] * Wr_stride[1] + BLOCK_H[None, :] * Wr_stride[2],
         mask=MASK_HH,
     )
 
@@ -108,27 +123,27 @@ def gru_backward_triton_kernel(
 
         if z_ptr is None:
             tl.static_assert(x_ptr is not None)
-            x_ptrs = x_ptr + end * x_stride[0] + BLOCK_ID_N * x_stride[1] + BLOCK_H[None, :] * x_stride[2]
+            x_ptrs = x_ptr + end * x_stride[0] + BLOCK_ID_Nx * x_stride[1] + BLOCK_H[None, :] * x_stride[2]
         else:
             z_ptrs = z_ptr + end * z_stride[0] + BLOCK_ID_N * z_stride[1] + BLOCK_H[None, :] * z_stride[2]
 
         if f_ptr is None:
             tl.static_assert(xf_ptr is not None)
-            xf_ptrs = xf_ptr + end * xf_stride[0] + BLOCK_ID_N * xf_stride[1] + BLOCK_H[None, :] * xf_stride[2]
+            xf_ptrs = xf_ptr + end * xf_stride[0] + BLOCK_ID_Nxf * xf_stride[1] + BLOCK_H[None, :] * xf_stride[2]
         else:
             f_ptrs = f_ptr + end * f_stride[0] + BLOCK_ID_N * f_stride[1] + BLOCK_H[None, :] * f_stride[2]
 
         if r_ptr is None:
             tl.static_assert(xr_ptr is not None)
-            xr_ptrs = xr_ptr + end * xr_stride[0] + BLOCK_ID_N * xr_stride[1] + BLOCK_H[None, :] * xr_stride[2]
+            xr_ptrs = xr_ptr + end * xr_stride[0] + BLOCK_ID_Nxr * xr_stride[1] + BLOCK_H[None, :] * xr_stride[2]
         else:
             r_ptrs = r_ptr + end * r_stride[0] + BLOCK_ID_N * r_stride[1] + BLOCK_H[None, :] * r_stride[2]
 
         y_ptrs = y_ptr + end * y_stride[0] + BLOCK_ID_N * y_stride[1] + BLOCK_H[None, :] * y_stride[2]
 
-        dx_ptrs = dx_ptr + end * dx_stride[0] + BLOCK_ID_N * dx_stride[1] + BLOCK_H[None, :] * dx_stride[2]
-        dxf_ptrs = dxf_ptr + end * dxf_stride[0] + BLOCK_ID_N * dxf_stride[1] + BLOCK_H[None, :] * dxf_stride[2]
-        dxr_ptrs = dxr_ptr + end * dxr_stride[0] + BLOCK_ID_N * dxr_stride[1] + BLOCK_H[None, :] * dxr_stride[2]
+        dx_ptrs = dx_ptr + end * dx_stride[0] + BLOCK_ID_Nx * dx_stride[1] + BLOCK_H[None, :] * dx_stride[2]
+        dxf_ptrs = dxf_ptr + end * dxf_stride[0] + BLOCK_ID_Nxf * dxf_stride[1] + BLOCK_H[None, :] * dxf_stride[2]
+        dxr_ptrs = dxr_ptr + end * dxr_stride[0] + BLOCK_ID_Nxr * dxr_stride[1] + BLOCK_H[None, :] * dxr_stride[2]
 
         dy_ptrs = dy_ptr + end * dy_stride[0] + BLOCK_ID_N * dy_stride[1] + BLOCK_H[None, :] * dy_stride[2]
     else:
@@ -138,7 +153,7 @@ def gru_backward_triton_kernel(
                 x_ptr
                 + BLOCK_B[:, None] * x_stride[0]
                 + (S - 1) * x_stride[1]
-                + BLOCK_ID_N * x_stride[2]
+                + BLOCK_ID_Nx * x_stride[2]
                 + BLOCK_H[None, :] * x_stride[3]
             )
         else:
@@ -155,7 +170,7 @@ def gru_backward_triton_kernel(
                 xf_ptr
                 + BLOCK_B[:, None] * xf_stride[0]
                 + (S - 1) * xf_stride[1]
-                + BLOCK_ID_N * xf_stride[2]
+                + BLOCK_ID_Nxf * xf_stride[2]
                 + BLOCK_H[None, :] * xf_stride[3]
             )
         else:
@@ -172,7 +187,7 @@ def gru_backward_triton_kernel(
                 xr_ptr
                 + BLOCK_B[:, None] * xr_stride[0]
                 + (S - 1) * xr_stride[1]
-                + BLOCK_ID_N * xr_stride[2]
+                + BLOCK_ID_Nxr * xr_stride[2]
                 + BLOCK_H[None, :] * xr_stride[3]
             )
         else:
@@ -196,7 +211,7 @@ def gru_backward_triton_kernel(
             dx_ptr
             + BLOCK_B[:, None] * dx_stride[0]
             + (S - 1) * dx_stride[1]
-            + BLOCK_ID_N * dx_stride[2]
+            + BLOCK_ID_Nx * dx_stride[2]
             + BLOCK_H[None, :] * dx_stride[3]
         )
 
@@ -204,7 +219,7 @@ def gru_backward_triton_kernel(
             dxf_ptr
             + BLOCK_B[:, None] * dxf_stride[0]
             + (S - 1) * dxf_stride[1]
-            + BLOCK_ID_N * dxf_stride[2]
+            + BLOCK_ID_Nxf * dxf_stride[2]
             + BLOCK_H[None, :] * dxf_stride[3]
         )
 
@@ -212,7 +227,7 @@ def gru_backward_triton_kernel(
             dxr_ptr
             + BLOCK_B[:, None] * dxr_stride[0]
             + (S - 1) * dxr_stride[1]
-            + BLOCK_ID_N * dxr_stride[2]
+            + BLOCK_ID_Nxr * dxr_stride[2]
             + BLOCK_H[None, :] * dxr_stride[3]
         )
 
@@ -330,21 +345,21 @@ def gru_backward_triton_kernel(
             end -= 1
 
     tl.atomic_add(
-        dW_ptr + BLOCK_ID_N * dW_stride[0] + BLOCK_H[:, None] * dW_stride[1] + BLOCK_H[None, :] * dW_stride[2],
+        dW_ptr + BLOCK_ID_Nw * dW_stride[0] + BLOCK_H[:, None] * dW_stride[1] + BLOCK_H[None, :] * dW_stride[2],
         dW,
         mask=MASK_HH,
         sem="relaxed",
     )
 
     tl.atomic_add(
-        dWf_ptr + BLOCK_ID_N * dWf_stride[0] + BLOCK_H[:, None] * dWf_stride[1] + BLOCK_H[None, :] * dWf_stride[2],
+        dWf_ptr + BLOCK_ID_Nwf * dWf_stride[0] + BLOCK_H[:, None] * dWf_stride[1] + BLOCK_H[None, :] * dWf_stride[2],
         dWf,
         mask=MASK_HH,
         sem="relaxed",
     )
 
     tl.atomic_add(
-        dWr_ptr + BLOCK_ID_N * dWr_stride[0] + BLOCK_H[:, None] * dWr_stride[1] + BLOCK_H[None, :] * dWr_stride[2],
+        dWr_ptr + BLOCK_ID_Nwr * dWr_stride[0] + BLOCK_H[:, None] * dWr_stride[1] + BLOCK_H[None, :] * dWr_stride[2],
         dWr,
         mask=MASK_HH,
         sem="relaxed",
@@ -380,12 +395,13 @@ def gru_backward_triton(
         assert max_seqlen is None
         assert max_seqlen_tensor is None
 
-        B, S, N, H = y.size()
+        B, S, _, H = y.size()
     else:
         B = cu_seqlens.size(0) - 1
         S = None
-        _, N, H = y.size()
+        _, _, H = y.size()
 
+    Nx, Nxf, Nxr, Nw, Nwf, Nwr, N = _get_num_heads(x=dx, W=W, xf=dxf, Wf=Wf, xr=dxr, Wr=Wr, run_check=False)
     is_max_seqlen_tensor = max_seqlen_tensor is not None
 
     BLOCK_SIZE_H = get_next_power_of_2(H)
@@ -437,6 +453,12 @@ def gru_backward_triton(
             B=B,
             S=S,
             H=H,
+            Gx=N // Nx,
+            Gxf=N // Nxf,
+            Gxr=N // Nxr,
+            Gw=N // Nw,
+            Gwf=N // Nwf,
+            Gwr=N // Nwr,
             gradient_clipping=gradient_clipping,
             BLOCK_SIZE_H=BLOCK_SIZE_H,
         )
