@@ -126,29 +126,57 @@ def gru_backward_triton_kernel(
 
         dy_ptrs = dy_ptr + end * dy_stride[0] + BLOCK_ID_N * dy_stride[1] + BLOCK_H[None, :] * dy_stride[2]
     else:
-        x_ptrs = (
-            x_ptr
-            + BLOCK_B[:, None] * x_stride[0]
-            + (S - 1) * x_stride[1]
-            + BLOCK_ID_N * x_stride[2]
-            + BLOCK_H[None, :] * x_stride[3]
-        )
+        if z_ptr is None:
+            tl.static_assert(x_ptr is not None)
+            x_ptrs = (
+                x_ptr
+                + BLOCK_B[:, None] * x_stride[0]
+                + (S - 1) * x_stride[1]
+                + BLOCK_ID_N * x_stride[2]
+                + BLOCK_H[None, :] * x_stride[3]
+            )
+        else:
+            z_ptrs = (
+                z_ptr
+                + BLOCK_B[:, None] * z_stride[0]
+                + (S - 1) * z_stride[1]
+                + BLOCK_ID_N * z_stride[2]
+                + BLOCK_H[None, :] * z_stride[3]
+            )
 
-        xf_ptrs = (
-            xf_ptr
-            + BLOCK_B[:, None] * xf_stride[0]
-            + (S - 1) * xf_stride[1]
-            + BLOCK_ID_N * xf_stride[2]
-            + BLOCK_H[None, :] * xf_stride[3]
-        )
+        if f_ptr is None:
+            xf_ptrs = (
+                xf_ptr
+                + BLOCK_B[:, None] * xf_stride[0]
+                + (S - 1) * xf_stride[1]
+                + BLOCK_ID_N * xf_stride[2]
+                + BLOCK_H[None, :] * xf_stride[3]
+            )
+        else:
+            f_ptrs = (
+                f_ptr
+                + BLOCK_B[:, None] * f_stride[0]
+                + (S - 1) * f_stride[1]
+                + BLOCK_ID_N * f_stride[2]
+                + BLOCK_H[None, :] * f_stride[3]
+            )
 
-        xr_ptrs = (
-            xr_ptr
-            + BLOCK_B[:, None] * xr_stride[0]
-            + (S - 1) * xr_stride[1]
-            + BLOCK_ID_N * xr_stride[2]
-            + BLOCK_H[None, :] * xr_stride[3]
-        )
+        if r_ptr is None:
+            xr_ptrs = (
+                xr_ptr
+                + BLOCK_B[:, None] * xr_stride[0]
+                + (S - 1) * xr_stride[1]
+                + BLOCK_ID_N * xr_stride[2]
+                + BLOCK_H[None, :] * xr_stride[3]
+            )
+        else:
+            r_ptrs = (
+                r_ptr
+                + BLOCK_B[:, None] * r_stride[0]
+                + (S - 1) * r_stride[1]
+                + BLOCK_ID_N * r_stride[2]
+                + BLOCK_H[None, :] * r_stride[3]
+            )
 
         y_ptrs = (
             y_ptr
