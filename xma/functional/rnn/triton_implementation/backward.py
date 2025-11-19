@@ -238,7 +238,8 @@ def rnn_backward_triton(
 
     BLOCK_SIZE_H = get_next_power_of_2(H)
     BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
-    GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), N)
+
+    GRID = (B, N) if deterministic else lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), N)
 
     with torch.device(y.device):
         rnn_backward_triton_kernel[GRID](
