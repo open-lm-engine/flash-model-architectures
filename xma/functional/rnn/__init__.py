@@ -126,7 +126,6 @@ class _RNN(CustomOp):
     def backward_triton(ctx, dy: torch.Tensor) -> tuple[torch.Tensor]:
         W, y, h0, cu_seqlens, max_seqlen_tensor = ctx.saved_tensors
         Nx = ctx.Nx
-        Nw = W.size(0)
 
         if cu_seqlens is None:
             B, _, N, H = y.size()
@@ -159,7 +158,7 @@ class _RNN(CustomOp):
         dx = dx.type_as(y)
         dW = dW.type_as(W)
 
-        return dx, dW, *[None] * 5
+        return dx, dW, *[None] * 4
 
 
 def rnn(
