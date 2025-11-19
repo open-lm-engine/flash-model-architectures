@@ -81,7 +81,8 @@ class Accelerator(Enum):
 
         return device
 
-    def get_kernel_backend(self) -> KernelBackend:
+    @staticmethod
+    def get_kernel_backend() -> KernelBackend:
         accelerator = Accelerator.get_accelerator()
 
         if accelerator == Accelerator.cuda:
@@ -101,3 +102,18 @@ class Accelerator(Enum):
             torch.cuda.synchronize()
         elif accelerator == Accelerator.tpu:
             xla_wait_device_ops()
+
+    @staticmethod
+    def get_sm_count(device: torch.device | None = None) -> int:
+        if device is None:
+            accelerator = Accelerator.get_accelerator()
+        else:
+            accelerator = Accelerator(device.type)
+
+        # TODO clean this up
+        if accelerator == Accelerator.cuda:
+            sm_count = torch.cuda.get_device_properties(device).multi_processor_count
+        elif device.type == "xpu":
+            sm_count = torch.xpu.get_device_properties(device).gpu_subslice_count
+
+        return sm_count

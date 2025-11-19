@@ -25,7 +25,7 @@ def grouped_gemm(
     assert beta == 0
     assert C is None
 
-    kernel_backend = Accelerator.get_accelerator().get_kernel_backend()
+    kernel_backend = Accelerator.get_kernel_backend()
     assert kernel_backend == KernelBackend.cuda
 
     output = torch.empty(*output_shape, device=A.device, dtype=A.dtype)
