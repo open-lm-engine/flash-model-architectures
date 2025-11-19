@@ -122,7 +122,7 @@ def gru_forward_triton_kernel(
 
         y_ptrs = y_ptr + start * y_stride[0] + BLOCK_ID_N * y_stride[1] + BLOCK_H[None, :] * y_stride[2]
     else:
-        x_ptrs = x_ptr + BLOCK_B[:, None] * x_stride[0] + BLOCK_ID_Nxf * x_stride[2] + BLOCK_H[None, :] * x_stride[3]
+        x_ptrs = x_ptr + BLOCK_B[:, None] * x_stride[0] + BLOCK_ID_Nx * x_stride[2] + BLOCK_H[None, :] * x_stride[3]
         xf_ptrs = (
             xf_ptr + BLOCK_B[:, None] * xf_stride[0] + BLOCK_ID_Nxf * xf_stride[2] + BLOCK_H[None, :] * xf_stride[3]
         )
