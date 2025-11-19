@@ -166,6 +166,7 @@ def gru_backward_triton_kernel(
             )
 
         if f_ptr is None:
+            tl.static_assert(xf_ptr is not None)
             xf_ptrs = (
                 xf_ptr
                 + BLOCK_B[:, None] * xf_stride[0]
@@ -183,6 +184,7 @@ def gru_backward_triton_kernel(
             )
 
         if r_ptr is None:
+            tl.static_assert(xr_ptr is not None)
             xr_ptrs = (
                 xr_ptr
                 + BLOCK_B[:, None] * xr_stride[0]
