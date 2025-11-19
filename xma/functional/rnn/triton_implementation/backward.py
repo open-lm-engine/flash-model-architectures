@@ -129,6 +129,14 @@ def rnn_backward_triton_kernel(
 
     y = tl.load(y_ptrs, mask=MASK)
 
+    if h0_ptr is None:
+        h0 = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=W.dtype)
+    else:
+        h0 = tl.load(
+            h0_ptr + BLOCK_B[:, None] * h0_stride[0] + BLOCK_ID_N * h0_stride[1] + BLOCK_H[None, :] * h0_stride[2],
+            mask=MASK_BH,
+        )
+
     # backward counting reduces 1 instruction since we need to compare s == 0, otherwise we have to compare s == S - 1
     for s in range(S - 1, -1, -1):
         if gradient_clipping is not None:
@@ -138,35 +146,11 @@ def rnn_backward_triton_kernel(
         y_ptrs -= y_stride[1 - IS_VARLEN]
 
         if IS_VARLEN:
-            y_prev = tl.where(
-                start == end,
-                _load_input_state(
-                    h0_ptr=h0_ptr,
-                    h0_stride=h0_stride,
-                    BLOCK_ID_N=BLOCK_ID_N,
-                    BLOCK_B=BLOCK_B,
-                    BLOCK_H=BLOCK_H,
-                    MASK_BH=MASK_BH,
-                    BLOCK_SIZE_B=BLOCK_SIZE_B,
-                    BLOCK_SIZE_H=BLOCK_SIZE_H,
-                    dtype=W.dtype,
-                ),
-                tl.load(y_ptrs, mask=MASK),
-            )
-
-            # needed to mask gradient update for dW
+            y_prev = tl.where(start == end, h0, tl.load(y_ptrs, mask=MASK))
+            # to prevent accumulation of dW when sequence is exhausted
             y_prev = tl.where(MASK, y_prev, 0)
         elif s == 0:
-            if h0_ptr is None:
-                y_prev = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=W.dtype)
-            else:
-                y_prev = tl.load(
-                    h0_ptr
-                    + BLOCK_B[:, None] * h0_stride[0]
-                    + BLOCK_ID_N * h0_stride[1]
-                    + BLOCK_H[None, :] * h0_stride[2],
-                    mask=MASK,
-                )
+            y_prev = h0
         else:
             y_prev = tl.load(y_ptrs, mask=MASK)
 
