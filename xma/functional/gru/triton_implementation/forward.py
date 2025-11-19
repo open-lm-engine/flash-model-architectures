@@ -11,6 +11,7 @@ from ....constants import LIBRARY_NAME
 from ....math import ceil_divide, get_next_power_of_2
 from ....triton_utils import matmul, sigmoid, tanh
 from ...rnn.triton_implementation.forward import _get_autotune_configs
+from ..utils import _get_num_heads
 
 
 @triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_H"])
@@ -207,11 +208,13 @@ def gru_forward_triton(
         assert max_seqlen is None
         assert max_seqlen_tensor is None
 
-        B, S, N, H = x.size()
+        B, S, _, H = x.size()
     else:
         B = cu_seqlens.size(0) - 1
         S = None
-        _, N, H = x.size()
+        _, _, H = x.size()
+
+    Nx, Nxf, Nxr, Nw, Nwf, Nwr, N = _get_num_heads(x=x, W=W, xf=xf, Wf=Wf, xr=xr, Wr=Wr, run_check=False)
 
     is_max_seqlen_tensor = max_seqlen_tensor is not None
 
@@ -250,5 +253,11 @@ def gru_forward_triton(
             B=B,
             S=S,
             H=H,
+            Gx=N // Nx,
+            Gxf=N // Nxf,
+            Gxr=N // Nxr,
+            Gw=N // Nw,
+            Gwf=N // Nwf,
+            Gwr=N // Nwr,
             BLOCK_SIZE_H=BLOCK_SIZE_H,
         )
