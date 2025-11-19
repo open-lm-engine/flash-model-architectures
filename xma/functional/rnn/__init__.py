@@ -19,6 +19,29 @@ if is_triton_available():
     from .triton_implementation import rnn_backward_triton, rnn_forward_triton
 
 
+def _get_num_heads(x: torch.Tensor, W: torch.Tensor, run_check: bool) -> tuple[int, int, int]:
+    Nx = x.size(-2)
+    Nw = W.size(0)
+    N = max(Nx, Nw)
+
+    if run_check:
+        assert N % Nx == 0
+        assert N % Nw == 0
+
+    return Nx, Nw, N
+
+
+def _get_backward_tensor(y: torch.Tensor, Nx: int, N: int) -> torch.Tensor:
+    if Nx == N:
+        dx = empty_like_contiguous(y)
+    else:
+        x_shape = list(y.size())
+        x_shape[-2] = Nx
+        dx = torch.zeros(x_shape, device=y.device, dtype=torch.float32)
+
+    return dx
+
+
 class _RNN(CustomOp):
     @staticmethod
     def forward_backward_torch(
@@ -29,13 +52,9 @@ class _RNN(CustomOp):
         cu_seqlens: torch.Tensor | None,
         max_seqlen: torch.Tensor | int | None,
     ) -> torch.Tensor:
-        x_shape = x.size()
+        Nx, Nw, N = _get_num_heads(x=x, W=W, run_check=False)
 
-        Nx = x_shape[-2]
-        Nw = W.size(0)
-        N = max(Nx, Nw)
-
-        y_shape = list(x_shape)
+        y_shape = list(x.size())
         y_shape[-2] = N
 
         y = torch.empty(y_shape, device=x.device, dtype=x.dtype)
@@ -43,9 +62,9 @@ class _RNN(CustomOp):
         if cu_seqlens is None:
             B, S, _, H = x.size()
         else:
-            _, _, H = x.size()
             B = cu_seqlens.size(0) - 1
             S = max_seqlen.item() if isinstance(max_seqlen, torch.Tensor) else max_seqlen
+            H = x.size(-1)
 
         Gx = N // Nx
         Gw = N // Nw
@@ -61,15 +80,12 @@ class _RNN(CustomOp):
 
         for s in range(S):
             if cu_seqlens is None:
-                # (B, N, 1, H) = (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
                 h = h0[..., None, :] @ W + x[:, s, :, None, :]
             else:
                 offset = start + s
                 unfinished = offset < end
                 offset_unfinished = offset[unfinished]
 
-                # don't update the finished sequences
-                # (B, N, 1, H) = (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
                 h = h0[unfinished, :, None, :] @ W + x[offset_unfinished, :, None, :]
 
             h = tanh(h)
@@ -95,15 +111,13 @@ class _RNN(CustomOp):
         cu_seqlens: torch.Tensor | None,
         max_seqlen: torch.Tensor | int | None,
     ) -> torch.Tensor:
-        Nx = x.size(-2)
-        Nw = W.size(0)
-        N = max(Nx, Nw)
+        max_seqlen_tensor, max_seqlen = get_max_seqlen_and_max_seqlen_tensor(max_seqlen)
 
+        Nx, _, N = _get_num_heads(x=x, W=W, run_check=False)
         y_shape = list(x.size())
         y_shape[-2] = N
 
         y = torch.empty(y_shape, device=x.device, dtype=x.dtype)
-        max_seqlen_tensor, max_seqlen = get_max_seqlen_and_max_seqlen_tensor(max_seqlen)
 
         rnn_forward_triton(
             x=x,
@@ -126,20 +140,9 @@ class _RNN(CustomOp):
     def backward_triton(ctx, dy: torch.Tensor) -> tuple[torch.Tensor]:
         W, y, h0, cu_seqlens, max_seqlen_tensor = ctx.saved_tensors
         Nx = ctx.Nx
+        N = y.size(-2)
 
-        if cu_seqlens is None:
-            B, _, N, H = y.size()
-        else:
-            B = cu_seqlens.size(0) - 1
-            _, N, H = y.size()
-
-        if Nx == N:
-            dx = empty_like_contiguous(y)
-        else:
-            x_shape = list(y.size())
-            x_shape[-2] = Nx
-            dx = torch.zeros(x_shape, device=y.device, dtype=torch.float32)
-
+        dx = _get_backward_tensor(y=y, Nx=Nx, N=N)
         dW = zeros_like_contiguous(W, dtype=torch.float32)
 
         rnn_backward_triton(
@@ -192,20 +195,17 @@ def rnn(
 
     if cu_seqlens is None:
         assert max_seqlen is None
-        B, _, Nx, H = input.size()
+        B, _, _, H = input.size()
     else:
         assert max_seqlen is not None
         assert cu_seqlens.dim() == 1
 
-        _, Nx, H = input.size()
         B = cu_seqlens.size(0) - 1
+        H = input.size(-1)
 
-    Nw = weight.size(0)
-    N = max(Nx, Nw)
+    _, Nw, N = _get_num_heads(x=input, W=weight, run_check=True)
 
     assert weight.size() == (Nw, H, H)
-    assert N % Nx == 0
-    assert N % Nw == 0
 
     if input_state is not None:
         assert input_state.size() == (B, N, H)

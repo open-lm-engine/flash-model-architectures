@@ -7,12 +7,9 @@ import torch
 from ...accelerator import KernelBackend
 from ...custom_op import CustomOp, ctx_needs_gradients, ctx_save_for_backward
 from ...torch_utils import clip_gradients, sigmoid, tanh
-from ...utils import (
-    empty_like_contiguous,
-    get_max_seqlen_and_max_seqlen_tensor,
-    is_triton_available,
-    zeros_like_contiguous,
-)
+from ...utils import get_max_seqlen_and_max_seqlen_tensor, is_triton_available, zeros_like_contiguous
+from ..rnn import _get_backward_tensor
+from .utils import _get_num_heads
 
 
 if is_triton_available():
@@ -33,80 +30,79 @@ class _GRU(CustomOp):
         cu_seqlens: torch.Tensor | None,
         max_seqlen: torch.Tensor | int | None,
     ) -> torch.Tensor:
-        y = torch.empty_like(x)
+        Nx, Nxf, Nxr, Nw, Nwf, Nwr, N = _get_num_heads(x=x, W=W, xf=xf, Wf=Wf, xr=xr, Wr=Wr, run_check=False)
+
+        y_shape = list(x.size())
+        y_shape[-2] = N
+
+        y = torch.empty(y_shape, device=x.device, dtype=x.dtype)
 
         if cu_seqlens is None:
-            assert max_seqlen is None
-            B, S, N, H = x.size()
-
-            h0 = torch.zeros(B, N, H, device=x.device, dtype=x.dtype) if h0 is None else h0
-
-            # input -> (B, S, N, H)
-            # weight -> (N, H, H)
-            # input_state -> (B, N, H)
-
-            for s in range(S):
-                # (B, N, 1, H) = (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
-                f = h0.unsqueeze(-2) @ Wf.unsqueeze(0) + xf[:, s].unsqueeze(-2)
-                f = sigmoid(f)
-
-                # (B, N, 1, H) = (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
-                r = h0.unsqueeze(-2) @ Wr.unsqueeze(0) + xr[:, s].unsqueeze(-2)
-                r = sigmoid(r)
-
-                # (B, N, 1, H) = [(B, N, 1, H) * (B, N, 1, H)] @ (1, N, H, H) + (B, N, 1, H)
-                possible_new_state = (h0.unsqueeze(-2) * r) @ W.unsqueeze(0) + x[:, s].unsqueeze(-2)
-                possible_new_state = tanh(possible_new_state)
-
-                h = f * h0.unsqueeze(-2) + (1 - f) * possible_new_state
-                h = h.squeeze(-2)
-                h = clip_gradients(h, gradient_clipping)
-
-                y[:, s] = h
-                h0 = h
+            B, S, _, H = x.size()
         else:
-            assert max_seqlen is not None
-            B = cu_seqlens.numel() - 1
-            _, N, H = x.size()
+            _, _, H = x.size()
+            B = cu_seqlens.size(0) - 1
+            S = max_seqlen.item() if isinstance(max_seqlen, torch.Tensor) else max_seqlen
 
-            h0 = torch.zeros(B, N, H, device=x.device, dtype=x.dtype) if h0 is None else h0.clone()
+        Gx = N // Nx
+        Gxf = N // Nxf
+        Gxr = N // Nxr
 
-            # input -> (cu_seqlens[-1], N, H)
-            # weight -> (N, H, H)
-            # input_state -> (B, N, H)
+        Gw = N // Nw
+        Gwf = N // Nwf
+        Gwr = N // Nwr
 
+        x = x.repeat_interleave(Gx, dim=-2)
+        xf = xf.repeat_interleave(Gxf, dim=-2)
+        xr = xr.repeat_interleave(Gxr, dim=-2)
+
+        W = W.repeat_interleave(Gw, dim=0)[None, ...]
+        Wf = Wf.repeat_interleave(Gwf, dim=0)[None, ...]
+        Wr = Wr.repeat_interleave(Gwr, dim=0)[None, ...]
+
+        h0 = torch.zeros(B, N, H, device=x.device, dtype=x.dtype) if h0 is None else h0
+
+        if cu_seqlens is not None:
+            h0 = h0.clone()
             start = cu_seqlens[:-1]
             end = cu_seqlens[1:]
 
-            for s in range(max_seqlen):
+        for s in range(S):
+            if cu_seqlens is None:
+                f = h0[..., None, :] @ Wf + xf[:, s, :, None, :]
+                r = h0[..., None, :] @ Wr + xr[:, s, :, None, :]
+            else:
                 offset = start + s
                 unfinished = offset < end
-
-                new_state = h0[unfinished].unsqueeze(-2)
                 offset_unfinished = offset[unfinished]
 
-                # don't update the finished sequences
-                # (B, N, 1, H) = (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
-                f = new_state @ Wf.unsqueeze(0) + xf[offset_unfinished].unsqueeze(-2)
-                f = sigmoid(f)
+                f = h0[unfinished, :, None, :] @ Wf + xf[offset_unfinished, :, None, :]
+                r = h0[unfinished, :, None, :] @ Wr + xr[offset_unfinished, :, None, :]
 
-                # (B, N, 1, H) = (B, N, 1, H) @ (1, N, H, H) + (B, N, 1, H)
-                r = new_state @ Wr.unsqueeze(0) + xr[offset_unfinished].unsqueeze(-2)
-                r = sigmoid(r)
+            f = sigmoid(f)
+            r = sigmoid(r)
 
-                # (B, N, 1, H) = [(B, N, 1, H) * (B, N, 1, H)] @ (1, N, H, H) + (B, N, 1, H)
-                possible_new_state = (new_state * r) @ W.unsqueeze(0) + x[offset_unfinished].unsqueeze(-2)
-                possible_new_state = tanh(possible_new_state)
+            if cu_seqlens is None:
+                z = (h0[..., None, :] * r) @ W + x[:, s, :, None, :]
+            else:
+                z = (h0[unfinished, :, None, :] * r) @ W + x[offset_unfinished, :, None, :]
 
-                new_state = f * new_state + (1 - f) * possible_new_state
+            z = tanh(z)
 
-                if gradient_clipping is not None:
-                    new_state = clip_gradients(new_state, gradient_clipping)
+            if cu_seqlens is None:
+                h = f * h0[..., None, :] + (1 - f) * z
+            else:
+                h = f * h0[unfinished, :, None, :] + (1 - f) * z
 
-                new_state = new_state.squeeze(-2)
+            h = h.squeeze(-2)
+            h = clip_gradients(h, gradient_clipping)
 
-                y[offset_unfinished] = new_state
-                h0[unfinished] = new_state
+            if cu_seqlens is None:
+                y[:, s] = h
+                h0 = h
+            else:
+                y[offset_unfinished] = h
+                h0[unfinished] = h
 
         return y
 
@@ -124,13 +120,18 @@ class _GRU(CustomOp):
         cu_seqlens: torch.Tensor | None,
         max_seqlen: torch.Tensor | int | None,
     ) -> torch.Tensor:
+        max_seqlen_tensor, max_seqlen = get_max_seqlen_and_max_seqlen_tensor(max_seqlen)
+
+        Nx, Nxf, Nxr, Nw, Nwf, Nwr, N = _get_num_heads(x=x, W=W, xf=xf, Wf=Wf, xr=xr, Wr=Wr, run_check=False)
+        y_shape = list(x.size())
+        y_shape[-2] = N
+
         needs_grad = ctx_needs_gradients(ctx)
 
-        y = empty_like_contiguous(x)
-        max_seqlen_tensor, max_seqlen = get_max_seqlen_and_max_seqlen_tensor(max_seqlen)
-        f = empty_like_contiguous(x) if needs_grad else None
-        r = empty_like_contiguous(x) if needs_grad else None
-        z = empty_like_contiguous(x) if needs_grad else None
+        y = torch.empty(y_shape, device=x.device, dtype=x.dtype)
+        f = torch.empty(y_shape, device=x.device, dtype=x.dtype) if needs_grad and Nxf == N else None
+        r = torch.empty(y_shape, device=x.device, dtype=x.dtype) if needs_grad and Nxr == N else None
+        z = torch.empty(y_shape, device=x.device, dtype=x.dtype) if needs_grad and Nx == N else None
 
         gru_forward_triton(
             x=x,
@@ -149,31 +150,52 @@ class _GRU(CustomOp):
             max_seqlen=max_seqlen,
         )
 
-        ctx_save_for_backward(ctx, W, Wf, f, Wr, r, z, y, h0, cu_seqlens, max_seqlen_tensor)
+        ctx_save_for_backward(
+            ctx,
+            W,
+            Wf,
+            f,
+            Wr,
+            r,
+            z,
+            y,
+            h0,
+            cu_seqlens,
+            max_seqlen_tensor,
+            x if z is None else None,
+            xf if f is None else None,
+            xr if r is None else None,
+        )
 
         ctx.max_seqlen = max_seqlen
         ctx.gradient_clipping = gradient_clipping
+        ctx.num_heads = Nx, Nxf, Nxr
 
         return y
 
     @staticmethod
     def backward_triton(ctx, dy: torch.Tensor) -> tuple[torch.Tensor | None]:
-        W, Wf, f, Wr, r, z, y, h0, cu_seqlens, max_seqlen_tensor = ctx.saved_tensors
+        W, Wf, f, Wr, r, z, y, h0, cu_seqlens, max_seqlen_tensor, x, xf, xr = ctx.saved_tensors
+        Nx, Nxf, Nxr = ctx.num_heads
 
-        dx = empty_like_contiguous(y)
-        dxf = empty_like_contiguous(y)
-        dxr = empty_like_contiguous(y)
+        dx = _get_backward_tensor(y=y, Nx=Nx, N=y.size(-2))
+        dxf = _get_backward_tensor(y=y, Nx=Nxf, N=y.size(-2))
+        dxr = _get_backward_tensor(y=y, Nx=Nxr, N=y.size(-2))
+
         dW = zeros_like_contiguous(W, dtype=torch.float32)
-        dWf = zeros_like_contiguous(W, dtype=torch.float32)
-        dWr = zeros_like_contiguous(W, dtype=torch.float32)
+        dWf = zeros_like_contiguous(Wf, dtype=torch.float32)
+        dWr = zeros_like_contiguous(Wr, dtype=torch.float32)
 
         gru_backward_triton(
+            x=x,
             W=W,
             y=y,
+            xf=xf,
             Wf=Wf,
             f=f,
             dxf=dxf,
             dWf=dWf,
+            xr=xr,
             Wr=Wr,
             r=r,
             dxr=dxr,
@@ -189,11 +211,15 @@ class _GRU(CustomOp):
             gradient_clipping=ctx.gradient_clipping,
         )
 
+        dx = dx.type_as(y)
+        dxf = dxf.type_as(y)
+        dxr = dxr.type_as(y)
+
         dW = dW.type_as(W)
         dWf = dWf.type_as(Wf)
         dWr = dWr.type_as(Wr)
 
-        return dx, dW, dxf, dWf, dxr, dWr, *[None] * 5
+        return dx, dW, dxf, dWf, dxr, dWr, *[None] * 4
 
 
 def gru(
@@ -227,11 +253,28 @@ def gru(
         tuple[torch.Tensor, torch.Tensor]: output tensor of shape (B, S, N, H) and output state tensor of shape (B, N, H)
     """
 
-    assert input.dim() in [3, 4]
-    assert weight.dim() == 3
+    assert input.dim() == 3 + (cu_seqlens is None)
 
-    N, H = input.size()[-2:]
-    assert weight.size() == (N, H, H)
+    if cu_seqlens is None:
+        assert max_seqlen is None
+        B, _, _, H = input.size()
+    else:
+        assert max_seqlen is not None
+        assert cu_seqlens.dim() == 1
+
+        B = cu_seqlens.size(0) - 1
+        H = input.size(-1)
+
+    _, _, _, Nw, Nwf, Nwr, N = _get_num_heads(
+        x=input, W=weight, xf=forget_input, Wf=forget_weight, xr=reset_input, Wr=reset_weight, run_check=True
+    )
+
+    assert weight.size() == (Nw, H, H)
+    assert forget_weight.size() == (Nwf, H, H)
+    assert reset_weight.size() == (Nwr, H, H)
+
+    if input_state is not None:
+        assert input_state.size() == (B, N, H)
 
     if gradient_clipping is not None and gradient_clipping < 0:
         gradient_clipping = -gradient_clipping

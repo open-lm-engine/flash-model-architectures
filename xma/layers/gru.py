@@ -16,20 +16,58 @@ class GRU(nn.Module):
         input_size: int,
         state_size: int,
         output_size: int,
-        num_heads: int,
+        num_input_heads: int,
+        num_forget_input_heads: int,
+        num_reset_input_heads: int,
+        num_weight_heads: int,
+        num_forget_weight_heads: int,
+        num_reset_weight_heads: int,
         add_bias: bool,
         gradient_clipping: float | None,
     ) -> None:
         super().__init__()
 
-        self.num_heads = num_heads
+        self.num_input_heads = num_input_heads
+        self.num_forget_input_heads = num_forget_input_heads
+        self.num_reset_input_heads = num_reset_input_heads
+        self.num_weight_heads = num_weight_heads
+        self.num_forget_weight_heads = num_forget_weight_heads
+        self.num_reset_weight_heads = num_forget_weight_heads
+
+        self.num_heads = max(
+            num_input_heads,
+            num_forget_input_heads,
+            num_reset_input_heads,
+            num_weight_heads,
+            num_forget_weight_heads,
+            num_reset_weight_heads,
+        )
+
+        divide_if_divisible(self.num_heads, self.num_input_heads)
+        divide_if_divisible(self.num_heads, self.num_forget_input_heads)
+        divide_if_divisible(self.num_heads, self.num_reset_input_heads)
+
+        divide_if_divisible(self.num_heads, self.num_weight_heads)
+        divide_if_divisible(self.num_heads, self.num_forget_weight_heads)
+        divide_if_divisible(self.num_heads, self.num_reset_weight_heads)
+
         self.gradient_clipping = gradient_clipping
         self.state_head_dim = divide_if_divisible(state_size, self.num_heads)
 
-        self.input_projection = nn.Linear(input_size, 3 * state_size, bias=add_bias)
-        self.state_weight = nn.Parameter(torch.empty(self.num_heads, self.state_head_dim, self.state_head_dim))
-        self.forget_weight = nn.Parameter(torch.empty(self.num_heads, self.state_head_dim, self.state_head_dim))
-        self.reset_weight = nn.Parameter(torch.empty(self.num_heads, self.state_head_dim, self.state_head_dim))
+        self.input_projection = nn.Linear(
+            input_size,
+            (self.num_input_heads + self.num_forget_input_heads + self.num_reset_input_heads) * self.state_head_dim,
+            bias=add_bias,
+        )
+
+        self.state_weight = nn.Parameter(torch.empty(self.num_weight_heads, self.state_head_dim, self.state_head_dim))
+        self.forget_weight = nn.Parameter(
+            torch.empty(self.num_forget_weight_heads, self.state_head_dim, self.state_head_dim)
+        )
+        self.reset_weight = nn.Parameter(
+            torch.empty(self.num_reset_weight_heads, self.state_head_dim, self.state_head_dim)
+        )
+
         self.output_projection = nn.Linear(state_size, output_size, bias=False)
 
         self.reset_parameters()
@@ -44,10 +82,18 @@ class GRU(nn.Module):
         kernel_backend: KernelBackend | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         input = self.input_projection(input)
-        input, forget_gate, reset_gate = input.chunk(3, dim=-1)
+
+        input, forget_gate, reset_gate = input.split(
+            (
+                self.num_input_heads * self.state_head_dim,
+                self.num_forget_input_heads * self.state_head_dim,
+                self.num_reset_input_heads * self.state_head_dim,
+            ),
+            dim=-1,
+        )
 
         input, forget_gate, reset_gate = [
-            i.view(*input.size()[:-1], self.num_heads, self.state_head_dim) for i in (input, forget_gate, reset_gate)
+            i.view(*i.size()[:-1], -1, self.state_head_dim) for i in (input, forget_gate, reset_gate)
         ]
 
         if input_state is not None:
