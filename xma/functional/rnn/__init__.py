@@ -125,10 +125,13 @@ class _RNN(CustomOp):
     @staticmethod
     def backward_triton(ctx, dy: torch.Tensor) -> tuple[torch.Tensor]:
         W, y, h0, cu_seqlens, max_seqlen_tensor = ctx.saved_tensors
-        dW = zeros_like_contiguous(W, dtype=torch.float32)
-
         Nx = ctx.Nx
-        N = y.size(-2)
+
+        if cu_seqlens is None:
+            B, _, N, H = y.size()
+        else:
+            B = cu_seqlens.size(0) - 1
+            _, N, H = y.size()
 
         if Nx == N:
             dx = empty_like_contiguous(y)
@@ -136,6 +139,8 @@ class _RNN(CustomOp):
             x_shape = list(y.size())
             x_shape[-2] = Nx
             dx = torch.zeros(x_shape, device=y.device, dtype=torch.float32)
+
+        dW = zeros_like_contiguous(W, dtype=torch.float32)
 
         rnn_backward_triton(
             W=W,
@@ -150,9 +155,7 @@ class _RNN(CustomOp):
             gradient_clipping=ctx.gradient_clipping,
         )
 
-        if Nx != N:
-            dx = dx.type_as(y)
-
+        dx = dx.type_as(y)
         dW = dW.type_as(W)
 
         return dx, dW, *[None] * 4

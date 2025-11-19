@@ -137,7 +137,6 @@ def rnn_backward_triton_kernel(
         MASK = ((end >= start) & MASK_H[None, :]) if IS_VARLEN else MASK_BH
 
         dy = tl.load(dy_ptrs, mask=MASK) + dh
-
         y_ptrs -= y_stride[1 - IS_VARLEN]
 
         if IS_VARLEN:
@@ -172,7 +171,11 @@ def rnn_backward_triton_kernel(
 
         dx = dy * tanh_backward(y)
         dh = matmul(A=dx, B=W.T, C=None, output_dtype=dx.dtype)
-        dW = matmul(A=y_prev.T, B=dx, C=dW, output_dtype=dW.dtype)
+
+        if IS_VARLEN:
+            dW = matmul(A=tl.where(MASK, y_prev, 0).T, B=dx, C=dW, output_dtype=dW.dtype)
+        else:
+            dW = matmul(A=y_prev.T, B=dx, C=dW, output_dtype=dW.dtype)
 
         y = y_prev
 
@@ -222,6 +225,7 @@ def rnn_backward_triton(
 
     BLOCK_SIZE_H = get_next_power_of_2(H)
     BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
+
     GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), N)
 
     with torch.device(y.device):

@@ -214,13 +214,12 @@ class MoE(nn.Module):
         kernel_backend: KernelBackend | None = None,
     ) -> torch.Tensor:
         if kernel_backend is None:
-            kernel_backend = Accelerator.get_accelerator().get_kernel_backend()
+            kernel_backend = Accelerator.get_kernel_backend()
         else:
             assert kernel_backend.verify_accelerator()
 
-        with torch.no_grad():
-            sorted_expert_idxs, sorted_scattered_idxs = selected_experts.flatten().sort()
-            expert_frequency = continuous_count(sorted_expert_idxs, self.num_experts)
+        sorted_expert_idxs, sorted_scattered_idxs = selected_experts.flatten().sort()
+        expert_frequency = continuous_count(sorted_expert_idxs, self.num_experts)
 
         T = hidden_states.size(0)
 

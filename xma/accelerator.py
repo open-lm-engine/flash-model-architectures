@@ -81,7 +81,8 @@ class Accelerator(Enum):
 
         return device
 
-    def get_kernel_backend(self) -> KernelBackend:
+    @staticmethod
+    def get_kernel_backend() -> KernelBackend:
         accelerator = Accelerator.get_accelerator()
 
         if accelerator == Accelerator.cuda:
