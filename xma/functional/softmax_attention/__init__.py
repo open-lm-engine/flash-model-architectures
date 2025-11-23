@@ -7,6 +7,7 @@ import torch.nn.functional as F
 
 from ...accelerator import KernelBackend
 from ...custom_op import CustomOp
+from ..sequence_packing import unpack_sequence
 
 
 class _SoftmaxAttention(CustomOp):
@@ -21,6 +22,15 @@ class _SoftmaxAttention(CustomOp):
         cu_seqlens: torch.Tensor | None,
         max_seqlen: torch.Tensor | int | None,
     ) -> torch.Tensor:
+        if cu_seqlens is not None:
+            attention_mask = unpack_sequence(
+                inputs=torch.ones_like(cu_seqlens, dtype=torch.int32),
+                cu_seqlens=cu_seqlens,
+                batch_size=cu_seqlens.size(0) - 1,
+                sequence_length=max_seqlen.item() if isinstance(max_seqlen, torch.Tensor) else max_seqlen,
+                kernel_backend=KernelBackend.torch,
+            )
+
         x = F.scaled_dot_product_attention(
             query=q,
             key=k,
@@ -41,7 +51,7 @@ def softmax_attention(
     value: torch.Tensor,
     attention_multiplier: float | None = None,
     attention_mask: torch.Tensor | None = None,
-    causal: bool = True,
+    causal: bool = False,
     cu_seqlens: torch.Tensor | None = None,
     max_seqlen: torch.Tensor | int | None = None,
     *,
