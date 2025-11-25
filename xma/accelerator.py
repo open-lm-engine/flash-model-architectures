@@ -76,6 +76,8 @@ class Accelerator(Enum):
 
         if accelerator in [Accelerator.cuda, Accelerator.rocm]:
             device = torch.cuda.current_device()
+        elif accelerator == Accelerator.trainium:
+            device = torch.neuron.current_device()
         elif accelerator == Accelerator.tpu:
             device = xla_device()
         elif accelerator == Accelerator.cpu:
