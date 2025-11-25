@@ -12,7 +12,7 @@ from ....utils import get_num_elements_and_hidden_size
 
 
 @nki.jit
-def swiglu_forward_nki_kernel(g_ptr, g_stride, u_ptr, u_stride, y_ptr, y_stride, B, H):
+def swiglu_forward_nki_kernel(g_ptr, u_ptr, y_ptr):
     BLOCK_SIZE_B = 128
     BLOCK_SIZE_H = 512
 
@@ -21,13 +21,11 @@ def swiglu_forward_nki_kernel(g_ptr, g_stride, u_ptr, u_stride, y_ptr, y_stride,
 
     y = u * g * nl.sigmoid(g)
 
-    nl.store(y_ptr, y)
+    nl.store(y_ptr[0:BLOCK_SIZE_B, 0:BLOCK_SIZE_H], y)
 
 
 @custom_op(f"{LIBRARY_NAME}::swiglu_forward_nki", mutates_args={"y"})
 def swiglu_forward_nki(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> None:
     B, H = get_num_elements_and_hidden_size(g)
 
-    swiglu_forward_nki_kernel(
-        g_ptr=g, g_stride=g.stride(), u_ptr=u, u_stride=u.stride(), y_ptr=y, y_stride=y.stride(), B=B, H=H
-    )
+    swiglu_forward_nki_kernel(g_ptr=g, u_ptr=u, y_ptr=y)
