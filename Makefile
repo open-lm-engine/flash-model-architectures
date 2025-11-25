@@ -4,19 +4,8 @@
 
 accelerator=cuda
 
-install:
-	git submodule update --init --recursive
-	uv sync --extra $(accelerator)
-
-install-dev:
-	git submodule update --init --recursive
-	uv sync --extra dev --extra $(accelerator)
-
 test:
 	uv run --extra dev --extra $(accelerator) pytest tests
-
-test-debug:
-	DEBUG_CUTOTUNE=1 TRITON_PRINT_AUTOTUNING=1 uv run --extra dev --extra $(accelerator) pytest -s tests
 
 update-precommit:
 	uv run --extra dev --no-default-groups pre-commit autoupdate
