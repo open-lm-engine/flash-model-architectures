@@ -19,12 +19,12 @@ def swiglu_forward_nki_kernel(g_ptr, u_ptr, y_ptr):
     BLOCK_Bs = 0
     BLOCK_Be = 0
 
-    for b in nl.affine_range(B):
+    for b in nl.affine_range(B // BLOCK_SIZE_B):
         BLOCK_Be += BLOCK_SIZE_B
         BLOCK_Hs = 0
         BLOCK_He = 0
 
-        for h in nl.affine_range(H):
+        for h in nl.affine_range(H // BLOCK_SIZE_H):
             BLOCK_He += BLOCK_SIZE_H
 
             g = nl.load(g_ptr[BLOCK_Bs:BLOCK_Be, BLOCK_Hs:BLOCK_He])
