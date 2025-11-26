@@ -8,7 +8,6 @@ from torch.library import custom_op
 from torch_neuronx import nki
 
 from ....constants import LIBRARY_NAME
-from ....utils import get_num_elements_and_hidden_size
 
 
 @nki.jit
