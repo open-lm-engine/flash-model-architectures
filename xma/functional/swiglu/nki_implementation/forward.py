@@ -8,6 +8,7 @@ from torch.library import custom_op
 from torch_neuronx import nki
 
 from ....constants import LIBRARY_NAME
+from ....utils import get_num_elements_and_hidden_size
 
 
 @nki.jit
@@ -23,12 +24,11 @@ def swiglu_forward_nki_kernel(g_ptr, u_ptr, y_ptr):
         BLOCK_Be += BLOCK_SIZE_B
         BLOCK_Hs = 0
         BLOCK_He = 0
-        # MASK_B = nl.arange(BLOCK_Bs, BLOCK_Be) < nl.arange(64)
 
         for h in nl.affine_range(H):
             BLOCK_He += BLOCK_SIZE_H
 
-            g = nl.load(g_ptr[BLOCK_Bs:BLOCK_Be, BLOCK_Hs:BLOCK_He])  # , mask=MASK_B[:, None] & MASK_H[None, :])
+            g = nl.load(g_ptr[BLOCK_Bs:BLOCK_Be, BLOCK_Hs:BLOCK_He])
             u = nl.load(u_ptr[BLOCK_Bs:BLOCK_Be, BLOCK_Hs:BLOCK_He])
 
             y = u * g * nl.sigmoid(g)
