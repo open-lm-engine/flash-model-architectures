@@ -34,6 +34,8 @@ def swiglu_forward_nki_kernel(g_ptr, u_ptr, y_ptr, B, H):
 
             nl.store(y_ptr[BLOCK_Bs:BLOCK_Be, BLOCK_Hs:BLOCK_He], y)
 
+            BLOCK_Hs = BLOCK_He
+
         BLOCK_Bs = BLOCK_Be
 
 
