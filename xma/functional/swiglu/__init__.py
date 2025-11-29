@@ -22,7 +22,7 @@ if is_cute_dsl_available():
     from .cuda_implementation import swiglu_backward_cuda, swiglu_forward_cuda
 
 if is_torch_neuronx_available():
-    from .nki_implementation import swiglu_forward_nki
+    from .nki_implementation import swiglu_backward_nki, swiglu_forward_nki
 
 if is_torch_xla_available():
     from .pallas_implementation import swiglu_backward_pallas, swiglu_forward_pallas
@@ -73,6 +73,16 @@ class _Swiglu(CustomOp):
         ctx_save_for_backward(ctx, g, u)
 
         return y
+
+    @staticmethod
+    def backward_nki(ctx, dy: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        g, u = ctx.saved_tensors
+        dg = empty_like_contiguous(g)
+        du = empty_like_contiguous(u)
+
+        swiglu_backward_nki(g=g, u=u, dy=dy, dg=dg, du=du)
+
+        return dg, du
 
     @staticmethod
     @ensure_contiguous
