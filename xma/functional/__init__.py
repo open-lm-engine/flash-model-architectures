@@ -13,4 +13,5 @@ from .rmsnorm import rmsnorm
 from .rnn import rnn
 from .sequence_packing import pack_sequence, unpack_sequence
 from .softmax import softmax
-from .swiglu import swiglu, swiglu_packed
+from .swiglu import swiglu
+from .swiglu_packed import swiglu_packed
