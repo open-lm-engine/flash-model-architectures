@@ -4,7 +4,6 @@
 
 import neuronxcc.nki.language as nl
 import torch
-from neuronxcc.nki.typing import mutable_tensor
 from torch.library import custom_op
 from torch_neuronx import TorchNeuronNKIKernel
 
@@ -12,7 +11,7 @@ from ....constants import LIBRARY_NAME
 from ....math import ceil_divide
 
 
-def swiglu_forward_nki_kernel(g_ptr, u_ptr, y_ptr: mutable_tensor):
+def swiglu_forward_nki_kernel(g_ptr, u_ptr, y_ptr):
     BLOCK_SIZE_B = 128
     BLOCK_SIZE_H = 512
 
