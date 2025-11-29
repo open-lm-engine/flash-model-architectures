@@ -4,10 +4,9 @@
 
 import neuronxcc.nki.language as nl
 import torch
-from torch.library import custom_op
 from torch_neuronx import TorchNeuronNKIKernel
 
-from ....constants import LIBRARY_NAME
+from ....custom_op import xma_op
 from ....math import ceil_divide
 
 
@@ -36,7 +35,7 @@ def swiglu_forward_nki_kernel(g_ptr, u_ptr, y_ptr):
     nl.store(y_ptr[BLOCK_B, BLOCK_H], y, mask=MASK_BH)
 
 
-@custom_op(f"{LIBRARY_NAME}::swiglu_forward_nki", mutates_args={"y"})
+@xma_op(mutates_args={"y"})
 def swiglu_forward_nki(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> None:
     BLOCK_SIZE_B = 128
     BLOCK_SIZE_H = 512
