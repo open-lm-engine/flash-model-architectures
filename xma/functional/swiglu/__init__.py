@@ -148,7 +148,7 @@ class _SwigluPacked(CustomOp):
         return dx
 
     @staticmethod
-    def forward_triton(ctx, x: torch.Tensor) -> torch.Tensor:
+    def forward_nki(ctx, x: torch.Tensor) -> torch.Tensor:
         ctx_save_for_backward(ctx, x)
 
         y = torch.empty(*x.size()[:-1], divide_if_divisible(x.size(-1), 2), device=x.device, dtype=x.dtype)
@@ -159,7 +159,7 @@ class _SwigluPacked(CustomOp):
         return y
 
     @staticmethod
-    def backward_triton(ctx, dy: torch.Tensor) -> torch.Tensor:
+    def backward_nki(ctx, dy: torch.Tensor) -> torch.Tensor:
         x = ctx.saved_tensors[0]
         dx = empty_like_contiguous(x)
 
