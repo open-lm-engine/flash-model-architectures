@@ -35,10 +35,16 @@ def swiglu_forward_nki_kernel(g_ptr, u_ptr, y_ptr):
 
 @custom_op(f"{LIBRARY_NAME}::swiglu_forward_nki", mutates_args={"y"})
 def swiglu_forward_nki(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> None:
-    # swiglu_forward_nki_kernel(g_ptr=g, u_ptr=u, y_ptr=y)
+    kernel = swiglu_forward_nki.cache.get(g.dtype, None)
 
-    traced_kernel = TorchNeuronNKIKernel(
-        func=swiglu_forward_nki_kernel, grid=(1,), kernel_return=True, return_tensor_overrides=(y,)
-    )
+    if kernel is None:
+        kernel = TorchNeuronNKIKernel(
+            func=swiglu_forward_nki_kernel, grid=(1,), kernel_return=True, return_tensor_overrides=(y,)
+        )
 
-    traced_kernel(g, u, y)
+        swiglu_forward_nki.cache[g.dtype] = kernel
+
+    kernel(g, u, y)
+
+
+swiglu_forward_nki.cache = {}
