@@ -39,7 +39,8 @@ def swiglu_forward_nki(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> Non
 
     B, H = g.size()
 
-    kernel = swiglu_forward_nki.cache.get(g.dtype, None)
+    compile_key = (B, H, g.dtype)
+    kernel = swiglu_forward_nki.cache.get(compile_key, None)
 
     if kernel is None:
         kernel = TorchNeuronNKIKernel(
@@ -49,7 +50,7 @@ def swiglu_forward_nki(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> Non
             return_tensor_overrides=(y,),
         )
 
-        swiglu_forward_nki.cache[g.dtype] = kernel
+        swiglu_forward_nki.cache[compile_key] = kernel
 
     kernel(g, u, y)
 
