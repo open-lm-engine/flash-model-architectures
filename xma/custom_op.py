@@ -10,7 +10,6 @@ from typing import Any, Callable, Iterable, Sequence
 import torch
 
 from .accelerator import Accelerator, KernelBackend
-from .constants import LIBRARY_NAME
 from .counters import increment_counter
 
 
@@ -128,7 +127,7 @@ def xma_op(
 ) -> Callable:
     def _inner(func: Callable):
         custom_op = torch.library.custom_op(
-            f"{LIBRARY_NAME}::{func.__name__}",
+            f"xma::{func.__name__}",
             func,
             mutates_args=mutates_args,
             device_types=device_types,
