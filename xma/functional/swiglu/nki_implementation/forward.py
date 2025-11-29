@@ -8,9 +8,13 @@ from torch.library import custom_op
 from torch_neuronx import TorchNeuronNKIKernel
 
 from ....constants import LIBRARY_NAME
+from ....math import ceil_divide
 
 
 def swiglu_forward_nki_kernel(g_ptr, u_ptr, y_ptr):
+    BLOCK_ID_B = nl.program_id(0)
+    BLOCK_ID_H = nl.program_id(1)
+
     BLOCK_SIZE_B = 128
     BLOCK_SIZE_H = 512
 
@@ -20,11 +24,7 @@ def swiglu_forward_nki_kernel(g_ptr, u_ptr, y_ptr):
     NUM_BLOCKS_H = H // BLOCK_SIZE_H
 
     for b in nl.affine_range(NUM_BLOCKS_B):
-        BLOCK_B = nl.arange(b * BLOCK_SIZE_B, b * BLOCK_SIZE_B + BLOCK_SIZE_B)[:, None]
-
         for h in nl.affine_range(NUM_BLOCKS_H):
-            BLOCK_H = nl.arange(h * BLOCK_SIZE_H, h * BLOCK_SIZE_H + BLOCK_SIZE_H)[None, :]
-
             g = nl.load(g_ptr[BLOCK_B, BLOCK_H])
             u = nl.load(u_ptr[BLOCK_B, BLOCK_H])
 
@@ -35,11 +35,19 @@ def swiglu_forward_nki_kernel(g_ptr, u_ptr, y_ptr):
 
 @custom_op(f"{LIBRARY_NAME}::swiglu_forward_nki", mutates_args={"y"})
 def swiglu_forward_nki(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> None:
+    BLOCK_SIZE_B = 128
+    BLOCK_SIZE_H = 512
+
+    B, H = g.size()
+
     kernel = swiglu_forward_nki.cache.get(g.dtype, None)
 
     if kernel is None:
         kernel = TorchNeuronNKIKernel(
-            func=swiglu_forward_nki_kernel, grid=(1,), kernel_return=True, return_tensor_overrides=(y,)
+            func=swiglu_forward_nki_kernel,
+            grid=(ceil_divide(B, BLOCK_SIZE_B), ceil_divide(H, BLOCK_SIZE_H)),
+            kernel_return=True,
+            return_tensor_overrides=(y,),
         )
 
         swiglu_forward_nki.cache[g.dtype] = kernel
