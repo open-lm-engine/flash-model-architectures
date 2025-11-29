@@ -18,8 +18,8 @@ def swiglu_forward_nki_kernel(g_ptr, u_ptr, y_ptr):
     BLOCK_ID_B = nl.program_id(0)
     BLOCK_ID_H = nl.program_id(1)
 
-    BLOCK_B = BLOCK_ID_B * nl.arange(BLOCK_SIZE_B)
-    BLOCK_H = BLOCK_ID_H * nl.arange(BLOCK_SIZE_H)
+    BLOCK_B = BLOCK_ID_B * BLOCK_SIZE_B + nl.arange(BLOCK_SIZE_B)
+    BLOCK_H = BLOCK_ID_H * BLOCK_SIZE_H + nl.arange(BLOCK_SIZE_H)
 
     g = nl.load(g_ptr[BLOCK_B, BLOCK_H])
     u = nl.load(u_ptr[BLOCK_B, BLOCK_H])
