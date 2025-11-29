@@ -72,7 +72,7 @@ class SwiGLUTest(TestCommons):
             [(4100, 3700)],  # size
             TestCommons.get_dtypes(),  # dtype
             [KernelBackend.nki],  # kernel_backend
-            [swiglu],  # function
+            [swiglu_packed],  # function
         )
         + TestCommons.make_args_matrix(
             [(4100, 3700)],  # size
