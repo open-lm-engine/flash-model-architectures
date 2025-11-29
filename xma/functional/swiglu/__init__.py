@@ -208,9 +208,11 @@ class _SwigluPacked(CustomOp):
         dx = empty_like_contiguous(x)
 
         u, g = x.chunk(2, dim=-1)
-        du, dg = dx.chunk(2, dim=-1)
+        du = empty_like_contiguous(u)
+        dg = empty_like_contiguous(g)
 
         swiglu_backward_triton(g=g, u=u, dy=dy, dg=dg, du=du)
+        dx = torch.cat([du, dg], dim=-1)
 
         return dx
 
