@@ -3,10 +3,9 @@
 # **************************************************
 
 import torch
-from torch.library import custom_op
 from torch_xla.experimental.custom_kernel import jax_import_guard, make_kernel_from_pallas
 
-from ....constants import LIBRARY_NAME
+from ....custom_op import xma_op
 from ....math import ceil_divide
 
 
@@ -65,7 +64,7 @@ def swiglu_backward_pallas_jit(g: jax.Array, u: jax.Array, dy: jax.Array) -> tup
     return kernel(g, u, dy)
 
 
-@custom_op(f"{LIBRARY_NAME}::swiglu_backward_pallas", mutates_args={})
+@xma_op(mutates_args={})
 def swiglu_backward_pallas(g: torch.Tensor, u: torch.Tensor, dy: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
     assert g.is_contiguous()
     assert u.is_contiguous()

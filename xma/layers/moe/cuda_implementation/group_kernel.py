@@ -5,9 +5,8 @@
 import torch
 import triton
 import triton.language as tl
-from torch.library import custom_op
 
-from ....constants import LIBRARY_NAME
+from ....custom_op import xma_op
 from ....math import ceil_divide, get_powers_of_2
 
 
@@ -74,7 +73,7 @@ def group_with_padding_triton_kernel(
             tl.store(y_ptrs + indices_h[None, :], x, mask=mask_bh)
 
 
-@custom_op(f"{LIBRARY_NAME}::group_with_padding_triton", mutates_args={"output"})
+@xma_op(mutates_args={"output"})
 def group_with_padding_triton(
     x: torch.Tensor,
     expert_padding_offset: torch.Tensor,

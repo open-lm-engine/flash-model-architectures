@@ -3,15 +3,14 @@
 # **************************************************
 
 import torch
-from torch.library import custom_op
 
-from ....constants import LIBRARY_NAME
+from ....custom_op import xma_op
 from ....jit import cpp_jit
 from ....utils import ensure_contiguous
 
 
 @ensure_contiguous
-@custom_op(f"{LIBRARY_NAME}::continuous_count_cuda", mutates_args={"output"})
+@xma_op(mutates_args={"output"})
 @cpp_jit()
 def continuous_count_cuda(
     x: torch.Tensor, output: torch.Tensor, E: int, THREAD_BLOCK_CLUSTER_SIZE: int, BLOCK_SIZE: int

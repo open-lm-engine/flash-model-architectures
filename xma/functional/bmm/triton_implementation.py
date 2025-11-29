@@ -5,9 +5,8 @@
 import torch
 import triton
 import triton.language as tl
-from torch.library import custom_op
 
-from ...constants import LIBRARY_NAME
+from ...custom_op import xma_op
 from ...math import ceil_divide
 
 
@@ -149,7 +148,7 @@ def bmm_triton_kernel(
     )
 
 
-@custom_op(f"{LIBRARY_NAME}::bmm_triton", mutates_args={"D"})
+@xma_op(mutates_args={"D"})
 def bmm_triton(
     A: torch.Tensor,
     B: torch.Tensor,

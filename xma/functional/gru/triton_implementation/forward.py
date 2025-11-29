@@ -5,9 +5,8 @@
 import torch
 import triton
 import triton.language as tl
-from torch.library import custom_op
 
-from ....constants import LIBRARY_NAME
+from ....custom_op import xma_op
 from ....math import ceil_divide, get_next_power_of_2
 from ....triton_utils import matmul, sigmoid, tanh
 from ...rnn.triton_implementation.forward import _get_autotune_configs
@@ -187,7 +186,7 @@ def gru_forward_triton_kernel(
             start += 1
 
 
-@custom_op(f"{LIBRARY_NAME}::gru_forward_triton", mutates_args={"f", "r", "z", "y"})
+@xma_op(mutates_args={"f", "r", "z", "y"})
 def gru_forward_triton(
     x: torch.Tensor,
     W: torch.Tensor,

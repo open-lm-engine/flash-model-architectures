@@ -5,9 +5,8 @@
 import torch
 import triton
 import triton.language as tl
-from torch.library import custom_op
 
-from ....constants import LIBRARY_NAME
+from ....custom_op import xma_op
 from ....math import ceil_divide
 
 
@@ -135,7 +134,7 @@ def scatter2scatter_triton_kernel(
     tl.store(Y_blk_ptrs, acc, mask=M_boundary_mask[:, None] & N_mask[None, :])
 
 
-@custom_op(f"{LIBRARY_NAME}::scatter2scatter", mutates_args={"out"})
+@xma_op(mutates_args={"out"})
 def scatter2scatter(
     X: torch.Tensor,
     W: torch.Tensor,

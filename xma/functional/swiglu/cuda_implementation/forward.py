@@ -3,12 +3,12 @@
 # **************************************************
 
 import torch
-from torch.library import custom_op
 
 import cutlass.cute as cute
 from cutlass import Boolean, Float32, range_constexpr
 
-from ....constants import LIBRARY_NAME, LOG_WARP_SIZE, WARP_SIZE
+from ....constants import LOG_WARP_SIZE, WARP_SIZE
+from ....custom_op import xma_op
 from ....cute_dsl_utils import sigmoid, torch_tensor_to_cute_tensor
 
 
@@ -100,7 +100,7 @@ def swiglu_forward_cuda_jit(mG: cute.Tensor, mU: cute.Tensor, mY: cute.Tensor) -
     kernel.launch(grid=(NUM_BLOCKS, 1, 1), block=(BLOCK_SIZE, 1, 1))
 
 
-@custom_op(f"{LIBRARY_NAME}::swiglu_forward_cuda", mutates_args={"y"})
+@xma_op(mutates_args={"y"})
 def swiglu_forward_cuda(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> None:
     g, u, y = [torch_tensor_to_cute_tensor(i, leading_dim=1) for i in (g, u, y)]
 

@@ -5,9 +5,8 @@
 import torch
 import triton
 import triton.language as tl
-from torch.library import custom_op
 
-from ...constants import LIBRARY_NAME
+from ...custom_op import xma_op
 
 
 @triton.jit
@@ -56,7 +55,7 @@ def pack_unpack_sequence_triton_kernel(
             y_ptrs += BLOCK_SIZE * y_stride[-1]
 
 
-@custom_op(f"{LIBRARY_NAME}::pack_unpack_sequence_triton", mutates_args={"output"})
+@xma_op(mutates_args={"output"})
 def pack_unpack_sequence_triton(
     x: torch.Tensor, output: torch.Tensor, cu_seqlens: torch.Tensor, padding_side: str, pack: bool
 ) -> None:

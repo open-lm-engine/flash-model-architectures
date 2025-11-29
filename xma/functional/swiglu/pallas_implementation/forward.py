@@ -3,10 +3,9 @@
 # **************************************************
 
 import torch
-from torch.library import custom_op
 from torch_xla.experimental.custom_kernel import jax_import_guard, make_kernel_from_pallas
 
-from ....constants import LIBRARY_NAME
+from ....custom_op import xma_op
 from ....math import ceil_divide
 
 
@@ -52,7 +51,14 @@ def swiglu_forward_pallas_jit(g: jax.Array, u: jax.Array) -> jax.Array:
     return kernel(g, u)
 
 
-@custom_op(f"{LIBRARY_NAME}::swiglu_forward_pallas", mutates_args={})
+def _fake_function(g: torch.Tensor, u: torch.Tensor) -> torch.Tensor:
+    assert g.is_contiguous()
+    assert u.is_contiguous()
+
+    return torch.empty_like(g)
+
+
+@xma_op(mutates_args={}, fake_func=_fake_function)
 def swiglu_forward_pallas(g: torch.Tensor, u: torch.Tensor) -> torch.Tensor:
     assert g.is_contiguous()
     assert u.is_contiguous()
@@ -63,14 +69,6 @@ def swiglu_forward_pallas(g: torch.Tensor, u: torch.Tensor) -> torch.Tensor:
         )
 
     return swiglu_forward_pallas.cache(g, u)
-
-
-@swiglu_forward_pallas.register_fake
-def _(g: torch.Tensor, u: torch.Tensor) -> torch.Tensor:
-    assert g.is_contiguous()
-    assert u.is_contiguous()
-
-    return torch.empty_like(g)
 
 
 swiglu_forward_pallas.cache = None
