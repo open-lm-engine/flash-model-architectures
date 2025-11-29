@@ -16,6 +16,7 @@ n = 100
 kernels = [
     (swiglu, KernelBackend.cuda, "CUDA"),
     (swiglu, KernelBackend.pallas, "pallas"),
+    (swiglu, KernelBackend.nki, "nki"),
     (swiglu, KernelBackend.torch, "torch"),
     (torch.compile(swiglu, dynamic=True), KernelBackend.torch, "torch compile"),
     (swiglu, KernelBackend.triton, "triton"),
