@@ -15,18 +15,25 @@ def swiglu_forward_nki_kernel(g_ptr, u_ptr, y_ptr):
     BLOCK_SIZE_B = 128
     BLOCK_SIZE_H = 512
 
+    B, H = g_ptr.shape
+
     BLOCK_ID_B = nl.program_id(0)
     BLOCK_ID_H = nl.program_id(1)
 
     BLOCK_B = BLOCK_ID_B * BLOCK_SIZE_B + nl.arange(BLOCK_SIZE_B)[:, None]
     BLOCK_H = BLOCK_ID_H * BLOCK_SIZE_H + nl.arange(BLOCK_SIZE_H)[None, :]
 
-    g = nl.load(g_ptr[BLOCK_B, BLOCK_H])
-    u = nl.load(u_ptr[BLOCK_B, BLOCK_H])
+    MASK_B = BLOCK_B < B
+    MASK_H = BLOCK_B < H
+
+    MASK_BH = MASK_B & MASK_H
+
+    g = nl.load(g_ptr[BLOCK_B, BLOCK_H], mask=MASK_BH)
+    u = nl.load(u_ptr[BLOCK_B, BLOCK_H], mask=MASK_BH)
 
     y = u * g * nl.sigmoid(g)
 
-    nl.store(y_ptr[BLOCK_B, BLOCK_H], y)
+    nl.store(y_ptr[BLOCK_B, BLOCK_H], y, mask=MASK_BH)
 
 
 @custom_op(f"{LIBRARY_NAME}::swiglu_forward_nki", mutates_args={"y"})
