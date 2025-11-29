@@ -29,8 +29,6 @@ def swiglu_forward_nki_kernel(g_ptr, u_ptr, y_ptr: mutable_tensor):
 
     nl.store(y_ptr[BLOCK_B, BLOCK_H], y)
 
-    return y_ptr
-
 
 @custom_op(f"{LIBRARY_NAME}::swiglu_forward_nki", mutates_args={"y"})
 def swiglu_forward_nki(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> None:
@@ -46,7 +44,7 @@ def swiglu_forward_nki(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> Non
         kernel = TorchNeuronNKIKernel(
             func=swiglu_forward_nki_kernel,
             grid=(ceil_divide(B, BLOCK_SIZE_B), ceil_divide(H, BLOCK_SIZE_H)),
-            kernel_return=True,
+            kernel_return=False,
             return_tensor_overrides=(y,),
         )
 
