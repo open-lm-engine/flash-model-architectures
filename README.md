@@ -28,7 +28,7 @@ We are planning on adding lots of experimental and fun model architectures with 
 | rmsnorm | ❌ | ❌ | ❌ | ❌ | ✅ |
 | pack_sequence | ✅ | ❌ | ❌ | ❌ | ✅ |
 | softmax | ❌ | ❌ | ❌ | ❌ | ✅ |
-| swiglu | ✅ | ✅ | ❌ | ❌ | ✅ |
+| swiglu | ✅ | ✅ | ✅ | ❌ | ✅ |
 | swiglu_packed | ✅ | ✅ | ❌ | ❌ | ✅ |
 | unpack_sequence | ✅ | ❌ | ❌ | ❌ | ✅ |
 
