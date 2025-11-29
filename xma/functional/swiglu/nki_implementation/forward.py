@@ -12,25 +12,21 @@ from ....math import ceil_divide
 
 
 def swiglu_forward_nki_kernel(g_ptr, u_ptr, y_ptr):
-    BLOCK_ID_B = nl.program_id(0)
-    BLOCK_ID_H = nl.program_id(1)
-
     BLOCK_SIZE_B = 128
     BLOCK_SIZE_H = 512
 
-    B, H = g_ptr.shape
+    BLOCK_ID_B = nl.program_id(0)
+    BLOCK_ID_H = nl.program_id(1)
 
-    NUM_BLOCKS_B = B // BLOCK_SIZE_B
-    NUM_BLOCKS_H = H // BLOCK_SIZE_H
+    BLOCK_B = BLOCK_ID_B * nl.arange(BLOCK_SIZE_B)
+    BLOCK_H = BLOCK_ID_H * nl.arange(BLOCK_SIZE_H)
 
-    for b in nl.affine_range(NUM_BLOCKS_B):
-        for h in nl.affine_range(NUM_BLOCKS_H):
-            g = nl.load(g_ptr[BLOCK_B, BLOCK_H])
-            u = nl.load(u_ptr[BLOCK_B, BLOCK_H])
+    g = nl.load(g_ptr[BLOCK_B, BLOCK_H])
+    u = nl.load(u_ptr[BLOCK_B, BLOCK_H])
 
-            y = u * g * nl.sigmoid(g)
+    y = u * g * nl.sigmoid(g)
 
-            nl.store(y_ptr[BLOCK_B, BLOCK_H], y)
+    nl.store(y_ptr[BLOCK_B, BLOCK_H], y)
 
 
 @custom_op(f"{LIBRARY_NAME}::swiglu_forward_nki", mutates_args={"y"})
