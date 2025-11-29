@@ -5,9 +5,8 @@
 import torch
 import triton
 import triton.language as tl
-from torch.library import custom_op
 
-from ....constants import LIBRARY_NAME
+from ....custom_op import xma_op
 from ....math import ceil_divide, get_next_power_of_2
 from ....utils import get_num_elements_and_hidden_size
 
@@ -83,7 +82,7 @@ def softmax_forward_triton_kernel(
         y_ptrs += BLOCK_SIZE_H * y_stride[1]
 
 
-@custom_op(f"{LIBRARY_NAME}::softmax_forward_triton", mutates_args={"y"})
+@xma_op(mutates_args={"y"})
 def softmax_forward_triton(x: torch.Tensor, y: torch.Tensor, logits_multiplier: float | None) -> None:
     if x.dim() == 1:
         B = 1

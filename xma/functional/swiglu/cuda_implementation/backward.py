@@ -8,7 +8,8 @@ from torch.library import custom_op
 import cutlass.cute as cute
 from cutlass import Boolean, Float32, range_constexpr
 
-from ....constants import LIBRARY_NAME, LOG_WARP_SIZE, WARP_SIZE
+from ....constants import LOG_WARP_SIZE, WARP_SIZE
+from ....custom_op import xma_op
 from ....cute_dsl_utils import sigmoid, torch_tensor_to_cute_tensor
 
 
@@ -125,7 +126,7 @@ def swiglu_backward_cuda_jit(
     kernel.launch(grid=(NUM_BLOCKS, 1, 1), block=(BLOCK_SIZE, 1, 1))
 
 
-@custom_op(f"{LIBRARY_NAME}::swiglu_backward_cuda", mutates_args={"dg", "du"})
+@xma_op(mutates_args={"dg", "du"})
 def swiglu_backward_cuda(
     g: torch.Tensor, u: torch.Tensor, dy: torch.Tensor, dg: torch.Tensor, du: torch.Tensor
 ) -> None:
