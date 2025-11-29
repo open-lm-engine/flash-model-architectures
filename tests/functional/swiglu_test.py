@@ -22,8 +22,14 @@ class SwiGLUTest(TestCommons):
         )
         + TestCommons.make_args_matrix(
             [(4100, 3700)],  # size
+            TestCommons.get_dtypes(),  # dtype
+            [KernelBackend.nki],  # kernel_backend
+            [swiglu],  # function
+        )
+        + TestCommons.make_args_matrix(
+            [(4100, 3700)],  # size
             [torch.float32, torch.bfloat16],  # dtype
-            [KernelBackend.nki, KernelBackend.pallas],  # kernel_backend
+            [KernelBackend.pallas],  # kernel_backend
             [swiglu],  # function
         )
     )
