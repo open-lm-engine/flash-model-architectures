@@ -24,7 +24,7 @@ def swiglu_forward_nki_kernel(g_ptr, u_ptr, y_ptr):
     BLOCK_H = BLOCK_ID_H * BLOCK_SIZE_H + nl.arange(BLOCK_SIZE_H)[None, :]
 
     MASK_B = BLOCK_B < B
-    MASK_H = BLOCK_B < H
+    MASK_H = BLOCK_H < H
 
     MASK_BH = MASK_B & MASK_H
 
