@@ -5,9 +5,8 @@
 import torch
 import triton
 import triton.language as tl
-from torch.library import custom_op
 
-from ....constants import LIBRARY_NAME
+from ....custom_op import xma_op
 from ....math import ceil_divide, get_powers_of_2
 from ....triton_utils import sigmoid
 from ....utils import get_num_elements_and_hidden_size
@@ -57,7 +56,7 @@ def swiglu_forward_triton_kernel(
     tl.store(y_ptr + BLOCK_B[:, None] * y_stride[0] + BLOCK_H[None, :] * y_stride[1], y, mask=MASK)
 
 
-@custom_op(f"{LIBRARY_NAME}::swiglu_forward_triton", mutates_args={"y"})
+@xma_op(mutates_args={"y"})
 def swiglu_forward_triton(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> None:
     B, H = get_num_elements_and_hidden_size(g)
     GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), ceil_divide(H, meta["BLOCK_SIZE_H"]))
