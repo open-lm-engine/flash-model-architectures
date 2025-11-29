@@ -5,7 +5,6 @@
 import torch
 import triton
 import triton.language as tl
-from torch.library import custom_op
 
 from ....accelerator import Accelerator
 from ....constants import MAX_TRITON_BLOCK_SIZE

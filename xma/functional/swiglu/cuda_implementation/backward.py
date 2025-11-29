@@ -3,7 +3,6 @@
 # **************************************************
 
 import torch
-from torch.library import custom_op
 
 import cutlass.cute as cute
 from cutlass import Boolean, Float32, range_constexpr

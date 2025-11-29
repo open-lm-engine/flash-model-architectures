@@ -5,7 +5,6 @@
 import torch
 import triton
 import triton.language as tl
-from torch.library import custom_op
 
 from ....custom_op import xma_op
 
