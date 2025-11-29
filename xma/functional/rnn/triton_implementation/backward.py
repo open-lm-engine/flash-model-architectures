@@ -5,9 +5,8 @@
 import torch
 import triton
 import triton.language as tl
-from torch.library import custom_op
 
-from ....constants import LIBRARY_NAME
+from ....custom_op import xma_op
 from ....math import ceil_divide, get_next_power_of_2
 from ....triton_utils import clamp, matmul, tanh_backward
 from .forward import _get_autotune_configs
@@ -196,7 +195,7 @@ def rnn_backward_triton_kernel(
     )
 
 
-@custom_op(f"{LIBRARY_NAME}::rnn_backward_triton", mutates_args={"dx", "dW"})
+@xma_op(mutates_args={"dx", "dW"})
 def rnn_backward_triton(
     W: torch.Tensor,
     y: torch.Tensor,

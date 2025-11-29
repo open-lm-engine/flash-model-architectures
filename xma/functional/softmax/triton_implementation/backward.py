@@ -5,9 +5,8 @@
 import torch
 import triton
 import triton.language as tl
-from torch.library import custom_op
 
-from ....constants import LIBRARY_NAME
+from ....custom_op import xma_op
 from ....math import ceil_divide, get_next_power_of_2
 from ....utils import get_num_elements_and_hidden_size
 
@@ -77,7 +76,7 @@ def softmax_backward_triton_kernel(
         dx_ptrs += BLOCK_SIZE_H * dx_stride[1]
 
 
-@custom_op(f"{LIBRARY_NAME}::softmax_backward_triton", mutates_args={"dx"})
+@xma_op(mutates_args={"dx"})
 def softmax_backward_triton(
     y: torch.Tensor, dy: torch.Tensor, dx: torch.Tensor, logits_multiplier: float | None
 ) -> None:
