@@ -39,11 +39,11 @@ def swiglu_backward_triton_kernel(
 
     MASK_B = BLOCK_B < B
     MASK_H = BLOCK_H < H
+
     MASK = MASK_B[:, None] & MASK_H[None, :]
 
     g = tl.load(g_ptr + BLOCK_B[:, None] * g_stride[0] + BLOCK_H[None, :] * g_stride[1], mask=MASK).to(tl.float32)
     u = tl.load(u_ptr + BLOCK_B[:, None] * u_stride[0] + BLOCK_H[None, :] * u_stride[1], mask=MASK)
-
     dy = tl.load(dy_ptr + BLOCK_B[:, None] * dy_stride[0] + BLOCK_H[None, :] * dy_stride[1], mask=MASK)
 
     g_sigmoid = sigmoid(g)

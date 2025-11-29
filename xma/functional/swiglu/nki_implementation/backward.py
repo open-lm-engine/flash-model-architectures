@@ -10,7 +10,7 @@ from ....custom_op import xma_op
 from ....math import ceil_divide
 
 
-def swiglu_forward_nki_kernel(g_ptr, u_ptr, y_ptr):
+def swiglu_backward_nki_kernel(g_ptr, u_ptr, dy_ptr, dg_ptr, du_ptr):
     BLOCK_SIZE_B = 128
     BLOCK_SIZE_H = 512
 
@@ -29,33 +29,41 @@ def swiglu_forward_nki_kernel(g_ptr, u_ptr, y_ptr):
 
     g = nl.load(g_ptr[BLOCK_B, BLOCK_H], mask=MASK)
     u = nl.load(u_ptr[BLOCK_B, BLOCK_H], mask=MASK)
+    dy = nl.load(dy_ptr[BLOCK_B, BLOCK_H], mask=MASK)
 
-    y = u * g * nl.sigmoid(g)
+    g_sigmoid = nl.sigmoid(g)
+    g_silu = g * g_sigmoid
 
-    nl.store(y_ptr[BLOCK_B, BLOCK_H], y, mask=MASK)
+    dg = dy * u * (g_sigmoid + g_silu * (1 - g_sigmoid))
+    du = dy * g_silu
+
+    nl.store(dg_ptr[BLOCK_B, BLOCK_H], dg, mask=MASK)
+    nl.store(du_ptr[BLOCK_B, BLOCK_H], du, mask=MASK)
 
 
-@xma_op(mutates_args={"y"})
-def swiglu_forward_nki(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> None:
+@xma_op(mutates_args={"dg", "du"})
+def swiglu_backward_nki(
+    g: torch.Tensor, u: torch.Tensor, dy: torch.Tensor, dg: torch.Tensor, du: torch.Tensor
+) -> None:
     BLOCK_SIZE_B = 128
     BLOCK_SIZE_H = 512
 
     B, H = g.size()
 
     compile_key = (B, H, g.dtype)
-    kernel = swiglu_forward_nki.cache.get(compile_key, None)
+    kernel = swiglu_backward_nki.cache.get(compile_key, None)
 
     if kernel is None:
         kernel = TorchNeuronNKIKernel(
-            func=swiglu_forward_nki_kernel,
+            func=swiglu_backward_nki_kernel,
             grid=(ceil_divide(B, BLOCK_SIZE_B), ceil_divide(H, BLOCK_SIZE_H)),
             kernel_return=False,
-            return_tensor_overrides=(y,),
+            return_tensor_overrides=(dg, du),
         )
 
-        swiglu_forward_nki.cache[compile_key] = kernel
+        swiglu_backward_nki.cache[compile_key] = kernel
 
-    kernel(g, u, y)
+    kernel(g, u, dy, dg, du)
 
 
-swiglu_forward_nki.cache = {}
+swiglu_backward_nki.cache = {}
