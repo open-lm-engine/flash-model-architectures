@@ -5,9 +5,9 @@
 import torch
 import triton
 import triton.language as tl
-from torch.library import custom_op
 
-from ....constants import LIBRARY_NAME, MAX_TRITON_BLOCK_SIZE
+from ....constants import MAX_TRITON_BLOCK_SIZE
+from ....custom_op import xma_op
 from ....math import ceil_divide, get_next_power_of_2
 from ....utils import get_num_elements_and_hidden_size
 
@@ -70,7 +70,7 @@ def fused_residual_add_rmsnorm_forward_triton_kernel(
     tl.store(y_ptr + BLOCK_B[:, None] * y_stride[0] + BLOCK_H[None, :] * y_stride[1], x, mask=MASK_BH)
 
 
-@custom_op(f"{LIBRARY_NAME}::fused_residual_add_rmsnorm_forward_triton", mutates_args={"y", "xr", "s"})
+@xma_op(mutates_args={"y", "xr", "s"})
 def fused_residual_add_rmsnorm_forward_triton(
     x: torch.Tensor,
     r: torch.Tensor | None,
