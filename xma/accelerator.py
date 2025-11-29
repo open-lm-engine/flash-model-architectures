@@ -8,7 +8,7 @@ from enum import Enum
 
 import torch
 
-from .utils import is_torch_xla_available
+from .utils import is_torch_neuronx_available, is_torch_xla_available
 
 
 if is_torch_xla_available():
@@ -61,6 +61,8 @@ class Accelerator(Enum):
     def get_accelerator() -> Accelerator:
         if torch.cuda.is_available():
             accelerator = Accelerator.rocm if _IS_ROCM_AVAILABLE else Accelerator.cuda
+        elif is_torch_neuronx_available():
+            accelerator = Accelerator.trainium
         elif is_torch_xla_available():
             accelerator = Accelerator.tpu
         else:
@@ -74,6 +76,8 @@ class Accelerator(Enum):
 
         if accelerator in [Accelerator.cuda, Accelerator.rocm]:
             device = torch.cuda.current_device()
+        elif accelerator == Accelerator.trainium:
+            device = torch.neuron.current_device()
         elif accelerator == Accelerator.tpu:
             device = xla_device()
         elif accelerator == Accelerator.cpu:

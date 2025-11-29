@@ -12,6 +12,7 @@ from ...utils import (
     empty_like_contiguous,
     ensure_contiguous,
     is_cute_dsl_available,
+    is_torch_neuronx_available,
     is_torch_xla_available,
     is_triton_available,
 )
@@ -19,6 +20,9 @@ from ...utils import (
 
 if is_cute_dsl_available():
     from .cuda_implementation import swiglu_backward_cuda, swiglu_forward_cuda
+
+if is_torch_neuronx_available():
+    from .nki_implementation import swiglu_forward_nki
 
 if is_torch_xla_available():
     from .pallas_implementation import swiglu_backward_pallas, swiglu_forward_pallas
@@ -60,6 +64,15 @@ class _Swiglu(CustomOp):
         swiglu_backward_cuda(g=g, u=u, dy=dy, dg=dg, du=du)
 
         return dg, du
+
+    @staticmethod
+    def forward_nki(ctx, g: torch.Tensor, u: torch.Tensor) -> torch.Tensor:
+        y = empty_like_contiguous(g)
+        swiglu_forward_nki(g=g, u=u, y=y)
+
+        ctx_save_for_backward(ctx, g, u)
+
+        return y
 
     @staticmethod
     @ensure_contiguous
