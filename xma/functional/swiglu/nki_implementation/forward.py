@@ -27,7 +27,7 @@ def swiglu_forward_nki_kernel(g_ptr, u_ptr, y_ptr):
 
     MASK = MASK_B & MASK_H
 
-    g = nl.load(g_ptr[BLOCK_B, BLOCK_H], mask=MASK)
+    g = nl.load(g_ptr[BLOCK_B, BLOCK_H], mask=MASK, dtype=nl.tfloat32)
     u = nl.load(u_ptr[BLOCK_B, BLOCK_H], mask=MASK)
 
     y = u * g * nl.sigmoid(g)
