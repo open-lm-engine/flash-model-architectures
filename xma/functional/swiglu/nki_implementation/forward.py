@@ -30,6 +30,7 @@ def swiglu_forward_nki_kernel(g_ptr, u_ptr, y_ptr):
     g = nl.load(g_ptr[BLOCK_B, BLOCK_H], mask=MASK)
     u = nl.load(u_ptr[BLOCK_B, BLOCK_H], mask=MASK)
 
+    g = nl.copy(g, dtype=nl.tfloat32)
     y = u * g * nl.sigmoid(g)
 
     nl.store(y_ptr[BLOCK_B, BLOCK_H], y, mask=MASK)

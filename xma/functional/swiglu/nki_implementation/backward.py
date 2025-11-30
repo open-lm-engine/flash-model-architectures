@@ -31,6 +31,7 @@ def swiglu_backward_nki_kernel(g_ptr, u_ptr, dy_ptr, dg_ptr, du_ptr):
     u = nl.load(u_ptr[BLOCK_B, BLOCK_H], mask=MASK)
     dy = nl.load(dy_ptr[BLOCK_B, BLOCK_H], mask=MASK)
 
+    g = nl.copy(g, dtype=nl.tfloat32)
     g_sigmoid = nl.sigmoid(g)
     g_silu = g * g_sigmoid
 
