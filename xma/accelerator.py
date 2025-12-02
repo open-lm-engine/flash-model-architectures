@@ -74,12 +74,12 @@ class Accelerator(Enum):
     def get_current_device() -> int | str:
         accelerator = Accelerator.get_accelerator()
 
-        if accelerator in [Accelerator.cuda, Accelerator.rocm]:
-            device = torch.cuda.current_device()
+        if accelerator == Accelerator.tpu:
+            device = xla_device()
         elif accelerator == Accelerator.trainium:
             device = torch.neuron.current_device()
-        elif accelerator == Accelerator.tpu:
-            device = xla_device()
+        elif accelerator in [Accelerator.cuda, Accelerator.rocm]:
+            device = torch.cuda.current_device()
         elif accelerator == Accelerator.cpu:
             device = "cpu"
 
