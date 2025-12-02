@@ -28,7 +28,6 @@ class KernelBackend(Enum):
     torch = "torch"
     triton = "triton"
 
-    @lru_cache
     def get_compatible_accelerator(self) -> Accelerator:
         found_accelerator = Accelerator.get_accelerator()
 
@@ -74,7 +73,6 @@ class Accelerator(Enum):
         return accelerator
 
     @staticmethod
-    @lru_cache
     def get_current_device() -> int | str:
         accelerator = Accelerator.get_accelerator()
 
