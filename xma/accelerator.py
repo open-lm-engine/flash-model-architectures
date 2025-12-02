@@ -98,6 +98,8 @@ class Accelerator(Enum):
             kernel_backend = KernelBackend.rocm if _IS_ROCM_AVAILABLE else KernelBackend.cuda
         elif accelerator == Accelerator.tpu:
             kernel_backend = KernelBackend.pallas
+        elif accelerator == Accelerator.trainium:
+            kernel_backend = KernelBackend.nki
         else:
             kernel_backend = KernelBackend.triton
 
