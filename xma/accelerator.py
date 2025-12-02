@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 from enum import Enum
+from functools import lru_cache
 
 import torch
 
@@ -58,13 +59,14 @@ class Accelerator(Enum):
     trainium = "trainium"
 
     @staticmethod
+    @lru_cache
     def get_accelerator() -> Accelerator:
-        if torch.cuda.is_available():
-            accelerator = Accelerator.rocm if _IS_ROCM_AVAILABLE else Accelerator.cuda
+        if is_torch_xla_available():
+            accelerator = Accelerator.tpu
         elif is_torch_neuronx_available():
             accelerator = Accelerator.trainium
-        elif is_torch_xla_available():
-            accelerator = Accelerator.tpu
+        elif torch.cuda.is_available():
+            accelerator = Accelerator.rocm if _IS_ROCM_AVAILABLE else Accelerator.cuda
         else:
             accelerator = Accelerator.cpu
 
@@ -76,16 +78,17 @@ class Accelerator(Enum):
 
         if accelerator in [Accelerator.cuda, Accelerator.rocm]:
             device = torch.cuda.current_device()
-        elif accelerator == Accelerator.trainium:
-            device = torch.neuron.current_device()
         elif accelerator == Accelerator.tpu:
             device = xla_device()
+        elif accelerator == Accelerator.trainium:
+            device = torch.neuron.current_device()
         elif accelerator == Accelerator.cpu:
             device = "cpu"
 
         return device
 
     @staticmethod
+    @lru_cache
     def get_kernel_backend() -> KernelBackend:
         accelerator = Accelerator.get_accelerator()
 
@@ -93,6 +96,8 @@ class Accelerator(Enum):
             kernel_backend = KernelBackend.rocm if _IS_ROCM_AVAILABLE else KernelBackend.cuda
         elif accelerator == Accelerator.tpu:
             kernel_backend = KernelBackend.pallas
+        elif accelerator == Accelerator.trainium:
+            kernel_backend = KernelBackend.nki
         else:
             kernel_backend = KernelBackend.triton
 
