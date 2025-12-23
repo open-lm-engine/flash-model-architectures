@@ -24,7 +24,6 @@ We are planning on adding lots of experimental and fun model architectures with 
 | cross_entropy | ❌ | ❌ | ❌ | ❌ | ✅ |
 | fused_linear_cross_entropy | ❌ | ❌ | ❌ | ❌ | ✅ |
 | fused_residual_add_rmsnorm | ❌ | ❌ | ❌ | ❌ | ✅ |
-| grouped_gemm | ✅ | ❌ | ❌ | ❌ | ❌ |
 | rmsnorm | ❌ | ❌ | ❌ | ❌ | ✅ |
 | pack_sequence | ✅ | ❌ | ❌ | ❌ | ✅ |
 | softmax | ❌ | ❌ | ❌ | ❌ | ✅ |
