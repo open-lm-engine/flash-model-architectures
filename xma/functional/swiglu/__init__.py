@@ -32,9 +32,9 @@ if is_triton_available():
 
 class _Swiglu(CustomOp):
     forward_function_map = {
-        KernelBackend.cuda: swiglu_forward_cuda,
-        KernelBackend.nki: swiglu_forward_nki,
-        KernelBackend.triton: swiglu_forward_triton,
+        KernelBackend.cuda: swiglu_forward_cuda if is_cute_dsl_available() else None,
+        KernelBackend.nki: swiglu_forward_nki if is_torch_neuronx_available() else None,
+        KernelBackend.triton: swiglu_forward_triton if is_triton_available() else None,
     }
 
     @staticmethod
