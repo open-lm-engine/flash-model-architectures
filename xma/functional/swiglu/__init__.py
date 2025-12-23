@@ -62,7 +62,7 @@ class _Swiglu(CustomOp):
 
         y = empty_like_contiguous(g)
 
-        ctx.forward_function_map[kernel_backend](g=g, u=u, y=y)
+        cls.forward_function_map[kernel_backend](g=g, u=u, y=y)
 
         return y
 
