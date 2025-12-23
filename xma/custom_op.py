@@ -44,12 +44,12 @@ class CustomOp(torch.autograd.Function):
 
         return output
 
-    @classmethod
-    def forward(cls, ctx, *args, kernel_backend: KernelBackend) -> Any:
+    @staticmethod
+    def forward(ctx, *args, kernel_backend: KernelBackend) -> Any:
         raise NotImplementedError
 
-    @classmethod
-    def backward(cls, ctx, *grad_outputs) -> Any:
+    @staticmethod
+    def backward(ctx, *grad_outputs) -> Any:
         raise NotImplementedError
 
     @classmethod
