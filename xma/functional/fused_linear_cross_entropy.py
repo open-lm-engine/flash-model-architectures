@@ -32,14 +32,18 @@ class _FusedLinearCrossEntropy(CustomOp):
         return l
 
     @staticmethod
-    def forward_triton(
+    def forward(
         ctx,
         x: torch.Tensor,
         W: torch.Tensor,
         y: torch.Tensor,
         reduction: str,
         logits_multiplier: float | None,
+        kernel_backend: KernelBackend,
     ) -> torch.Tensor:
+        if kernel_backend not in [KernelBackend.cuda, KernelBackend.rocm, KernelBackend.triton]:
+            raise NotImplementedError
+
         B, H = x.size()
         V = W.size(0)
 
@@ -80,17 +84,18 @@ class _FusedLinearCrossEntropy(CustomOp):
             dW /= B
 
         ctx_save_for_backward(ctx, dx, dW)
+        ctx.kernel_backend = kernel_backend
 
         return l
 
     @staticmethod
-    def backward_triton(ctx, dl: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor | None, None, None, None]:
+    def backward(ctx, dl: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor | None, None, None, None, None]:
         dx, dW = ctx.saved_tensors
 
         dx *= dl
         dW *= dl
 
-        return dx, dW, None, None, None
+        return dx, dW, None, None, None, None
 
 
 def fused_linear_cross_entropy(
