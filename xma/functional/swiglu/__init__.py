@@ -51,6 +51,8 @@ class _Swiglu(CustomOp):
 
     @staticmethod
     def forward(ctx, g: torch.Tensor, u: torch.Tensor, kernel_backend: KernelBackend) -> torch.Tensor:
+        ctx.kernel_backend = kernel_backend
+
         if kernel_backend in [KernelBackend.cuda, KernelBackend.pallas]:
             g = make_contiguous(g)
             u = make_contiguous(u)
