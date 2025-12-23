@@ -52,6 +52,10 @@ class CustomOp(torch.autograd.Function):
     def backward(ctx, *grad_outputs) -> Any:
         raise NotImplementedError
 
+    @staticmethod
+    def forward_backward_torch(*args, **kwargs) -> Any:
+        raise NotImplementedError
+
     @classmethod
     def _get_key(cls, kernel_backend: KernelBackend) -> str:
         return f"{cls.__name__}-{kernel_backend.value}"
