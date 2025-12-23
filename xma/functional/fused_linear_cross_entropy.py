@@ -41,6 +41,8 @@ class _FusedLinearCrossEntropy(CustomOp):
         logits_multiplier: float | None,
         kernel_backend: KernelBackend,
     ) -> torch.Tensor:
+        ctx.kernel_backend = kernel_backend
+
         if kernel_backend not in [KernelBackend.cuda, KernelBackend.rocm, KernelBackend.triton]:
             raise NotImplementedError
 
@@ -84,7 +86,6 @@ class _FusedLinearCrossEntropy(CustomOp):
             dW /= B
 
         ctx_save_for_backward(ctx, dx, dW)
-        ctx.kernel_backend = kernel_backend
 
         return l
 

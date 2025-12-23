@@ -14,6 +14,7 @@ from ..utils import (
     is_torch_neuronx_available,
     is_torch_xla_available,
     is_triton_available,
+    make_contiguous,
 )
 from .swiglu import swiglu
 
@@ -38,14 +39,29 @@ class _SwigluPacked(CustomOp):
         return swiglu(gate=gate, up=up, kernel_backend=KernelBackend.torch)
 
     @staticmethod
-    @ensure_contiguous
-    def forward_cuda(ctx, x: torch.Tensor) -> torch.Tensor:
+    def forward(ctx, x: torch.Tensor, kernel_backend: KernelBackend) -> torch.Tensor:
+        ctx.kernel_backend = kernel_backend
+
+        if kernel_backend in [KernelBackend.cuda, KernelBackend.pallas]:
+            x = make_contiguous(x)
+
         ctx_save_for_backward(ctx, x)
 
-        y = torch.empty(*x.size()[:-1], divide_if_divisible(x.size(-1), 2), device=x.device, dtype=x.dtype)
         u, g = x.chunk(2, dim=-1)
 
-        swiglu_forward_cuda(g=g, u=u, y=y)
+        if kernel_backend == KernelBackend.pallas:
+            return swiglu_forward_pallas(g=g, u=u)
+
+        y = torch.empty(*x.size()[:-1], divide_if_divisible(x.size(-1), 2), device=x.device, dtype=x.dtype)
+
+        if kernel_backend == KernelBackend.cuda:
+            swiglu_forward_cuda(g=g, u=u, y=y)
+        elif kernel_backend == KernelBackend.nki:
+            swiglu_forward_nki(g=g, u=u, y=y)
+        elif kernel_backend == KernelBackend.triton:
+            swiglu_forward_triton(g=g, u=u, y=y)
+        else:
+            raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
         return y
 
@@ -61,17 +77,6 @@ class _SwigluPacked(CustomOp):
         swiglu_backward_cuda(g=g, u=u, dy=dy, dg=dg, du=du)
 
         return dx
-
-    @staticmethod
-    def forward_nki(ctx, x: torch.Tensor) -> torch.Tensor:
-        ctx_save_for_backward(ctx, x)
-
-        y = torch.empty(*x.size()[:-1], divide_if_divisible(x.size(-1), 2), device=x.device, dtype=x.dtype)
-        u, g = x.chunk(2, dim=-1)
-
-        swiglu_forward_nki(g=g, u=u, y=y)
-
-        return y
 
     @staticmethod
     def backward_nki(ctx, dy: torch.Tensor) -> torch.Tensor:
@@ -90,13 +95,6 @@ class _SwigluPacked(CustomOp):
 
     @staticmethod
     @ensure_contiguous
-    def forward_pallas(ctx, x: torch.Tensor) -> torch.Tensor:
-        ctx_save_for_backward(ctx, x)
-        u, g = x.chunk(2, dim=-1)
-        return swiglu_forward_pallas(g=g, u=u)
-
-    @staticmethod
-    @ensure_contiguous
     def backward_pallas(ctx, dy: torch.Tensor) -> torch.Tensor:
         x = ctx.saved_tensors[0]
         dx = empty_like_contiguous(x)
@@ -108,17 +106,6 @@ class _SwigluPacked(CustomOp):
         dx = torch.cat([du, dg], dim=-1)
 
         return dx
-
-    @staticmethod
-    def forward_triton(ctx, x: torch.Tensor) -> torch.Tensor:
-        ctx_save_for_backward(ctx, x)
-
-        y = torch.empty(*x.size()[:-1], divide_if_divisible(x.size(-1), 2), device=x.device, dtype=x.dtype)
-        u, g = x.chunk(2, dim=-1)
-
-        swiglu_forward_triton(g=g, u=u, y=y)
-
-        return y
 
     @staticmethod
     def backward_triton(ctx, dy: torch.Tensor) -> torch.Tensor:
