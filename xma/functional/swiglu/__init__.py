@@ -50,7 +50,7 @@ class _Swiglu(CustomOp):
         return y
 
     @classmethod
-    def forward(cls, ctx, g: torch.Tensor, u: torch.Tensor, kernel_backend: KernelBackend) -> torch.Tensor:
+    def forward(ctx, g: torch.Tensor, u: torch.Tensor, kernel_backend: KernelBackend) -> torch.Tensor:
         if kernel_backend in [KernelBackend.cuda, KernelBackend.pallas]:
             g = make_contiguous(g)
             u = make_contiguous(u)
@@ -62,7 +62,7 @@ class _Swiglu(CustomOp):
 
         y = empty_like_contiguous(g)
 
-        cls.forward_function_map[kernel_backend](g=g, u=u, y=y)
+        ctx.forward_function_map[kernel_backend](g=g, u=u, y=y)
 
         return y
 
