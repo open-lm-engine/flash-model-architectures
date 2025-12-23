@@ -31,6 +31,12 @@ if is_triton_available():
 
 
 class _Swiglu(CustomOp):
+    forward_function_map = {
+        KernelBackend.cuda: swiglu_forward_cuda,
+        KernelBackend.nki: swiglu_forward_nki,
+        KernelBackend.triton: swiglu_forward_triton,
+    }
+
     @staticmethod
     def forward_backward_torch(g: torch.Tensor, u: torch.Tensor) -> torch.Tensor:
         dtype = g.dtype
@@ -56,14 +62,7 @@ class _Swiglu(CustomOp):
 
         y = empty_like_contiguous(g)
 
-        if kernel_backend == KernelBackend.cuda:
-            swiglu_forward_cuda(g=g, u=u, y=y)
-        elif kernel_backend == KernelBackend.nki:
-            swiglu_forward_nki(g=g, u=u, y=y)
-        elif kernel_backend == KernelBackend.triton:
-            swiglu_forward_triton(g=g, u=u, y=y)
-        else:
-            raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
+        ctx.forward_function_map[kernel_backend](g=g, u=u, y=y)
 
         return y
 
