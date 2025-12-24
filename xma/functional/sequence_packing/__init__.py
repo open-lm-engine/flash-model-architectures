@@ -177,7 +177,7 @@ class _UnpackSequence(CustomOp):
         else:
             raise ValueError(f"unexpected padding_side ({padding_side})")
 
-        return dx, None, None, None
+        return dx, *[None] * 4
 
 
 def pack_sequence(
