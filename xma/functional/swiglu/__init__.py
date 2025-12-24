@@ -74,12 +74,12 @@ class _Swiglu(CustomOp):
         g, u = ctx.saved_tensors
         kernel_backend = ctx.kernel_backend
 
+        if kernel_backend in [KernelBackend.cuda, KernelBackend.pallas]:
+            dy = dy.contiguous()
+
         if kernel_backend == KernelBackend.pallas:
             dg, du = swiglu_backward_pallas(g=g, u=u, dy=dy)
             return dg, du, None
-
-        if kernel_backend == KernelBackend.cuda:
-            dy = dy.contiguous()
 
         dg = empty_like_contiguous(g)
         du = empty_like_contiguous(u)
