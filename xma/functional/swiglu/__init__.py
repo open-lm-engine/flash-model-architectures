@@ -9,6 +9,7 @@ from ...accelerator import KernelBackend
 from ...custom_op import CustomOp, ctx_save_for_backward
 from ...utils import (
     empty_like_contiguous,
+    ensure_contiguous,
     is_cute_dsl_available,
     is_torch_neuronx_available,
     is_torch_xla_available,
