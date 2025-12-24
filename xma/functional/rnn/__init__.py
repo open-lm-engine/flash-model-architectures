@@ -140,7 +140,7 @@ class _RNN(CustomOp):
         return y
 
     @staticmethod
-    def backward_triton(ctx, dy: torch.Tensor) -> tuple[torch.Tensor]:
+    def backward(ctx, dy: torch.Tensor) -> tuple[torch.Tensor]:
         W, y, h0, cu_seqlens, max_seqlen_tensor = ctx.saved_tensors
         Nx = ctx.Nx
         N = y.size(-2)
