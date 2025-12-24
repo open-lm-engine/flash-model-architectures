@@ -45,7 +45,7 @@ class _FusedResidualAddRMSNorm(CustomOp):
         return x, r
 
     @staticmethod
-    def forward_triton(
+    def forward(
         ctx,
         x: torch.Tensor,
         r: torch.Tensor | None,
@@ -54,7 +54,10 @@ class _FusedResidualAddRMSNorm(CustomOp):
         multiplier: float | None,
         memory_efficient: bool,
         deterministic: bool,
+        kernel_backend: KernelBackend,
     ) -> tuple[torch.Tensor, torch.Tensor | None]:
+        assert kernel_backend in [KernelBackend.cuda, KernelBackend.triton]
+
         if eps is None:
             eps = torch.finfo(x.dtype).eps
 
@@ -79,7 +82,7 @@ class _FusedResidualAddRMSNorm(CustomOp):
         return y, xr
 
     @staticmethod
-    def backward_triton(
+    def backward(
         ctx, dy: torch.Tensor, dxr: torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor | None, torch.Tensor | None, None, None, None, None]:
         has_residual = ctx.has_residual
@@ -119,7 +122,7 @@ class _FusedResidualAddRMSNorm(CustomOp):
 
             dW = dW.type_as(W)
 
-        return dx, dr, dW, *[None] * 4
+        return dx, dr, dW, *[None] * 5
 
 
 def fused_residual_add_rmsnorm(
