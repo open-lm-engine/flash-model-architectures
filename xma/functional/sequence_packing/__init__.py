@@ -74,12 +74,11 @@ class _PackSequence(CustomOp):
         kernel_backend = ctx.kernel_backend
         cu_seqlens = ctx.saved_tensors[0]
 
-        if kernel_backend == KernelBackend.cuda:
-            dy = dy.contiguous()
-
         dx = torch.zeros(*ctx.x_shape, device=dy.device, dtype=dy.dtype)
 
         if kernel_backend == KernelBackend.cuda:
+            dy = dy.contiguous()
+
             pack_unpack_sequence_cuda(
                 x=dy,
                 output=dx,
