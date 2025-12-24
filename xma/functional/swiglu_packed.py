@@ -94,7 +94,7 @@ class _SwigluPacked(CustomOp):
             else:
                 raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
-        return dx
+        return dx, None
 
 
 def swiglu_packed(x: torch.Tensor, *, kernel_backend: KernelBackend | None = None) -> torch.Tensor:
