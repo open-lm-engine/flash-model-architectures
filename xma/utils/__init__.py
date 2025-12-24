@@ -2,7 +2,7 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
-from .contiguous import ensure_contiguous, ensure_same_strides
+from .contiguous import ensure_contiguous
 from .cu_seqlens import get_max_seqlen_and_max_seqlen_tensor
 from .debugging import print_gradient
 from .env import get_boolean_env_variable
