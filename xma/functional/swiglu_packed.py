@@ -65,56 +65,35 @@ class _SwigluPacked(CustomOp):
         return y
 
     @staticmethod
-    @ensure_contiguous
-    def backward_cuda(ctx, dy: torch.Tensor) -> torch.Tensor:
+    def backward(ctx, dy: torch.Tensor) -> torch.Tensor:
+        kernel_backend = ctx.kernel_backend
         x = ctx.saved_tensors[0]
-        dx = empty_like_contiguous(x)
+
+        if kernel_backend in [KernelBackend.cuda, KernelBackend.pallas]:
+            dy = dy.contiguous()
 
         u, g = x.chunk(2, dim=-1)
-        du, dg = dx.chunk(2, dim=-1)
 
-        swiglu_backward_cuda(g=g, u=u, dy=dy, dg=dg, du=du)
+        if kernel_backend == KernelBackend.pallas:
+            dg, du = swiglu_backward_pallas(g=g, u=u, dy=dy)
+            dx = torch.cat([du, dg], dim=-1)
+        elif kernel_backend == KernelBackend.nki:
+            du = empty_like_contiguous(u)
+            dg = empty_like_contiguous(g)
 
-        return dx
+            swiglu_backward_nki(g=g, u=u, dy=dy, dg=dg, du=du)
 
-    @staticmethod
-    def backward_nki(ctx, dy: torch.Tensor) -> torch.Tensor:
-        x = ctx.saved_tensors[0]
-        dx = empty_like_contiguous(x)
+            dx = torch.cat([du, dg], dim=-1)
+        else:
+            dx = empty_like_contiguous(x)
+            du, dg = dx.chunk(2, dim=-1)
 
-        # Trainium doesn't support non-contiguous output tensors
-        u, g = x.chunk(2, dim=-1)
-        du = empty_like_contiguous(u)
-        dg = empty_like_contiguous(g)
-
-        swiglu_backward_nki(g=g, u=u, dy=dy, dg=dg, du=du)
-        dx = torch.cat([du, dg], dim=-1)
-
-        return dx
-
-    @staticmethod
-    @ensure_contiguous
-    def backward_pallas(ctx, dy: torch.Tensor) -> torch.Tensor:
-        x = ctx.saved_tensors[0]
-        dx = empty_like_contiguous(x)
-
-        u, g = x.chunk(2, dim=-1)
-        du, dg = dx.chunk(2, dim=-1)
-
-        dg, du = swiglu_backward_pallas(g=g, u=u, dy=dy)
-        dx = torch.cat([du, dg], dim=-1)
-
-        return dx
-
-    @staticmethod
-    def backward_triton(ctx, dy: torch.Tensor) -> torch.Tensor:
-        x = ctx.saved_tensors[0]
-        dx = empty_like_contiguous(x)
-
-        u, g = x.chunk(2, dim=-1)
-        du, dg = dx.chunk(2, dim=-1)
-
-        swiglu_backward_triton(g=g, u=u, dy=dy, dg=dg, du=du)
+            if kernel_backend == KernelBackend.cuda:
+                swiglu_backward_cuda(g=g, u=u, dy=dy, dg=dg, du=du)
+            elif kernel_backend == KernelBackend.triton:
+                swiglu_backward_triton(g=g, u=u, dy=dy, dg=dg, du=du)
+            else:
+                raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
         return dx
 
