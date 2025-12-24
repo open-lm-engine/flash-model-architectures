@@ -5,17 +5,18 @@
 from typing import Any, Callable
 
 import torch
-from torch.utils._pytree import tree_map
 
 
 def _make_contiguous(x: Any) -> Any:
     return x.contiguous() if isinstance(x, torch.Tensor) else x
 
 
-def ensure_contiguous(func: Callable) -> Callable:
+def ensure_contiguous(func: Callable, condition: bool | None = None) -> Callable:
     def inner(*args, **kwargs):
-        args = tree_map(_make_contiguous, args)
-        kwargs = tree_map(_make_contiguous, kwargs)
+        if condition is None or condition():
+            args = [_make_contiguous(i) for i in args]
+            kwargs = {k: _make_contiguous(v) for k, v in kwargs.items()}
+
         return func(*args, **kwargs)
 
     return inner
