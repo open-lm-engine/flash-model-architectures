@@ -157,6 +157,7 @@ class _UnpackSequence(CustomOp):
     @staticmethod
     def backward(ctx, dy: torch.Tensor) -> tuple[torch.Tensor, None, None, None, None]:
         kernel_backend = ctx.kernel_backend
+        padding_side = ctx.padding_side
         cu_seqlens = ctx.saved_tensors[0]
 
         dx = torch.empty(ctx.x_shape, device=dy.device, dtype=dy.dtype)
@@ -168,14 +169,12 @@ class _UnpackSequence(CustomOp):
                 x=dy,
                 output=dx,
                 cu_seqlens=cu_seqlens,
-                padding_side=ctx.padding_side,
+                padding_side=padding_side,
                 pack=True,
                 BLOCK_SIZE=1024,
             )
         elif kernel_backend == KernelBackend.triton:
-            pack_unpack_sequence_triton(
-                x=dy, output=dx, cu_seqlens=cu_seqlens, padding_side=ctx.padding_side, pack=True
-            )
+            pack_unpack_sequence_triton(x=dy, output=dx, cu_seqlens=cu_seqlens, padding_side=padding_side, pack=True)
         else:
             raise ValueError(f"unexpected padding_side ({padding_side})")
 
