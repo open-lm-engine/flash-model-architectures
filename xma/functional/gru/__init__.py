@@ -107,7 +107,7 @@ class _GRU(CustomOp):
         return y
 
     @staticmethod
-    def forward_triton(
+    def forward(
         ctx,
         x: torch.Tensor,
         W: torch.Tensor,
@@ -119,7 +119,10 @@ class _GRU(CustomOp):
         gradient_clipping: float | None,
         cu_seqlens: torch.Tensor | None,
         max_seqlen: torch.Tensor | int | None,
+        kernel_backend: KernelBackend,
     ) -> torch.Tensor:
+        assert kernel_backend in [KernelBackend.cuda, KernelBackend.triton]
+
         max_seqlen_tensor, max_seqlen = get_max_seqlen_and_max_seqlen_tensor(max_seqlen)
 
         Nx, Nxf, Nxr, Nw, Nwf, Nwr, N = _get_num_heads(x=x, W=W, xf=xf, Wf=Wf, xr=xr, Wr=Wr, run_check=False)
@@ -174,7 +177,7 @@ class _GRU(CustomOp):
         return y
 
     @staticmethod
-    def backward_triton(ctx, dy: torch.Tensor) -> tuple[torch.Tensor | None]:
+    def backward(ctx, dy: torch.Tensor) -> tuple[torch.Tensor | None]:
         W, Wf, f, Wr, r, z, y, h0, cu_seqlens, max_seqlen_tensor, x, xf, xr = ctx.saved_tensors
         Nx, Nxf, Nxr = ctx.num_heads
 
@@ -219,7 +222,7 @@ class _GRU(CustomOp):
         dWf = dWf.type_as(Wf)
         dWr = dWr.type_as(Wr)
 
-        return dx, dW, dxf, dWf, dxr, dWr, *[None] * 4
+        return dx, dW, dxf, dWf, dxr, dWr, *[None] * 5
 
 
 def gru(

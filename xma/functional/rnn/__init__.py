@@ -102,7 +102,7 @@ class _RNN(CustomOp):
         return y
 
     @staticmethod
-    def forward_triton(
+    def forward(
         ctx,
         x: torch.Tensor,
         W: torch.Tensor,
@@ -110,7 +110,10 @@ class _RNN(CustomOp):
         gradient_clipping: float | None,
         cu_seqlens: torch.Tensor | None,
         max_seqlen: torch.Tensor | int | None,
+        kernel_backend: KernelBackend,
     ) -> torch.Tensor:
+        assert kernel_backend in [KernelBackend.cuda, KernelBackend.triton]
+
         max_seqlen_tensor, max_seqlen = get_max_seqlen_and_max_seqlen_tensor(max_seqlen)
 
         Nx, _, N = _get_num_heads(x=x, W=W, run_check=False)
@@ -161,7 +164,7 @@ class _RNN(CustomOp):
         dx = dx.type_as(y)
         dW = dW.type_as(W)
 
-        return dx, dW, *[None] * 4
+        return dx, dW, *[None] * 5
 
 
 def rnn(
