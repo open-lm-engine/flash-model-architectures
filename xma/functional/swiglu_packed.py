@@ -9,7 +9,6 @@ from ..custom_op import CustomOp, ctx_save_for_backward
 from ..math import divide_if_divisible
 from ..utils import (
     empty_like_contiguous,
-    ensure_contiguous,
     is_cute_dsl_available,
     is_torch_neuronx_available,
     is_torch_xla_available,
