@@ -38,7 +38,6 @@ class _PackSequence(CustomOp):
         return x
 
     @staticmethod
-    @ensure_contiguous
     def forward(
         ctx,
         x: torch.Tensor,
@@ -59,58 +58,44 @@ class _PackSequence(CustomOp):
 
         y = torch.empty(output_shape, device=x.device, dtype=x.dtype)
 
-        pack_unpack_sequence_cuda(
-            x=x, output=y, cu_seqlens=cu_seqlens, padding_side=padding_side, pack=True, BLOCK_SIZE=1024
-        )
+        if kernel_backend == KernelBackend.cuda:
+            pack_unpack_sequence_cuda(
+                x=x, output=y, cu_seqlens=cu_seqlens, padding_side=padding_side, pack=True, BLOCK_SIZE=1024
+            )
+        elif kernel_backend == KernelBackend.triton:
+            pack_unpack_sequence_triton(x=x, output=y, cu_seqlens=cu_seqlens, padding_side=padding_side, pack=True)
+        else:
+            raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
         return y
 
     @staticmethod
-    @ensure_contiguous
-    def backward_cuda(ctx, dy: torch.Tensor) -> tuple[torch.Tensor, None, None, None, None]:
+    def backward(ctx, dy: torch.Tensor) -> tuple[torch.Tensor, None, None, None, None]:
         kernel_backend = ctx.kernel_backend
+        cu_seqlens = ctx.saved_tensors[0]
 
         if kernel_backend == KernelBackend.cuda:
             dy = dy.contiguous()
 
-        cu_seqlens = ctx.saved_tensors[0]
-
         dx = torch.zeros(*ctx.x_shape, device=dy.device, dtype=dy.dtype)
 
-        pack_unpack_sequence_cuda(
-            x=dy,
-            output=dx,
-            cu_seqlens=cu_seqlens,
-            padding_side=ctx.padding_side,
-            pack=False,
-            BLOCK_SIZE=1024,
-        )
+        if kernel_backend == KernelBackend.cuda:
+            pack_unpack_sequence_cuda(
+                x=dy,
+                output=dx,
+                cu_seqlens=cu_seqlens,
+                padding_side=ctx.padding_side,
+                pack=False,
+                BLOCK_SIZE=1024,
+            )
+        elif kernel_backend == KernelBackend.triton:
+            pack_unpack_sequence_triton(
+                x=dy, output=dx, cu_seqlens=cu_seqlens, padding_side=ctx.padding_side, pack=False
+            )
+        else:
+            raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
         return dx, *[None] * 4
-
-    @staticmethod
-    def forward_triton(
-        ctx, x: torch.Tensor, cu_seqlens: torch.Tensor, output_shape: tuple[int], padding_side: str
-    ) -> torch.Tensor:
-        ctx_save_for_backward(ctx, cu_seqlens)
-        ctx.padding_side = padding_side
-        ctx.x_shape = x.size()
-
-        output = torch.empty(output_shape, device=x.device, dtype=x.dtype)
-        pack_unpack_sequence_triton(x=x, output=output, cu_seqlens=cu_seqlens, padding_side=padding_side, pack=True)
-
-        return output
-
-    @staticmethod
-    def backward_triton(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor, None, None, None]:
-        x_grad = torch.zeros(*ctx.x_shape, device=output_grad.device, dtype=output_grad.dtype)
-        cu_seqlens = ctx.saved_tensors[0]
-
-        pack_unpack_sequence_triton(
-            x=output_grad, output=x_grad, cu_seqlens=cu_seqlens, padding_side=ctx.padding_side, pack=False
-        )
-
-        return x_grad, None, None, None
 
 
 class _UnpackSequence(CustomOp):
