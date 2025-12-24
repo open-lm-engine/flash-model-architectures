@@ -39,37 +39,54 @@ class _PackSequence(CustomOp):
 
     @staticmethod
     @ensure_contiguous
-    def forward_cuda(
-        ctx, x: torch.Tensor, cu_seqlens: torch.Tensor, output_shape: tuple[int], padding_side: str
+    def forward(
+        ctx,
+        x: torch.Tensor,
+        cu_seqlens: torch.Tensor,
+        output_shape: tuple[int],
+        padding_side: str,
+        kernel_backend: KernelBackend,
     ) -> torch.Tensor:
+        ctx.kernel_backend = kernel_backend
+
+        if kernel_backend == KernelBackend.cuda:
+            x = x.contiguous()
+            cu_seqlens = cu_seqlens.contiguous()
+
         ctx_save_for_backward(ctx, cu_seqlens)
         ctx.padding_side = padding_side
         ctx.x_shape = x.size()
 
-        output = torch.empty(output_shape, device=x.device, dtype=x.dtype)
+        y = torch.empty(output_shape, device=x.device, dtype=x.dtype)
 
         pack_unpack_sequence_cuda(
-            x=x, output=output, cu_seqlens=cu_seqlens, padding_side=padding_side, pack=True, BLOCK_SIZE=1024
+            x=x, output=y, cu_seqlens=cu_seqlens, padding_side=padding_side, pack=True, BLOCK_SIZE=1024
         )
 
-        return output
+        return y
 
     @staticmethod
     @ensure_contiguous
-    def backward_cuda(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor, None, None, None]:
-        x_grad = torch.zeros(*ctx.x_shape, device=output_grad.device, dtype=output_grad.dtype)
+    def backward_cuda(ctx, dy: torch.Tensor) -> tuple[torch.Tensor, None, None, None, None]:
+        kernel_backend = ctx.kernel_backend
+
+        if kernel_backend == KernelBackend.cuda:
+            dy = dy.contiguous()
+
         cu_seqlens = ctx.saved_tensors[0]
 
+        dx = torch.zeros(*ctx.x_shape, device=dy.device, dtype=dy.dtype)
+
         pack_unpack_sequence_cuda(
-            x=output_grad,
-            output=x_grad,
+            x=dy,
+            output=dx,
             cu_seqlens=cu_seqlens,
             padding_side=ctx.padding_side,
             pack=False,
             BLOCK_SIZE=1024,
         )
 
-        return x_grad, None, None, None
+        return dx, *[None] * 4
 
     @staticmethod
     def forward_triton(
