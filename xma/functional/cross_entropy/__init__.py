@@ -27,9 +27,16 @@ class _CrossEntropy(CustomOp):
         return F.cross_entropy(x, labels, reduction=reduction)
 
     @staticmethod
-    def forward_triton(
-        ctx, x: torch.Tensor, labels: torch.Tensor, reduction: str, logits_multiplier: float | None
+    def forward(
+        ctx,
+        x: torch.Tensor,
+        labels: torch.Tensor,
+        reduction: str,
+        logits_multiplier: float | None,
+        kernel_backend: KernelBackend,
     ) -> torch.Tensor:
+        assert kernel_backend in [KernelBackend.cuda, KernelBackend.triton]
+
         loss = torch.zeros((), device=x.device, dtype=torch.float32)
         x_grad = empty_like_contiguous(x) if ctx_needs_gradients(ctx) else None
 
@@ -42,11 +49,11 @@ class _CrossEntropy(CustomOp):
         return loss
 
     @staticmethod
-    def backward_triton(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor, None, None, None]:
+    def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor, None, None, None]:
         x_grad = ctx.saved_tensors[0]
         x_grad *= output_grad
 
-        return x_grad, *[None] * 3
+        return x_grad, *[None] * 4
 
 
 def cross_entropy(
