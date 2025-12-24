@@ -14,7 +14,6 @@ from ..utils import (
     is_torch_neuronx_available,
     is_torch_xla_available,
     is_triton_available,
-    make_contiguous,
 )
 from .swiglu import swiglu
 
@@ -43,7 +42,7 @@ class _SwigluPacked(CustomOp):
         ctx.kernel_backend = kernel_backend
 
         if kernel_backend in [KernelBackend.cuda, KernelBackend.pallas]:
-            x = make_contiguous(x)
+            x = x.contiguous()
 
         ctx_save_for_backward(ctx, x)
 
