@@ -123,7 +123,6 @@ class _UnpackSequence(CustomOp):
         return padded
 
     @staticmethod
-    @ensure_contiguous
     def forward(
         ctx,
         x: torch.Tensor,
@@ -149,41 +148,38 @@ class _UnpackSequence(CustomOp):
                 x=x, output=y, cu_seqlens=cu_seqlens, padding_side=padding_side, pack=False, BLOCK_SIZE=1024
             )
         elif kernel_backend == KernelBackend.triton:
-            pack_unpack_sequence_triton(
-                x=x, output=output, cu_seqlens=cu_seqlens, padding_side=padding_side, pack=False
-            )
+            pack_unpack_sequence_triton(x=x, output=y, cu_seqlens=cu_seqlens, padding_side=padding_side, pack=False)
         else:
             raise ValueError(f"unexpected padding_side ({padding_side})")
 
         return y
 
     @staticmethod
-    @ensure_contiguous
-    def backward_cuda(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
-        x_grad = torch.empty(ctx.x_shape, device=output_grad.device, dtype=output_grad.dtype)
+    def backward(ctx, dy: torch.Tensor) -> tuple[torch.Tensor, None, None, None, None]:
+        kernel_backend = ctx.kernel_backend
         cu_seqlens = ctx.saved_tensors[0]
 
-        pack_unpack_sequence_cuda(
-            x=output_grad,
-            output=x_grad,
-            cu_seqlens=cu_seqlens,
-            padding_side=ctx.padding_side,
-            pack=True,
-            BLOCK_SIZE=1024,
-        )
+        dx = torch.empty(ctx.x_shape, device=dy.device, dtype=dy.dtype)
 
-        return x_grad, *[None] * 4
+        if kernel_backend == KernelBackend.cuda:
+            dy = dy.contiguous()
 
-    @staticmethod
-    def backward_triton(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor | None]:
-        x_grad = torch.empty(ctx.x_shape, device=output_grad.device, dtype=output_grad.dtype)
-        cu_seqlens = ctx.saved_tensors[0]
+            pack_unpack_sequence_cuda(
+                x=dy,
+                output=dx,
+                cu_seqlens=cu_seqlens,
+                padding_side=ctx.padding_side,
+                pack=True,
+                BLOCK_SIZE=1024,
+            )
+        elif kernel_backend == KernelBackend.triton:
+            pack_unpack_sequence_triton(
+                x=dy, output=dx, cu_seqlens=cu_seqlens, padding_side=ctx.padding_side, pack=True
+            )
+        else:
+            raise ValueError(f"unexpected padding_side ({padding_side})")
 
-        pack_unpack_sequence_triton(
-            x=output_grad, output=x_grad, cu_seqlens=cu_seqlens, padding_side=ctx.padding_side, pack=True
-        )
-
-        return x_grad, None, None, None
+        return dx, None, None, None
 
 
 def pack_sequence(
