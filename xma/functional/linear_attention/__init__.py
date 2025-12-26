@@ -35,29 +35,50 @@ class _LinearAttention(CustomOp):
     ) -> tuple[torch.Tensor, torch.Tensor]:
         Nq, Nk, Nv, N = _get_num_heads(q=q, k=k, v=v, run_check=False)
 
-        B, S, _, K = q.size()
+        y_shape = list(q.size())
+        y_shape[-2] = N
+        y = torch.empty(y_shape, device=q.device, dtype=q.dtype)
+
+        if cu_seqlens is None:
+            B, S, _, K = q.size()
+        else:
+            B = cu_seqlens.size(0) - 1
+            S = max_seqlen.item() if isinstance(max_seqlen, torch.Tensor) else max_seqlen
+            K = q.size(-1)
+
         V = v.size(-1)
 
         Gq = N // Nq
         Gk = N // Nk
         Gv = N // Nv
 
-        if h0 is not None:
-            h0 = torch.zeros(B, S, N, K, V, dtype=q.dtype, device=q.device)
-
-        h = h0
-
-        y_shape = list(q.size())
-        y_shape[-2] = N
-        y = torch.empty(y_shape, device=q.device, dtype=q.dtype)
-
         q = q.repeat_interleave(Gq, dim=-2)
         k = k.repeat_interleave(Gk, dim=-2)
         v = v.repeat_interleave(Gv, dim=-2)
 
+        if h0 is not None:
+            h0 = torch.zeros(B, S, N, K, V, dtype=q.dtype, device=q.device)
+
+        if cu_seqlens is not None:
+            h0 = h0.clone()
+            start = cu_seqlens[:-1]
+            end = cu_seqlens[1:]
+
         for s in range(S):
-            h = h + k[..., None] * v[..., None, :]
-            y[:, s] = (q[..., None, :] @ h).squeeze(-2)
+            if cu_seqlens is None:
+                h = h0 + k[..., None] * v[..., None, :]
+                y[:, s] = (q[..., None, :] @ h).squeeze(-2)
+
+                h0[unfinished] = h
+            else:
+                offset = start + s
+                unfinished = offset < end
+                offset_unfinished = offset[unfinished]
+
+                h = h0[unfinished, :, None, :] + k[offset_unfinished, ..., None] * v[offset_unfinished, :, None, :]
+                y[offset_unfinished]
+
+                h0[unfinished] = h
 
         return y, h
 
