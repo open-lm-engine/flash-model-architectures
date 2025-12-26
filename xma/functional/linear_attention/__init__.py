@@ -8,6 +8,21 @@ from ...accelerator import KernelBackend
 from ...custom_op import CustomOp
 
 
+def _get_num_heads(q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, run_check: bool) -> tuple[int, int, int, int]:
+    Nq = q.size(-2)
+    Nk = k.size(-2)
+    Nv = v.size(-2)
+
+    N = max(Nq, Nk, Nv)
+
+    if run_check:
+        assert N % Nq == 0
+        assert N % Nk == 0
+        assert N % Nv == 0
+
+    return Nq, Nk, Nv, N
+
+
 class _LinearAttention(CustomOp):
     @staticmethod
     def forward_backward_torch(
@@ -18,11 +33,10 @@ class _LinearAttention(CustomOp):
         cu_seqlens: torch.Tensor | None = None,
         max_seqlen: torch.Tensor | int | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        B, S, Nq, K = q.size()
-        Nk = k.size(-2)
-        Nv, V = v.size()[-2:]
+        Nq, Nk, Nv, N = _get_num_heads(q=q, k=k, v=v, run_check=False)
 
-        N = max(Nq, Nk, Nv)
+        B, S, _, K = q.size()
+        V = v.size(-1)
 
         Gq = N // Nq
         Gk = N // Nk
@@ -58,4 +72,5 @@ class _LinearAttention(CustomOp):
         max_seqlen: torch.Tensor | int | None = None,
         *,
         kernel_backend: KernelBackend,
-    ) -> tuple[torch.Tensor, torch.Tensor]: ...
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        Nq, Nk, Nv, N = _get_num_heads(q=q, k=k, v=v, run_check=False)
