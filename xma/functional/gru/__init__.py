@@ -34,15 +34,14 @@ class _GRU(CustomOp):
 
         y_shape = list(x.size())
         y_shape[-2] = N
-
         y = torch.empty(y_shape, device=x.device, dtype=x.dtype)
 
         if cu_seqlens is None:
             B, S, _, H = x.size()
         else:
-            _, _, H = x.size()
             B = cu_seqlens.size(0) - 1
             S = max_seqlen.item() if isinstance(max_seqlen, torch.Tensor) else max_seqlen
+            H = x.size(-1)
 
         Gx = N // Nx
         Gxf = N // Nxf
@@ -60,7 +59,8 @@ class _GRU(CustomOp):
         Wf = Wf.repeat_interleave(Gwf, dim=0)[None, ...]
         Wr = Wr.repeat_interleave(Gwr, dim=0)[None, ...]
 
-        h0 = torch.zeros(B, N, H, device=x.device, dtype=x.dtype) if h0 is None else h0
+        if h0 is None:
+            h0 = torch.zeros(B, N, H, device=x.device, dtype=x.dtype)
 
         if cu_seqlens is not None:
             h0 = h0.clone()
