@@ -56,7 +56,6 @@ class _RNN(CustomOp):
 
         y_shape = list(x.size())
         y_shape[-2] = N
-
         y = torch.empty(y_shape, device=x.device, dtype=x.dtype)
 
         if cu_seqlens is None:
@@ -71,7 +70,9 @@ class _RNN(CustomOp):
 
         x = x.repeat_interleave(Gx, dim=-2)
         W = W.repeat_interleave(Gw, dim=0)[None, ...]
-        h0 = torch.zeros(B, N, H, device=x.device, dtype=x.dtype) if h0 is None else h0
+
+        if h0 is None:
+            h0 = torch.zeros(B, N, H, device=x.device, dtype=x.dtype)
 
         if cu_seqlens is not None:
             h0 = h0.clone()
