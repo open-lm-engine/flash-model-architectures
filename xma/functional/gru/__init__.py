@@ -296,6 +296,6 @@ def gru(
         kernel_backend=kernel_backend,
     )
 
-    output_state = input[:, -1] if cu_seqlens is None else input[cu_seqlens[1:] - 1]
+    input_state = input[:, -1] if cu_seqlens is None else input[cu_seqlens[1:] - 1]
 
-    return input, output_state
+    return input, input_state

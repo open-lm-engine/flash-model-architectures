@@ -46,6 +46,8 @@ def rnn_backward_triton_kernel(
     dx_stride,
     dW_ptr,
     dW_stride,
+    dh0_ptr,
+    dh0_stride,
     dy_ptr,
     dy_stride,
     cu_seqlens_ptr,
@@ -187,6 +189,13 @@ def rnn_backward_triton_kernel(
         if IS_VARLEN:
             end -= 1
 
+    if dh0_ptr is not None:
+        tl.store(
+            dh0_ptr + BLOCK_B[:, None] * dh0_stride[0] + BLOCK_ID_N * dh0_stride[1] + BLOCK_H[None, :] * dh0_stride[2],
+            dh,
+            mask=MASK_BH,
+        )
+
     tl.atomic_add(
         dW_ptr + BLOCK_ID_Nw * dW_stride[0] + BLOCK_H[:, None] * dW_stride[1] + BLOCK_H[None, :] * dW_stride[2],
         dW,
@@ -195,7 +204,7 @@ def rnn_backward_triton_kernel(
     )
 
 
-@xma_op(mutates_args={"dx", "dW"})
+@xma_op(mutates_args={"dx", "dW", "dh0"})
 def rnn_backward_triton(
     W: torch.Tensor,
     y: torch.Tensor,
@@ -203,6 +212,7 @@ def rnn_backward_triton(
     dy: torch.Tensor,
     dx: torch.Tensor,
     dW: torch.Tensor,
+    dh0: torch.Tensor | None,
     cu_seqlens: torch.Tensor | None,
     max_seqlen_tensor: torch.Tensor | None,
     max_seqlen: int | None,
@@ -237,6 +247,8 @@ def rnn_backward_triton(
             dx_stride=dx.stride(),
             dW_ptr=dW,
             dW_stride=dW.stride(),
+            dh0_ptr=dh0,
+            dh0_stride=None if dh0 is None else dh0.stride(),
             dy_ptr=dy,
             dy_stride=dy.stride(),
             cu_seqlens_ptr=cu_seqlens,
