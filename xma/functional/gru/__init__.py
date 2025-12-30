@@ -256,7 +256,11 @@ def gru(
         tuple[torch.Tensor, torch.Tensor]: output tensor of shape (B, S, N, H) and output state tensor of shape (B, N, H)
     """
 
-    assert input.dim() == 3 + (cu_seqlens is None)
+    expected_dim = 3 + (cu_seqlens is None)
+
+    assert input.dim() == expected_dim
+    assert forget_input.dim() == expected_dim
+    assert reset_input.dim() == expected_dim
 
     if cu_seqlens is None:
         assert max_seqlen is None
