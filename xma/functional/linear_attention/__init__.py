@@ -89,9 +89,50 @@ class _LinearAttention(CustomOp):
         k: torch.Tensor,
         v: torch.Tensor,
         h0: torch.Tensor | None,
-        cu_seqlens: torch.Tensor | None = None,
-        max_seqlen: torch.Tensor | int | None = None,
+        cu_seqlens: torch.Tensor | None,
+        max_seqlen: torch.Tensor | int | None,
         *,
-        kernel_backend: KernelBackend,
+        kernel_backend: KernelBackend | None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         Nq, Nk, Nv, N = _get_num_heads(q=q, k=k, v=v, run_check=False)
+
+
+def linear_attention(
+    query: torch.Tensor,
+    key: torch.Tensor,
+    value: torch.Tensor,
+    input_state: torch.Tensor | None,
+    cu_seqlens: torch.Tensor | None = None,
+    max_seqlen: torch.Tensor | int | None = None,
+    *,
+    kernel_backend: KernelBackend | None = None,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    assert query.dim() == 3 + (cu_seqlens is None)
+    assert key.dim() == 3 + (cu_seqlens is None)
+    assert value.dim() == 3 + (cu_seqlens is None)
+
+    if cu_seqlens is None:
+        assert max_seqlen is None
+        B, S, _, K = key.size()
+    else:
+        assert max_seqlen is not None
+        assert cu_seqlens.dim() == 1
+
+        T, _, K = key.size()
+        B = cu_seqlens.size(0) - 1
+
+    V = value.size(-1)
+    Nq, _, Nv, N = _get_num_heads(q=query, k=key, v=value, run_check=True)
+
+    if cu_seqlens is None:
+        assert query.size() == (B, S, Nq, K)
+        assert value.size() == (B, S, Nv, V)
+    else:
+        assert query.size() == (T, Nq, K)
+        assert value.size() == (T, Nv, V)
+
+    if input_state is not None:
+        assert input_state.size() == (B, N, K, V)
+
+    if gradient_clipping is not None and gradient_clipping < 0:
+        gradient_clipping = -gradient_clipping
