@@ -113,12 +113,12 @@ def linear_attention(
 
     if cu_seqlens is None:
         assert max_seqlen is None
-        B, S, _, K = key.size()
+        B, S, _, K = query.size()
     else:
         assert max_seqlen is not None
         assert cu_seqlens.dim() == 1
 
-        T, _, K = key.size()
+        T, _, K = query.size()
         B = cu_seqlens.size(0) - 1
 
     V = value.size(-1)
@@ -136,3 +136,15 @@ def linear_attention(
 
     if gradient_clipping is not None and gradient_clipping < 0:
         gradient_clipping = -gradient_clipping
+
+    output, input_state = _LinearAttention.run(
+        q=query,
+        k=key,
+        v=value,
+        h0=input_state,
+        cu_seqlens=cu_seqlens,
+        max_seqlen=max_seqlen,
+        kernel_backend=kernel_backend,
+    )
+
+    return output, input_state
