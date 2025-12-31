@@ -2,6 +2,8 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
+from __future__ import annotations
+
 import torch
 import torch.nn as nn
 
@@ -21,7 +23,7 @@ class RNN(XMAModule):
         num_weight_heads: int,
         add_bias: bool,
         gradient_clipping: float | None,
-    ) -> None:
+    ) -> RNN:
         super().__init__()
 
         self.num_input_heads = num_input_heads

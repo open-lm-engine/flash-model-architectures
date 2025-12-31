@@ -2,6 +2,8 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
+from __future__ import annotations
+
 from typing import Callable
 
 import torch
@@ -21,7 +23,7 @@ if is_triton_available():
 class Experts(XMAModule):
     def __init__(
         self, num_experts: int, in_features: int, out_features: int, add_bias: bool = True, std: float | None = None
-    ) -> None:
+    ) -> Experts:
         super().__init__()
 
         self.weight = nn.Parameter(torch.empty(num_experts, out_features, in_features))
@@ -134,7 +136,7 @@ class MoE(XMAModule):
         is_glu: bool,
         add_bias: bool,
         std: float,
-    ) -> None:
+    ) -> MoE:
         super().__init__()
 
         self.num_experts = num_experts
