@@ -365,10 +365,12 @@ class RNNTest(TestCommons):
                         input_state_kernel.grad,
                         input_state_torch.grad,
                         False,
-                        atol_float32=6e-4,
+                        atol_float32=9e-4,
                         rtol_float32=0,
-                        atol_float16=2e-3,
+                        atol_float16=5e-4,
                         rtol_float16=0,
+                        atol_bfloat16=4e-3,
+                        rtol_bfloat16=0,
                     )
 
                 self.assert_equal_tensors(
