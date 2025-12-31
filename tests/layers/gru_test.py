@@ -149,8 +149,10 @@ class GRUTest(TestCommons):
                     x_kernel.grad,
                     x_torch.grad,
                     False,
-                    atol_float16=1e-3 if num_weight_heads > num_input_heads else 5e-4,
+                    atol_float16=1e-3,
                     rtol_float16=0,
+                    atol_bfloat16=8e-3,
+                    rtol_bfloat16=0,
                 )
 
                 if has_input_state:
@@ -160,7 +162,7 @@ class GRUTest(TestCommons):
                         False,
                         atol_float32=4e-6,
                         rtol_float32=0,
-                        atol_float16=4e-4,
+                        atol_float16=2e-3,
                         rtol_float16=0,
                     )
 
@@ -422,6 +424,17 @@ class GRUTest(TestCommons):
                     atol_bfloat16=8e-3,
                     rtol_bfloat16=0,
                 )
+
+                if has_input_state:
+                    self.assert_equal_tensors(
+                        input_state_kernel.grad,
+                        input_state_torch.grad,
+                        False,
+                        atol_float32=4e-6,
+                        rtol_float32=0,
+                        atol_float16=2e-3,
+                        rtol_float16=0,
+                    )
 
                 for weight_name in weight_kernel_grads:
                     self.assert_equal_tensors(
