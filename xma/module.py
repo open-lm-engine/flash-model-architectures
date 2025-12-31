@@ -7,4 +7,4 @@ class XMAModule(nn.Module):
         for p in self.parameters():
             num_parameters += p.numel()
 
-        return f"num parameters = {num_parameters}"
+        return f"# parameters = {num_parameters:,}"
