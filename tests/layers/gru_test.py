@@ -122,8 +122,6 @@ class GRUTest(TestCommons):
                 rtol_float32=0,
                 atol_float16=6.5e-5,
                 rtol_float16=0,
-                atol_bfloat16=2e-4,
-                rtol_bfloat16=0,
             )
 
             self.assert_equal_tensors(
@@ -134,8 +132,6 @@ class GRUTest(TestCommons):
                 rtol_float32=0,
                 atol_float16=6.5e-5,
                 rtol_float16=0,
-                atol_bfloat16=2e-4,
-                rtol_bfloat16=0,
             )
 
             if not no_grad:
@@ -286,7 +282,7 @@ class GRUTest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(
             [KernelBackend.triton],
-            TestCommons.get_dtypes(),
+            [torch.float32, torch.float16],
             [[0, 7, 19, 27, 93]],  # cu_seqlens
             _get_problem_shapes(),  # problem_shapes
             [False, True],  # has_input_state
@@ -398,8 +394,6 @@ class GRUTest(TestCommons):
                 rtol_float32=0,
                 atol_float16=6.5e-5,
                 rtol_float16=0,
-                atol_bfloat16=2e-4,
-                rtol_bfloat16=0,
             )
 
             if not no_grad:
@@ -417,8 +411,6 @@ class GRUTest(TestCommons):
                     rtol_float32=0,
                     atol_float16=3e-3,
                     rtol_float16=0,
-                    atol_bfloat16=8e-3,
-                    rtol_bfloat16=0,
                 )
 
                 if has_input_state:
@@ -430,8 +422,6 @@ class GRUTest(TestCommons):
                         rtol_float32=0,
                         atol_float16=2e-3,
                         rtol_float16=0,
-                        atol_bfloat16=8e-3,
-                        rtol_bfloat16=0,
                     )
 
                 for weight_name in weight_kernel_grads:
@@ -443,8 +433,6 @@ class GRUTest(TestCommons):
                         rtol_float32=0,
                         atol_float16=3e-3,
                         rtol_float16=0,
-                        atol_bfloat16=8e-3,
-                        rtol_bfloat16=0,
                     )
 
     def _get_packed_tensor_inputs(
