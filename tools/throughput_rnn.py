@@ -19,7 +19,15 @@ H = 768
 NH = 1024
 
 with torch.device(torch.cuda.current_device()):
-    rnn = RNN(input_size=H, state_head_dim=NH // N, output_size=H, num_heads=N, add_bias=False, gradient_clipping=None)
+    rnn = RNN(
+        input_size=H,
+        state_head_dim=NH // N,
+        output_size=H,
+        num_input_heads=N,
+        num_weight_heads=N,
+        add_bias=False,
+        gradient_clipping=None,
+    )
 
 print(rnn)
 
