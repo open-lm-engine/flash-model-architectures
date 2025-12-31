@@ -55,6 +55,8 @@ def gru_backward_triton_kernel(
     dWf_stride,
     dWr_ptr,
     dWr_stride,
+    dh0_ptr,
+    dh0_stride,
     dy_ptr,
     dy_stride,
     cu_seqlens_ptr,
@@ -362,6 +364,13 @@ def gru_backward_triton_kernel(
         if IS_VARLEN:
             end -= 1
 
+    if dh0_ptr is not None:
+        tl.store(
+            dh0_ptr + BLOCK_B[:, None] * dh0_stride[0] + BLOCK_ID_N * dh0_stride[1] + BLOCK_H[None, :] * dh0_stride[2],
+            dh,
+            mask=MASK_BH,
+        )
+
     tl.atomic_add(
         dW_ptr + BLOCK_ID_Nw * dW_stride[0] + BLOCK_H[:, None] * dW_stride[1] + BLOCK_H[None, :] * dW_stride[2],
         dW,
@@ -384,7 +393,7 @@ def gru_backward_triton_kernel(
     )
 
 
-@xma_op(mutates_args={"dxf", "dWf", "dxr", "dWr", "dx", "dW"})
+@xma_op(mutates_args={"dxf", "dWf", "dxr", "dWr", "dx", "dW", "dh0"})
 def gru_backward_triton(
     x: torch.Tensor | None,
     W: torch.Tensor,
@@ -404,6 +413,7 @@ def gru_backward_triton(
     dy: torch.Tensor,
     dx: torch.Tensor,
     dW: torch.Tensor,
+    dh0: torch.Tensor | None,
     cu_seqlens: torch.Tensor | None,
     max_seqlen_tensor: torch.Tensor | None,
     max_seqlen: int | None,
@@ -462,6 +472,8 @@ def gru_backward_triton(
             dWf_stride=dWf.stride(),
             dWr_ptr=dWr,
             dWr_stride=dWr.stride(),
+            dh0_ptr=dh0,
+            dh0_stride=None if dh0 is None else dh0.stride(),
             dy_ptr=dy,
             dy_stride=dy.stride(),
             cu_seqlens_ptr=cu_seqlens,
