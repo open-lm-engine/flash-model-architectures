@@ -65,6 +65,14 @@ def rnn_backward_triton_kernel(
         mask=MASK_HH,
     )
 
+    if h0_ptr is None:
+        h0 = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=W.dtype)
+    else:
+        h0 = tl.load(
+            h0_ptr + BLOCK_B[:, None] * h0_stride[0] + BLOCK_ID_N * h0_stride[1] + BLOCK_H[None, :] * h0_stride[2],
+            mask=MASK_BH,
+        )
+
     IS_VARLEN: tl.constexpr = cu_seqlens_ptr is not None
 
     if IS_VARLEN:
@@ -108,14 +116,6 @@ def rnn_backward_triton_kernel(
         MASK = MASK_BH
 
     y = tl.load(y_ptrs, mask=MASK)
-
-    if h0_ptr is None:
-        h0 = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=W.dtype)
-    else:
-        h0 = tl.load(
-            h0_ptr + BLOCK_B[:, None] * h0_stride[0] + BLOCK_ID_N * h0_stride[1] + BLOCK_H[None, :] * h0_stride[2],
-            mask=MASK_BH,
-        )
 
     # backward counting reduces 1 instruction since we need to compare s == 0, otherwise we have to compare s == S - 1
     for s in range(S - 1, -1, -1):
