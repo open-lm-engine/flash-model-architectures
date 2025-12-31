@@ -254,8 +254,9 @@ def gru_backward_triton_kernel(
 
     # backward counting reduces 1 instruction since we need to compare s == 0, otherwise we have to compare s == S - 1
     for s in range(S - 1, -1, -1):
+        dh = dh0
         if gradient_clipping is not None:
-            dh = clamp(dh0, min_value=-gradient_clipping, max_value=gradient_clipping)
+            dh = clamp(dh, min_value=-gradient_clipping, max_value=gradient_clipping)
 
         MASK = ((end >= start) & MASK_H[None, :]) if IS_VARLEN else MASK_BH
         y_ptrs -= y_stride[1 - IS_VARLEN]
