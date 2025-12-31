@@ -54,6 +54,7 @@ class GRU(XMAModule):
 
         self.gradient_clipping = gradient_clipping
         self.state_head_dim = state_head_dim
+        self.state_size = self.num_heads * self.state_head_dim
 
         self.input_projection = nn.Linear(
             input_size,
@@ -69,7 +70,7 @@ class GRU(XMAModule):
             torch.empty(self.num_reset_weight_heads, self.state_head_dim, self.state_head_dim)
         )
 
-        self.output_projection = nn.Linear(self.num_heads * self.state_head_dim, output_size, bias=False)
+        self.output_projection = nn.Linear(self.state_size, output_size, bias=False)
 
         self.reset_parameters()
 
@@ -124,3 +125,7 @@ class GRU(XMAModule):
     @torch.no_grad()
     def reset_parameters(self) -> None:
         nn.init.normal_(self.state_weight)
+
+    def extra_repr(self) -> str:
+        output = super().extra_repr()
+        return f"{output}\nstate size = {self.state_size}"
