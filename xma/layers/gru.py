@@ -8,9 +8,10 @@ import torch.nn as nn
 from ..accelerator import KernelBackend
 from ..functional import gru
 from ..math import divide_if_divisible
+from ..module import XMAModule
 
 
-class GRU(nn.Module):
+class GRU(XMAModule):
     def __init__(
         self,
         input_size: int,
