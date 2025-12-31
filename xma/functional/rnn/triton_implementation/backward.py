@@ -173,7 +173,12 @@ def rnn_backward_triton_kernel(
 
         dy = tl.load(dy_ptrs, mask=MASK) + dh
         dx = dy * tanh_backward(y)
-        dh = matmul(A=dx, B=W.T, C=None, output_dtype=dx.dtype)
+
+        if IS_VARLEN:
+            dh = tl.where(MASK, matmul(A=dx, B=W.T, C=None, output_dtype=dx.dtype), dh)
+        else:
+            dh = matmul(A=dx, B=W.T, C=None, output_dtype=dx.dtype)
+
         dW = matmul(A=y_prev.T, B=dx, C=dW, output_dtype=dW.dtype)
 
         y = y_prev
