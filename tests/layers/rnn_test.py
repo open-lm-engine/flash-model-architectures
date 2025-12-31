@@ -118,15 +118,16 @@ class RNNTest(TestCommons):
                     rtol_float16=0,
                 )
 
-                self.assert_equal_tensors(
-                    input_state_kernel.grad,
-                    input_state_torch.grad,
-                    False,
-                    atol_float32=4e-6,
-                    rtol_float32=0,
-                    atol_float16=6.5e-5,
-                    rtol_float16=0,
-                )
+                if has_input_state:
+                    self.assert_equal_tensors(
+                        input_state_kernel.grad,
+                        input_state_torch.grad,
+                        False,
+                        atol_float32=4e-6,
+                        rtol_float32=0,
+                        atol_float16=6.5e-5,
+                        rtol_float16=0,
+                    )
 
                 self.assert_equal_tensors(
                     weight_kernel_grads["state_weight"],
