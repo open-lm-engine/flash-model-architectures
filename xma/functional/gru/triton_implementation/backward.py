@@ -116,6 +116,14 @@ def gru_backward_triton_kernel(
         mask=MASK_HH,
     )
 
+    if h0_ptr is None:
+        h0 = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=W.dtype)
+    else:
+        h0 = tl.load(
+            h0_ptr + BLOCK_B[:, None] * h0_stride[0] + BLOCK_ID_N * h0_stride[1] + BLOCK_H[None, :] * h0_stride[2],
+            mask=MASK_BH,
+        )
+
     IS_VARLEN: tl.constexpr = cu_seqlens_ptr is not None
 
     if IS_VARLEN:
@@ -149,20 +157,6 @@ def gru_backward_triton_kernel(
         dxf_ptrs = dxf_ptr + end * dxf_stride[0] + BLOCK_ID_Nxf * dxf_stride[1] + BLOCK_H[None, :] * dxf_stride[2]
         dxr_ptrs = dxr_ptr + end * dxr_stride[0] + BLOCK_ID_Nxr * dxr_stride[1] + BLOCK_H[None, :] * dxr_stride[2]
         dy_ptrs = dy_ptr + end * dy_stride[0] + BLOCK_ID_N * dy_stride[1] + BLOCK_H[None, :] * dy_stride[2]
-
-        # load before for varlen to avoid loading in the tl.where since it executes both paths
-        if IS_VARLEN:
-            h0 = _load_input_state(
-                h0_ptr=h0_ptr,
-                h0_stride=h0_stride,
-                BLOCK_ID_N=BLOCK_ID_N,
-                BLOCK_B=BLOCK_B,
-                BLOCK_H=BLOCK_H,
-                MASK_BH=MASK_BH,
-                BLOCK_SIZE_B=BLOCK_SIZE_B,
-                BLOCK_SIZE_H=BLOCK_SIZE_H,
-                dtype=W.dtype,
-            )
     else:
         if z_ptr is None:
             tl.static_assert(x_ptr is not None)
