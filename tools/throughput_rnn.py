@@ -7,7 +7,7 @@ from functools import partial
 import torch
 from tabulate import tabulate
 
-from xma import RNN, KernelBackend, device_synchronize
+from xma import RNN, Accelerator, KernelBackend
 
 
 n = 100
@@ -46,7 +46,7 @@ for dtype in [torch.float32]:
             z = kernel(input)
         e.record()
 
-        device_synchronize()
+        Accelerator.synchronize()
 
         row.append(s.elapsed_time(e) / n)
     table.append(row)
