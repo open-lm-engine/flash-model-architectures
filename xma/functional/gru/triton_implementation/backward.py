@@ -296,6 +296,10 @@ def gru_backward_triton_kernel(
 
         dx = dz * tanh_backward(z)
         drh = matmul(A=dx, B=W.T, C=None, output_dtype=dx.dtype)
+
+        if IS_VARLEN:
+            y_prev = tl.where(MASK, y_prev, 0)
+
         dW = matmul(A=(r * y_prev).T, B=dx, C=dW, output_dtype=dW.dtype)
 
         if Gx == 1:
