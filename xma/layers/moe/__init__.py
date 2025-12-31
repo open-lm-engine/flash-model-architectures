@@ -123,7 +123,7 @@ class Experts(XMAModule):
         self.K_array.fill_(self.in_features)
 
 
-class MoE(nn.Module):
+class MoE(XMAModule):
     def __init__(
         self,
         num_experts: int,
