@@ -128,4 +128,4 @@ class GRU(XMAModule):
 
     def extra_repr(self) -> str:
         output = super().extra_repr()
-        return f"{output}\nstate size = {self.state_size}"
+        return f"{output}\nstate size = {self.state_size} elements"
