@@ -17,9 +17,9 @@ _SEED = 42
 
 
 def _get_problem_shapes() -> list[tuple[int, int, int, int, int, int, int]]:
-    base = [64, 8, 8, 8, 8, 8, 8]
+    base = [8, 8, 8, 8, 8, 8, 8]
 
-    result = [(63, 7, 7, 7, 7, 7, 7)]
+    result = [(9, 7, 7, 7, 7, 7, 7)]
     for i in range(1, len(base)):
         t = base.copy()
         t[i] = 4
@@ -60,7 +60,7 @@ class GRUTest(TestCommons):
         context = torch.no_grad if no_grad else nullcontext
 
         (
-            state_size,
+            state_head_dim,
             num_input_heads,
             num_forget_input_heads,
             num_reset_input_heads,
@@ -68,6 +68,9 @@ class GRUTest(TestCommons):
             num_forget_weight_heads,
             num_reset_weight_heads,
         ) = problem_shapes
+
+        num_heads = max(*problem_shapes[1:])
+        state_size = num_heads * state_head_dim
 
         with context():
             x_kernel, x_torch, input_state_kernel, input_state_torch = self._get_packed_tensor_inputs(
@@ -83,7 +86,7 @@ class GRUTest(TestCommons):
             with torch.device(device):
                 gru = GRU(
                     input_size=state_size,
-                    state_size=state_size,
+                    state_head_dim=state_head_dim,
                     output_size=state_size,
                     num_input_heads=num_input_heads,
                     num_forget_input_heads=num_forget_input_heads,
@@ -185,7 +188,7 @@ class GRUTest(TestCommons):
         max_seqlen = (cu_seqlens[1:] - cu_seqlens[:-1]).max()
 
         (
-            state_size,
+            state_head_dim,
             num_input_heads,
             num_forget_input_heads,
             num_reset_input_heads,
@@ -193,6 +196,9 @@ class GRUTest(TestCommons):
             num_forget_weight_heads,
             num_reset_weight_heads,
         ) = problem_shapes
+
+        num_heads = max(*problem_shapes[1:])
+        state_size = num_heads * state_head_dim
 
         x_packed_kernel, x_packed_torch, input_state_kernel, input_state_torch = self._get_packed_tensor_inputs(
             batch_size=batch_size,
@@ -207,7 +213,7 @@ class GRUTest(TestCommons):
         with torch.device(device):
             gru = GRU(
                 input_size=state_size,
-                state_size=state_size,
+                state_head_dim=state_head_dim,
                 output_size=state_size,
                 num_input_heads=num_input_heads,
                 num_forget_input_heads=num_forget_input_heads,
@@ -289,7 +295,7 @@ class GRUTest(TestCommons):
         context = torch.no_grad if no_grad else nullcontext
 
         (
-            state_size,
+            state_head_dim,
             num_input_heads,
             num_forget_input_heads,
             num_reset_input_heads,
@@ -297,6 +303,9 @@ class GRUTest(TestCommons):
             num_forget_weight_heads,
             num_reset_weight_heads,
         ) = problem_shapes
+
+        num_heads = max(*problem_shapes[1:])
+        state_size = num_heads * state_head_dim
 
         with context():
             batch_size = len(cu_seqlens) - 1
@@ -316,7 +325,7 @@ class GRUTest(TestCommons):
             with torch.device(device):
                 gru = GRU(
                     input_size=state_size,
-                    state_size=state_size,
+                    state_head_dim=state_head_dim,
                     output_size=state_size,
                     num_input_heads=num_input_heads,
                     num_forget_input_heads=num_forget_input_heads,

@@ -133,7 +133,7 @@ class RNNTest(TestCommons):
             [KernelBackend.torch],  # KernelBackend
             TestCommons.get_dtypes(),  # dtype
             [[0, 7, 19, 27, 93]],  # cu_seqlens
-            [(8, 4, 8), (8, 8, 4), (9, 7, 7)],  # state_size, num_input_heads, num_weight_heads
+            [(8, 4, 8), (8, 8, 4), (9, 7, 7)],  # state_head_dim, num_input_heads, num_weight_heads
             [False, True],  # has_input_state
         )
     )
@@ -229,7 +229,7 @@ class RNNTest(TestCommons):
             [KernelBackend.triton],
             TestCommons.get_dtypes(),
             [[0, 7, 19, 27, 93]],  # cu_seqlens
-            [(8, 4, 8), (8, 8, 4), (9, 7, 7)],  # state_size, num_input_heads, num_weight_heads
+            [(8, 4, 8), (8, 8, 4), (9, 7, 7)],  # state_head_dim, num_input_heads, num_weight_heads
             [False, True],  # has_input_state
             [False, True],  # is_compiling
             [False, True],  # no_grad
