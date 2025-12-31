@@ -148,7 +148,7 @@ class _RNN(CustomOp):
 
         dx = _get_backward_tensor(y=y, Nx=Nx, N=N)
         dW = zeros_like_contiguous(W, dtype=torch.float32)
-        dh0 = None if h0 is None else empty_like_contiguous(h0)
+        dh0 = empty_like_contiguous(h0) if h0 is not None and h0.requires_grad else None
 
         rnn_backward_triton(
             W=W,
