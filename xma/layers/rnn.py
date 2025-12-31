@@ -31,12 +31,14 @@ class RNN(XMAModule):
         divide_if_divisible(self.num_heads, self.num_input_heads)
         divide_if_divisible(self.num_heads, self.num_weight_heads)
 
-        self.state_head_dim = state_head_dim
         self.gradient_clipping = gradient_clipping
+
+        self.state_head_dim = state_head_dim
+        self.state_size = self.num_heads * self.state_head_dim
 
         self.input_projection = nn.Linear(input_size, self.num_input_heads * self.state_head_dim, bias=add_bias)
         self.state_weight = nn.Parameter(torch.empty(self.num_weight_heads, self.state_head_dim, self.state_head_dim))
-        self.output_projection = nn.Linear(self.num_heads * self.state_head_dim, output_size, bias=False)
+        self.output_projection = nn.Linear(self.state_size, output_size, bias=False)
 
         self.reset_parameters()
 
@@ -75,3 +77,7 @@ class RNN(XMAModule):
     @torch.no_grad()
     def reset_parameters(self) -> None:
         nn.init.normal_(self.state_weight)
+
+    def extra_repr(self) -> str:
+        output = super().extra_repr()
+        return f"{output}\nstate size = {self.state_size}"
