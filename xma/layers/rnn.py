@@ -8,9 +8,10 @@ import torch.nn as nn
 from ..accelerator import KernelBackend
 from ..functional import rnn
 from ..math import divide_if_divisible
+from ..module import XMAModule
 
 
-class RNN(nn.Module):
+class RNN(XMAModule):
     def __init__(
         self,
         input_size: int,

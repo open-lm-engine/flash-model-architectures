@@ -14,7 +14,7 @@ class GRU(nn.Module):
     def __init__(
         self,
         input_size: int,
-        state_size: int,
+        state_head_dim: int,
         output_size: int,
         num_input_heads: int,
         num_forget_input_heads: int,
@@ -52,7 +52,7 @@ class GRU(nn.Module):
         divide_if_divisible(self.num_heads, self.num_reset_weight_heads)
 
         self.gradient_clipping = gradient_clipping
-        self.state_head_dim = divide_if_divisible(state_size, self.num_heads)
+        self.state_head_dim = state_head_dim
 
         self.input_projection = nn.Linear(
             input_size,
@@ -68,7 +68,7 @@ class GRU(nn.Module):
             torch.empty(self.num_reset_weight_heads, self.state_head_dim, self.state_head_dim)
         )
 
-        self.output_projection = nn.Linear(state_size, output_size, bias=False)
+        self.output_projection = nn.Linear(self.num_heads * self.state_head_dim, output_size, bias=False)
 
         self.reset_parameters()
 
