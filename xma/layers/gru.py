@@ -2,19 +2,22 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
+from __future__ import annotations
+
 import torch
 import torch.nn as nn
 
 from ..accelerator import KernelBackend
 from ..functional import gru
 from ..math import divide_if_divisible
+from ..module import XMAModule
 
 
-class GRU(nn.Module):
+class GRU(XMAModule):
     def __init__(
         self,
         input_size: int,
-        state_size: int,
+        state_head_dim: int,
         output_size: int,
         num_input_heads: int,
         num_forget_input_heads: int,
@@ -24,7 +27,7 @@ class GRU(nn.Module):
         num_reset_weight_heads: int,
         add_bias: bool,
         gradient_clipping: float | None,
-    ) -> None:
+    ) -> GRU:
         super().__init__()
 
         self.num_input_heads = num_input_heads
@@ -52,7 +55,8 @@ class GRU(nn.Module):
         divide_if_divisible(self.num_heads, self.num_reset_weight_heads)
 
         self.gradient_clipping = gradient_clipping
-        self.state_head_dim = divide_if_divisible(state_size, self.num_heads)
+        self.state_head_dim = state_head_dim
+        self.state_size = self.num_heads * self.state_head_dim
 
         self.input_projection = nn.Linear(
             input_size,
@@ -68,7 +72,7 @@ class GRU(nn.Module):
             torch.empty(self.num_reset_weight_heads, self.state_head_dim, self.state_head_dim)
         )
 
-        self.output_projection = nn.Linear(state_size, output_size, bias=False)
+        self.output_projection = nn.Linear(self.state_size, output_size, bias=False)
 
         self.reset_parameters()
 
@@ -123,3 +127,7 @@ class GRU(nn.Module):
     @torch.no_grad()
     def reset_parameters(self) -> None:
         nn.init.normal_(self.state_weight)
+
+    def extra_repr(self) -> str:
+        output = super().extra_repr()
+        return f"{output}\nstate size = {self.state_size} elements"

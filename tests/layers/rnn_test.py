@@ -23,7 +23,7 @@ class RNNTest(TestCommons):
             [torch.float32, torch.float16],
             [4],  # batch_size
             [1024],  # sequence_length
-            [(64, 4, 8), (64, 8, 4), (63, 7, 7)],  # state_size, num_input_heads, num_weight_heads
+            [(8, 4, 8), (8, 8, 4), (9, 7, 7)],  # state_head_dim, num_input_heads, num_weight_heads
             [False, True],  # has_input_state
             [False, True],  # is_compiling
             [False, True],  # no_grad
@@ -46,7 +46,10 @@ class RNNTest(TestCommons):
         set_seed(_SEED)
 
         context = torch.no_grad if no_grad else nullcontext
-        state_size, num_input_heads, num_weight_heads = snn
+
+        state_head_dim, num_input_heads, num_weight_heads = snn
+        num_heads = max(num_input_heads, num_weight_heads)
+        state_size = state_head_dim * num_heads
 
         with context():
             x_kernel, x_torch, input_state_kernel, input_state_torch = self._get_packed_tensor_inputs(
@@ -62,7 +65,7 @@ class RNNTest(TestCommons):
             with torch.device(device):
                 rnn = RNN(
                     input_size=state_size,
-                    state_size=state_size,
+                    state_head_dim=state_head_dim,
                     output_size=state_size,
                     num_input_heads=num_input_heads,
                     num_weight_heads=num_weight_heads,
@@ -115,6 +118,17 @@ class RNNTest(TestCommons):
                     rtol_float16=0,
                 )
 
+                if has_input_state:
+                    self.assert_equal_tensors(
+                        input_state_kernel.grad,
+                        input_state_torch.grad,
+                        False,
+                        atol_float32=4e-6,
+                        rtol_float32=0,
+                        atol_float16=4e-4,
+                        rtol_float16=0,
+                    )
+
                 self.assert_equal_tensors(
                     weight_kernel_grads["state_weight"],
                     weight_torch_grads["state_weight"],
@@ -130,7 +144,7 @@ class RNNTest(TestCommons):
             [KernelBackend.torch],  # KernelBackend
             TestCommons.get_dtypes(),  # dtype
             [[0, 7, 19, 27, 93]],  # cu_seqlens
-            [(64, 4, 8), (64, 8, 4), (63, 7, 7)],  # state_size, num_input_heads, num_weight_heads
+            [(8, 4, 8), (8, 8, 4), (9, 7, 7)],  # state_head_dim, num_input_heads, num_weight_heads
             [False, True],  # has_input_state
         )
     )
@@ -153,7 +167,10 @@ class RNNTest(TestCommons):
         batch_size = len(cu_seqlens) - 1
         cu_seqlens = torch.tensor(cu_seqlens, device=device)
         max_seqlen = (cu_seqlens[1:] - cu_seqlens[:-1]).max()
-        state_size, num_input_heads, num_weight_heads = snn
+
+        state_head_dim, num_input_heads, num_weight_heads = snn
+        num_heads = max(num_input_heads, num_weight_heads)
+        state_size = state_head_dim * num_heads
 
         x_packed_kernel, x_packed_torch, input_state_kernel, input_state_torch = self._get_packed_tensor_inputs(
             batch_size=batch_size,
@@ -168,7 +185,7 @@ class RNNTest(TestCommons):
         with torch.device(device):
             rnn = RNN(
                 input_size=state_size,
-                state_size=state_size,
+                state_head_dim=state_head_dim,
                 output_size=state_size,
                 num_input_heads=num_input_heads,
                 num_weight_heads=num_weight_heads,
@@ -223,7 +240,7 @@ class RNNTest(TestCommons):
             [KernelBackend.triton],
             TestCommons.get_dtypes(),
             [[0, 7, 19, 27, 93]],  # cu_seqlens
-            [(64, 4, 8), (64, 8, 4), (63, 7, 7)],  # state_size, num_input_heads, num_weight_heads
+            [(8, 4, 8), (8, 8, 4), (9, 7, 7)],  # state_head_dim, num_input_heads, num_weight_heads
             [False, True],  # has_input_state
             [False, True],  # is_compiling
             [False, True],  # no_grad
@@ -245,7 +262,10 @@ class RNNTest(TestCommons):
         set_seed(_SEED)
 
         context = torch.no_grad if no_grad else nullcontext
-        state_size, num_input_heads, num_weight_heads = snn
+
+        state_head_dim, num_input_heads, num_weight_heads = snn
+        num_heads = max(num_input_heads, num_weight_heads)
+        state_size = state_head_dim * num_heads
 
         with context():
             batch_size = len(cu_seqlens) - 1
@@ -265,7 +285,7 @@ class RNNTest(TestCommons):
             with torch.device(device):
                 rnn = RNN(
                     input_size=state_size,
-                    state_size=state_size,
+                    state_head_dim=state_head_dim,
                     output_size=state_size,
                     num_input_heads=num_input_heads,
                     num_weight_heads=num_weight_heads,
@@ -339,6 +359,19 @@ class RNNTest(TestCommons):
                     atol_bfloat16=8e-3,
                     rtol_bfloat16=0,
                 )
+
+                if has_input_state:
+                    self.assert_equal_tensors(
+                        input_state_kernel.grad,
+                        input_state_torch.grad,
+                        False,
+                        atol_float32=9e-4,
+                        rtol_float32=0,
+                        atol_float16=5e-4,
+                        rtol_float16=0,
+                        atol_bfloat16=4e-3,
+                        rtol_bfloat16=0,
+                    )
 
                 self.assert_equal_tensors(
                     weight_kernel_grads["state_weight"],

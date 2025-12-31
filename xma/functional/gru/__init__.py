@@ -7,7 +7,12 @@ import torch
 from ...accelerator import KernelBackend
 from ...custom_op import CustomOp, ctx_needs_gradients, ctx_save_for_backward
 from ...torch_utils import clip_gradients, sigmoid, tanh
-from ...utils import get_max_seqlen_and_max_seqlen_tensor, is_triton_available, zeros_like_contiguous
+from ...utils import (
+    empty_like_contiguous,
+    get_max_seqlen_and_max_seqlen_tensor,
+    is_triton_available,
+    zeros_like_contiguous,
+)
 from ..rnn import _get_backward_tensor
 from .utils import _get_num_heads
 
@@ -125,7 +130,7 @@ class _GRU(CustomOp):
 
         max_seqlen_tensor, max_seqlen = get_max_seqlen_and_max_seqlen_tensor(max_seqlen)
 
-        Nx, Nxf, Nxr, Nw, Nwf, Nwr, N = _get_num_heads(x=x, W=W, xf=xf, Wf=Wf, xr=xr, Wr=Wr, run_check=False)
+        Nx, Nxf, Nxr, _, _, _, N = _get_num_heads(x=x, W=W, xf=xf, Wf=Wf, xr=xr, Wr=Wr, run_check=False)
         y_shape = list(x.size())
         y_shape[-2] = N
 
@@ -189,6 +194,8 @@ class _GRU(CustomOp):
         dWf = zeros_like_contiguous(Wf, dtype=torch.float32)
         dWr = zeros_like_contiguous(Wr, dtype=torch.float32)
 
+        dh0 = empty_like_contiguous(h0) if h0 is not None and h0.requires_grad else None
+
         gru_backward_triton(
             x=x,
             W=W,
@@ -208,6 +215,7 @@ class _GRU(CustomOp):
             dy=dy,
             dx=dx,
             dW=dW,
+            dh0=dh0,
             cu_seqlens=cu_seqlens,
             max_seqlen_tensor=max_seqlen_tensor,
             max_seqlen=ctx.max_seqlen,
@@ -222,7 +230,7 @@ class _GRU(CustomOp):
         dWf = dWf.type_as(Wf)
         dWr = dWr.type_as(Wr)
 
-        return dx, dW, dxf, dWf, dxr, dWr, *[None] * 5
+        return dx, dW, dxf, dWf, dxr, dWr, dh0, *[None] * 4
 
 
 def gru(
@@ -256,7 +264,11 @@ def gru(
         tuple[torch.Tensor, torch.Tensor]: output tensor of shape (B, S, N, H) and output state tensor of shape (B, N, H)
     """
 
-    assert input.dim() == 3 + (cu_seqlens is None)
+    expected_dim = 3 + (cu_seqlens is None)
+
+    assert input.dim() == expected_dim
+    assert forget_input.dim() == expected_dim
+    assert reset_input.dim() == expected_dim
 
     if cu_seqlens is None:
         assert max_seqlen is None
@@ -296,6 +308,6 @@ def gru(
         kernel_backend=kernel_backend,
     )
 
-    output_state = input[:, -1] if cu_seqlens is None else input[cu_seqlens[1:] - 1]
+    input_state = input[:, -1] if cu_seqlens is None else input[cu_seqlens[1:] - 1]
 
-    return input, output_state
+    return input, input_state
