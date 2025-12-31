@@ -127,8 +127,6 @@ def rnn_backward_triton_kernel(
 
         if IS_VARLEN:
             y_prev = tl.where(end > start, tl.load(y_ptrs, mask=MASK), h0)
-            # to prevent accumulation of dW when sequence is exhausted
-            y_prev = tl.where(MASK, y_prev, 0)
         elif s == 0:
             y_prev = h0
         else:
@@ -140,7 +138,7 @@ def rnn_backward_triton_kernel(
         _dh = matmul(A=dx, B=W.T, C=None, output_dtype=dx.dtype)
         dh = tl.where(MASK, _dh, dh) if IS_VARLEN else _dh
 
-        dW = matmul(A=y_prev.T, B=dx, C=dW, output_dtype=dW.dtype)
+        dW = tl.where(MASK, matmul(A=y_prev.T, B=dx, C=dW, output_dtype=dW.dtype), dW)
 
         y = y_prev
 
