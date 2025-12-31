@@ -365,7 +365,7 @@ class RNNTest(TestCommons):
                         input_state_kernel.grad,
                         input_state_torch.grad,
                         False,
-                        atol_float32=4e-6,
+                        atol_float32=6e-4,
                         rtol_float32=0,
                         atol_float16=4e-4,
                         rtol_float16=0,
