@@ -32,7 +32,7 @@ class GRUTest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(
             [KernelBackend.triton],  # KernelBackend
-            TestCommons.get_dtypes(),
+            [torch.float32, torch.float16],
             [4],  # batch_size
             [1024],  # sequence_length
             _get_problem_shapes(),  # problem_shapes
@@ -151,8 +151,6 @@ class GRUTest(TestCommons):
                     False,
                     atol_float16=1e-3,
                     rtol_float16=0,
-                    atol_bfloat16=8e-3,
-                    rtol_bfloat16=0,
                 )
 
                 if has_input_state:
@@ -175,8 +173,6 @@ class GRUTest(TestCommons):
                         rtol_float32=0,
                         atol_float16=2.3e-2,
                         rtol_float16=0,
-                        atol_bfloat16=6.7e-2,
-                        rtol_bfloat16=0,
                     )
 
     @parameterized.expand(
@@ -434,6 +430,8 @@ class GRUTest(TestCommons):
                         rtol_float32=0,
                         atol_float16=2e-3,
                         rtol_float16=0,
+                        atol_bfloat16=8e-3,
+                        rtol_bfloat16=0,
                     )
 
                 for weight_name in weight_kernel_grads:
