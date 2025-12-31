@@ -268,20 +268,8 @@ def gru_backward_triton_kernel(
 
         if IS_VARLEN:
             y_prev = tl.where(end > start, tl.load(y_ptrs, mask=MASK), h0)
-            # to prevent accumulation of dW when sequence is exhausted
-            y_prev = tl.where(MASK, y_prev, 0)
         elif s == 0:
-            y_prev = _load_input_state(
-                h0_ptr=h0_ptr,
-                h0_stride=h0_stride,
-                BLOCK_ID_N=BLOCK_ID_N,
-                BLOCK_B=BLOCK_B,
-                BLOCK_H=BLOCK_H,
-                MASK_BH=MASK_BH,
-                BLOCK_SIZE_B=BLOCK_SIZE_B,
-                BLOCK_SIZE_H=BLOCK_SIZE_H,
-                dtype=W.dtype,
-            )
+            y_prev = h0
         else:
             y_prev = tl.load(y_ptrs, mask=MASK)
 
