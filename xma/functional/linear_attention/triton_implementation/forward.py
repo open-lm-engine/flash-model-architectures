@@ -140,7 +140,7 @@ def linear_attention_forward_chunked_triton_kernel(
 
     NUM_BLOCKS_S = tl.cdiv(S, BLOCK_SIZE_S)
 
-    for s in range(NUM_BLOCKS_S):
+    for s in range(1, NUM_BLOCKS_S + 1):
         MASK_S = BLOCK_S < S
 
         k = tl.load(k_ptrs, mask=MASK_S[:, None] & MASK_K[None, :])
@@ -148,7 +148,7 @@ def linear_attention_forward_chunked_triton_kernel(
 
         h = matmul(A=k.T, B=v, C=h, output_dtype=h.dtype)
 
-        if (s > 0 and (s * BLOCK_SIZE_S) % CHUNK_SIZE == 0) or s == NUM_BLOCKS_S - 1:
+        if (s * BLOCK_SIZE_S) % CHUNK_SIZE == 0 or s == NUM_BLOCKS_S:
             tl.store(h_ptrs, h, mask=MASK_KV)
             h_ptrs += h_stride[1 - IS_VARLEN]
 
