@@ -161,7 +161,6 @@ def linear_attention_forward_chunked_triton_kernel(
 def linear_attention_forward_chunked_triton(
     k: torch.Tensor,
     v: torch.Tensor,
-    N: int,
     h0: torch.Tensor | None,
     h: torch.Tensor,
     cu_seqlens: torch.Tensor | None,
@@ -180,6 +179,7 @@ def linear_attention_forward_chunked_triton(
         _, Nk, K = k.size()
 
     Nv, V = v.size()[-2:]
+    N = h.size(2)
 
     is_max_seqlen_tensor = max_seqlen_tensor is not None
 

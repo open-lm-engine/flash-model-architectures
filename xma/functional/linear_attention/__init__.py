@@ -98,7 +98,6 @@ class _LinearAttention(CustomOp):
         linear_attention_forward_chunked_triton(
             k=k,
             v=v,
-            N=N,
             h0=h0,
             h=h,
             cu_seqlens=cu_seqlens,
