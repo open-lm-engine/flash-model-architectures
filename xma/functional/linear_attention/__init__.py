@@ -81,7 +81,6 @@ class _LinearAttention(CustomOp):
         cu_seqlens: torch.Tensor | None,
         max_seqlen: torch.Tensor | int | None,
         CHUNK_SIZE: int,
-        *,
         kernel_backend: KernelBackend | None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         Nq, Nk, Nv, N = _get_num_heads(q=q, k=k, v=v, run_check=False)
