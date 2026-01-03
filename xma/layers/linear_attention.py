@@ -44,8 +44,6 @@ class LinearAttention(nn.Module):
         self.input_projection = nn.Linear(input_size, self.query_size + self.key_size + self.value_size, bias=add_bias)
         self.output_projection = nn.Linear(self.num_heads * self.value_head_dim, output_size, bias=add_bias)
 
-        self.reset_parameters()
-
     def forward(
         self,
         input: torch.Tensor,
@@ -81,7 +79,3 @@ class LinearAttention(nn.Module):
         input = self.output_projection(input)
 
         return input, input_state
-
-    @torch.no_grad()
-    def reset_parameters(self) -> None:
-        nn.init.normal_(self.state_weight)
