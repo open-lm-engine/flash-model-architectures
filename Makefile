@@ -18,4 +18,5 @@ style:
 
 website:
 	$(MAKE) -C docs html
+	sphinx-apidoc -o docs .
 	sphinx-autobuild docs docs/_build/html --port $(port)

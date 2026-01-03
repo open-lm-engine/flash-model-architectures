@@ -12,9 +12,10 @@
 
 import os
 import sys
+from unittest.mock import MagicMock
 
 
-sys.path.insert(0, os.path.abspath(".."))
+sys.path.insert(0, os.path.abspath("../xma"))
 
 project = "XMA"
 copyright = "2026, Mayank Mishra"
@@ -32,8 +33,46 @@ extensions = [
 
 autosummary_generate = True
 
+
+class Mock(MagicMock):
+    @classmethod
+    def __getattr__(cls, name):
+        return MagicMock()
+
+
+# List of modules to mock
+MOCK_MODULES = [
+    "cutlass",
+    "cutlass._mlir",
+    "cutlass._mlir.dialects",
+    "cutlass.cute",
+    "cutlass.cute.runtime",
+    "cutlass.cutlass_dsl",
+    "jax",
+    "jax.experimental",
+    "jax.experimental.pallas",
+    "jax.experimental.pallas.tpu",
+    "jax.nn",
+    "jax.numpy",
+    "neuronxcc",
+    "neuronxcc.nki",
+    "neuronxcc.nki.language",
+    "triton",
+    "triton.language",
+    "torch._inductor.runtime.triton_compat",
+    "torch_neuronx",
+    "torch_xla",
+    "torch_xla.core",
+    "torch_xla.core.xla_model",
+    "torch_xla.experimental",
+    "torch_xla.experimental.custom_kernel",
+]
+
+for mod_name in MOCK_MODULES:
+    sys.modules[mod_name] = Mock()
+
 templates_path = ["_templates"]
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "tests/*"]
 
 
 # -- Options for HTML output -------------------------------------------------
