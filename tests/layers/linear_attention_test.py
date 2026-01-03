@@ -115,7 +115,7 @@ class LinearAttentionTest(TestCommons):
                 False,
                 atol_float32=3e-3,
                 rtol_float32=0,
-                atol_bfloat16=3e-3,
+                atol_bfloat16=2.6e-3,
                 rtol_bfloat16=0,
             )
 
