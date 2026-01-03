@@ -94,19 +94,21 @@ class _LinearAttention(CustomOp):
         NUM_CHUNKS = ceil_divide(S, CHUNK_SIZE)
 
         h = torch.empty(B, NUM_CHUNKS, N, K, V, dtype=k.dtype, device=k.device)
+        ht = torch.empty(B, N, K, V, dtype=torch.float32, device=k.device)
 
         linear_attention_forward_chunked_triton(
             k=k,
             v=v,
             h0=h0,
             h=h,
+            ht=ht,
             cu_seqlens=cu_seqlens,
             max_seqlen_tensor=max_seqlen_tensor,
             max_seqlen=max_seqlen,
             CHUNK_SIZE=CHUNK_SIZE,
         )
 
-        return None, h[:, -1]
+        return None, ht
 
 
 def linear_attention(
