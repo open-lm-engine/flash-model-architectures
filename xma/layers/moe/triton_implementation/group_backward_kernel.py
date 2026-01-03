@@ -103,24 +103,23 @@ def groupXtY_triton_kernel(
 def group_bwd_W(DY: torch.Tensor, X: torch.Tensor, expert_offsets: torch.Tensor, DW: torch.Tensor, E: int) -> None:
     grid = lambda meta: (E * ceil_divide(meta["K"], meta["BLOCK_K"]), ceil_divide(meta["N"], meta["BLOCK_N"]))
 
-    with torch.device(X.device):
-        groupXtY_triton_kernel[grid](
-            # DY_ptr, stride_dym, stride_dyk,
-            DY,
-            DY.stride(0),
-            DY.stride(1),
-            # X_ptr, stride_xm, stride_xn,
-            X,
-            X.stride(0),
-            X.stride(1),
-            # DW_ptr, stride_dwe, stride_dwk, stride_dwn,
-            DW,
-            DW.stride(0),
-            DW.stride(1),
-            DW.stride(2),
-            # expert_offsets_ptr,
-            expert_offsets,
-            # K: tl.constexpr, N: tl.constexpr,
-            N=DY.size(-1),
-            K=X.size(-1),
-        )
+    groupXtY_triton_kernel[grid](
+        # DY_ptr, stride_dym, stride_dyk,
+        DY,
+        DY.stride(0),
+        DY.stride(1),
+        # X_ptr, stride_xm, stride_xn,
+        X,
+        X.stride(0),
+        X.stride(1),
+        # DW_ptr, stride_dwe, stride_dwk, stride_dwn,
+        DW,
+        DW.stride(0),
+        DW.stride(1),
+        DW.stride(2),
+        # expert_offsets_ptr,
+        expert_offsets,
+        # K: tl.constexpr, N: tl.constexpr,
+        N=DY.size(-1),
+        K=X.size(-1),
+    )

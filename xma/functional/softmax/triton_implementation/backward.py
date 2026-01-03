@@ -85,17 +85,16 @@ def softmax_backward_triton(
     BLOCK_SIZE_B = 1
     BLOCK_SIZE_H = min(get_next_power_of_2(H), 4096 if y.dtype == torch.float32 else 8192)
 
-    with torch.device(dx.device):
-        softmax_backward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](
-            y_ptr=y,
-            y_stride=y.stride(),
-            dy_ptr=dy,
-            dy_stride=dy.stride(),
-            dx_ptr=dx,
-            dx_stride=dx.stride(),
-            logits_multiplier=logits_multiplier,
-            B=B,
-            H=H,
-            BLOCK_SIZE_B=BLOCK_SIZE_B,
-            BLOCK_SIZE_H=BLOCK_SIZE_H,
-        )
+    softmax_backward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](
+        y_ptr=y,
+        y_stride=y.stride(),
+        dy_ptr=dy,
+        dy_stride=dy.stride(),
+        dx_ptr=dx,
+        dx_stride=dx.stride(),
+        logits_multiplier=logits_multiplier,
+        B=B,
+        H=H,
+        BLOCK_SIZE_B=BLOCK_SIZE_B,
+        BLOCK_SIZE_H=BLOCK_SIZE_H,
+    )

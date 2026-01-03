@@ -63,18 +63,17 @@ def swiglu_backward_triton(
     B, H = get_num_elements_and_hidden_size(g)
     GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), ceil_divide(H, meta["BLOCK_SIZE_H"]))
 
-    with torch.device(g.device):
-        swiglu_backward_triton_kernel[GRID](
-            g_ptr=g,
-            g_stride=g.stride(),
-            u_ptr=u,
-            u_stride=u.stride(),
-            dy_ptr=dy,
-            dy_stride=dy.stride(),
-            dg_ptr=dg,
-            dg_stride=dg.stride(),
-            du_ptr=du,
-            du_stride=du.stride(),
-            B=B,
-            H=H,
-        )
+    swiglu_backward_triton_kernel[GRID](
+        g_ptr=g,
+        g_stride=g.stride(),
+        u_ptr=u,
+        u_stride=u.stride(),
+        dy_ptr=dy,
+        dy_stride=dy.stride(),
+        dg_ptr=dg,
+        dg_stride=dg.stride(),
+        du_ptr=du,
+        du_stride=du.stride(),
+        B=B,
+        H=H,
+    )

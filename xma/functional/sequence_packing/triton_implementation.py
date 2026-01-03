@@ -69,18 +69,17 @@ def pack_unpack_sequence_triton(
     BLOCK_SIZE = 4096
     NUM_WARPS = 32
 
-    with torch.device(x.device):
-        pack_unpack_sequence_triton_kernel[S, B](
-            x_ptr=x,
-            x_stride=x.stride(),
-            y_ptr=output,
-            y_stride=output.stride(),
-            cu_seqlens_ptr=cu_seqlens,
-            cu_seqlens_stride=cu_seqlens.stride(),
-            S=S,
-            N=N,
-            PADDING_SIDE=padding_side,
-            PACK=pack,
-            BLOCK_SIZE=BLOCK_SIZE,
-            num_warps=NUM_WARPS,
-        )
+    pack_unpack_sequence_triton_kernel[S, B](
+        x_ptr=x,
+        x_stride=x.stride(),
+        y_ptr=output,
+        y_stride=output.stride(),
+        cu_seqlens_ptr=cu_seqlens,
+        cu_seqlens_stride=cu_seqlens.stride(),
+        S=S,
+        N=N,
+        PADDING_SIDE=padding_side,
+        PACK=pack,
+        BLOCK_SIZE=BLOCK_SIZE,
+        num_warps=NUM_WARPS,
+    )
