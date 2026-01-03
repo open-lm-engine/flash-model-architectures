@@ -17,7 +17,7 @@ def _get_autotune_configs() -> list[triton.Config]:
         for num_stages in range(1, 5):
             for BLOCK_SIZE_K in get_powers_of_2(32, 64):
                 for BLOCK_SIZE_V in get_powers_of_2(32, 64):
-                    for BLOCK_SIZE_S in get_powers_of_2(16, 64):
+                    for BLOCK_SIZE_S in [1] + get_powers_of_2(16, 64):
                         configs.append(
                             triton.Config(
                                 {
