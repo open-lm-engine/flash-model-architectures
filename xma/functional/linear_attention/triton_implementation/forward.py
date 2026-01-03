@@ -33,7 +33,7 @@ def _get_autotune_configs() -> list[triton.Config]:
     return configs
 
 
-@triton.autotune(configs=_get_autotune_configs(), key=[])
+@triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_K", "BLOCK_SIZE_V", "BLOCK_SIZE_S", "CHUNK_SIZE"])
 @triton.jit
 def linear_attention_forward_chunked_triton_kernel(
     k_ptr,
