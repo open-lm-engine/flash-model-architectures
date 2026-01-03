@@ -164,7 +164,7 @@ def linear_attention_forward_chunked_triton_kernel(
         + BLOCK_ID_B * ht_stride[0]
         + BLOCK_ID_N * ht_stride[1]
         + BLOCK_K[:, None] * ht_stride[2]
-        + BLOCK_V * ht_stride[3],
+        + BLOCK_V[None, :] * ht_stride[3],
         h,
         mask=MASK_KV,
     )
