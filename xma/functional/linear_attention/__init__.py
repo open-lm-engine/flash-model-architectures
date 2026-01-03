@@ -106,7 +106,7 @@ class _LinearAttention(CustomOp):
             CHUNK_SIZE=CHUNK_SIZE,
         )
 
-        return y, h[:, -1]
+        return None, h[:, -1]
 
 
 def linear_attention(
