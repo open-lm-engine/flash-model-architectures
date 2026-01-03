@@ -200,6 +200,7 @@ def linear_attention_forward_chunked_triton(
             IS_MAX_SEQLEN_TENSOR=is_max_seqlen_tensor,
             max_seqlen_ptr=max_seqlen_tensor if is_max_seqlen_tensor else max_seqlen,
             S=S,
+            N=N,
             K=K,
             V=V,
             Gk=N // Nk,
