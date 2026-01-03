@@ -120,7 +120,7 @@ def fused_linear_cross_entropy(
     :param reduction: reduction should be either sum or mean. Defaults to "mean".
     :type reduction: str
     :param logits_multiplier: logits multiplier pre-multiplies logits, None implies 1.
-            Defaults to None.
+        Defaults to None.
     :type logits_multiplier: float | None
     :param kernel_backend: KernelBackend
     :type kernel_backend: KernelBackend | None

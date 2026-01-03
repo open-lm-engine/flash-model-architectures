@@ -60,7 +60,7 @@ def softmax(
     :param x: input activation tensor
     :type x: torch.Tensor
     :param logits_multiplier: pre-multiplies `x` with `logits_multiplier` before computing softmax.
-            Defaults to None.
+        Defaults to None.
     :type logits_multiplier: float | None
     :param kernel_backend: KernelBackend
     :type kernel_backend: KernelBackend | None

@@ -27,7 +27,7 @@ def rmsnorm(
     :param eps: epsilon. Defaults to None.
     :type eps: float | None
     :param memory_efficient: memory efficient = False caches RMSNorm's denominator in the forward.
-            Defaults to False.
+        Defaults to False.
     :type memory_efficient: bool
     :param deterministic: whether to use deterministic backward. Defaults to False.
     :type deterministic: bool
