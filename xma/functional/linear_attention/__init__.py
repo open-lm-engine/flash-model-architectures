@@ -6,6 +6,8 @@ import torch
 
 from ...accelerator import KernelBackend
 from ...custom_op import CustomOp
+from ...utils import get_max_seqlen_and_max_seqlen_tensor
+from .triton_implementation import linear_attention_forward_chunked_triton
 from .utils import _get_num_heads
 
 
@@ -18,6 +20,7 @@ class _LinearAttention(CustomOp):
         h0: torch.Tensor | None,
         cu_seqlens: torch.Tensor | None,
         max_seqlen: torch.Tensor | int | None,
+        CHUNK_SIZE: int,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         Nq, Nk, Nv, N = _get_num_heads(q=q, k=k, v=v, run_check=False)
 
@@ -77,10 +80,29 @@ class _LinearAttention(CustomOp):
         h0: torch.Tensor | None,
         cu_seqlens: torch.Tensor | None,
         max_seqlen: torch.Tensor | int | None,
+        CHUNK_SIZE: int,
         *,
         kernel_backend: KernelBackend | None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         Nq, Nk, Nv, N = _get_num_heads(q=q, k=k, v=v, run_check=False)
+        max_seqlen_tensor, max_seqlen = get_max_seqlen_and_max_seqlen_tensor(max_seqlen)
+
+        B, S, _, K = k.size()
+        V = v.size(-1)
+
+        h = torch.empty(B, S // NUM_CHUNKS, N, K, V, dtype=q.dtype, device=q.device)
+
+        linear_attention_forward_chunked_triton(
+            k=k,
+            v=v,
+            N=N,
+            h0=h0,
+            h=h,
+            cu_seqlens=cu_seqlens,
+            max_seqlen_tensor=max_seqlen_tensor,
+            max_seqlen=max_seqlen,
+            CHUNK_SIZE=CHUNK_SIZE,
+        )
 
 
 def linear_attention(
@@ -90,6 +112,7 @@ def linear_attention(
     input_state: torch.Tensor | None,
     cu_seqlens: torch.Tensor | None = None,
     max_seqlen: torch.Tensor | int | None = None,
+    CHUNK_SIZE: int = 64,
     *,
     kernel_backend: KernelBackend | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
@@ -130,6 +153,7 @@ def linear_attention(
         cu_seqlens=cu_seqlens,
         max_seqlen=max_seqlen,
         kernel_backend=kernel_backend,
+        CHUNK_SIZE=CHUNK_SIZE,
     )
 
     return output, input_state
