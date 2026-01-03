@@ -170,12 +170,12 @@ def linear_attention_forward_chunked_triton_kernel(
     )
 
 
-@xma_op(mutates_args={"h"})
+@xma_op(mutates_args={"h", "ht"})
 def linear_attention_forward_chunked_triton(
     k: torch.Tensor,
     v: torch.Tensor,
     h0: torch.Tensor | None,
-    h: torch.Tensor,
+    h: torch.Tensor | None,
     ht: torch.Tensor,
     cu_seqlens: torch.Tensor | None,
     max_seqlen_tensor: torch.Tensor | None,
