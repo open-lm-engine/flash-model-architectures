@@ -66,8 +66,8 @@ class _LinearAttention(CustomOp):
 
         for s in range(S):
             if cu_seqlens is None:
-                h = h0 + k[..., None] * v[..., None, :]
-                y[:, s] = (q[..., None, :] @ h).squeeze(-2)
+                h = h0 + k[:, s, ..., None] * v[:, s, :, None, :]
+                y[:, s] = (q[:, s, :, None, :] @ h).squeeze(-2)
 
                 h0 = h
             else:
