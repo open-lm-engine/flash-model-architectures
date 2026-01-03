@@ -188,8 +188,8 @@ def rnn(
     :type input: torch.Tensor
     :param weight: weight tensor of shape (Nw, H, H)
     :type weight: torch.Tensor
-    :param input_state: starting state of shape (B, max{Nx, Nw}, H), None means starting state is 0 tensor.
-        Defaults to None.
+    :param input_state: starting state of shape (B, N, H), where N = max{Nx, Nw}. None means starting state is
+        0 tensor. Defaults to None.
     :type input_state: torch.Tensor | None
     :param gradient_clipping: gradient clipping for the state gradient in backward, None implies no clipping.
         Defaults to None.
@@ -200,7 +200,7 @@ def rnn(
     :type max_seqlen: torch.Tensor | int | None
     :param kernel_backend: KernelBackend
     :type kernel_backend: KernelBackend | None
-    :return: output tensor of shape (B, S, max{Nx, Nw}, H). output state tensor of shape (B, max{Nx, Nw}, H)
+    :return: output tensor of shape (B, S, N, H) if `cu_seqlens` is None else (T, N, H)
     :rtype: tuple[Tensor, Tensor]
     """
 
