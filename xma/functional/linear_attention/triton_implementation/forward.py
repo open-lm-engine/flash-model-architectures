@@ -73,9 +73,6 @@ def linear_attention_forward_chunked_triton_kernel(
     BLOCK_ID_Nk = BLOCK_ID_N // Gk
     BLOCK_ID_Nv = BLOCK_ID_N // Gv
 
-    if CHUNK_SIZE is None:
-        CHUNK_SIZE = BLOCK_SIZE_S
-
     BLOCK_K = BLOCK_ID_K * BLOCK_SIZE_K + tl.arange(0, BLOCK_SIZE_K)
     BLOCK_V = BLOCK_ID_V * BLOCK_SIZE_V + tl.arange(0, BLOCK_SIZE_V)
     BLOCK_S = tl.arange(0, BLOCK_SIZE_S)
