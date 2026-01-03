@@ -48,8 +48,6 @@ def linear_attention_forward_chunked_triton_kernel(
     ht_stride,
     cu_seqlens_ptr,
     cu_seqlens_stride,
-    IS_MAX_SEQLEN_TENSOR: tl.constexpr,
-    max_seqlen_ptr,
     S,
     N: tl.constexpr,
     K: tl.constexpr,
@@ -177,14 +175,9 @@ def linear_attention_forward_chunked_triton(
     h: torch.Tensor | None,
     ht: torch.Tensor,
     cu_seqlens: torch.Tensor | None,
-    max_seqlen_tensor: torch.Tensor | None,
-    max_seqlen: int | None,
     CHUNK_SIZE: int,
 ) -> None:
     if cu_seqlens is None:
-        assert max_seqlen is None
-        assert max_seqlen_tensor is None
-
         B, S, Nk, K = k.size()
     else:
         B = cu_seqlens.size(0) - 1
@@ -193,8 +186,6 @@ def linear_attention_forward_chunked_triton(
 
     Nv, V = v.size()[-2:]
     N = h.size(2)
-
-    is_max_seqlen_tensor = max_seqlen_tensor is not None
 
     GRID = lambda meta: (B * N, ceil_divide(K, meta["BLOCK_SIZE_K"]), ceil_divide(V, meta["BLOCK_SIZE_V"]))
 
@@ -211,8 +202,6 @@ def linear_attention_forward_chunked_triton(
         ht_stride=ht.stride(),
         cu_seqlens_ptr=cu_seqlens,
         cu_seqlens_stride=None if cu_seqlens is None else cu_seqlens.stride(),
-        IS_MAX_SEQLEN_TENSOR=is_max_seqlen_tensor,
-        max_seqlen_ptr=max_seqlen_tensor if is_max_seqlen_tensor else max_seqlen,
         S=S,
         N=N,
         K=K,

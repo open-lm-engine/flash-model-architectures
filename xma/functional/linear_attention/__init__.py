@@ -102,8 +102,6 @@ class _LinearAttention(CustomOp):
             h=h,
             ht=ht,
             cu_seqlens=cu_seqlens,
-            max_seqlen_tensor=max_seqlen_tensor,
-            max_seqlen=max_seqlen,
             CHUNK_SIZE=CHUNK_SIZE,
         )
 
