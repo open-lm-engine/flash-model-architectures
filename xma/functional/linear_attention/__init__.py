@@ -156,8 +156,8 @@ def linear_attention(
         h0=input_state,
         cu_seqlens=cu_seqlens,
         max_seqlen=max_seqlen,
-        kernel_backend=kernel_backend,
         CHUNK_SIZE=CHUNK_SIZE,
+        kernel_backend=kernel_backend,
     )
 
     return output, input_state
