@@ -102,13 +102,14 @@ def linear_attention_forward_chunked_triton_kernel(
         end = tl.load(cu_seqlens_ptrs + cu_seqlens_stride[0])
 
         S = end - start
+        BLOCK = start + BLOCK_S
 
-        k_ptrs = k_ptr + start * k_stride[0] + BLOCK_ID_Nk * k_stride[1] + BLOCK_K[None, :] * k_stride[2]
-        v_ptrs = v_ptr + start * v_stride[0] + BLOCK_ID_Nv * v_stride[1] + BLOCK_V[None, :] * v_stride[2]
+        k_ptrs = k_ptr + BLOCK[:, None] * k_stride[0] + BLOCK_ID_Nk * k_stride[1] + BLOCK_K[None, :] * k_stride[2]
+        v_ptrs = v_ptr + BLOCK[:, None] * v_stride[0] + BLOCK_ID_Nv * v_stride[1] + BLOCK_V[None, :] * v_stride[2]
 
         h_ptrs = (
             h_ptr
-            + start * h_stride[0]
+            + BLOCK[:, None] * h_stride[0]
             + BLOCK_ID_N * h_stride[1]
             + BLOCK_K[:, None] * h_stride[2]
             + BLOCK_V[None, :] * h_stride[3]
