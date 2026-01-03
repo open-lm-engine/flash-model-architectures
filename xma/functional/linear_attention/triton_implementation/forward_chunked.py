@@ -9,7 +9,6 @@ import triton.language as tl
 from ....custom_op import xma_op
 from ....math import ceil_divide
 from ....triton_utils import matmul
-from ..utils import _get_num_heads
 
 
 @triton.jit
@@ -47,6 +46,9 @@ def linear_attention_forward_chunked_triton_kernel(
     BLOCK_ID_B = BLOCK_ID_BN // N
     BLOCK_ID_N = BLOCK_ID_BN % N
 
+    BLOCK_ID_Nk = BLOCK_ID_N // Gk
+    BLOCK_ID_Nv = BLOCK_ID_N // Gv
+
     if CHUNK_SIZE is None:
         CHUNK_SIZE = BLOCK_SIZE_S
 
@@ -62,7 +64,7 @@ def linear_attention_forward_chunked_triton_kernel(
         k_ptr
         + BLOCK_ID_B * k_stride[0]
         + BLOCK_S[:, None] * k_stride[1]
-        + BLOCK_ID_N * k_stride[2]
+        + BLOCK_ID_Nk * k_stride[2]
         + BLOCK_K[None, :] * k_stride[3]
     )
 
@@ -70,7 +72,7 @@ def linear_attention_forward_chunked_triton_kernel(
         v_ptr
         + BLOCK_ID_B * v_stride[0]
         + BLOCK_S[:, None] * v_stride[1]
-        + BLOCK_ID_N * v_stride[2]
+        + BLOCK_ID_Nv * v_stride[2]
         + BLOCK_V[None, :] * v_stride[3]
     )
 
