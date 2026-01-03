@@ -10,9 +10,15 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
+import os
+import sys
+
+
 project = "xma"
 copyright = "2026, Mayank Mishra"
 author = "Mayank Mishra"
+
+sys.path.insert(0, os.path.abspath("../.."))
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
