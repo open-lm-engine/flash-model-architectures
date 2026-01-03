@@ -130,24 +130,23 @@ def rnn_forward_triton(
     BLOCK_SIZE_H = max(16, BLOCK_SIZE_H)
     GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), N)
 
-    with torch.device(x.device):
-        rnn_forward_triton_kernel[GRID](
-            x_ptr=x,
-            x_stride=x.stride(),
-            W_ptr=W,
-            W_stride=W.stride(),
-            h0_ptr=h0,
-            h0_stride=None if h0 is None else h0.stride(),
-            y_ptr=y,
-            y_stride=y.stride(),
-            cu_seqlens_ptr=cu_seqlens,
-            cu_seqlens_stride=None if cu_seqlens is None else cu_seqlens.stride(),
-            IS_MAX_SEQLEN_TENSOR=is_max_seqlen_tensor,
-            max_seqlen_ptr=max_seqlen_tensor if is_max_seqlen_tensor else max_seqlen,
-            B=B,
-            S=S,
-            H=H,
-            Gx=N // Nx,
-            Gw=N // Nw,
-            BLOCK_SIZE_H=BLOCK_SIZE_H,
-        )
+    rnn_forward_triton_kernel[GRID](
+        x_ptr=x,
+        x_stride=x.stride(),
+        W_ptr=W,
+        W_stride=W.stride(),
+        h0_ptr=h0,
+        h0_stride=None if h0 is None else h0.stride(),
+        y_ptr=y,
+        y_stride=y.stride(),
+        cu_seqlens_ptr=cu_seqlens,
+        cu_seqlens_stride=None if cu_seqlens is None else cu_seqlens.stride(),
+        IS_MAX_SEQLEN_TENSOR=is_max_seqlen_tensor,
+        max_seqlen_ptr=max_seqlen_tensor if is_max_seqlen_tensor else max_seqlen,
+        B=B,
+        S=S,
+        H=H,
+        Gx=N // Nx,
+        Gw=N // Nw,
+        BLOCK_SIZE_H=BLOCK_SIZE_H,
+    )

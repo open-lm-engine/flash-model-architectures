@@ -88,25 +88,24 @@ def fused_residual_add_rmsnorm_forward_triton(
     assert BLOCK_SIZE_H <= MAX_TRITON_BLOCK_SIZE
     NUM_WARPS = 8
 
-    with torch.device(x.device):
-        fused_residual_add_rmsnorm_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](
-            x_ptr=x,
-            x_stride=x.stride(),
-            r_ptr=r,
-            r_stride=None if r is None else r.stride(),
-            W_ptr=W,
-            W_stride=None if W is None else W.stride(),
-            y_ptr=y,
-            y_stride=y.stride(),
-            xr_ptr=xr,
-            xr_stride=None if xr is None else xr.stride(),
-            s_ptr=s,
-            s_stride=None if s is None else s.stride(),
-            eps=eps,
-            multiplier=multiplier,
-            B=B,
-            H=H,
-            BLOCK_SIZE_B=BLOCK_SIZE_B,
-            BLOCK_SIZE_H=BLOCK_SIZE_H,
-            num_warps=NUM_WARPS,
-        )
+    fused_residual_add_rmsnorm_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](
+        x_ptr=x,
+        x_stride=x.stride(),
+        r_ptr=r,
+        r_stride=None if r is None else r.stride(),
+        W_ptr=W,
+        W_stride=None if W is None else W.stride(),
+        y_ptr=y,
+        y_stride=y.stride(),
+        xr_ptr=xr,
+        xr_stride=None if xr is None else xr.stride(),
+        s_ptr=s,
+        s_stride=None if s is None else s.stride(),
+        eps=eps,
+        multiplier=multiplier,
+        B=B,
+        H=H,
+        BLOCK_SIZE_B=BLOCK_SIZE_B,
+        BLOCK_SIZE_H=BLOCK_SIZE_H,
+        num_warps=NUM_WARPS,
+    )

@@ -170,21 +170,20 @@ def bmm_triton(
         L,
     )
 
-    with torch.device(A.device):
-        bmm_triton_kernel[GRID](
-            A_ptr=A,
-            A_stride=A.stride(),
-            B_ptr=B,
-            B_stride=B.stride(),
-            C_ptr=C,
-            C_stride=None if C is None else C.stride(),
-            D_ptr=D,
-            D_stride=D.stride(),
-            alpha=None if alpha == 1 else alpha,
-            beta=None if beta == 1 else beta,
-            IS_A_TRANSPOSED=is_A_transposed,
-            IS_B_TRANSPOSED=is_B_transposed,
-            M=M,
-            K=K,
-            N=N,
-        )
+    bmm_triton_kernel[GRID](
+        A_ptr=A,
+        A_stride=A.stride(),
+        B_ptr=B,
+        B_stride=B.stride(),
+        C_ptr=C,
+        C_stride=None if C is None else C.stride(),
+        D_ptr=D,
+        D_stride=D.stride(),
+        alpha=None if alpha == 1 else alpha,
+        beta=None if beta == 1 else beta,
+        IS_A_TRANSPOSED=is_A_transposed,
+        IS_B_TRANSPOSED=is_B_transposed,
+        M=M,
+        K=K,
+        N=N,
+    )
