@@ -150,7 +150,7 @@ def linear_attention_forward_chunked_triton_kernel(
         k = tl.load(k_ptrs, mask=MASK_S[:, None] & MASK_K[None, :])
         v = tl.load(v_ptrs, mask=MASK_S[:, None] & MASK_V[None, :])
 
-        h = matmul(A=k.T, B=v, C=h)
+        h = matmul(A=k.T, B=v, C=h, output_dtype=h.dtype)
 
         BLOCK_S += BLOCK_SIZE_S
         k_ptrs += BLOCK_SIZE_S * k_stride[1 - IS_VARLEN]
