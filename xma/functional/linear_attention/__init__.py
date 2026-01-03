@@ -107,9 +107,11 @@ def linear_attention(
     *,
     kernel_backend: KernelBackend | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    assert query.dim() == 3 + (cu_seqlens is None)
-    assert key.dim() == 3 + (cu_seqlens is None)
-    assert value.dim() == 3 + (cu_seqlens is None)
+    expected_dim = 3 + (cu_seqlens is None)
+
+    assert query.dim() == expected_dim
+    assert key.dim() == expected_dim
+    assert value.dim() == expected_dim
 
     if cu_seqlens is None:
         assert max_seqlen is None
