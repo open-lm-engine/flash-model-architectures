@@ -76,8 +76,6 @@ class LinearAttentionTest(TestCommons):
                 add_bias=False,
             ).to(dtype)
 
-            nn.init.normal_(linear_attention.state_weight, std=0.1)
-
         y_kernel, _ = linear_attention(
             input=x_packed_kernel,
             input_state=input_state_kernel,
