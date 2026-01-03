@@ -97,7 +97,7 @@ def linear_attention_forward_chunked_triton_kernel(
     NUM_BLOCKS_S = tl.cdiv(S, BLOCK_SIZE_S)
 
     for s in range(NUM_BLOCKS_S):
-        if s > 0 and (s * BLOCK_SIZE_S) % CHUNK_SIZE == 0:
+        if (s > 0 and (s * BLOCK_SIZE_S) % CHUNK_SIZE == 0) or s == NUM_BLOCKS_S - 1:
             tl.store(h_ptrs, h, mask=MASK_KV)
             h_ptrs += h_stride[1]
 
@@ -111,8 +111,6 @@ def linear_attention_forward_chunked_triton_kernel(
         BLOCK_S += BLOCK_SIZE_S
         k_ptrs += BLOCK_SIZE_S * k_stride[1]
         v_ptrs += BLOCK_SIZE_S * v_stride[1]
-
-    tl.store(h_ptrs, h, mask=MASK_KV)
 
 
 @xma_op(mutates_args={"h"})
