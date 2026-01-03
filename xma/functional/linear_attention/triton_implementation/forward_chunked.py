@@ -25,7 +25,6 @@ def linear_attention_forward_chunked_triton_kernel(
     cu_seqlens_stride,
     IS_MAX_SEQLEN_TENSOR: tl.constexpr,
     max_seqlen_ptr,
-    B,
     S,
     N: tl.constexpr,
     K: tl.constexpr,
@@ -60,30 +59,6 @@ def linear_attention_forward_chunked_triton_kernel(
     MASK_V = BLOCK_V < V
     MASK_KV = MASK_K[:, None] & MASK_V[None, :]
 
-    k_ptrs = (
-        k_ptr
-        + BLOCK_ID_B * k_stride[0]
-        + BLOCK_S[:, None] * k_stride[1]
-        + BLOCK_ID_Nk * k_stride[2]
-        + BLOCK_K[None, :] * k_stride[3]
-    )
-
-    v_ptrs = (
-        v_ptr
-        + BLOCK_ID_B * v_stride[0]
-        + BLOCK_S[:, None] * v_stride[1]
-        + BLOCK_ID_Nv * v_stride[2]
-        + BLOCK_V[None, :] * v_stride[3]
-    )
-
-    h_ptrs = (
-        h_ptr
-        + BLOCK_ID_B * h_stride[0]
-        + BLOCK_ID_N * h_stride[2]
-        + BLOCK_K[:, None] * h_stride[3]
-        + BLOCK_V[None, :] * h_stride[4]
-    )
-
     if h0_ptr is None:
         h = tl.zeros((BLOCK_SIZE_K, BLOCK_SIZE_V), dtype=tl.float32)
     else:
@@ -96,14 +71,58 @@ def linear_attention_forward_chunked_triton_kernel(
             mask=MASK_KV,
         ).to(tl.float32)
 
+    IS_VARLEN: tl.constexpr = cu_seqlens_ptr is not None
+
+    if IS_VARLEN:
+        cu_seqlens_ptrs = cu_seqlens_ptr + BLOCK_ID_B * cu_seqlens_stride[0]
+        start = tl.load(cu_seqlens_ptrs)
+        end = tl.load(cu_seqlens_ptrs + cu_seqlens_stride[0])
+
+        S = tl.load(max_seqlen_ptr) if IS_MAX_SEQLEN_TENSOR else max_seqlen_ptr
+
+        k_ptrs = k_ptr + start * k_stride[0] + BLOCK_ID_Nk * k_stride[1] + BLOCK_K[None, :] * k_stride[2]
+        v_ptrs = v_ptr + start * v_stride[0] + BLOCK_ID_Nv * v_stride[1] + BLOCK_V[None, :] * v_stride[2]
+
+        h_ptrs = (
+            h_ptr
+            + start * h_stride[0]
+            + BLOCK_ID_N * h_stride[1]
+            + BLOCK_K[:, None] * h_stride[2]
+            + BLOCK_V[None, :] * h_stride[3]
+        )
+    else:
+        k_ptrs = (
+            k_ptr
+            + BLOCK_ID_B * k_stride[0]
+            + BLOCK_S[:, None] * k_stride[1]
+            + BLOCK_ID_Nk * k_stride[2]
+            + BLOCK_K[None, :] * k_stride[3]
+        )
+
+        v_ptrs = (
+            v_ptr
+            + BLOCK_ID_B * v_stride[0]
+            + BLOCK_S[:, None] * v_stride[1]
+            + BLOCK_ID_Nv * v_stride[2]
+            + BLOCK_V[None, :] * v_stride[3]
+        )
+
+        h_ptrs = (
+            h_ptr
+            + BLOCK_ID_B * h_stride[0]
+            + BLOCK_ID_N * h_stride[2]
+            + BLOCK_K[:, None] * h_stride[3]
+            + BLOCK_V[None, :] * h_stride[4]
+        )
+
     NUM_BLOCKS_S = tl.cdiv(S, BLOCK_SIZE_S)
 
     for s in range(NUM_BLOCKS_S):
+        MASK_S = start < end if IS_VARLEN else BLOCK_S < S
+
         if (s > 0 and (s * BLOCK_SIZE_S) % CHUNK_SIZE == 0) or s == NUM_BLOCKS_S - 1:
             tl.store(h_ptrs, h, mask=MASK_KV)
             h_ptrs += h_stride[1]
-
-        MASK_S = BLOCK_S < S
 
         k = tl.load(k_ptrs, mask=MASK_S[:, None] & MASK_K[None, :])
         v = tl.load(v_ptrs, mask=MASK_S[:, None] & MASK_V[None, :])
@@ -111,8 +130,8 @@ def linear_attention_forward_chunked_triton_kernel(
         h = matmul(A=k.T, B=v, C=h)
 
         BLOCK_S += BLOCK_SIZE_S
-        k_ptrs += BLOCK_SIZE_S * k_stride[1]
-        v_ptrs += BLOCK_SIZE_S * v_stride[1]
+        k_ptrs += BLOCK_SIZE_S * k_stride[1 - IS_VARLEN]
+        v_ptrs += BLOCK_SIZE_S * v_stride[1 - IS_VARLEN]
 
 
 @xma_op(mutates_args={"h"})
@@ -154,7 +173,6 @@ def linear_attention_forward_chunked_triton(
             cu_seqlens_stride=None if cu_seqlens is None else cu_seqlens.stride(),
             IS_MAX_SEQLEN_TENSOR=is_max_seqlen_tensor,
             max_seqlen_ptr=max_seqlen_tensor if is_max_seqlen_tensor else max_seqlen,
-            B=B,
             S=S,
             K=K,
             V=V,
