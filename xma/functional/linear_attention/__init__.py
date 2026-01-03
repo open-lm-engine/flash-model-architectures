@@ -30,8 +30,8 @@ class _LinearAttention(CustomOp):
         k: torch.Tensor,
         v: torch.Tensor,
         h0: torch.Tensor | None,
-        cu_seqlens: torch.Tensor | None = None,
-        max_seqlen: torch.Tensor | int | None = None,
+        cu_seqlens: torch.Tensor | None,
+        max_seqlen: torch.Tensor | int | None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         Nq, Nk, Nv, N = _get_num_heads(q=q, k=k, v=v, run_check=False)
 
@@ -135,9 +135,6 @@ def linear_attention(
 
     if input_state is not None:
         assert input_state.size() == (B, N, K, V)
-
-    if gradient_clipping is not None and gradient_clipping < 0:
-        gradient_clipping = -gradient_clipping
 
     output, input_state = _LinearAttention.run(
         q=query,
