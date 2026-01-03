@@ -33,7 +33,7 @@ def _get_autotune_configs() -> list[triton.Config]:
     return configs
 
 
-@triton.autotune(configs=_get_autotune_configs(), key=["BLOCK_SIZE_K", "BLOCK_SIZE_V", "BLOCK_SIZE_S", "CHUNK_SIZE"])
+@triton.autotune(configs=_get_autotune_configs(), key=["CHUNK_SIZE"])
 @triton.jit
 def linear_attention_forward_chunked_triton_kernel(
     k_ptr,
@@ -145,7 +145,7 @@ def linear_attention_forward_chunked_triton_kernel(
 
         if (s > 0 and (s * BLOCK_SIZE_S) % CHUNK_SIZE == 0) or s == NUM_BLOCKS_S - 1:
             tl.store(h_ptrs, h, mask=MASK_KV)
-            h_ptrs += h_stride[1]
+            h_ptrs += h_stride[1 - IS_VARLEN]
 
         k = tl.load(k_ptrs, mask=MASK_S[:, None] & MASK_K[None, :])
         v = tl.load(v_ptrs, mask=MASK_S[:, None] & MASK_V[None, :])
@@ -167,7 +167,7 @@ def linear_attention_forward_chunked_triton(
     cu_seqlens: torch.Tensor | None,
     max_seqlen_tensor: torch.Tensor | None,
     max_seqlen: int | None,
-    CHUNK_SIZE: int | None,
+    CHUNK_SIZE: int,
 ) -> None:
     if cu_seqlens is None:
         assert max_seqlen is None
