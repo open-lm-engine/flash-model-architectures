@@ -57,7 +57,7 @@ class _LinearAttention(CustomOp):
         v = v.repeat_interleave(Gv, dim=-2)
 
         if h0 is None:
-            h0 = torch.zeros(B, S, N, K, V, dtype=q.dtype, device=q.device)
+            h0 = torch.zeros(B, N, K, V, dtype=q.dtype, device=q.device)
 
         if cu_seqlens is not None:
             h0 = h0.clone()
