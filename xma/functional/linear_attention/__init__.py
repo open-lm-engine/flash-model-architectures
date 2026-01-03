@@ -35,7 +35,7 @@ class _LinearAttention(CustomOp):
     ) -> tuple[torch.Tensor, torch.Tensor]:
         Nq, Nk, Nv, N = _get_num_heads(q=q, k=k, v=v, run_check=False)
 
-        y_shape = list(q.size())
+        y_shape = list(v.size())
         y_shape[-2] = N
         y = torch.empty(y_shape, device=q.device, dtype=q.dtype)
 
@@ -75,7 +75,7 @@ class _LinearAttention(CustomOp):
                 unfinished = offset < end
                 offset_unfinished = offset[unfinished]
 
-                h = h0[unfinished, :, None, :] + k[offset_unfinished, ..., None] * v[offset_unfinished, :, None, :]
+                h = h0[unfinished] + k[offset_unfinished, ..., None] * v[offset_unfinished, :, None, :]
                 y[offset_unfinished] = (q[offset_unfinished, :, None, :] @ h).squeeze(-2)
 
                 h0[unfinished] = h
