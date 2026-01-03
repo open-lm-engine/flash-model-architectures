@@ -54,6 +54,7 @@ class LinearAttention(nn.Module):
         kernel_backend: KernelBackend | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         input = self.input_projection(input)
+
         query, key, value = input.split((self.query_size, self.key_size, self.value_size), dim=-1)
 
         query = query.view(*query.size()[:-1], self.num_query_heads, self.key_head_dim)
