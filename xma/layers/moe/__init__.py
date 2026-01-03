@@ -2,6 +2,8 @@
 # Copyright (c) 2025, Mayank Mishra
 # **************************************************
 
+from __future__ import annotations
+
 from typing import Callable
 
 import torch
@@ -10,6 +12,7 @@ import torch.nn.functional as F
 
 from ...accelerator import Accelerator, KernelBackend
 from ...functional import continuous_count
+from ...module import XMAModule
 from ...utils import is_triton_available
 
 
@@ -17,10 +20,10 @@ if is_triton_available():
     from .triton_implementation import scattered_experts
 
 
-class Experts(nn.Module):
+class Experts(XMAModule):
     def __init__(
         self, num_experts: int, in_features: int, out_features: int, add_bias: bool = True, std: float | None = None
-    ) -> None:
+    ) -> Experts:
         super().__init__()
 
         self.weight = nn.Parameter(torch.empty(num_experts, out_features, in_features))
@@ -122,7 +125,7 @@ class Experts(nn.Module):
         self.K_array.fill_(self.in_features)
 
 
-class MoE(nn.Module):
+class MoE(XMAModule):
     def __init__(
         self,
         num_experts: int,
@@ -133,7 +136,7 @@ class MoE(nn.Module):
         is_glu: bool,
         add_bias: bool,
         std: float,
-    ) -> None:
+    ) -> MoE:
         super().__init__()
 
         self.num_experts = num_experts

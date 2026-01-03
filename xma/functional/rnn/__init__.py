@@ -148,6 +148,7 @@ class _RNN(CustomOp):
 
         dx = _get_backward_tensor(y=y, Nx=Nx, N=N)
         dW = zeros_like_contiguous(W, dtype=torch.float32)
+        dh0 = empty_like_contiguous(h0) if h0 is not None and h0.requires_grad else None
 
         rnn_backward_triton(
             W=W,
@@ -156,6 +157,7 @@ class _RNN(CustomOp):
             dy=dy,
             dx=dx,
             dW=dW,
+            dh0=dh0,
             cu_seqlens=cu_seqlens,
             max_seqlen_tensor=max_seqlen_tensor,
             max_seqlen=ctx.max_seqlen,
@@ -165,7 +167,7 @@ class _RNN(CustomOp):
         dx = dx.type_as(y)
         dW = dW.type_as(W)
 
-        return dx, dW, *[None] * 5
+        return dx, dW, dh0, *[None] * 4
 
 
 def rnn(

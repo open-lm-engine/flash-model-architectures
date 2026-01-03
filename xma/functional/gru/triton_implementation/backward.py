@@ -9,7 +9,7 @@ import triton.language as tl
 from ....custom_op import xma_op
 from ....math import ceil_divide, get_next_power_of_2
 from ....triton_utils import clamp, matmul, sigmoid, sigmoid_backward, tanh, tanh_backward
-from ...rnn.triton_implementation.backward import _get_autotune_configs, _load_input_state
+from ...rnn.triton_implementation.backward import _get_autotune_configs
 from ..utils import _get_num_heads
 from .forward import _get_autotune_configs
 
@@ -55,6 +55,8 @@ def gru_backward_triton_kernel(
     dWf_stride,
     dWr_ptr,
     dWr_stride,
+    dh0_ptr,
+    dh0_stride,
     dy_ptr,
     dy_stride,
     cu_seqlens_ptr,
@@ -94,7 +96,7 @@ def gru_backward_triton_kernel(
     MASK_BH = MASK_B[:, None] & MASK_H[None, :]
     MASK_HH = MASK_H[:, None] & MASK_H[None, :]
 
-    dh = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=W_ptr.dtype.element_ty)
+    dh0 = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=W_ptr.dtype.element_ty)
     dW = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
     dWf = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
     dWr = tl.zeros((BLOCK_SIZE_H, BLOCK_SIZE_H), dtype=tl.float32)
@@ -113,6 +115,14 @@ def gru_backward_triton_kernel(
         Wr_ptr + BLOCK_ID_Nwr * Wr_stride[0] + BLOCK_H[:, None] * Wr_stride[1] + BLOCK_H[None, :] * Wr_stride[2],
         mask=MASK_HH,
     )
+
+    if h0_ptr is None:
+        h0 = tl.zeros((BLOCK_SIZE_B, BLOCK_SIZE_H), dtype=W.dtype)
+    else:
+        h0 = tl.load(
+            h0_ptr + BLOCK_B[:, None] * h0_stride[0] + BLOCK_ID_N * h0_stride[1] + BLOCK_H[None, :] * h0_stride[2],
+            mask=MASK_BH,
+        )
 
     IS_VARLEN: tl.constexpr = cu_seqlens_ptr is not None
 
@@ -147,20 +157,6 @@ def gru_backward_triton_kernel(
         dxf_ptrs = dxf_ptr + end * dxf_stride[0] + BLOCK_ID_Nxf * dxf_stride[1] + BLOCK_H[None, :] * dxf_stride[2]
         dxr_ptrs = dxr_ptr + end * dxr_stride[0] + BLOCK_ID_Nxr * dxr_stride[1] + BLOCK_H[None, :] * dxr_stride[2]
         dy_ptrs = dy_ptr + end * dy_stride[0] + BLOCK_ID_N * dy_stride[1] + BLOCK_H[None, :] * dy_stride[2]
-
-        # load before for varlen to avoid loading in the tl.where since it executes both paths
-        if IS_VARLEN:
-            h0 = _load_input_state(
-                h0_ptr=h0_ptr,
-                h0_stride=h0_stride,
-                BLOCK_ID_N=BLOCK_ID_N,
-                BLOCK_B=BLOCK_B,
-                BLOCK_H=BLOCK_H,
-                MASK_BH=MASK_BH,
-                BLOCK_SIZE_B=BLOCK_SIZE_B,
-                BLOCK_SIZE_H=BLOCK_SIZE_H,
-                dtype=W.dtype,
-            )
     else:
         if z_ptr is None:
             tl.static_assert(x_ptr is not None)
@@ -258,6 +254,7 @@ def gru_backward_triton_kernel(
 
     # backward counting reduces 1 instruction since we need to compare s == 0, otherwise we have to compare s == S - 1
     for s in range(S - 1, -1, -1):
+        dh = dh0
         if gradient_clipping is not None:
             dh = clamp(dh, min_value=-gradient_clipping, max_value=gradient_clipping)
 
@@ -266,20 +263,8 @@ def gru_backward_triton_kernel(
 
         if IS_VARLEN:
             y_prev = tl.where(end > start, tl.load(y_ptrs, mask=MASK), h0)
-            # to prevent accumulation of dW when sequence is exhausted
-            y_prev = tl.where(MASK, y_prev, 0)
         elif s == 0:
-            y_prev = _load_input_state(
-                h0_ptr=h0_ptr,
-                h0_stride=h0_stride,
-                BLOCK_ID_N=BLOCK_ID_N,
-                BLOCK_B=BLOCK_B,
-                BLOCK_H=BLOCK_H,
-                MASK_BH=MASK_BH,
-                BLOCK_SIZE_B=BLOCK_SIZE_B,
-                BLOCK_SIZE_H=BLOCK_SIZE_H,
-                dtype=W.dtype,
-            )
+            y_prev = h0
         else:
             y_prev = tl.load(y_ptrs, mask=MASK)
 
@@ -311,6 +296,10 @@ def gru_backward_triton_kernel(
 
         dx = dz * tanh_backward(z)
         drh = matmul(A=dx, B=W.T, C=None, output_dtype=dx.dtype)
+
+        if IS_VARLEN:
+            y_prev = tl.where(MASK, y_prev, 0)
+
         dW = matmul(A=(r * y_prev).T, B=dx, C=dW, output_dtype=dW.dtype)
 
         if Gx == 1:
@@ -332,6 +321,8 @@ def gru_backward_triton_kernel(
         dxr = drh * y_prev * sigmoid_backward(r)
         dh = matmul(A=dxr, B=Wr.T, C=dh, output_dtype=dx.dtype)
         dWr = matmul(A=y_prev.T, B=dxr, C=dWr, output_dtype=dW.dtype)
+
+        dh0 = tl.where(MASK, dh, dh0) if IS_VARLEN else dh
 
         if Gxr == 1:
             tl.store(dxr_ptrs, dxr, mask=MASK)
@@ -362,6 +353,13 @@ def gru_backward_triton_kernel(
         if IS_VARLEN:
             end -= 1
 
+    if dh0_ptr is not None:
+        tl.store(
+            dh0_ptr + BLOCK_B[:, None] * dh0_stride[0] + BLOCK_ID_N * dh0_stride[1] + BLOCK_H[None, :] * dh0_stride[2],
+            dh0,
+            mask=MASK_BH,
+        )
+
     tl.atomic_add(
         dW_ptr + BLOCK_ID_Nw * dW_stride[0] + BLOCK_H[:, None] * dW_stride[1] + BLOCK_H[None, :] * dW_stride[2],
         dW,
@@ -384,7 +382,7 @@ def gru_backward_triton_kernel(
     )
 
 
-@xma_op(mutates_args={"dxf", "dWf", "dxr", "dWr", "dx", "dW"})
+@xma_op(mutates_args={"dxf", "dWf", "dxr", "dWr", "dx", "dW", "dh0"})
 def gru_backward_triton(
     x: torch.Tensor | None,
     W: torch.Tensor,
@@ -404,6 +402,7 @@ def gru_backward_triton(
     dy: torch.Tensor,
     dx: torch.Tensor,
     dW: torch.Tensor,
+    dh0: torch.Tensor | None,
     cu_seqlens: torch.Tensor | None,
     max_seqlen_tensor: torch.Tensor | None,
     max_seqlen: int | None,
@@ -462,6 +461,8 @@ def gru_backward_triton(
             dWf_stride=dWf.stride(),
             dWr_ptr=dWr,
             dWr_stride=dWr.stride(),
+            dh0_ptr=dh0,
+            dh0_stride=None if dh0 is None else dh0.stride(),
             dy_ptr=dy,
             dy_stride=dy.stride(),
             cu_seqlens_ptr=cu_seqlens,
