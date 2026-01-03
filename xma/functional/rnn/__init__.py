@@ -200,7 +200,8 @@ def rnn(
     :type max_seqlen: torch.Tensor | int | None
     :param kernel_backend: KernelBackend
     :type kernel_backend: KernelBackend | None
-    :return: output tensor of shape (B, S, N, H) if `cu_seqlens` is None else (T, N, H)
+    :return: output tensor of shape (B, S, N, H) if `cu_seqlens` is None else (T, N, H) and output state of
+        shape (B, N, H).
     :rtype: tuple[Tensor, Tensor]
     """
 
