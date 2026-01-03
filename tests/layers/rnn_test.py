@@ -373,17 +373,18 @@ class RNNTest(TestCommons):
                         rtol_bfloat16=0,
                     )
 
-                self.assert_equal_tensors(
-                    weight_kernel_grads["state_weight"],
-                    weight_torch_grads["state_weight"],
-                    False,
-                    atol_float32=2.2e-4,
-                    rtol_float32=0,
-                    atol_float16=3.1e-4,
-                    rtol_float16=0,
-                    atol_bfloat16=3.5e-3,
-                    rtol_bfloat16=0,
-                )
+                for weight_name in weight_kernel_grads:
+                    self.assert_equal_tensors(
+                        weight_kernel_grads[weight_name],
+                        weight_torch_grads[weight_name],
+                        False,
+                        atol_float32=2.2e-4,
+                        rtol_float32=0,
+                        atol_float16=3.1e-4,
+                        rtol_float16=0,
+                        atol_bfloat16=3.5e-3,
+                        rtol_bfloat16=0,
+                    )
 
     def _get_packed_tensor_inputs(
         self,
