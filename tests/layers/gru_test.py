@@ -17,9 +17,9 @@ _SEED = 42
 
 
 def _get_problem_shapes() -> list[tuple[int, int, int, int, int, int, int]]:
-    base = [8, 8, 8, 8, 8, 8, 8]
-
     result = [(9, 7, 7, 7, 7, 7, 7)]
+
+    base = [8, 8, 8, 8, 8, 8, 8]
     for i in range(1, len(base)):
         t = base.copy()
         t[i] = 4

@@ -15,6 +15,18 @@ from ..test_commons import TestCommons
 _SEED = 42
 
 
+def _get_problem_shapes() -> list[tuple[int, int, int, int, int, int, int]]:
+    result = [7, 9, 3, 3, 3]
+
+    base = [8, 4, 3, 3, 3]
+    for i in range(2, len(base)):
+        t = base.copy()
+        t[i] = 6
+        result.append(tuple(t))
+
+    return result
+
+
 class LinearAttentionTest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(
@@ -22,7 +34,7 @@ class LinearAttentionTest(TestCommons):
             [torch.float32, torch.bfloat16],
             [4],  # batch_size
             [1024],  # sequence_length
-            _get_problem_shapes(),  # problem_shapes
+            _get_problem_shapes(),  # problem_shape
             [False, True],  # has_input_state
             [False],  # is_compiling
             [True],  # no_grad
@@ -151,11 +163,7 @@ class LinearAttentionTest(TestCommons):
             [KernelBackend.torch],  # KernelBackend
             TestCommons.get_dtypes(),  # dtype
             [[0, 7, 19, 27, 93]],  # cu_seqlens
-            [
-                (8, 4, 3, 3, 3),
-                (8, 4, 3, 3, 3),
-                (8, 4, 3, 3, 3),
-            ],  # key_head_dim, value_head_dim, num_query_heads, num_key_heads, num_value_heads
+            [(8, 4, 3, 3, 3)],  # problem_shape
             [False, True],  # has_input_state
         )
     )
