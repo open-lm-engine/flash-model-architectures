@@ -6,6 +6,7 @@ import torch
 
 from ...accelerator import KernelBackend
 from ...custom_op import CustomOp
+from ...math import ceil_divide
 from ...utils import get_max_seqlen_and_max_seqlen_tensor
 from .triton_implementation import linear_attention_forward_chunked_triton
 from .utils import _get_num_heads
@@ -90,10 +91,9 @@ class _LinearAttention(CustomOp):
 
         B, S, _, K = k.size()
         V = v.size(-1)
+        NUM_CHUNKS = ceil_divide(S, CHUNK_SIZE)
 
-        NUM_CHUNKS = S // CHUNK_SIZE
-
-        h = torch.empty(B, NUM_CHUNKS + 1 - int(S % CHUNK_SIZE == 0), N, K, V, dtype=k.dtype, device=k.device)
+        h = torch.empty(B, NUM_CHUNKS, N, K, V, dtype=k.dtype, device=k.device)
 
         linear_attention_forward_chunked_triton(
             k=k,
