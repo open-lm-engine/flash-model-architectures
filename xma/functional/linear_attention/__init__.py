@@ -46,8 +46,7 @@ class _LinearAttention(CustomOp):
         k = k.repeat_interleave(Gk, dim=-2)
         v = v.repeat_interleave(Gv, dim=-2)
 
-        if h0 is None:
-            h0 = torch.zeros(B, N, K, V, dtype=q.dtype, device=q.device)
+        h0 = torch.zeros(B, N, K, V, dtype=torch.float32, device=q.device) if h0 is None else h0.float()
 
         if cu_seqlens is not None:
             h0 = h0.clone()
@@ -57,7 +56,7 @@ class _LinearAttention(CustomOp):
         for s in range(S):
             if cu_seqlens is None:
                 h = h0 + k[:, s, ..., None] * v[:, s, :, None, :]
-                y[:, s] = (q[:, s, :, None, :] @ h).squeeze(-2)
+                y[:, s] = (q[:, s, :, None, :] @ h.type_as(q)).squeeze(-2)
 
                 h0 = h
             else:
@@ -66,7 +65,7 @@ class _LinearAttention(CustomOp):
                 offset_unfinished = offset[unfinished]
 
                 h = h0[unfinished] + k[offset_unfinished, ..., None] * v[offset_unfinished, :, None, :]
-                y[offset_unfinished] = (q[offset_unfinished, :, None, :] @ h).squeeze(-2)
+                y[offset_unfinished] = (q[offset_unfinished, :, None, :] @ h.type_as(q)).squeeze(-2)
 
                 h0[unfinished] = h
 
