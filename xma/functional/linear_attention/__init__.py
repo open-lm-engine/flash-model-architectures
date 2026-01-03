@@ -90,7 +90,9 @@ class _LinearAttention(CustomOp):
         B, S, _, K = k.size()
         V = v.size(-1)
 
-        h = torch.empty(B, S // NUM_CHUNKS, N, K, V, dtype=q.dtype, device=q.device)
+        NUM_CHUNKS = S // CHUNK_SIZE
+
+        h = torch.empty(B, NUM_CHUNKS + 1 - int(S % CHUNK_SIZE == 0), N, K, V, dtype=k.dtype, device=k.device)
 
         linear_attention_forward_chunked_triton(
             k=k,
