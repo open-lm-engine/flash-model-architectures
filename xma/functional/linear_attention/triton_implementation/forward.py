@@ -101,7 +101,7 @@ def linear_attention_forward_chunked_triton_kernel(
         start = tl.load(cu_seqlens_ptrs)
         end = tl.load(cu_seqlens_ptrs + cu_seqlens_stride[0])
 
-        S = tl.load(max_seqlen_ptr) if IS_MAX_SEQLEN_TENSOR else max_seqlen_ptr
+        S = end - start
 
         k_ptrs = k_ptr + start * k_stride[0] + BLOCK_ID_Nk * k_stride[1] + BLOCK_K[None, :] * k_stride[2]
         v_ptrs = v_ptr + start * v_stride[0] + BLOCK_ID_Nv * v_stride[1] + BLOCK_V[None, :] * v_stride[2]
@@ -141,7 +141,7 @@ def linear_attention_forward_chunked_triton_kernel(
     NUM_BLOCKS_S = tl.cdiv(S, BLOCK_SIZE_S)
 
     for s in range(NUM_BLOCKS_S):
-        MASK_S = start < end if IS_VARLEN else BLOCK_S < S
+        MASK_S = BLOCK_S < S
 
         if (s > 0 and (s * BLOCK_SIZE_S) % CHUNK_SIZE == 0) or s == NUM_BLOCKS_S - 1:
             tl.store(h_ptrs, h, mask=MASK_KV)
