@@ -83,6 +83,8 @@ class _LinearAttention(CustomOp):
         CHUNK_SIZE: int,
         kernel_backend: KernelBackend | None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
+        assert kernel_backend in [KernelBackend.cuda, KernelBackend.triton]
+
         Nq, Nk, Nv, N = _get_num_heads(q=q, k=k, v=v, run_check=False)
         max_seqlen_tensor, max_seqlen = get_max_seqlen_and_max_seqlen_tensor(max_seqlen)
 
