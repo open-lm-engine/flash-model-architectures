@@ -35,7 +35,7 @@ class LinearAttentionTest(TestCommons):
         kernel_backend: KernelBackend,
         dtype: torch.dtype,
         cu_seqlens: list[int],
-        snn: tuple[int, int, int],
+        problem_shape: tuple[int, int, int, int, int],
         has_input_state: bool,
     ) -> None:
         if Accelerator.get_accelerator() != Accelerator.cuda:
@@ -50,9 +50,9 @@ class LinearAttentionTest(TestCommons):
         cu_seqlens = torch.tensor(cu_seqlens, device=device)
         max_seqlen = (cu_seqlens[1:] - cu_seqlens[:-1]).max()
 
-        state_head_dim, num_input_heads, num_weight_heads = snn
-        num_heads = max(num_input_heads, num_weight_heads)
-        state_size = state_head_dim * num_heads
+        key_head_dim, value_head_dim, num_query_heads, num_key_heads, num_value_heads = problem_shape
+        num_heads = max(num_query_heads, num_key_heads, num_value_heads)
+        state_size = num_heads * key_head_dim * value_head_dim
 
         x_packed_kernel, x_packed_torch, input_state_kernel, input_state_torch = self._get_packed_tensor_inputs(
             batch_size=batch_size,
@@ -67,17 +67,18 @@ class LinearAttentionTest(TestCommons):
         with torch.device(device):
             linear_attention = LinearAttention(
                 input_size=state_size,
-                state_head_dim=state_head_dim,
+                key_head_dim=key_head_dim,
+                value_head_dim=value_head_dim,
                 output_size=state_size,
-                num_input_heads=num_input_heads,
-                num_weight_heads=num_weight_heads,
+                num_query_heads=num_query_heads,
+                num_key_heads=num_key_heads,
+                num_value_heads=num_value_heads,
                 add_bias=False,
-                gradient_clipping=None,
             ).to(dtype)
 
             nn.init.normal_(linear_attention.state_weight, std=0.1)
 
-        y_kernel, _ = rnn(
+        y_kernel, _ = linear_attention(
             input=x_packed_kernel,
             input_state=input_state_kernel,
             cu_seqlens=cu_seqlens,
@@ -87,7 +88,7 @@ class LinearAttentionTest(TestCommons):
 
         y_torch = []
         for i in range(batch_size):
-            y, _ = rnn(
+            y, _ = linear_attention(
                 input=x_packed_torch[cu_seqlens[i] : cu_seqlens[i + 1]].unsqueeze(0),
                 input_state=input_state_torch[i].unsqueeze(0) if has_input_state else None,
                 kernel_backend=KernelBackend.torch,
