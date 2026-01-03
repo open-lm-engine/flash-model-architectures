@@ -14,7 +14,7 @@ import os
 import sys
 
 
-sys.path.insert(0, os.path.abspath("../xma"))
+sys.path.insert(0, os.path.abspath(".."))
 
 project = "XMA"
 copyright = "2026, Mayank Mishra"
