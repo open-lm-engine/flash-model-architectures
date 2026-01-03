@@ -80,22 +80,21 @@ def group(
 
     grid = lambda meta: (triton.cdiv(meta["N"], meta["BLOCK_N"]),)
 
-    with torch.device(A.device):
-        group_triton_kernel[grid](
-            # A_ptr, stride_an, stride_ai,
-            A,
-            A.stride(0),
-            A.stride(1),
-            coeff is not None,
-            coeff,
-            fan_out,
-            # Y_ptr, stride_yn, stride_yk,
-            out,
-            out.stride(0),
-            out.stride(1),
-            # grouped_idx_ptr,
-            sorted_expert_idxs,
-            # N: tl.constexpr, K: tl.constexpr,
-            N,
-            K,
-        )
+    group_triton_kernel[grid](
+        # A_ptr, stride_an, stride_ai,
+        A,
+        A.stride(0),
+        A.stride(1),
+        coeff is not None,
+        coeff,
+        fan_out,
+        # Y_ptr, stride_yn, stride_yk,
+        out,
+        out.stride(0),
+        out.stride(1),
+        # grouped_idx_ptr,
+        sorted_expert_idxs,
+        # N: tl.constexpr, K: tl.constexpr,
+        N,
+        K,
+    )

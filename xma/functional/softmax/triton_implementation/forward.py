@@ -93,15 +93,14 @@ def softmax_forward_triton(x: torch.Tensor, y: torch.Tensor, logits_multiplier: 
     BLOCK_SIZE_B = 1
     BLOCK_SIZE_H = min(get_next_power_of_2(H), 4096 if x.dtype == torch.float32 else 8192)
 
-    with torch.device(x.device):
-        softmax_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](
-            x_ptr=x,
-            x_stride=x.stride(),
-            y_ptr=y,
-            y_stride=y.stride(),
-            logits_multiplier=logits_multiplier,
-            B=B,
-            H=H,
-            BLOCK_SIZE_B=BLOCK_SIZE_B,
-            BLOCK_SIZE_H=BLOCK_SIZE_H,
-        )
+    softmax_forward_triton_kernel[ceil_divide(B, BLOCK_SIZE_B),](
+        x_ptr=x,
+        x_stride=x.stride(),
+        y_ptr=y,
+        y_stride=y.stride(),
+        logits_multiplier=logits_multiplier,
+        B=B,
+        H=H,
+        BLOCK_SIZE_B=BLOCK_SIZE_B,
+        BLOCK_SIZE_H=BLOCK_SIZE_H,
+    )

@@ -127,18 +127,17 @@ def cross_entropy_forward_backward_triton(
     BLOCK_SIZE_V = min(get_next_power_of_2(V), 4096 if x.dtype == torch.float32 else 8192)
     GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]),)
 
-    with torch.device(x.device):
-        cross_entropy_forward_backward_triton_kernel[GRID](
-            x_ptr=x,
-            x_stride=x.stride(),
-            y_ptr=labels,
-            y_stride=labels.stride(),
-            l_ptr=loss,
-            dx_ptr=x_grad,
-            dx_stride=None if x_grad is None else x_grad.stride(),
-            logits_multiplier=logits_multiplier,
-            B=B,
-            V=V,
-            reduction=reduction,
-            BLOCK_SIZE_V=BLOCK_SIZE_V,
-        )
+    cross_entropy_forward_backward_triton_kernel[GRID](
+        x_ptr=x,
+        x_stride=x.stride(),
+        y_ptr=labels,
+        y_stride=labels.stride(),
+        l_ptr=loss,
+        dx_ptr=x_grad,
+        dx_stride=None if x_grad is None else x_grad.stride(),
+        logits_multiplier=logits_multiplier,
+        B=B,
+        V=V,
+        reduction=reduction,
+        BLOCK_SIZE_V=BLOCK_SIZE_V,
+    )
