@@ -22,11 +22,15 @@ class LinearAttentionTest(TestCommons):
             [KernelBackend.torch],  # KernelBackend
             TestCommons.get_dtypes(),  # dtype
             [[0, 7, 19, 27, 93]],  # cu_seqlens
-            [(8, 4, 8), (8, 8, 4), (9, 7, 7)],  # state_head_dim, num_input_heads, num_weight_heads
+            [
+                (8, 4, 3, 3, 3),
+                (8, 4, 3, 3, 3),
+                (8, 4, 3, 3, 3),
+            ],  # key_head_dim, value_head_dim, num_query_heads, num_key_heads, num_value_heads
             [False, True],  # has_input_state
         )
     )
-    def test_rnn_varlen_torch(
+    def test_linear_attention_varlen_torch(
         self,
         kernel_backend: KernelBackend,
         dtype: torch.dtype,
