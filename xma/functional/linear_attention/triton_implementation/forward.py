@@ -106,13 +106,14 @@ def linear_attention_forward_chunked_triton_kernel(
         k_ptrs = k_ptr + BLOCK[:, None] * k_stride[0] + BLOCK_ID_Nk * k_stride[1] + BLOCK_K[None, :] * k_stride[2]
         v_ptrs = v_ptr + BLOCK[:, None] * v_stride[0] + BLOCK_ID_Nv * v_stride[1] + BLOCK_V[None, :] * v_stride[2]
 
-        h_ptrs = (
-            h_ptr
-            + BLOCK[:, None] * h_stride[0]
-            + BLOCK_ID_N * h_stride[1]
-            + BLOCK_K[:, None] * h_stride[2]
-            + BLOCK_V[None, :] * h_stride[3]
-        )
+        if h_ptr is not None:
+            h_ptrs = (
+                h_ptr
+                + BLOCK[:, None] * h_stride[0]
+                + BLOCK_ID_N * h_stride[1]
+                + BLOCK_K[:, None] * h_stride[2]
+                + BLOCK_V[None, :] * h_stride[3]
+            )
     else:
         k_ptrs = (
             k_ptr
@@ -130,13 +131,14 @@ def linear_attention_forward_chunked_triton_kernel(
             + BLOCK_V[None, :] * v_stride[3]
         )
 
-        h_ptrs = (
-            h_ptr
-            + BLOCK_ID_B * h_stride[0]
-            + BLOCK_ID_N * h_stride[2]
-            + BLOCK_K[:, None] * h_stride[3]
-            + BLOCK_V[None, :] * h_stride[4]
-        )
+        if h_ptr is not None:
+            h_ptrs = (
+                h_ptr
+                + BLOCK_ID_B * h_stride[0]
+                + BLOCK_ID_N * h_stride[2]
+                + BLOCK_K[:, None] * h_stride[3]
+                + BLOCK_V[None, :] * h_stride[4]
+            )
 
     NUM_BLOCKS_S = tl.cdiv(S, BLOCK_SIZE_S)
 
@@ -148,7 +150,7 @@ def linear_attention_forward_chunked_triton_kernel(
 
         h = matmul(A=k.T, B=v, C=h, output_dtype=h.dtype)
 
-        if (s * BLOCK_SIZE_S) % CHUNK_SIZE == 0 or s == NUM_BLOCKS_S:
+        if h_ptr is not None and ((s * BLOCK_SIZE_S) % CHUNK_SIZE == 0 or s == NUM_BLOCKS_S):
             tl.store(h_ptrs, h, mask=MASK_KV)
             h_ptrs += h_stride[1 - IS_VARLEN]
 
@@ -205,7 +207,7 @@ def linear_attention_forward_chunked_triton(
             h0_ptr=h0,
             h0_stride=None if h0 is None else h0.stride(),
             h_ptr=h,
-            h_stride=h.stride(),
+            h_stride=None if h is None else h.stride(),
             ht_ptr=ht,
             ht_stride=ht.stride(),
             cu_seqlens_ptr=cu_seqlens,
