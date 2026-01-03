@@ -183,7 +183,7 @@ def linear_attention_forward_chunked_triton(
 
     is_max_seqlen_tensor = max_seqlen_tensor is not None
 
-    GRID = lambda meta: (N, ceil_divide(B, meta["BLOCK_SIZE_B"]))
+    GRID = lambda meta: (B * N, ceil_divide(K, meta["BLOCK_SIZE_K"]), ceil_divide(V, meta["BLOCK_SIZE_V"]))
 
     with torch.device(k.device):
         linear_attention_forward_chunked_triton_kernel[GRID](
