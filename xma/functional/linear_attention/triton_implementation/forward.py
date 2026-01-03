@@ -7,10 +7,33 @@ import triton
 import triton.language as tl
 
 from ....custom_op import xma_op
-from ....math import ceil_divide
+from ....math import ceil_divide, get_powers_of_2
 from ....triton_utils import matmul
 
 
+def _get_autotune_configs() -> list[triton.Config]:
+    configs = []
+    for num_warps in get_powers_of_2(4, 8):
+        for num_stages in range(1, 5):
+            for BLOCK_SIZE_K in get_powers_of_2(16, 128):
+                for BLOCK_SIZE_V in get_powers_of_2(16, 128):
+                    for BLOCK_SIZE_S in get_powers_of_2(16, 64):
+                        configs.append(
+                            triton.Config(
+                                {
+                                    "BLOCK_SIZE_K": BLOCK_SIZE_K,
+                                    "BLOCK_SIZE_V": BLOCK_SIZE_V,
+                                    "BLOCK_SIZE_S": BLOCK_SIZE_S,
+                                },
+                                num_stages=num_stages,
+                                num_warps=num_warps,
+                            )
+                        )
+
+    return configs
+
+
+@triton.autotune(configs=_get_autotune_configs(), key=[])
 @triton.jit
 def linear_attention_forward_chunked_triton_kernel(
     k_ptr,
