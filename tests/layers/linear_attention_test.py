@@ -239,7 +239,15 @@ class LinearAttentionTest(TestCommons):
         y_torch.sum().backward()
         weight_torch_grads = self.collect_gradients_from_module_and_zero_grads(linear_attention)
 
-        self.assert_equal_tensors(x_packed_kernel.grad, x_packed_torch.grad, False, atol_float32=2e-5, rtol_float32=0)
+        self.assert_equal_tensors(
+            x_packed_kernel.grad,
+            x_packed_torch.grad,
+            False,
+            atol_float32=2e-5,
+            rtol_float32=0,
+            atol_bfloat16=2.5e-4,
+            rtol_bfloat16=0,
+        )
 
         for weight_name in weight_kernel_grads:
             self.assert_equal_tensors(
