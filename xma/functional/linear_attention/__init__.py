@@ -69,7 +69,7 @@ class _LinearAttention(CustomOp):
 
                 h0[unfinished] = h
 
-        return y, h
+        return y, h0
 
     @staticmethod
     def forward(
