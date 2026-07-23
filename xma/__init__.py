@@ -5,7 +5,7 @@
 from .accelerator import Accelerator, KernelBackend
 from .counters import enable_counters, get_counter_value, reset_counters
 from .math import ceil_divide, divide_if_divisible, get_powers_of_2
-from .utils import get_ptx_from_triton_kernel, is_jax_available, is_torch_available
+from .utils import get_ptx_from_triton_kernel, is_jax_available, is_torch_available, set_seed
 
 
 if is_jax_available():
@@ -31,4 +31,3 @@ if is_torch_available():
     from .inductor import enable_kernels
     from .layers import GRU, M2RNN, RNN, LinearAttention, MoE, gru, linear_attention, m2rnn, rnn
     from .optimizers import SGD, sgd
-    from .utils import is_jax_available, is_torch_available, set_seed
