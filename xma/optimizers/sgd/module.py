@@ -5,16 +5,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Callable, Iterable, TypeAlias
 
 import torch
 from torch.optim import SGD
 
 from ...accelerator import KernelBackend
 from .op import sgd
-
-
-ParamsT: TypeAlias = Iterable[torch.Tensor] | Iterable[dict[str, Any]] | Iterable[tuple[str, torch.Tensor]]
 
 
 @dataclass
@@ -34,12 +30,7 @@ class SGD:
         self.param_groups = param_groups
 
     @torch.no_grad()
-    def step(self, closure: Callable | None = None, *, kernel_backend: KernelBackend | None = None) -> None:
-        loss = None
-        if closure is not None:
-            with torch.enable_grad():
-                loss = closure()
-
+    def step(self, kernel_backend: KernelBackend | None = None) -> None:
         for group in self.param_groups:
             params = []
             grads = []
@@ -68,5 +59,3 @@ class SGD:
             if group["momentum"] != 0:
                 for p, m in zip(params, momentum_buffer_list, strict=True):
                     self.state[p]["momentum_buffer"] = m
-
-        return loss
