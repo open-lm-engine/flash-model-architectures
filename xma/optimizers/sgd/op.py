@@ -22,7 +22,7 @@ _FUNCTIONS = {KernelBackend.cuda: _sgd_triton, KernelBackend.triton: _sgd_triton
 def sgd(
     params: list[torch.Tensor],
     grads: list[torch.Tensor],
-    momentum_buffer_list: list[torch.Tensor],
+    momentum_buffer_list: list[torch.Tensor | None],
     lr: float,
     weight_decay: float,
     momentum: float,

@@ -4,25 +4,35 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import torch
 from torch.optim import SGD
 
 from ...accelerator import KernelBackend
+from ...utils import zeros_like_contiguous
 from .op import sgd
 
 
 @dataclass
 class SGDParamsGroup:
     params: dict[str, torch.Tensor]
-    momentum_buffers: dict[str, torch.Tensor] | None
     lr: float
     momentum: float
     dampening: float
     weight_decay: float
     nesterov: bool
     maximize: bool
+    _lazy_init: bool = False
+    step: int = 0
+    momentum_buffers: dict[str, torch.Tensor | None] = field(init=False)
+
+    def __post_init__(self) -> None:
+        if self.momentum == 0 or self._lazy_init:
+            return
+
+        for name, W in self.params.items():
+            self.momentum_buffers[name] = zeros_like_contiguous(W, dtype=torch.float32)
 
     def get_params_for_optimization(self) -> tuple[list[torch.Tensor], list[torch.Tensor], list[torch.Tensor] | None]:
         params = []
@@ -34,9 +44,20 @@ class SGDParamsGroup:
 
             params.append(W)
             grads.append(W.grad)
-            momentum_buffer_list.append(None if self.momentum == 0 else self.momentum_buffers[name])
+
+            if self._lazy_init:
+                M = self.momentum_buffers.get(name)
+                if M is None:
+                    M = zeros_like_contiguous(W, dtype=torch.float32)
+                    self.momentum_buffers[name] = M
+
+            momentum_buffer_list.append(self.momentum_buffers[name])
 
         return params, grads, momentum_buffer_list
+
+    def increment_step(self) -> int:
+        self.step += 1
+        return self.step
 
 
 class SGD:
@@ -47,6 +68,7 @@ class SGD:
     def step(self, kernel_backend: KernelBackend | None = None) -> None:
         for group in self.param_groups:
             params, grads, momentum_buffer_list = group.get_params_for_optimization()
+            group.increment_step()
 
             sgd(
                 params=params,
