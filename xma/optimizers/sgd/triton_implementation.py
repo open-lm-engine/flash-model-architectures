@@ -187,20 +187,10 @@ def _sgd_triton(
     dampening: float,
     nesterov: bool,
     maximize: bool,
+    step: int,
 ) -> None:
     if len(params) == 0:
         return
-
-    is_first_step = False
-    if momentum == 0:
-        assert len(momentum_buffer_list) == 0
-        momentum_buffer_list = [None] * len(params)
-    elif momentum_buffer_list[0] is None:
-        assert all([m is None for m in momentum_buffer_list])
-        is_first_step = True
-
-        for i, p in enumerate(params):
-            momentum_buffer_list[i] = torch.empty_like(p, dtype=torch.float32)
 
     is_dtensor = isinstance(params[0], DTensor)
 
@@ -237,5 +227,5 @@ def _sgd_triton(
             dampening=dampening,
             nesterov=nesterov,
             maximize=maximize,
-            is_first_step=is_first_step,
+            is_first_step=step == 1,
         )

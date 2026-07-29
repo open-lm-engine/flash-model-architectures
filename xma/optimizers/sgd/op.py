@@ -29,6 +29,7 @@ def sgd(
     dampening: float,
     nesterov: bool,
     maximize: bool,
+    step: int,
     *,
     kernel_backend: KernelBackend | None = None,
 ) -> None:
@@ -50,4 +51,5 @@ def sgd(
         dampening=dampening,
         nesterov=nesterov,
         maximize=maximize,
+        step=step,
     )
