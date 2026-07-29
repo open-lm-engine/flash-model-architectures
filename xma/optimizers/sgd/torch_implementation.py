@@ -28,8 +28,8 @@ def _sgd_torch(
         device_grads_,
         device_momentum_buffer_list,
     ), indices in grouped_tensors.values():
-        device_params: list[Tensor] = cast(list[Tensor], device_params_)
-        device_grads: list[Tensor] = cast(list[Tensor], device_grads_)
+        device_params: list[torch.Tensor] = device_params_
+        device_grads: list[torch.Tensor] = device_grads_
 
         if maximize:
             device_grads = torch._foreach_neg(device_grads)  # type: ignore[assignment]
@@ -76,9 +76,4 @@ def _sgd_torch(
             else:
                 device_grads = bufs
 
-        # handle internal item() call if lr is a tensor
-        if isinstance(lr, torch.Tensor) and torch.compiler.is_compiling():
-            grads_x_lr = torch._foreach_mul(device_grads, -lr)
-            torch._foreach_add_(device_params, grads_x_lr)
-        else:
-            torch._foreach_add_(device_params, device_grads, alpha=-lr)
+        torch._foreach_add_(device_params, device_grads, alpha=-lr)
