@@ -24,6 +24,20 @@ class SGDParamsGroup:
     nesterov: bool
     maximize: bool
 
+    def get_params_for_optimization(self) -> tuple[list[torch.Tensor], list[torch.Tensor], list[torch.Tensor] | None]:
+        params = []
+        grads = []
+        momentum_buffer_list = []
+        for name, W in self.params.items():
+            if W.grad is None:
+                continue
+
+            params.append(W)
+            grads.append(W.grad)
+            momentum_buffer_list.append(None if self.momentum == 0 else self.momentum_buffers[name])
+
+        return params, grads, momentum_buffer_list
+
 
 class SGD:
     def __init__(self, param_groups: list[SGDParamsGroup]) -> SGD:
@@ -32,16 +46,7 @@ class SGD:
     @torch.no_grad()
     def step(self, kernel_backend: KernelBackend | None = None) -> None:
         for group in self.param_groups:
-            params = []
-            grads = []
-            momentum_buffer_list = []
-            for name, W in group.params.items():
-                if W.grad is None:
-                    continue
-
-                params.append(W)
-                grads.append(W.grad)
-                momentum_buffer_list.append(group.momentum_buffers[name])
+            params, grads, momentum_buffer_list = group.get_params_for_optimization()
 
             sgd(
                 params=params,
