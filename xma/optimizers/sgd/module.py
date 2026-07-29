@@ -60,7 +60,3 @@ class SGD:
                 maximize=group.maximize,
                 kernel_backend=kernel_backend,
             )
-
-            if group["momentum"] != 0:
-                for p, m in zip(params, momentum_buffer_list, strict=True):
-                    self.state[p]["momentum_buffer"] = m
