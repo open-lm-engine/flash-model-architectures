@@ -5,14 +5,13 @@
 from __future__ import annotations
 
 import torch
-from torch.distributed.tensor import DTensor
 
 from ...accelerator import Accelerator, KernelBackend
 from ...utils import is_triton_available
 
 
 if is_triton_available():
-    from .triton_implementation import _single_tensor_sgd_triton
+    from .triton_implementation import _sgd_triton
 
 
 @torch.no_grad()
@@ -38,54 +37,17 @@ def sgd(
         assert kernel_backend.verify_accelerator()
 
     if kernel_backend in [KernelBackend.cuda, KernelBackend.triton]:
-        is_first_step = False
-        if momentum == 0:
-            assert len(momentum_buffer_list) == 0
-            momentum_buffer_list = [None] * len(params)
-        elif momentum_buffer_list[0] is None:
-            assert all([m is None for m in momentum_buffer_list])
-            is_first_step = True
-
-            for i, p in enumerate(params):
-                momentum_buffer_list[i] = torch.empty_like(p, dtype=torch.float32)
-
-        is_dtensor = isinstance(params[0], DTensor)
-
-        if is_dtensor:
-            for W, dW, M in zip(params, grads, momentum_buffer_list):
-                assert isinstance(dW, DTensor)
-                assert W.placements == dW.placements
-
-                if M is not None:
-                    assert isinstance(M, DTensor)
-                    assert W.placements == M.placements
-
-        for W, dW, M in zip(params, grads, momentum_buffer_list):
-            assert W.is_contiguous()
-            dW = dW.contiguous()
-
-            if M is not None:
-                assert M.is_contiguous()
-
-            if is_dtensor:
-                W = W.to_local()
-                dW = dW.to_local()
-
-                if M is not None:
-                    M = M.to_local()
-
-            _single_tensor_sgd_triton(
-                W=W,
-                dW=dW,
-                M=M,
-                lr=lr,
-                weight_decay=weight_decay,
-                momentum=momentum,
-                dampening=dampening,
-                nesterov=nesterov,
-                maximize=maximize,
-                is_first_step=is_first_step,
-            )
+        _sgd_triton(
+            params=params,
+            grads=grads,
+            momentum_buffer_list=momentum_buffer_list,
+            lr=lr,
+            weight_decay=weight_decay,
+            momentum=momentum,
+            dampening=dampening,
+            nesterov=nesterov,
+            maximize=maximize,
+        )
     elif kernel_backend == KernelBackend.torch:
         grouped_tensors = Optimizer._group_tensors_by_device_and_dtype(
             [params, grads, momentum_buffer_list],  # type: ignore[list-item]

@@ -5,9 +5,16 @@
 import torch
 import triton
 import triton.language as tl
+from torch.distributed.tensor import DTensor
 
+from ...accelerator import Accelerator, KernelBackend
 from ...custom_op import xma_op
 from ...math import ceil_divide, get_powers_of_2
+from ...utils import is_triton_available
+
+
+if is_triton_available():
+    from .triton_implementation import _single_tensor_sgd_triton
 
 
 def _get_autotune_configs() -> list[triton.Config]:
@@ -168,4 +175,68 @@ def _single_tensor_sgd_triton(
             dampening=None if dampening == 0 else dampening,
             NESTEROV=nesterov,
             IS_FIRST_STEP=is_first_step,
+        )
+
+
+def _sgd_triton(
+    params: list[torch.Tensor],
+    grads: list[torch.Tensor],
+    momentum_buffer_list: list[torch.Tensor],
+    lr: float,
+    weight_decay: float,
+    momentum: float,
+    dampening: float,
+    nesterov: bool,
+    maximize: bool,
+) -> None:
+    if len(params) == 0:
+        return
+
+    is_first_step = False
+    if momentum == 0:
+        assert len(momentum_buffer_list) == 0
+        momentum_buffer_list = [None] * len(params)
+    elif momentum_buffer_list[0] is None:
+        assert all([m is None for m in momentum_buffer_list])
+        is_first_step = True
+
+        for i, p in enumerate(params):
+            momentum_buffer_list[i] = torch.empty_like(p, dtype=torch.float32)
+
+    is_dtensor = isinstance(params[0], DTensor)
+
+    if is_dtensor:
+        for W, dW, M in zip(params, grads, momentum_buffer_list):
+            assert isinstance(dW, DTensor)
+            assert W.placements == dW.placements
+
+            if M is not None:
+                assert isinstance(M, DTensor)
+                assert W.placements == M.placements
+
+    for W, dW, M in zip(params, grads, momentum_buffer_list):
+        assert W.is_contiguous()
+        dW = dW.contiguous()
+
+        if M is not None:
+            assert M.is_contiguous()
+
+        if is_dtensor:
+            W = W.to_local()
+            dW = dW.to_local()
+
+            if M is not None:
+                M = M.to_local()
+
+        _single_tensor_sgd_triton(
+            W=W,
+            dW=dW,
+            M=M,
+            lr=lr,
+            weight_decay=weight_decay,
+            momentum=momentum,
+            dampening=dampening,
+            nesterov=nesterov,
+            maximize=maximize,
+            is_first_step=is_first_step,
         )
