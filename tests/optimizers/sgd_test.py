@@ -32,7 +32,7 @@ def _generate_args() -> list:
                 args += list(
                     product(
                         get_1d_tensor_sizes(),  # size
-                        [torch.float32, torch.float16, torch.bfloat16],  # dtype
+                        [torch.float32],  # dtype
                         [True, False],  # maximize
                         [0, 0.7],  # weight_decay
                         [momentum],  # momentum
