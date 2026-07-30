@@ -25,6 +25,7 @@ from ..utils import (
 @pytest.mark.parametrize("momentum", [0, 0.7])
 @pytest.mark.parametrize("dampening", [0, 0.7])
 @pytest.mark.parametrize("nesterov", [True, False])
+@pytest.mark.parametrize("num_steps", [1, 3])
 @pytest.mark.parametrize("kernel_backend", [KernelBackend.triton])
 def test_sgd(
     size: int,
@@ -34,6 +35,7 @@ def test_sgd(
     momentum: float,
     dampening: float,
     nesterov: bool,
+    num_steps: int,
     kernel_backend: KernelBackend,
 ) -> None:
     lr = 1e-3
@@ -52,12 +54,6 @@ def test_sgd(
         name = f"param_{i}"
         params_kernel[name] = param_kernel
         params_torch[name] = param_torch
-
-    grads = [torch.randint(-8, 8, (size,), device=device, dtype=dtype) for _ in range(3)]
-
-    for (pk, pt), g in zip(zip(params_kernel.values(), params_torch.values()), grads):
-        pk.grad = g
-        pt.grad = g
 
     group_kernel = SGDParamsGroup(
         params=params_kernel,
@@ -82,17 +78,27 @@ def test_sgd(
     sgd_kernel = SGD(param_groups=[group_kernel])
     sgd_torch = SGD(param_groups=[group_torch])
 
-    sgd_kernel.step(kernel_backend=kernel_backend)
-    sgd_torch.step(kernel_backend=KernelBackend.torch)
+    for expected_step in range(1, num_steps + 1):
+        grads = [torch.randint(-8, 8, (size,), device=device, dtype=dtype) for _ in range(3)]
 
-    for name in params_kernel:
-        assert_equal_tensors(params_kernel[name], params_torch[name], exact_match=False)
+        for (pk, pt), g in zip(zip(params_kernel.values(), params_torch.values()), grads):
+            pk.grad = g
+            pt.grad = g
 
-        m_kernel = group_kernel.momentum_buffers.get(name)
-        m_torch = group_torch.momentum_buffers.get(name)
+        sgd_kernel.step(kernel_backend=kernel_backend)
+        sgd_torch.step(kernel_backend=KernelBackend.torch)
 
-        if momentum == 0:
-            assert m_kernel is None
-            assert m_torch is None
-        else:
-            assert_equal_tensors(m_kernel, m_torch, exact_match=False)
+        assert group_kernel.step == expected_step
+        assert group_torch.step == expected_step
+
+        for name in params_kernel:
+            assert_equal_tensors(params_kernel[name], params_torch[name], exact_match=False)
+
+            m_kernel = group_kernel.momentum_buffers.get(name)
+            m_torch = group_torch.momentum_buffers.get(name)
+
+            if momentum == 0:
+                assert m_kernel is None
+                assert m_torch is None
+            else:
+                assert_equal_tensors(m_kernel, m_torch, exact_match=False)
