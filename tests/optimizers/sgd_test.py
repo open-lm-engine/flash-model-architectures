@@ -23,9 +23,12 @@ from ..utils import (
 def _generate_args() -> list:
     args = []
     for nesterov in [False, True]:
-        values = ([0] if nesterov else []) + [0.7]
-        for dampening in values:
-            for momentum in values:
+        # nesterov requires a non-zero momentum and zero dampening; unrestricted otherwise
+        dampening_values = [0] if nesterov else [0, 0.7]
+        momentum_values = [0.7] if nesterov else [0, 0.7]
+
+        for dampening in dampening_values:
+            for momentum in momentum_values:
                 args += list(
                     product(
                         get_1d_tensor_sizes(),  # size
