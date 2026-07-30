@@ -11,11 +11,13 @@ from ...utils import is_triton_available
 from .torch_implementation import _sgd_torch
 
 
+_FUNCTIONS = {KernelBackend.torch: _sgd_torch}
+
 if is_triton_available():
     from .triton_implementation import _sgd_triton
 
-
-_FUNCTIONS = {KernelBackend.cuda: _sgd_triton, KernelBackend.triton: _sgd_triton, KernelBackend.torch: _sgd_torch}
+    _FUNCTIONS[KernelBackend.cuda] = _sgd_triton
+    _FUNCTIONS[KernelBackend.triton] = _sgd_triton
 
 
 @torch.no_grad()

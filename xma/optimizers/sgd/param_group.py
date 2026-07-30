@@ -2,7 +2,7 @@
 # Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import torch
 
@@ -19,7 +19,7 @@ class SGDParamsGroup:
     nesterov: bool
     maximize: bool
     step: int = 0
-    momentum_buffers: dict[str, torch.Tensor | None]
+    momentum_buffers: dict[str, torch.Tensor | None] = field(init=False)
     _lazy_init: bool = False
 
     def __post_init__(self) -> None:
