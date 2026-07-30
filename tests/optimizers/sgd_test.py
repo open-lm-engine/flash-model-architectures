@@ -21,19 +21,24 @@ from ..utils import (
 
 
 def _generate_args() -> list:
-    args = list(
-        product(
-            get_1d_tensor_sizes(),  # size
-            [torch.float32, torch.float16, torch.bfloat16],  # dtype
-            [True, False],  # maximize
-            [0, 0.7],  # weight_decay
-            [0, 0.7],  # momentum
-            [0, 0.7],  # dampening
-            [True, False],  # nesterov
-            [1, 3],  # num_steps
-            [KernelBackend.triton],  # kernel_backend
-        )
-    )
+    args = []
+    for nesterov in [False, True]:
+        values = ([0] if nesterov else []) + [0.7]
+        for dampening in values:
+            for momentum in values:
+                args += list(
+                    product(
+                        get_1d_tensor_sizes(),  # size
+                        [torch.float32, torch.float16, torch.bfloat16],  # dtype
+                        [True, False],  # maximize
+                        [0, 0.7],  # weight_decay
+                        [momentum],  # momentum
+                        [dampening],  # dampening
+                        [nesterov],  # nesterov
+                        [1, 3],  # num_steps
+                        [KernelBackend.triton],  # kernel_backend
+                    )
+                )
 
     return args
 
@@ -56,9 +61,6 @@ def test_sgd(
 
     skip_if_incompatible_kernel_backend(kernel_backend)
     device = kernel_backend.get_compatible_accelerator().get_current_device()
-
-    if nesterov and (dampening != 0 or momentum == 0):
-        pytest.skip(f"invalid config")
 
     params_kernel = {}
     params_torch = {}
