@@ -10,7 +10,8 @@ import pytest
 
 torch = pytest.importorskip("torch")
 
-from xma import KernelBackend, swiglu
+from xma import KernelBackend
+from xma.functional import swiglu
 
 from ..utils import (
     assert_equal_tensors,

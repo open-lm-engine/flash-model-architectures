@@ -9,7 +9,8 @@ import pytest
 
 torch = pytest.importorskip("torch")
 
-from xma import KernelBackend, MoE, set_seed
+from xma import KernelBackend, set_seed
+from xma.layers import MoE
 
 from ..utils import (
     assert_equal_tensors,

@@ -9,7 +9,8 @@ import pytest
 
 torch = pytest.importorskip("torch")
 
-from xma import KernelBackend, LinearAttention, set_seed
+from xma import KernelBackend, set_seed
+from xma.layers import LinearAttention
 
 from ..utils import assert_equal_tensors, skip_if_incompatible_kernel_backend
 from .rnn_test import _get_packed_tensor_inputs

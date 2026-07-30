@@ -10,7 +10,8 @@ import pytest
 
 torch = pytest.importorskip("torch")
 
-from xma import KernelBackend, fused_linear_cross_entropy, set_seed
+from xma import KernelBackend, set_seed
+from xma.functional import fused_linear_cross_entropy
 
 from ..utils import (
     assert_equal_tensors,

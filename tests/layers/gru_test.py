@@ -9,7 +9,8 @@ torch = pytest.importorskip("torch")
 
 import torch.nn as nn
 
-from xma import GRU, KernelBackend, set_seed
+from xma import KernelBackend, set_seed
+from xma.layers import GRU
 
 from ..utils import (
     assert_equal_tensors,
