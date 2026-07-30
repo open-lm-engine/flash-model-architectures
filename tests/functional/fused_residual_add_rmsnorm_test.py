@@ -9,7 +9,8 @@ import pytest
 
 torch = pytest.importorskip("torch")
 
-from xma import KernelBackend, fused_residual_add_rmsnorm, set_seed
+from xma import KernelBackend, set_seed
+from xma.functional import fused_residual_add_rmsnorm
 
 from ..utils import (
     assert_equal_tensors,

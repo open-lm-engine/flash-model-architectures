@@ -14,7 +14,8 @@ jax = pytest.importorskip("jax")
 import haliax
 import jax.numpy as jnp
 
-from xma import KernelBackend, LinearAttentionJAX, linear_attention_jax
+from xma import KernelBackend
+from xma.layers_jax import LinearAttentionJAX, linear_attention_jax
 
 
 _ATTENTION_MULTIPLIER = 0.3

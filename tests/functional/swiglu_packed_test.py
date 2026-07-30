@@ -9,7 +9,9 @@ import pytest
 
 torch = pytest.importorskip("torch")
 
-from xma import KernelBackend, ceil_divide, swiglu_packed
+from xma import KernelBackend
+from xma.functional import swiglu_packed
+from xma.math import ceil_divide
 
 from ..utils import assert_equal_tensors, get_random_duplicated_tensors, skip_if_incompatible_kernel_backend
 from .swiglu_test import _generate_args
