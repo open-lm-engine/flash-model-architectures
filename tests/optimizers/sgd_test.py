@@ -2,6 +2,8 @@
 # Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
+from itertools import product
+
 import pytest
 
 
@@ -18,15 +20,27 @@ from ..utils import (
 )
 
 
-@pytest.mark.parametrize("size", get_1d_tensor_sizes())
-@pytest.mark.parametrize("dtype", [torch.float32, torch.float16, torch.bfloat16])
-@pytest.mark.parametrize("maximize", [True, False])
-@pytest.mark.parametrize("weight_decay", [0, 0.7])
-@pytest.mark.parametrize("momentum", [0, 0.7])
-@pytest.mark.parametrize("dampening", [0, 0.7])
-@pytest.mark.parametrize("nesterov", [True, False])
-@pytest.mark.parametrize("num_steps", [1, 3])
-@pytest.mark.parametrize("kernel_backend", [KernelBackend.triton])
+def _generate_args() -> list:
+    args = list(
+        product(
+            get_1d_tensor_sizes(),  # size
+            [torch.float32, torch.float16, torch.bfloat16],  # dtype
+            [True, False],  # maximize
+            [0, 0.7],  # weight_decay
+            [0, 0.7],  # momentum
+            [0, 0.7],  # dampening
+            [True, False],  # nesterov
+            [1, 3],  # num_steps
+            [KernelBackend.triton],  # kernel_backend
+        )
+    )
+
+    return args
+
+
+@pytest.mark.parametrize(
+    "size,dtype,maximize,weight_decay,momentum,dampening,nesterov,num_steps,kernel_backend", _generate_args()
+)
 def test_sgd(
     size: int,
     dtype: torch.dtype,
