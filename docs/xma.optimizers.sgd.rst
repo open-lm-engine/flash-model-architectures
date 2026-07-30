@@ -1,6 +1,11 @@
 xma.optimizers.sgd
 ==================
 
+.. toctree::
+   :maxdepth: 4
+
+   xma.optimizers.sgd.param_group
+
 
 .. automodule:: xma.optimizers.sgd.module
    :members:
