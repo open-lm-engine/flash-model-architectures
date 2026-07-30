@@ -33,4 +33,3 @@ if is_torch_available():
     )
     from .inductor import enable_kernels
     from .layers import GRU, M2RNN, RNN, LinearAttention, MoE, gru, linear_attention, m2rnn, rnn
-    from .optimizers import SGD, sgd
