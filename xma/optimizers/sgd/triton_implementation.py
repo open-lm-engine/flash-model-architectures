@@ -9,11 +9,6 @@ from torch.distributed.tensor import DTensor
 
 from ...custom_op import xma_op
 from ...math import ceil_divide, get_powers_of_2
-from ...utils import is_triton_available
-
-
-if is_triton_available():
-    from .triton_implementation import _single_tensor_sgd_triton
 
 
 def _get_autotune_configs() -> list[triton.Config]:
