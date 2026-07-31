@@ -81,15 +81,10 @@ class _LinearAttention(CustomOp):
         if kernel_backend == KernelBackend.pallas:
             assert cu_seqlens is None
 
-            BLOCK_SIZE_S = 128
-
-            y, ht = _linear_attention_forward_pallas(
-                q=q, k=k, v=v, h0=h0, attention_multiplier=attention_multiplier, BLOCK_SIZE_S=BLOCK_SIZE_S
-            )
+            y, ht = _linear_attention_forward_pallas(q=q, k=k, v=v, h0=h0, attention_multiplier=attention_multiplier)
 
             ctx.h0_is_none = h0 is None
             ctx.attention_multiplier = attention_multiplier
-            ctx.BLOCK_SIZE_S = BLOCK_SIZE_S
 
             ctx.save_for_backward(*((q, k, v) if h0 is None else (q, k, v, h0)))
 
@@ -148,7 +143,6 @@ class _LinearAttention(CustomOp):
             h0=h0,
             dh=dht,
             attention_multiplier=ctx.attention_multiplier,
-            BLOCK_SIZE_S=ctx.BLOCK_SIZE_S,
         )
 
         return dq, dk, dv, (dh0 if h0 is not None else None), None, None, None, None

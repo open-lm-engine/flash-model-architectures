@@ -142,7 +142,7 @@ def _linear_attention_backward_pallas(
     h0: torch.Tensor | None,
     dh: torch.Tensor | None,
     attention_multiplier: float,
-    BLOCK_SIZE_S: int,
+    BLOCK_SIZE_S: int = 128,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     B, S, Nq, K = q.shape
     Nk = k.size(-2)

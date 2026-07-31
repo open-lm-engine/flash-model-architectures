@@ -74,7 +74,7 @@ def _linear_attention_forward_pallas(
     v: torch.Tensor,
     h0: torch.Tensor | None,
     attention_multiplier: float,
-    BLOCK_SIZE_S: int,
+    BLOCK_SIZE_S: int = 128,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     B, S, Nq, K = q.shape
     Nk = k.shape[-2]
