@@ -50,24 +50,29 @@ def is_torch_xla_available() -> bool:
     return _IS_TORCH_XLA_AVAILABLE
 
 
-if is_torch_xla_available():
-    # jax_import_guard() must run before JAX is imported anywhere in the process, so JAX attaches to the same
-    # libtpu runtime torch_xla is using instead of racing it for the TPU chip. This has to happen here since
-    # `import jax` below is the first JAX import reached by importing the `xma` package.
-    from torch_xla.experimental.custom_kernel import jax_import_guard
-
-    jax_import_guard()
-
-
-try:
-    import jax
-
-    _IS_JAX_AVAILABLE = True
-except ImportError:
-    _IS_JAX_AVAILABLE = False
+_IS_JAX_AVAILABLE = None
 
 
 def is_jax_available() -> bool:
+    # jax_import_guard() must run before JAX is imported anywhere in the process, so JAX attaches to the same
+    # libtpu runtime torch_xla is using instead of racing it for the TPU chip. Both are deferred to the first
+    # call (instead of running at `import xma` time) so that merely importing xma never touches the XLA/PJRT
+    # runtime in a process that hasn't forked its per-device workers yet (e.g. under torch_xla's xmp.spawn).
+    global _IS_JAX_AVAILABLE
+
+    if _IS_JAX_AVAILABLE is None:
+        if is_torch_xla_available():
+            from torch_xla.experimental.custom_kernel import jax_import_guard
+
+            jax_import_guard()
+
+        try:
+            import jax
+
+            _IS_JAX_AVAILABLE = True
+        except ImportError:
+            _IS_JAX_AVAILABLE = False
+
     return _IS_JAX_AVAILABLE
 
 

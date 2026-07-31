@@ -3,7 +3,6 @@
 # **************************************************
 
 import torch
-from torch_xla.experimental.custom_kernel import make_kernel_from_pallas
 
 from ....custom_op import xma_op
 from ....layers_jax.linear_attention.pallas_implementation.backward import (
@@ -50,6 +49,8 @@ def _linear_attention_checkpoint_core(
     global _CHECKPOINT_CACHE
 
     if _CHECKPOINT_CACHE is None:
+        from torch_xla.experimental.custom_kernel import make_kernel_from_pallas
+
         _CHECKPOINT_CACHE = make_kernel_from_pallas(_checkpoint_core_jax, _checkpoint_output_shape_dtype_fn)
 
     h_checkpoints, _ = _CHECKPOINT_CACHE(k, v, h0, BLOCK_SIZE_S, static_argnums=(3,))
@@ -116,6 +117,8 @@ def _linear_attention_backward_core(
     global _BACKWARD_CACHE
 
     if _BACKWARD_CACHE is None:
+        from torch_xla.experimental.custom_kernel import make_kernel_from_pallas
+
         _BACKWARD_CACHE = make_kernel_from_pallas(_backward_core_jax, _backward_output_shape_dtype_fn)
 
     return _BACKWARD_CACHE(
@@ -139,7 +142,7 @@ def _linear_attention_backward_pallas(
     h0: torch.Tensor | None,
     dh: torch.Tensor | None,
     attention_multiplier: float,
-    BLOCK_SIZE_S: int,
+    BLOCK_SIZE_S: int = 128,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     B, S, Nq, K = q.shape
     Nk = k.size(-2)

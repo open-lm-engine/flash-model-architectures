@@ -3,7 +3,6 @@
 # **************************************************
 
 import torch
-from torch_xla.experimental.custom_kernel import make_kernel_from_pallas
 
 from ....custom_op import xma_op
 from ....layers_jax.linear_attention.pallas_implementation.forward import (
@@ -54,6 +53,8 @@ def _linear_attention_forward_core(
     global _CACHE
 
     if _CACHE is None:
+        from torch_xla.experimental.custom_kernel import make_kernel_from_pallas
+
         _CACHE = make_kernel_from_pallas(_forward_core_jax, _output_shape_dtype_fn)
 
     return _CACHE(
@@ -73,7 +74,7 @@ def _linear_attention_forward_pallas(
     v: torch.Tensor,
     h0: torch.Tensor | None,
     attention_multiplier: float,
-    BLOCK_SIZE_S: int,
+    BLOCK_SIZE_S: int = 128,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     B, S, Nq, K = q.shape
     Nk = k.shape[-2]

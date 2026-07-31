@@ -10,9 +10,6 @@ from functools import lru_cache
 from .utils import is_jax_available, is_torch_available, is_torch_neuronx_available, is_torch_xla_available
 
 
-if is_jax_available():
-    import jax
-
 if is_torch_available():
     import torch
 
@@ -72,7 +69,14 @@ class Accelerator(Enum):
     @staticmethod
     @lru_cache
     def get_accelerator() -> Accelerator:
-        if is_torch_xla_available() or (is_jax_available() and jax.default_backend() == "tpu"):
+        is_tpu = is_torch_xla_available()
+
+        if not is_tpu and is_jax_available():
+            import jax
+
+            is_tpu = jax.default_backend() == "tpu"
+
+        if is_tpu:
             accelerator = Accelerator.tpu
         elif is_torch_neuronx_available():
             accelerator = Accelerator.trainium
@@ -111,7 +115,12 @@ class Accelerator(Enum):
         elif accelerator == Accelerator.mps:
             count = 1
         elif accelerator == Accelerator.tpu:
-            count = xla_device_count() if is_torch_xla_available() else jax.device_count()
+            if is_torch_xla_available():
+                count = xla_device_count()
+            else:
+                import jax
+
+                count = jax.device_count()
         elif accelerator == Accelerator.trainium:
             count = torch.neuron.device_count()
         elif accelerator == Accelerator.cpu:
