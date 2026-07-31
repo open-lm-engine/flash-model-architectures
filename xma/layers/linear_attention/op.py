@@ -125,7 +125,7 @@ class _LinearAttention(CustomOp):
     @staticmethod
     def backward(
         ctx, dy: torch.Tensor, dht: torch.Tensor
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor | None, None, None, None, None, None]:
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor | None, None, None, None, None]:
         if ctx.kernel_backend != KernelBackend.pallas:
             raise NotImplementedError(f"backward is not implemented for kernel_backend ({ctx.kernel_backend})")
 
@@ -145,7 +145,10 @@ class _LinearAttention(CustomOp):
             attention_multiplier=ctx.attention_multiplier,
         )
 
-        return dq, dk, dv, (dh0 if h0 is not None else None), None, None, None, None
+        if h0 is None:
+            dh0 = None
+
+        return dq, dk, dv, dh0, None, None, None, None
 
 
 def linear_attention(
