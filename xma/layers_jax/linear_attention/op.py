@@ -31,8 +31,6 @@ def _get_num_heads(q: jax.Array, k: jax.Array, v: jax.Array) -> tuple[int, int, 
 def _linear_attention_reference(
     q: jax.Array, k: jax.Array, v: jax.Array, h0: jax.Array | None, attention_multiplier: float
 ) -> tuple[jax.Array, jax.Array]:
-    # sequential recurrence y_s = q_s @ h_{s-1}, h_s = h_{s-1} + k_s ⊗ v_s, matching the torch reference in
-    # xma/layers/linear_attention/op.py (_LinearAttention.forward_backward_torch)
     B, S, Nq, K = q.shape
     Nk = k.shape[-2]
     Nv, V = v.shape[-2:]
