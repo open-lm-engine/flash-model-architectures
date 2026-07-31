@@ -106,10 +106,32 @@ def linear_attention_jax(
     value: jax.Array,
     input_state: jax.Array | None = None,
     attention_multiplier: float | None = None,
-    BLOCK_SIZE_S: int = 64,
+    BLOCK_SIZE_S: int = 128,
     *,
     kernel_backend: KernelBackend | None = None,
 ) -> tuple[jax.Array, jax.Array]:
+    """computes linear attention: `y[s] = q[s] @ h[s]`, `h[s] = h[s - 1] + k[s].T @ v[s]`
+
+    :param query: query tensor of shape (B, S, Nq, K)
+    :type query: jax.Array
+    :param key: key tensor of shape (B, S, Nk, K)
+    :type key: jax.Array
+    :param value: value tensor of shape (B, S, Nv, V)
+    :type value: jax.Array
+    :param input_state: starting state of shape (B, N, K, V), where N = max{Nq, Nk, Nv}. None means starting
+        state is 0 tensor. Defaults to None.
+    :type input_state: jax.Array | None
+    :param attention_multiplier: scaling factor applied to the output, `y`. None defaults to `1 / sqrt(K)`.
+        Defaults to None.
+    :type attention_multiplier: float | None
+    :param BLOCK_SIZE_S: sequence-length block size used by the pallas kernel. Defaults to 128.
+    :type BLOCK_SIZE_S: int
+    :param kernel_backend: KernelBackend
+    :type kernel_backend: KernelBackend | None
+    :return: output tensor of shape (B, S, N, V) and output state of shape (B, N, K, V)
+    :rtype: tuple[jax.Array, jax.Array]
+    """
+
     B, S, _, K = query.shape
     V = value.shape[-1]
 
