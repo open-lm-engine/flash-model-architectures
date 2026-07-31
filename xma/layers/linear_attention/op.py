@@ -30,7 +30,6 @@ class _LinearAttention(CustomOp):
         attention_multiplier: float,
         cu_seqlens: torch.Tensor | None,
         max_seqlen: int | None,
-        CHUNK_SIZE: int,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         Nq, Nk, Nv, N = _get_num_heads(q=q, k=k, v=v, run_check=False)
 
@@ -73,7 +72,6 @@ class _LinearAttention(CustomOp):
         attention_multiplier: float,
         cu_seqlens: torch.Tensor | None,
         max_seqlen: int | None,
-        CHUNK_SIZE: int,
         kernel_backend: KernelBackend | None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         assert kernel_backend in [KernelBackend.cuda, KernelBackend.triton, KernelBackend.pallas]
@@ -83,13 +81,16 @@ class _LinearAttention(CustomOp):
         if kernel_backend == KernelBackend.pallas:
             assert cu_seqlens is None
 
+            BLOCK_SIZE_S = 128
+
             y, ht = _linear_attention_forward_pallas(
-                q=q, k=k, v=v, h0=h0, attention_multiplier=attention_multiplier, BLOCK_SIZE_S=CHUNK_SIZE
+                q=q, k=k, v=v, h0=h0, attention_multiplier=attention_multiplier, BLOCK_SIZE_S=BLOCK_SIZE_S
             )
 
             ctx.h0_is_none = h0 is None
             ctx.attention_multiplier = attention_multiplier
-            ctx.CHUNK_SIZE = CHUNK_SIZE
+            ctx.BLOCK_SIZE_S = BLOCK_SIZE_S
+
             ctx.save_for_backward(*((q, k, v) if h0 is None else (q, k, v, h0)))
 
             return y, ht
@@ -102,10 +103,11 @@ class _LinearAttention(CustomOp):
         y = torch.empty(B, S, N, V, dtype=k.dtype, device=k.device)
         ht = torch.empty(B, N, K, V, dtype=torch.float32, device=k.device)
 
-        NUM_CHUNKS = ceil_divide(S, CHUNK_SIZE)
+        BLOCK_SIZE_S = 128
+        NUM_BLOCKS_S = ceil_divide(S, BLOCK_SIZE_S)
 
         h = (
-            torch.empty(B, NUM_CHUNKS - 1, N, K, V, dtype=k.dtype, device=k.device)
+            torch.empty(B, NUM_BLOCKS_S - 1, N, K, V, dtype=k.dtype, device=k.device)
             if ctx_needs_gradients(ctx)
             else None
         )
@@ -120,7 +122,7 @@ class _LinearAttention(CustomOp):
             y=y,
             attention_multiplier=attention_multiplier,
             cu_seqlens=cu_seqlens,
-            CHUNK_SIZE=CHUNK_SIZE,
+            CHUNK_SIZE=BLOCK_SIZE_S,
         )
 
         return y, ht
@@ -146,10 +148,10 @@ class _LinearAttention(CustomOp):
             h0=h0,
             dh=dht,
             attention_multiplier=ctx.attention_multiplier,
-            BLOCK_SIZE_S=ctx.CHUNK_SIZE,
+            BLOCK_SIZE_S=ctx.BLOCK_SIZE_S,
         )
 
-        return dq, dk, dv, (dh0 if h0 is not None else None), None, None, None, None, None
+        return dq, dk, dv, (dh0 if h0 is not None else None), None, None, None, None
 
 
 def linear_attention(
@@ -160,7 +162,6 @@ def linear_attention(
     attention_multiplier: float | None = None,
     cu_seqlens: torch.Tensor | None = None,
     max_seqlen: int | None = None,
-    CHUNK_SIZE: int = 64,
     *,
     kernel_backend: KernelBackend | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
@@ -200,7 +201,6 @@ def linear_attention(
         attention_multiplier=attention_multiplier,
         cu_seqlens=cu_seqlens,
         max_seqlen=max_seqlen,
-        CHUNK_SIZE=CHUNK_SIZE,
         kernel_backend=kernel_backend,
     )
 
