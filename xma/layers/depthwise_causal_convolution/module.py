@@ -4,12 +4,11 @@
 
 from __future__ import annotations
 
-from contextlib import contextmanager
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from ...accelerator import Accelerator, KernelBackend
 from ...utils import is_causal_conv1d_available
 
 
@@ -35,28 +34,6 @@ def _get_activation_function(name: str | None) -> nn.Module:
         raise ValueError(f"invalid activation function ({name})")
 
     return _BASE_ACTIVATIONS[name]()
-
-
-# whether to route through the external `causal_conv1d` package (https://github.com/Dao-AILab/causal-conv1d)
-# instead of the plain nn.Conv1d fallback below, toggled for the duration of a `with` block
-_USE_CAUSAL_CONV1D_PACKAGE = False
-
-
-def is_causal_conv1d_package_enabled() -> bool:
-    return _USE_CAUSAL_CONV1D_PACKAGE
-
-
-@contextmanager
-def enable_causal_conv1d_package():
-    global _USE_CAUSAL_CONV1D_PACKAGE
-
-    previous = _USE_CAUSAL_CONV1D_PACKAGE
-    _USE_CAUSAL_CONV1D_PACKAGE = True
-
-    try:
-        yield
-    finally:
-        _USE_CAUSAL_CONV1D_PACKAGE = previous
 
 
 def _apply_mask_to_padding_states(x: torch.Tensor, attention_mask: torch.Tensor | None) -> torch.Tensor:
@@ -108,7 +85,14 @@ class DepthwiseCausalConvolution(nn.Conv1d):
         input_state: torch.Tensor | None = None,
         attention_mask: torch.Tensor | None = None,
         output_state: bool = False,
+        *,
+        kernel_backend: KernelBackend | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor | None]:
+        if kernel_backend is None:
+            kernel_backend = Accelerator.get_kernel_backend()
+        else:
+            assert kernel_backend.verify_accelerator()
+
         BLOCK_SIZE_S = x.size(1)
         S = BLOCK_SIZE_S
 
@@ -122,7 +106,7 @@ class DepthwiseCausalConvolution(nn.Conv1d):
             if output_state:
                 final_state = _get_last_state(x, self.kernel_size)
 
-            if is_causal_conv1d_package_enabled():
+            if kernel_backend == KernelBackend.cuda:
                 x = causal_conv1d_fn(
                     x=x,
                     weight=self.weight.squeeze(1),
@@ -145,7 +129,7 @@ class DepthwiseCausalConvolution(nn.Conv1d):
             x = x.transpose(-1, -2)
         else:
             if S == 1:
-                if is_causal_conv1d_package_enabled():
+                if kernel_backend == KernelBackend.cuda:
                     input_state_buffer = input_state.clone()
 
                     x = causal_conv1d_update(

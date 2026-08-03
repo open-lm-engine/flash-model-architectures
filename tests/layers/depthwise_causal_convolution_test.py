@@ -2,8 +2,6 @@
 # Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
-import contextlib
-
 import pytest
 
 
@@ -11,7 +9,8 @@ torch = pytest.importorskip("torch")
 
 from torch.testing import assert_close
 
-from xma.layers import DepthwiseCausalConvolution, enable_causal_conv1d_package
+from xma import KernelBackend
+from xma.layers import DepthwiseCausalConvolution
 from xma.utils import is_causal_conv1d_available
 
 
@@ -41,16 +40,16 @@ def _make_conv(
 @pytest.mark.parametrize("add_bias", [False, True])
 @pytest.mark.parametrize("activation", [None, "silu", "gelu"])
 @pytest.mark.parametrize("output_state", [False, True])
-@pytest.mark.parametrize("use_package_kernel", [False, True])
 @pytest.mark.parametrize("short_seq", [False, True])
+@pytest.mark.parametrize("kernel_backend", [KernelBackend.cuda, KernelBackend.torch])
 def test_prefill_shapes(
     device: torch.device,
     kernel_size: int,
     add_bias: bool,
     activation: str | None,
     output_state: bool,
-    use_package_kernel: bool,
     short_seq: bool,
+    kernel_backend: KernelBackend,
 ) -> None:
     _skip_test_if_device_unavailable(device)
 
@@ -68,8 +67,9 @@ def test_prefill_shapes(
     seq_len = max(1, kernel_size - 1) if short_seq else _PREFILL_LEN
     x = torch.randn(_BATCH, seq_len, _HIDDEN_SIZE, device=device)
 
-    with enable_causal_conv1d_package() if use_package_kernel else contextlib.nullcontext():
-        out, state = conv(x, input_state=None, attention_mask=None, output_state=output_state)
+    out, state = conv(
+        x, input_state=None, attention_mask=None, output_state=output_state, kernel_backend=kernel_backend
+    )
 
     assert out.size() == x.size()
 
@@ -248,9 +248,12 @@ def test_kernel_vs_fallback(device: torch.device, kernel_size: int, activation: 
     x = torch.randn(_BATCH, _PREFILL_LEN, _HIDDEN_SIZE, device=device)
     x_gen = torch.randn(_BATCH, 1, _HIDDEN_SIZE, device=device)
 
-    with enable_causal_conv1d_package():
-        out_k, state_k = conv(x, input_state=None, attention_mask=None, output_state=True)
-        out_gen_k, _ = conv(x_gen, input_state=state_k, attention_mask=None, output_state=False)
+    out_k, state_k = conv(
+        x, input_state=None, attention_mask=None, output_state=True, kernel_backend=KernelBackend.cuda
+    )
+    out_gen_k, _ = conv(
+        x_gen, input_state=state_k, attention_mask=None, output_state=False, kernel_backend=KernelBackend.cuda
+    )
 
     out_f, state_f = conv(x, input_state=None, attention_mask=None, output_state=True)
     out_gen_f, _ = conv(x_gen, input_state=state_f, attention_mask=None, output_state=False)
