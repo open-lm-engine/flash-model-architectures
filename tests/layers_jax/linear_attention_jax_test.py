@@ -35,16 +35,27 @@ def _get_problem_shapes() -> list[tuple[int, int, int, int, int]]:
 
 
 def _generate_args() -> list:
-    return list(
+    args = list(
         product(
             [3, 16, 37, 64, 130],  # sequence length: shorter than, equal to, or not a multiple of BLOCK_SIZE_S
             [16, 32],  # BLOCK_SIZE_S
-            [8, 16],  # BLOCK_SIZE_V: shorter than, equal to, or not a multiple of V (16 or 24 above)
+            [128],  # BLOCK_SIZE_V
             _get_problem_shapes(),
             ["float32", "bfloat16"],
             [False, True],  # has_input_state
         )
     )
+    args += list(
+        product(
+            [37],
+            [16],
+            [128],  # BLOCK_SIZE_V < V below: genuinely exercises multiple V-tiles (256 / 128 = 2)
+            [(16, 256, 2, 2, 2)],  # (K, V, Nq, Nk, Nv)
+            ["float32", "bfloat16"],
+            [False, True],
+        )
+    )
+    return args
 
 
 @pytest.mark.parametrize("S,BLOCK_SIZE_S,BLOCK_SIZE_V,problem_shape,dtype,has_input_state", _generate_args())

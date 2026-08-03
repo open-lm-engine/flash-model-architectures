@@ -137,7 +137,8 @@ def linear_attention_jax(
     :param BLOCK_SIZE_S: sequence-length block size used by the pallas kernel. Defaults to 128.
     :type BLOCK_SIZE_S: int
     :param BLOCK_SIZE_V: value-head-dimension block size used by the pallas kernel; `V <= BLOCK_SIZE_V`
-        (the default) means V is effectively untiled. Defaults to 128.
+        (the default) means V is effectively untiled. Mosaic requires this to be a multiple of 128 or
+        exactly equal to `V` - other values raise at trace time. Defaults to 128.
     :type BLOCK_SIZE_V: int
     :param kernel_backend: KernelBackend
     :type kernel_backend: KernelBackend | None
