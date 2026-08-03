@@ -139,7 +139,8 @@ def test_linear_attention_module_works(has_input_state: bool) -> None:
 
     # this is a smoke test: it only checks that the module runs end to end and returns the expected shapes, not
     # that the output is numerically correct (that's covered at the op level by linear_attention_jax_test.py)
-    output, output_state = module(input, input_state, kernel_backend=KernelBackend.jax)
+    output, output_state, conv_state = module(input, input_state, kernel_backend=KernelBackend.jax)
 
     assert output.axes == (Batch, Pos, Output)
     assert output_state.axes == (Batch, module.Heads, module.StateSize)
+    assert conv_state is None

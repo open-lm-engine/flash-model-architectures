@@ -121,11 +121,11 @@ def test_linear_attention(
     if is_compiling:
         linear_attention_kernel = torch.compile(linear_attention_kernel, fullgraph=True)
 
-    y_kernel, output_state_kernel = linear_attention_kernel(
+    y_kernel, output_state_kernel, _ = linear_attention_kernel(
         input=x_kernel, input_state=input_state_kernel, kernel_backend=kernel_backend
     )
 
-    y_torch, output_state_torch = linear_attention_torch(
+    y_torch, output_state_torch, _ = linear_attention_torch(
         input=x_torch, input_state=input_state_torch, kernel_backend=KernelBackend.torch
     )
 

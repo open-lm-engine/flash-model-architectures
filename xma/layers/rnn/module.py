@@ -9,6 +9,7 @@ import torch.nn as nn
 
 from ...accelerator import KernelBackend
 from ...math import divide_if_divisible
+from ..depthwise_causal_convolution import DepthwiseCausalConvolution
 from .op import rnn
 
 
@@ -22,6 +23,8 @@ class RNN(nn.Module):
         num_weight_heads: int,
         add_bias: bool,
         gradient_clipping: float | None,
+        kernel_size: int | None = None,
+        conv_activation_function: str | None = None,
     ) -> RNN:
         super().__init__()
 
@@ -36,10 +39,20 @@ class RNN(nn.Module):
 
         self.state_head_dim = state_head_dim
         self.state_size = self.num_heads * self.state_head_dim
+        self.x_shape = self.num_input_heads * self.state_head_dim
 
-        self.input_projection = nn.Linear(input_size, self.num_input_heads * self.state_head_dim, bias=add_bias)
+        self.input_projection = nn.Linear(input_size, self.x_shape, bias=add_bias)
         self.state_weight = nn.Parameter(torch.empty(self.num_weight_heads, self.state_head_dim, self.state_head_dim))
         self.output_projection = nn.Linear(self.state_size, output_size, bias=add_bias)
+
+        self.kernel_size = kernel_size
+        if self.kernel_size is not None:
+            self.conv1d = DepthwiseCausalConvolution(
+                hidden_size=self.x_shape,
+                kernel_size=kernel_size,
+                activation_function=conv_activation_function,
+                add_bias=add_bias,
+            )
 
         self.reset_parameters()
 
@@ -47,12 +60,21 @@ class RNN(nn.Module):
         self,
         input: torch.Tensor,
         input_state: torch.Tensor | None = None,
+        conv_state: torch.Tensor | None = None,
         cu_seqlens: torch.Tensor | None = None,
         max_seqlen: int | None = None,
+        output_conv_state: bool = False,
         *,
         kernel_backend: KernelBackend | None = None,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor | None]:
         input = self.input_projection(input)
+
+        if self.conv1d is None:
+            assert conv_state is None
+        else:
+            assert cu_seqlens is None, "depthwise causal conv does not support cu_seqlens"
+            input, conv_state = self.conv1d(input, input_state=conv_state, output_state=output_conv_state)
+
         input = input.view(*input.size()[:-1], self.num_input_heads, self.state_head_dim)
 
         if input_state is not None:
@@ -73,7 +95,7 @@ class RNN(nn.Module):
 
         input = self.output_projection(input)
 
-        return input, input_state
+        return input, input_state, conv_state
 
     @torch.no_grad()
     def reset_parameters(self) -> None:

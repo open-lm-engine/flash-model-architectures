@@ -110,7 +110,7 @@ def test_rnn(
     if is_compiling:
         rnn_kernel = torch.compile(rnn_kernel, fullgraph=True)
 
-    y_kernel, output_state_kernel = rnn_kernel(
+    y_kernel, output_state_kernel, _ = rnn_kernel(
         input=x_kernel,
         input_state=input_state_kernel,
         cu_seqlens=cu_seqlens,
@@ -119,7 +119,7 @@ def test_rnn(
     )
 
     if cu_seqlens is None:
-        y_torch, output_state_torch = rnn_torch(
+        y_torch, output_state_torch, _ = rnn_torch(
             input=x_torch,
             input_state=input_state_torch,
             cu_seqlens=cu_seqlens,
@@ -131,7 +131,7 @@ def test_rnn(
         output_state_torch = []
 
         for i in range(B):
-            y, h = rnn_torch(
+            y, h, _ = rnn_torch(
                 input=x_torch[cu_seqlens[i] : cu_seqlens[i + 1]].unsqueeze(0),
                 input_state=input_state_torch[i].unsqueeze(0) if has_input_state else None,
                 kernel_backend=KernelBackend.torch,

@@ -136,7 +136,7 @@ def test_m2rnn(
     if is_compiling:
         m2rnn_kernel = torch.compile(m2rnn_kernel, fullgraph=True)
 
-    y_kernel, output_state_kernel = m2rnn_kernel(
+    y_kernel, output_state_kernel, _ = m2rnn_kernel(
         input=x_kernel,
         input_state=input_state_kernel,
         cu_seqlens=cu_seqlens,
@@ -145,7 +145,7 @@ def test_m2rnn(
     )
 
     if cu_seqlens is None:
-        y_torch, output_state_torch = m2rnn_torch(
+        y_torch, output_state_torch, _ = m2rnn_torch(
             input=x_torch,
             input_state=input_state_torch,
             cu_seqlens=cu_seqlens,
@@ -157,7 +157,7 @@ def test_m2rnn(
         output_state_torch = []
 
         for i in range(B):
-            y, h = m2rnn_torch(
+            y, h, _ = m2rnn_torch(
                 input=x_torch[cu_seqlens[i] : cu_seqlens[i + 1]].unsqueeze(0),
                 input_state=input_state_torch[i].unsqueeze(0) if has_input_state else None,
                 kernel_backend=KernelBackend.torch,

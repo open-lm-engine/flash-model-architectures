@@ -4,6 +4,8 @@
 
 from __future__ import annotations
 
+from typing import Callable
+
 import equinox as eqx
 import haliax as hax
 import jax
@@ -12,12 +14,14 @@ from jaxtyping import PRNGKeyArray
 
 from ...accelerator import KernelBackend
 from ...math import divide_if_divisible
+from ..depthwise_causal_convolution import DepthwiseCausalConvolutionJAX
 from .op import linear_attention_jax
 
 
 class LinearAttentionJAX(eqx.Module):
     input_projection: hax.nn.Linear
     output_projection: hax.nn.Linear
+    conv1d: DepthwiseCausalConvolutionJAX | None
 
     Embed: Axis = eqx.field(static=True)
     Output: Axis = eqx.field(static=True)
@@ -45,6 +49,8 @@ class LinearAttentionJAX(eqx.Module):
         *,
         attention_multiplier: float | None = None,
         BLOCK_SIZE_S: int = 64,
+        kernel_size: int | None = None,
+        conv_activation_function: str | Callable[[jax.Array], jax.Array] | None = None,
         key: PRNGKeyArray,
     ) -> LinearAttentionJAX:
         num_heads = max(num_query_heads, num_key_heads, num_value_heads)
@@ -67,14 +73,27 @@ class LinearAttentionJAX(eqx.Module):
         QKV = Axis("qkv", QuerySize.size + KeySize.size + ValueSize.size)
         HeadsValueSize = Axis("heads_value_size", num_heads * value_head_dim)
 
-        key_input_projection, key_output_projection = jax.random.split(key, 2)
+        key_input_projection, key_output_projection, key_conv = jax.random.split(key, 3)
 
         input_projection = hax.nn.Linear.init(Embed, QKV, key=key_input_projection, use_bias=add_bias)
         output_projection = hax.nn.Linear.init(HeadsValueSize, Output, key=key_output_projection, use_bias=add_bias)
 
+        conv1d = (
+            None
+            if kernel_size is None
+            else DepthwiseCausalConvolutionJAX.init(
+                QKV,
+                kernel_size=kernel_size,
+                activation_function=conv_activation_function,
+                add_bias=add_bias,
+                key=key_conv,
+            )
+        )
+
         return LinearAttentionJAX(
             input_projection=input_projection,
             output_projection=output_projection,
+            conv1d=conv1d,
             Embed=Embed,
             Output=Output,
             QHeads=QHeads,
@@ -92,9 +111,11 @@ class LinearAttentionJAX(eqx.Module):
         self,
         input: NamedArray,
         input_state: NamedArray | None = None,
+        conv_state: NamedArray | None = None,
+        output_conv_state: bool = False,
         *,
         kernel_backend: KernelBackend | None = None,
-    ) -> tuple[NamedArray, NamedArray]:
+    ) -> tuple[NamedArray, NamedArray, NamedArray | None]:
         # input: (Batch, Pos, Embed); the underlying pallas kernel only supports a single leading batch axis,
         # so Batch and Pos are whatever's left over once Embed is accounted for, in their existing order
         Batch, Pos = [axis for axis in input.axes if axis != self.Embed]
@@ -104,6 +125,12 @@ class LinearAttentionJAX(eqx.Module):
         ValueSize = Axis("value_size", self.VHeads.size * self.ValueHeadDim.size)
 
         projected = self.input_projection(input)
+
+        if self.conv1d is None:
+            assert conv_state is None
+        else:
+            projected, conv_state = self.conv1d(projected, input_state=conv_state, output_state=output_conv_state)
+
         query, key, value = projected.split("qkv", [QuerySize, KeySize, ValueSize])
 
         query = query.unflatten_axis(QuerySize, (self.QHeads, self.KeyHeadDim))
@@ -133,4 +160,4 @@ class LinearAttentionJAX(eqx.Module):
         output_state = hax.named(output_state, (Batch, self.Heads, self.KeyHeadDim, self.ValueHeadDim))
         output_state = output_state.flatten_axes((self.KeyHeadDim, self.ValueHeadDim), self.StateSize)
 
-        return output, output_state
+        return output, output_state, conv_state
