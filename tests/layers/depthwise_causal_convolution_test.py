@@ -31,7 +31,7 @@ def _make_conv(
     hidden_size: int = _HIDDEN_SIZE, kernel_size: int = 4, activation: str | None = "silu", add_bias: bool = True
 ) -> DepthwiseCausalConvolution:
     return DepthwiseCausalConvolution(
-        hidden_size=hidden_size, kernel_size=kernel_size, activation_function=activation, add_bias=add_bias, std=None
+        hidden_size=hidden_size, kernel_size=kernel_size, activation_function=activation, add_bias=add_bias
     )
 
 
