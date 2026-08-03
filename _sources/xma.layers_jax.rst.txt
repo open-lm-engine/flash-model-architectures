@@ -4,6 +4,7 @@ xma.layers\_jax
 .. toctree::
    :maxdepth: 4
 
+   xma.layers_jax.depthwise_causal_convolution
    xma.layers_jax.linear_attention
 
 .. automodule:: xma.layers_jax

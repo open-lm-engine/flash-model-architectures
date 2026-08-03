@@ -3,10 +3,10 @@
   <head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="xma.autotuner" href="xma.autotuner.html"><link rel="prev" title="xma.accelerator" href="xma.accelerator.html">
+<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="xma.layers_jax.linear_attention" href="xma.layers_jax.linear_attention.html"><link rel="prev" title="xma.layers_jax" href="xma.layers_jax.html">
 
     <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
-        <title>xma.counters - XMA documentation</title>
+        <title>xma.layers_jax.depthwise_causal_convolution - XMA documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=d111a655" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?v=8dab3a3b" />
@@ -191,7 +191,7 @@
 </form>
 <div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
   <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
-<ul>
+<ul class="current">
 <li class="toctree-l1 has-children"><a class="reference internal" href="xma.functional.html">xma.functional</a><input aria-label="Toggle navigation of xma.functional" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
 <li class="toctree-l2"><a class="reference internal" href="xma.functional.bmm.html">xma.functional.bmm</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.functional.continuous_count.html">xma.functional.continuous_count</a></li>
@@ -214,8 +214,8 @@
 <li class="toctree-l2"><a class="reference internal" href="xma.layers.rnn.html">xma.layers.rnn</a></li>
 </ul>
 </li>
-<li class="toctree-l1 has-children"><a class="reference internal" href="xma.layers_jax.html">xma.layers_jax</a><input aria-label="Toggle navigation of xma.layers_jax" class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
-<li class="toctree-l2"><a class="reference internal" href="xma.layers_jax.depthwise_causal_convolution.html">xma.layers_jax.depthwise_causal_convolution</a></li>
+<li class="toctree-l1 current has-children"><a class="reference internal" href="xma.layers_jax.html">xma.layers_jax</a><input aria-label="Toggle navigation of xma.layers_jax" checked="" class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul class="current">
+<li class="toctree-l2 current current-page"><a class="current reference internal" href="#">xma.layers_jax.depthwise_causal_convolution</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.layers_jax.linear_attention.html">xma.layers_jax.linear_attention</a></li>
 </ul>
 </li>
@@ -228,9 +228,9 @@
 </li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Utilities</span></p>
-<ul class="current">
+<ul>
 <li class="toctree-l1"><a class="reference internal" href="xma.accelerator.html">xma.accelerator</a></li>
-<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">xma.counters</a></li>
+<li class="toctree-l1"><a class="reference internal" href="xma.counters.html">xma.counters</a></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="xma.autotuner.html">xma.autotuner</a><input aria-label="Toggle navigation of xma.autotuner" class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" role="switch" type="checkbox"/><label for="toctree-checkbox-6"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
 <li class="toctree-l2"><a class="reference internal" href="xma.autotuner.config.html">xma.autotuner.config</a></li>
 <li class="toctree-l2"><a class="reference internal" href="xma.autotuner.tuner.html">xma.autotuner.tuner</a></li>
@@ -256,7 +256,7 @@
         </a>
         <div class="content-icon-container">
           <div class="view-this-page">
-  <a class="muted-link" href="_sources/xma.counters.rst.txt" title="View this page">
+  <a class="muted-link" href="_sources/xma.layers_jax.depthwise_causal_convolution.rst.txt" title="View this page">
     <svg><use href="#svg-eye"></use></svg>
     <span class="visually-hidden">View this page</span>
   </a>
@@ -274,57 +274,91 @@
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section id="module-xma.counters">
-<span id="xma-counters"></span><h1>xma.counters<a class="headerlink" href="#module-xma.counters" title="Link to this heading">¶</a></h1>
-<dl class="py function">
-<dt class="sig sig-object py" id="xma.counters.enable_counters">
-<span class="sig-name descname"><span class="pre">enable_counters</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/xma/counters.html#enable_counters"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#xma.counters.enable_counters" title="Link to this definition">¶</a></dt>
+          <section id="module-xma.layers_jax.depthwise_causal_convolution.module">
+<span id="xma-layers-jax-depthwise-causal-convolution"></span><h1>xma.layers_jax.depthwise_causal_convolution<a class="headerlink" href="#module-xma.layers_jax.depthwise_causal_convolution.module" title="Link to this heading">¶</a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="xma.layers_jax.depthwise_causal_convolution.module.DepthwiseCausalConvolutionJAX">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">DepthwiseCausalConvolutionJAX</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/xma/layers_jax/depthwise_causal_convolution/module.html#DepthwiseCausalConvolutionJAX"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#xma.layers_jax.depthwise_causal_convolution.module.DepthwiseCausalConvolutionJAX" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="xma.layers_jax.depthwise_causal_convolution.module.DepthwiseCausalConvolutionJAX.bias">
+<span class="sig-name descname"><span class="pre">bias</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">NamedArray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><a class="headerlink" href="#xma.layers_jax.depthwise_causal_convolution.module.DepthwiseCausalConvolutionJAX.bias" title="Link to this definition">¶</a></dt>
 <dd></dd></dl>
 
-<dl class="py function">
-<dt class="sig sig-object py" id="xma.counters.get_counter_value">
-<span class="sig-name descname"><span class="pre">get_counter_value</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="reference internal" href="_modules/xma/counters.html#get_counter_value"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#xma.counters.get_counter_value" title="Link to this definition">¶</a></dt>
+<dl class="py method">
+<dt class="sig sig-object py" id="xma.layers_jax.depthwise_causal_convolution.module.DepthwiseCausalConvolutionJAX.init">
+<span class="property"><span class="k"><span class="pre">static</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">init</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">Embed</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">haliax.Axis</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kernel_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">activation_function</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Callable</span><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><span class="pre">jax.Array</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">jax.Array</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">add_bias</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">jaxtyping.PRNGKeyArray</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#xma.layers_jax.depthwise_causal_convolution.module.DepthwiseCausalConvolutionJAX" title="xma.layers_jax.depthwise_causal_convolution.module.DepthwiseCausalConvolutionJAX"><span class="pre">DepthwiseCausalConvolutionJAX</span></a></span></span><a class="reference internal" href="_modules/xma/layers_jax/depthwise_causal_convolution/module.html#DepthwiseCausalConvolutionJAX.init"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#xma.layers_jax.depthwise_causal_convolution.module.DepthwiseCausalConvolutionJAX.init" title="Link to this definition">¶</a></dt>
 <dd></dd></dl>
 
-<dl class="py function">
-<dt class="sig sig-object py" id="xma.counters.increment_counter">
-<span class="sig-name descname"><span class="pre">increment_counter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/xma/counters.html#increment_counter"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#xma.counters.increment_counter" title="Link to this definition">¶</a></dt>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="xma.layers_jax.depthwise_causal_convolution.module.DepthwiseCausalConvolutionJAX.weight">
+<span class="sig-name descname"><span class="pre">weight</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">NamedArray</span></span><a class="headerlink" href="#xma.layers_jax.depthwise_causal_convolution.module.DepthwiseCausalConvolutionJAX.weight" title="Link to this definition">¶</a></dt>
 <dd></dd></dl>
 
-<dl class="py function">
-<dt class="sig sig-object py" id="xma.counters.is_counter_enabled">
-<span class="sig-name descname"><span class="pre">is_counter_enabled</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/xma/counters.html#is_counter_enabled"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#xma.counters.is_counter_enabled" title="Link to this definition">¶</a></dt>
-<dd></dd></dl>
+</dd></dl>
 
-<dl class="py function">
-<dt class="sig sig-object py" id="xma.counters.reset_counters">
-<span class="sig-name descname"><span class="pre">reset_counters</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/xma/counters.html#reset_counters"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#xma.counters.reset_counters" title="Link to this definition">¶</a></dt>
-<dd></dd></dl>
+<dl class="py function" id="module-xma.layers_jax.depthwise_causal_convolution.op">
+<dt class="sig sig-object py" id="xma.layers_jax.depthwise_causal_convolution.op.depthwise_causal_convolution_jax">
+<span class="sig-name descname"><span class="pre">depthwise_causal_convolution_jax</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">jax.Array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">jax.Array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bias</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">jax.Array</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_state</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">jax.Array</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">attention_mask</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">jax.Array</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_state</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">activation_function</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Callable</span><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><span class="pre">jax.Array</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">jax.Array</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">jax.Array</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">jax.Array</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/xma/layers_jax/depthwise_causal_convolution/op.html#depthwise_causal_convolution_jax"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#xma.layers_jax.depthwise_causal_convolution.op.depthwise_causal_convolution_jax" title="Link to this definition">¶</a></dt>
+<dd><p>computes depthwise causal 1D convolution: <cite>output[b, t, h] = act(bias[h] + sum_k weight[h, k] *
+z[b, t + k, h])</cite> where <cite>z</cite> is <cite>input</cite> preceded by <cite>kernel_size</cite> raw history positions taken from
+<cite>input_state</cite> (or 0 if <cite>input_state</cite> is None), i.e. <cite>output[b, t]</cite> only depends on
+<cite>input[b, t - kernel_size + 1 : t + 1]</cite>.</p>
+<p>there is no hand-written/fused TPU kernel here - this is a plain <cite>jax.lax</cite> reference implementation,
+differentiable via ordinary JAX autodiff (<cite>lax.conv_general_dilated</cite> already has forward/reverse-mode
+rules built in).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>input</strong> (<em>jax.Array</em>) – input tensor of shape (B, S, H)</p></li>
+<li><p><strong>weight</strong> (<em>jax.Array</em>) – depthwise convolution weight of shape (H, K), K being the kernel size</p></li>
+<li><p><strong>bias</strong> (<em>jax.Array</em><em> | </em><em>None</em>) – bias tensor of shape (H,). None means no bias is added. Defaults to None.</p></li>
+<li><p><strong>input_state</strong> (<em>jax.Array</em><em> | </em><em>None</em>) – the <cite>K</cite> raw (pre-convolution) input positions preceding <cite>input</cite>, of shape (B, H, K).
+None is equivalent to a 0 tensor. Defaults to None.</p></li>
+<li><p><strong>attention_mask</strong> (<em>jax.Array</em><em> | </em><em>None</em>) – mask of shape (B, S), zeroing out padding positions before and after the
+convolution. Defaults to None.</p></li>
+<li><p><strong>output_state</strong> (<em>bool</em>) – whether to also return the trailing <cite>K</cite> raw input positions (taken from <cite>input</cite>,
+falling back to <cite>input_state</cite> if <cite>input</cite> is shorter than <cite>K</cite>) for use as <cite>input_state</cite> in a
+subsequent call. Defaults to False.</p></li>
+<li><p><strong>activation_function</strong> (<em>str</em><em> | </em><em>Callable</em><em>[</em><em>[</em><em>jax.Array</em><em>]</em><em>, </em><em>jax.Array</em><em>] </em><em>| </em><em>None</em>) – activation applied after the convolution + bias. Either a name in
+{“gelu”, “relu”, “sigmoid”, “silu”, “swish”, “tanh”}, an arbitrary callable, or None (identity).
+Defaults to None.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>output tensor of shape (B, S, H), and the output state of shape (B, H, K) if <cite>output_state</cite> is
+True else None.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tuple[jax.Array, jax.Array | None]</p>
+</dd>
+</dl>
+</dd></dl>
 
-</section>
+<span class="target" id="module-xma.layers_jax.depthwise_causal_convolution"></span></section>
 
         </article>
       </div>
       <footer>
         
         <div class="related-pages">
-          <a class="next-page" href="xma.autotuner.html">
+          <a class="next-page" href="xma.layers_jax.linear_attention.html">
               <div class="page-info">
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">xma.autotuner</div>
+                <div class="title">xma.layers_jax.linear_attention</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>
-          <a class="prev-page" href="xma.accelerator.html">
+          <a class="prev-page" href="xma.layers_jax.html">
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
               <div class="page-info">
                 <div class="context">
                   <span>Previous</span>
                 </div>
                 
-                <div class="title">xma.accelerator</div>
+                <div class="title">xma.layers_jax</div>
                 
               </div>
             </a>
@@ -358,12 +392,14 @@
         <div class="toc-tree-container">
           <div class="toc-tree">
             <ul>
-<li><a class="reference internal" href="#">xma.counters</a><ul>
-<li><a class="reference internal" href="#xma.counters.enable_counters"><code class="docutils literal notranslate"><span class="pre">enable_counters()</span></code></a></li>
-<li><a class="reference internal" href="#xma.counters.get_counter_value"><code class="docutils literal notranslate"><span class="pre">get_counter_value()</span></code></a></li>
-<li><a class="reference internal" href="#xma.counters.increment_counter"><code class="docutils literal notranslate"><span class="pre">increment_counter()</span></code></a></li>
-<li><a class="reference internal" href="#xma.counters.is_counter_enabled"><code class="docutils literal notranslate"><span class="pre">is_counter_enabled()</span></code></a></li>
-<li><a class="reference internal" href="#xma.counters.reset_counters"><code class="docutils literal notranslate"><span class="pre">reset_counters()</span></code></a></li>
+<li><a class="reference internal" href="#">xma.layers_jax.depthwise_causal_convolution</a><ul>
+<li><a class="reference internal" href="#xma.layers_jax.depthwise_causal_convolution.module.DepthwiseCausalConvolutionJAX"><code class="docutils literal notranslate"><span class="pre">DepthwiseCausalConvolutionJAX</span></code></a><ul>
+<li><a class="reference internal" href="#xma.layers_jax.depthwise_causal_convolution.module.DepthwiseCausalConvolutionJAX.bias"><code class="docutils literal notranslate"><span class="pre">DepthwiseCausalConvolutionJAX.bias</span></code></a></li>
+<li><a class="reference internal" href="#xma.layers_jax.depthwise_causal_convolution.module.DepthwiseCausalConvolutionJAX.init"><code class="docutils literal notranslate"><span class="pre">DepthwiseCausalConvolutionJAX.init()</span></code></a></li>
+<li><a class="reference internal" href="#xma.layers_jax.depthwise_causal_convolution.module.DepthwiseCausalConvolutionJAX.weight"><code class="docutils literal notranslate"><span class="pre">DepthwiseCausalConvolutionJAX.weight</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#xma.layers_jax.depthwise_causal_convolution.op.depthwise_causal_convolution_jax"><code class="docutils literal notranslate"><span class="pre">depthwise_causal_convolution_jax()</span></code></a></li>
 </ul>
 </li>
 </ul>
