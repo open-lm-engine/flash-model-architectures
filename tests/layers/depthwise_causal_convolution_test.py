@@ -11,7 +11,7 @@ torch = pytest.importorskip("torch")
 
 from torch.testing import assert_close
 
-from xma.layers import CausalConv1d, enable_causal_conv1d_package
+from xma.layers import DepthwiseCausalConvolution, enable_causal_conv1d_package
 from xma.utils import is_causal_conv1d_available
 
 
@@ -30,8 +30,8 @@ def _skip_test_if_device_unavailable(device: torch.device) -> None:
 
 def _make_conv(
     hidden_size: int = _HIDDEN_SIZE, kernel_size: int = 4, activation: str | None = "silu", add_bias: bool = True
-) -> CausalConv1d:
-    return CausalConv1d(
+) -> DepthwiseCausalConvolution:
+    return DepthwiseCausalConvolution(
         hidden_size=hidden_size, kernel_size=kernel_size, activation_function=activation, add_bias=add_bias, std=None
     )
 

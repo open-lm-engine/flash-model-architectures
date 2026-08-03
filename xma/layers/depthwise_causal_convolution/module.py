@@ -80,10 +80,10 @@ def _get_last_state(x: torch.Tensor, kernel_size: int) -> torch.Tensor:
     return x[..., -kernel_size:]
 
 
-class CausalConv1d(nn.Conv1d):
+class DepthwiseCausalConvolution(nn.Conv1d):
     def __init__(
         self, hidden_size: int, kernel_size: int, activation_function: str | None, add_bias: bool, std: float | None
-    ) -> CausalConv1d:
+    ) -> DepthwiseCausalConvolution:
         self.std = std
 
         super().__init__(
