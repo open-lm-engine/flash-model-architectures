@@ -90,6 +90,12 @@ def test_generation_shapes(
     device = kernel_backend.get_compatible_accelerator().get_current_device()
     _skip_test_if_device_unavailable(device)
 
+    if kernel_backend == KernelBackend.cuda and not is_causal_conv1d_available():
+        pytest.skip("causal_conv1d unavailable")
+
+    if kernel_backend == KernelBackend.cuda and kernel_size == 1:
+        pytest.skip("causal_conv1d only supports kernel_size between 2 and 4")
+
     with torch.device(device):
         conv = _make_conv(kernel_size=kernel_size, add_bias=add_bias, activation=activation)
 
@@ -123,6 +129,12 @@ def test_zero_state_matches_fresh_prefill(
     device = kernel_backend.get_compatible_accelerator().get_current_device()
     _skip_test_if_device_unavailable(device)
 
+    if kernel_backend == KernelBackend.cuda and not is_causal_conv1d_available():
+        pytest.skip("causal_conv1d unavailable")
+
+    if kernel_backend == KernelBackend.cuda and kernel_size == 1:
+        pytest.skip("causal_conv1d only supports kernel_size between 2 and 4")
+
     with torch.device(device):
         conv = _make_conv(kernel_size=kernel_size, add_bias=add_bias, activation=activation)
 
@@ -151,7 +163,6 @@ def test_zero_state_matches_fresh_prefill(
 @pytest.mark.parametrize("short_prefill", [False, True])
 @pytest.mark.parametrize("kernel_backend", [KernelBackend.cuda, KernelBackend.torch])
 def test_consistency(
-    device: torch.device,
     kernel_size: int,
     add_bias: bool,
     activation: str | None,
@@ -162,6 +173,12 @@ def test_consistency(
 ) -> None:
     device = kernel_backend.get_compatible_accelerator().get_current_device()
     _skip_test_if_device_unavailable(device)
+
+    if kernel_backend == KernelBackend.cuda and not is_causal_conv1d_available():
+        pytest.skip("causal_conv1d unavailable")
+
+    if kernel_backend == KernelBackend.cuda and kernel_size == 1:
+        pytest.skip("causal_conv1d only supports kernel_size between 2 and 4")
 
     with torch.device(device):
         conv = _make_conv(kernel_size=kernel_size, add_bias=add_bias, activation=activation)
@@ -209,7 +226,7 @@ def test_consistency(
             input_state=state,
             attention_mask=None,
             output_state=not is_last,
-            kernel_backend=KernelBackend.torch,
+            kernel_backend=kernel_backend,
         )
 
         assert_close(out_step, out_full[:, start : start + 1], rtol=1e-5, atol=1e-5)
@@ -238,6 +255,12 @@ def test_consistency(
 def test_attention_mask(kernel_size: int, kernel_backend: KernelBackend) -> None:
     device = kernel_backend.get_compatible_accelerator().get_current_device()
     _skip_test_if_device_unavailable(device)
+
+    if kernel_backend == KernelBackend.cuda and not is_causal_conv1d_available():
+        pytest.skip("causal_conv1d unavailable")
+
+    if kernel_backend == KernelBackend.cuda and kernel_size == 1:
+        pytest.skip("causal_conv1d only supports kernel_size between 2 and 4")
 
     conv = _make_conv(kernel_size=kernel_size, activation=None).to(device)
     conv.eval()
