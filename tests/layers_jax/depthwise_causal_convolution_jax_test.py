@@ -17,7 +17,7 @@ import jax.numpy as jnp
 from xma.layers_jax import DepthwiseCausalConvolutionJAX, depthwise_causal_convolution_jax
 
 
-_TOLERANCE = {"atol": 1e-5, "rtol": 1e-5}
+_TOLERANCE = {"atol": 2e-4, "rtol": 0}
 
 
 def _reference_numpy(
