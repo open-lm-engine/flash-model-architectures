@@ -9,7 +9,7 @@ torch = pytest.importorskip("torch")
 
 from torch.testing import assert_close
 
-from xma import KernelBackend
+from xma import Accelerator, KernelBackend
 from xma.layers import DepthwiseCausalConvolution
 from xma.utils import is_causal_conv1d_available
 
@@ -35,7 +35,6 @@ def _make_conv(
     )
 
 
-@pytest.mark.parametrize("device", [torch.device("cpu"), torch.device("cuda")])
 @pytest.mark.parametrize("kernel_size", [1, 4])
 @pytest.mark.parametrize("add_bias", [False, True])
 @pytest.mark.parametrize("activation", [None, "silu", "gelu"])
@@ -43,7 +42,6 @@ def _make_conv(
 @pytest.mark.parametrize("short_seq", [False, True])
 @pytest.mark.parametrize("kernel_backend", [KernelBackend.cuda, KernelBackend.torch])
 def test_prefill_shapes(
-    device: torch.device,
     kernel_size: int,
     add_bias: bool,
     activation: str | None,
@@ -51,9 +49,10 @@ def test_prefill_shapes(
     short_seq: bool,
     kernel_backend: KernelBackend,
 ) -> None:
+    device = kernel_backend.get_compatible_accelerator().get_current_device()
     _skip_test_if_device_unavailable(device)
 
-    if kernel_backend == KernelBackend.cuda and (device.type != "cuda" or not is_causal_conv1d_available()):
+    if kernel_backend == KernelBackend.cuda and not is_causal_conv1d_available():
         pytest.skip("causal_conv1d unavailable")
 
     if kernel_backend == KernelBackend.cuda and kernel_size == 1:
@@ -230,13 +229,13 @@ def test_attention_mask(device: torch.device, kernel_size: int) -> None:
     assert_close(out_masked[1, 3:], out_zeroed[1, 3:], rtol=1e-5, atol=1e-5)
 
 
-@pytest.mark.parametrize("device", [torch.device("cpu"), torch.device("cuda")])
 @pytest.mark.parametrize("kernel_size", [1, 4])
 @pytest.mark.parametrize("activation", [None, "silu", "gelu"])
-def test_kernel_vs_fallback(device: torch.device, kernel_size: int, activation: str | None) -> None:
+def test_kernel_vs_fallback(kernel_size: int, activation: str | None) -> None:
+    device = Accelerator.get_current_device()
     _skip_test_if_device_unavailable(device)
 
-    if device.type != "cuda" or not is_causal_conv1d_available():
+    if not is_causal_conv1d_available():
         pytest.skip("causal_conv1d unavailable")
 
     if kernel_size == 1:
