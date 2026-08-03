@@ -33,16 +33,16 @@ def _reference_numpy(
     K = weight.shape[-1]
 
     xt = np.transpose(x, (0, 2, 1))
-    state = np.zeros((B, H, K), dtype=np.float64) if input_state is None else input_state.astype(np.float64)
-    full = np.concatenate([state, xt.astype(np.float64)], axis=-1)
+    state = np.zeros((B, H, K), dtype=np.float32) if input_state is None else input_state.astype(np.float32)
+    full = np.concatenate([state, xt.astype(np.float32)], axis=-1)
 
-    y = np.zeros((B, H, S), dtype=np.float64)
+    y = np.zeros((B, H, S), dtype=np.float32)
     for j in range(S):
         window = full[:, :, j + 1 : j + 1 + K]
-        y[:, :, j] = (window * weight[None, :, :].astype(np.float64)).sum(-1)
+        y[:, :, j] = (window * weight[None, :, :].astype(np.float32)).sum(-1)
 
     if bias is not None:
-        y = y + bias[None, :, None].astype(np.float64)
+        y = y + bias[None, :, None].astype(np.float32)
 
     y = np.transpose(y, (0, 2, 1)).astype(x.dtype)
     final_state = full[:, :, -K:].astype(x.dtype) if output_state else None
