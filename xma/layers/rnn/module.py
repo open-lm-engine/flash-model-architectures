@@ -69,7 +69,7 @@ class RNN(nn.Module):
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor | None]:
         input = self.input_projection(input)
 
-        if self.conv1d is None:
+        if self.kernel_size is None:
             assert conv_state is None
         else:
             assert cu_seqlens is None, "depthwise causal conv does not support cu_seqlens"

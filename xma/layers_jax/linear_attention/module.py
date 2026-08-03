@@ -129,7 +129,7 @@ class LinearAttentionJAX(eqx.Module):
 
         projected = self.input_projection(input)
 
-        if self.conv1d is None:
+        if self.kernel_size is None:
             assert conv_state is None
         else:
             projected, conv_state = self.conv1d(projected, input_state=conv_state, output_state=output_conv_state)

@@ -101,7 +101,7 @@ class GRU(nn.Module):
 
         input, forget_gate, reset_gate = input.split((self.x_shape, self.xf_shape, self.xr_shape), dim=-1)
 
-        if self.conv1d is None:
+        if self.kernel_size is None:
             assert conv_state is None
         else:
             assert cu_seqlens is None, "depthwise causal conv does not support cu_seqlens"
