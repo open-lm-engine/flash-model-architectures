@@ -59,10 +59,8 @@ def _get_last_state(x: torch.Tensor, kernel_size: int) -> torch.Tensor:
 
 class DepthwiseCausalConvolution(nn.Conv1d):
     def __init__(
-        self, hidden_size: int, kernel_size: int, activation_function: str | None, add_bias: bool, std: float | None
+        self, hidden_size: int, kernel_size: int, activation_function: str | None, add_bias: bool
     ) -> DepthwiseCausalConvolution:
-        self.std = std
-
         super().__init__(
             in_channels=hidden_size,
             out_channels=hidden_size,
@@ -76,8 +74,6 @@ class DepthwiseCausalConvolution(nn.Conv1d):
         self.activation_function = _get_activation_function(self.activation_string)
         self.use_activation_inside_kernel = self.activation_string in [None, "silu", "swish"]
         self.kernel_size = kernel_size
-
-        self.reset_parameters()
 
     def forward(
         self,
@@ -179,15 +175,6 @@ class DepthwiseCausalConvolution(nn.Conv1d):
         x = _apply_mask_to_padding_states(x, attention_mask)
 
         return x, final_state
-
-    @torch.no_grad()
-    def reset_parameters(self) -> None:
-        if self.std is None:
-            super().reset_parameters()
-        else:
-            nn.init.normal_(self.weight, mean=0, std=self.std)
-            if hasattr(self, "bias") and self.bias is not None:
-                self.bias.zero_()
 
     def extra_repr(self) -> str:
         output = super().extra_repr()
