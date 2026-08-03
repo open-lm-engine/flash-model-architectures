@@ -51,7 +51,7 @@ def _linear_attention_reference(
     return y.astype(dtype), h
 
 
-@partial(jax.custom_vjp, nondiff_argnums=(4, 5))
+@partial(jax.custom_vjp, nondiff_argnums=(4, 5, 6))
 def _linear_attention_jax_op(
     query: jax.Array,
     key: jax.Array,
@@ -59,9 +59,16 @@ def _linear_attention_jax_op(
     input_state: jax.Array | None,
     attention_multiplier: float,
     BLOCK_SIZE_S: int,
+    BLOCK_SIZE_V: int,
 ) -> tuple[jax.Array, jax.Array]:
     return _linear_attention_forward_pallas(
-        query, key, value, input_state, attention_multiplier=attention_multiplier, BLOCK_SIZE_S=BLOCK_SIZE_S
+        query,
+        key,
+        value,
+        input_state,
+        attention_multiplier=attention_multiplier,
+        BLOCK_SIZE_S=BLOCK_SIZE_S,
+        BLOCK_SIZE_V=BLOCK_SIZE_V,
     )
 
 
@@ -72,13 +79,14 @@ def _linear_attention_forward_jax(
     input_state: jax.Array | None,
     attention_multiplier: float,
     BLOCK_SIZE_S: int,
+    BLOCK_SIZE_V: int,
 ) -> tuple[tuple[jax.Array, jax.Array], tuple]:
-    y, h = _linear_attention_jax_op(query, key, value, input_state, attention_multiplier, BLOCK_SIZE_S)
+    y, h = _linear_attention_jax_op(query, key, value, input_state, attention_multiplier, BLOCK_SIZE_S, BLOCK_SIZE_V)
     return (y, h), (query, key, value, input_state)
 
 
 def _linear_attention_backward_jax(
-    attention_multiplier: float, BLOCK_SIZE_S: int, residuals: tuple, cotangents: tuple
+    attention_multiplier: float, BLOCK_SIZE_S: int, BLOCK_SIZE_V: int, residuals: tuple, cotangents: tuple
 ) -> tuple:
     query, key, value, input_state = residuals
     dy, dh = cotangents
@@ -92,6 +100,7 @@ def _linear_attention_backward_jax(
         dh,
         attention_multiplier=attention_multiplier,
         BLOCK_SIZE_S=BLOCK_SIZE_S,
+        BLOCK_SIZE_V=BLOCK_SIZE_V,
     )
 
     return dq, dk, dv, (dh0 if input_state is not None else None)
@@ -107,6 +116,7 @@ def linear_attention_jax(
     input_state: jax.Array | None = None,
     attention_multiplier: float | None = None,
     BLOCK_SIZE_S: int = 128,
+    BLOCK_SIZE_V: int = 128,
     *,
     kernel_backend: KernelBackend | None = None,
 ) -> tuple[jax.Array, jax.Array]:
@@ -126,6 +136,9 @@ def linear_attention_jax(
     :type attention_multiplier: float | None
     :param BLOCK_SIZE_S: sequence-length block size used by the pallas kernel. Defaults to 128.
     :type BLOCK_SIZE_S: int
+    :param BLOCK_SIZE_V: value-head-dimension block size used by the pallas kernel; `V <= BLOCK_SIZE_V`
+        (the default) means V is effectively untiled. Defaults to 128.
+    :type BLOCK_SIZE_V: int
     :param kernel_backend: KernelBackend
     :type kernel_backend: KernelBackend | None
     :return: output tensor of shape (B, S, N, V) and output state of shape (B, N, K, V)
@@ -151,7 +164,9 @@ def linear_attention_jax(
         kernel_backend = Accelerator.get_kernel_backend()
 
     if kernel_backend == KernelBackend.pallas:
-        y, h = _linear_attention_jax_op(query, key, value, input_state, attention_multiplier, BLOCK_SIZE_S)
+        y, h = _linear_attention_jax_op(
+            query, key, value, input_state, attention_multiplier, BLOCK_SIZE_S, BLOCK_SIZE_V
+        )
     elif kernel_backend == KernelBackend.jax:
         y, h = _linear_attention_reference(query, key, value, input_state, attention_multiplier)
     else:

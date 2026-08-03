@@ -46,13 +46,18 @@ def _output_readout(
 def _forward_kernel(
     q_ref, k_ref, v_ref, h0_ref, y_ref, h_ref, *, attention_multiplier: float, BLOCK_SIZE_S: int, S: int
 ) -> None:
-    @pl.when(pl.program_id(2) == 0)
+    # grid is (B, N, V_tiles, S_tiles): V is a plain parallel tile here (nothing in this kernel reduces
+    # over V - qk/state-update/output-readout all treat it as an independent trailing axis), so the kernel
+    # body is identical to the untiled version; only the block shapes/index_maps below change. S must stay
+    # the fastest-varying (last) grid axis for the h_ref running-state accumulation below to see consecutive
+    # chunks in order.
+    @pl.when(pl.program_id(3) == 0)
     def _():
         h_ref[...] = h0_ref[...]
 
     dtype = q_ref.dtype
 
-    BLOCK_ID_S = pl.program_id(2)
+    BLOCK_ID_S = pl.program_id(3)
     BLOCK_S = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, 1), 0)
     MASK_S = (BLOCK_ID_S * BLOCK_SIZE_S + BLOCK_S) < S
 
@@ -69,7 +74,7 @@ def _forward_kernel(
     h_ref[...] = h
 
 
-@partial(jax.jit, static_argnames=("attention_multiplier", "BLOCK_SIZE_S"))
+@partial(jax.jit, static_argnames=("attention_multiplier", "BLOCK_SIZE_S", "BLOCK_SIZE_V"))
 def _linear_attention_forward_core(
     q: jax.Array,
     k: jax.Array,
@@ -77,6 +82,7 @@ def _linear_attention_forward_core(
     h0: jax.Array,
     attention_multiplier: float,
     BLOCK_SIZE_S: int,
+    BLOCK_SIZE_V: int,
 ) -> tuple[jax.Array, jax.Array]:
     B, Nq, S, K = q.shape
     Nk = k.shape[1]
@@ -99,18 +105,23 @@ def _linear_attention_forward_core(
             jax.ShapeDtypeStruct(shape=(B, N, S, V), dtype=q.dtype),
             jax.ShapeDtypeStruct(shape=(B, N, K, V), dtype=jnp.float32),
         ),
-        grid=(B, N, ceil_divide(S, BLOCK_SIZE_S)),
+        grid=(B, N, ceil_divide(V, BLOCK_SIZE_V), ceil_divide(S, BLOCK_SIZE_S)),
         in_specs=[
-            pl.BlockSpec(block_shape=(None, None, BLOCK_SIZE_S, K), index_map=lambda b, n, c: (b, n // Gq, c, 0)),
-            pl.BlockSpec(block_shape=(None, None, BLOCK_SIZE_S, K), index_map=lambda b, n, c: (b, n // Gk, c, 0)),
-            pl.BlockSpec(block_shape=(None, None, BLOCK_SIZE_S, V), index_map=lambda b, n, c: (b, n // Gv, c, 0)),
-            pl.BlockSpec(block_shape=(None, None, K, V), index_map=lambda b, n, c: (b, n, 0, 0)),
+            pl.BlockSpec(block_shape=(None, None, BLOCK_SIZE_S, K), index_map=lambda b, n, vb, c: (b, n // Gq, c, 0)),
+            pl.BlockSpec(block_shape=(None, None, BLOCK_SIZE_S, K), index_map=lambda b, n, vb, c: (b, n // Gk, c, 0)),
+            pl.BlockSpec(
+                block_shape=(None, None, BLOCK_SIZE_S, BLOCK_SIZE_V),
+                index_map=lambda b, n, vb, c: (b, n // Gv, c, vb),
+            ),
+            pl.BlockSpec(block_shape=(None, None, K, BLOCK_SIZE_V), index_map=lambda b, n, vb, c: (b, n, 0, vb)),
         ],
         out_specs=(
-            pl.BlockSpec(block_shape=(None, None, BLOCK_SIZE_S, V), index_map=lambda b, n, c: (b, n, c, 0)),
-            pl.BlockSpec(block_shape=(None, None, K, V), index_map=lambda b, n, c: (b, n, 0, 0)),
+            pl.BlockSpec(
+                block_shape=(None, None, BLOCK_SIZE_S, BLOCK_SIZE_V), index_map=lambda b, n, vb, c: (b, n, c, vb)
+            ),
+            pl.BlockSpec(block_shape=(None, None, K, BLOCK_SIZE_V), index_map=lambda b, n, vb, c: (b, n, 0, vb)),
         ),
-        compiler_params=pltpu.CompilerParams(dimension_semantics=("parallel", "parallel", "arbitrary")),
+        compiler_params=pltpu.CompilerParams(dimension_semantics=("parallel", "parallel", "parallel", "arbitrary")),
     )
 
     return kernel(q, k, v, h0)
@@ -123,6 +134,7 @@ def _linear_attention_forward_pallas(
     h0: jax.Array | None,
     attention_multiplier: float,
     BLOCK_SIZE_S: int,
+    BLOCK_SIZE_V: int,
 ) -> tuple[jax.Array, jax.Array]:
     B, _, Nq, K = q.shape
     Nk = k.shape[-2]
@@ -140,7 +152,13 @@ def _linear_attention_forward_pallas(
     v = jnp.swapaxes(v, 1, 2)
 
     y, h = _linear_attention_forward_core(
-        q=q, k=k, v=v, h0=h0, attention_multiplier=attention_multiplier, BLOCK_SIZE_S=BLOCK_SIZE_S
+        q=q,
+        k=k,
+        v=v,
+        h0=h0,
+        attention_multiplier=attention_multiplier,
+        BLOCK_SIZE_S=BLOCK_SIZE_S,
+        BLOCK_SIZE_V=BLOCK_SIZE_V,
     )
 
     y = jnp.swapaxes(y, 1, 2)

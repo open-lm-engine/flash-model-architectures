@@ -35,6 +35,7 @@ class LinearAttentionJAX(eqx.Module):
 
     attention_multiplier: float | None = eqx.field(static=True)
     BLOCK_SIZE_S: int = eqx.field(static=True)
+    BLOCK_SIZE_V: int = eqx.field(static=True)
 
     @staticmethod
     def init(
@@ -48,7 +49,8 @@ class LinearAttentionJAX(eqx.Module):
         add_bias: bool,
         *,
         attention_multiplier: float | None = None,
-        BLOCK_SIZE_S: int = 64,
+        BLOCK_SIZE_S: int = 128,
+        BLOCK_SIZE_V: int = 128,
         kernel_size: int | None = None,
         conv_activation_function: str | Callable[[jax.Array], jax.Array] | None = None,
         key: PRNGKeyArray,
@@ -105,6 +107,7 @@ class LinearAttentionJAX(eqx.Module):
             StateSize=StateSize,
             attention_multiplier=attention_multiplier,
             BLOCK_SIZE_S=BLOCK_SIZE_S,
+            BLOCK_SIZE_V=BLOCK_SIZE_V,
         )
 
     def __call__(
@@ -148,6 +151,7 @@ class LinearAttentionJAX(eqx.Module):
             input_state=input_state,
             attention_multiplier=self.attention_multiplier,
             BLOCK_SIZE_S=self.BLOCK_SIZE_S,
+            BLOCK_SIZE_V=self.BLOCK_SIZE_V,
             kernel_backend=kernel_backend,
         )
 

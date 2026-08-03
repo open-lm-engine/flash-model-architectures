@@ -39,6 +39,7 @@ def _generate_args() -> list:
         product(
             [3, 16, 37, 64, 130],  # sequence length: shorter than, equal to, or not a multiple of BLOCK_SIZE_S
             [16, 32],  # BLOCK_SIZE_S
+            [8, 16],  # BLOCK_SIZE_V: shorter than, equal to, or not a multiple of V (16 or 24 above)
             _get_problem_shapes(),
             ["float32", "bfloat16"],
             [False, True],  # has_input_state
@@ -46,10 +47,11 @@ def _generate_args() -> list:
     )
 
 
-@pytest.mark.parametrize("S,BLOCK_SIZE_S,problem_shape,dtype,has_input_state", _generate_args())
+@pytest.mark.parametrize("S,BLOCK_SIZE_S,BLOCK_SIZE_V,problem_shape,dtype,has_input_state", _generate_args())
 def test_linear_attention_pallas(
     S: int,
     BLOCK_SIZE_S: int,
+    BLOCK_SIZE_V: int,
     problem_shape: tuple[int, int, int, int, int],
     dtype: str,
     has_input_state: bool,
@@ -80,6 +82,7 @@ def test_linear_attention_pallas(
             h0,
             attention_multiplier=_ATTENTION_MULTIPLIER,
             BLOCK_SIZE_S=BLOCK_SIZE_S,
+            BLOCK_SIZE_V=BLOCK_SIZE_V,
             kernel_backend=kernel_backend,
         )
 
