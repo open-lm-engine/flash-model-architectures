@@ -15,7 +15,7 @@ from ....math import ceil_divide
 
 
 def _checkpoint_output_shape_dtype_fn(
-    k: torch.Tensor, v: torch.Tensor, h0: torch.Tensor, BLOCK_SIZE_S: int
+    k: torch.Tensor, v: torch.Tensor, h0: torch.Tensor, BLOCK_SIZE_S: int, BLOCK_SIZE_V: int
 ) -> list[tuple[tuple[int, ...], torch.dtype]]:
     B, _, S, K = k.shape
     V = v.shape[-1]
@@ -29,7 +29,9 @@ def _checkpoint_output_shape_dtype_fn(
     return [((B, N * NUM_BLOCKS_S, K, V), torch.float32), ((B, N, K, V), torch.float32)]
 
 
-def _checkpoint_fake_function(k: torch.Tensor, v: torch.Tensor, h0: torch.Tensor, BLOCK_SIZE_S: int) -> torch.Tensor:
+def _checkpoint_fake_function(
+    k: torch.Tensor, v: torch.Tensor, h0: torch.Tensor, BLOCK_SIZE_S: int, BLOCK_SIZE_V: int
+) -> torch.Tensor:
     B, _, S, K = k.shape
     V = v.shape[-1]
     N = h0.shape[1]
@@ -43,7 +45,7 @@ _CHECKPOINT_CACHE = None
 
 @xma_op(mutates_args={}, fake_func=_checkpoint_fake_function)
 def _linear_attention_checkpoint_core(
-    k: torch.Tensor, v: torch.Tensor, h0: torch.Tensor, BLOCK_SIZE_S: int
+    k: torch.Tensor, v: torch.Tensor, h0: torch.Tensor, BLOCK_SIZE_S: int, BLOCK_SIZE_V: int
 ) -> torch.Tensor:
     # k, v: already transposed to (B, Nk/Nv, S, K/V); h0: (B, N, K, V), never None (defaulted by the caller)
     global _CHECKPOINT_CACHE
@@ -53,7 +55,8 @@ def _linear_attention_checkpoint_core(
 
         _CHECKPOINT_CACHE = make_kernel_from_pallas(_checkpoint_core_jax, _checkpoint_output_shape_dtype_fn)
 
-    h_checkpoints, _ = _CHECKPOINT_CACHE(k, v, h0, BLOCK_SIZE_S, static_argnums=(3,))
+    h_checkpoints, _ = _CHECKPOINT_CACHE(k, v, h0, BLOCK_SIZE_S, BLOCK_SIZE_V, static_argnums=(3, 4))
+
     return h_checkpoints
 
 
@@ -86,6 +89,7 @@ def _backward_fake_function(
     dh: torch.Tensor,
     attention_multiplier: float,
     BLOCK_SIZE_S: int,
+    BLOCK_SIZE_V: int,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     B, _, S, K = q.shape
     V = v.shape[-1]
@@ -112,6 +116,7 @@ def _linear_attention_backward_core(
     dh: torch.Tensor,
     attention_multiplier: float,
     BLOCK_SIZE_S: int,
+    BLOCK_SIZE_V: int,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     # q, k, v, dy: already transposed to (B, N, S, K/V); dh: (B, N, K, V), never None
     global _BACKWARD_CACHE
@@ -128,9 +133,10 @@ def _linear_attention_backward_core(
         dy,
         h_checkpoints,
         dh,
-        static_argnames=("attention_multiplier", "BLOCK_SIZE_S"),
+        static_argnames=("attention_multiplier", "BLOCK_SIZE_S", "BLOCK_SIZE_V"),
         attention_multiplier=attention_multiplier,
         BLOCK_SIZE_S=BLOCK_SIZE_S,
+        BLOCK_SIZE_V=BLOCK_SIZE_V,
     )
 
 
@@ -143,6 +149,7 @@ def _linear_attention_backward_pallas(
     dh: torch.Tensor | None,
     attention_multiplier: float,
     BLOCK_SIZE_S: int = 128,
+    BLOCK_SIZE_V: int = 128,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     B, S, Nq, K = q.shape
     Nk = k.size(-2)
@@ -169,10 +176,18 @@ def _linear_attention_backward_pallas(
     v = v.transpose(1, 2)
     dy = dy.transpose(1, 2)
 
-    h_checkpoints = _linear_attention_checkpoint_core(k, v, h0, BLOCK_SIZE_S)
+    h_checkpoints = _linear_attention_checkpoint_core(k, v, h0, BLOCK_SIZE_S, BLOCK_SIZE_V)
 
     dq, dk, dv, dh0 = _linear_attention_backward_core(
-        q, k, v, dy, h_checkpoints, dh, attention_multiplier=attention_multiplier, BLOCK_SIZE_S=BLOCK_SIZE_S
+        q=q,
+        k=k,
+        v=v,
+        dy=dy,
+        h_checkpoints=h_checkpoints,
+        dh=dh,
+        attention_multiplier=attention_multiplier,
+        BLOCK_SIZE_S=BLOCK_SIZE_S,
+        BLOCK_SIZE_V=BLOCK_SIZE_V,
     )
 
     dq = dq.transpose(1, 2)

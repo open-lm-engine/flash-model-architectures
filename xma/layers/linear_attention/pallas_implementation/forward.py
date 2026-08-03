@@ -27,8 +27,9 @@ def _fake_function(
     h0: torch.Tensor,
     attention_multiplier: float,
     BLOCK_SIZE_S: int,
+    BLOCK_SIZE_V: int,
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    B, Nq, S, K = q.shape
+    B, _, S, K = q.shape
     V = v.shape[-1]
     N = h0.shape[1]
 
@@ -49,6 +50,7 @@ def _linear_attention_forward_core(
     h0: torch.Tensor,
     attention_multiplier: float,
     BLOCK_SIZE_S: int,
+    BLOCK_SIZE_V: int,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     global _CACHE
 
@@ -62,9 +64,10 @@ def _linear_attention_forward_core(
         k,
         v,
         h0,
-        static_argnames=("attention_multiplier", "BLOCK_SIZE_S"),
+        static_argnames=("attention_multiplier", "BLOCK_SIZE_S", "BLOCK_SIZE_V"),
         attention_multiplier=attention_multiplier,
         BLOCK_SIZE_S=BLOCK_SIZE_S,
+        BLOCK_SIZE_V=BLOCK_SIZE_V,
     )
 
 
@@ -75,8 +78,9 @@ def _linear_attention_forward_pallas(
     h0: torch.Tensor | None,
     attention_multiplier: float,
     BLOCK_SIZE_S: int = 128,
+    BLOCK_SIZE_V: int = 128,
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    B, S, Nq, K = q.shape
+    B, _, Nq, K = q.shape
     Nk = k.shape[-2]
     Nv, V = v.shape[-2:]
 
@@ -92,8 +96,9 @@ def _linear_attention_forward_pallas(
     v = v.transpose(1, 2)
 
     y, h = _linear_attention_forward_core(
-        q, k, v, h0, attention_multiplier=attention_multiplier, BLOCK_SIZE_S=BLOCK_SIZE_S
+        q, k, v, h0, attention_multiplier=attention_multiplier, BLOCK_SIZE_S=BLOCK_SIZE_S, BLOCK_SIZE_V=BLOCK_SIZE_V
     )
+
     y = y.transpose(1, 2)
 
     return y, h
