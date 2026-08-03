@@ -4,6 +4,7 @@ xma.layers
 .. toctree::
    :maxdepth: 4
 
+   xma.layers.causal_conv1d
    xma.layers.gru
    xma.layers.linear_attention
    xma.layers.m2rnn

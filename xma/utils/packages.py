@@ -98,3 +98,15 @@ except:
 
 def is_triton_available() -> bool:
     return _IS_TRITON_AVAILABLE
+
+
+try:
+    import causal_conv1d
+
+    _IS_CAUSAL_CONV1D_AVAILABLE = True
+except ImportError:
+    _IS_CAUSAL_CONV1D_AVAILABLE = False
+
+
+def is_causal_conv1d_available() -> bool:
+    return _IS_CAUSAL_CONV1D_AVAILABLE

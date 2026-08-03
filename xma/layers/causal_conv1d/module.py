@@ -1,0 +1,210 @@
+# **************************************************
+# Copyright (c) 2026, Mayank Mishra
+# **************************************************
+
+from __future__ import annotations
+
+from contextlib import contextmanager
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+from ...utils import is_causal_conv1d_available
+
+
+if is_causal_conv1d_available():
+    from causal_conv1d import causal_conv1d_fn, causal_conv1d_update
+
+
+_BASE_ACTIVATIONS = {
+    "gelu": nn.GELU,
+    "relu": nn.ReLU,
+    "sigmoid": nn.Sigmoid,
+    "silu": nn.SiLU,
+    "swish": nn.SiLU,
+    "tanh": nn.Tanh,
+}
+
+
+def _get_activation_function(name: str | None) -> nn.Module:
+    if name is None:
+        return nn.Identity()
+
+    if name not in _BASE_ACTIVATIONS:
+        raise ValueError(f"invalid activation function ({name})")
+
+    return _BASE_ACTIVATIONS[name]()
+
+
+# whether to route through the external `causal_conv1d` package (https://github.com/Dao-AILab/causal-conv1d)
+# instead of the plain nn.Conv1d fallback below, toggled for the duration of a `with` block
+_USE_CAUSAL_CONV1D_PACKAGE = False
+
+
+def is_causal_conv1d_package_enabled() -> bool:
+    return _USE_CAUSAL_CONV1D_PACKAGE
+
+
+@contextmanager
+def enable_causal_conv1d_package():
+    global _USE_CAUSAL_CONV1D_PACKAGE
+
+    previous = _USE_CAUSAL_CONV1D_PACKAGE
+    _USE_CAUSAL_CONV1D_PACKAGE = True
+
+    try:
+        yield
+    finally:
+        _USE_CAUSAL_CONV1D_PACKAGE = previous
+
+
+def _apply_mask_to_padding_states(x: torch.Tensor, attention_mask: torch.Tensor | None) -> torch.Tensor:
+    """
+    Tunes out the hidden states for padding tokens, see https://github.com/state-spaces/mamba/issues/66
+    """
+    if attention_mask is not None and attention_mask.shape[1] > 1 and attention_mask.shape[0] > 1:
+        dtype = x.dtype
+        x = (x * attention_mask[:, :, None]).to(dtype)
+
+    return x
+
+
+def _get_last_state(x: torch.Tensor, kernel_size: int) -> torch.Tensor:
+    """Return the convolution carry as the latest kernel_size raw inputs."""
+
+    # last kernel_size columns of x as passed, not of the original block
+    if x.size(-1) < kernel_size:
+        return F.pad(x, (kernel_size - x.size(-1), 0))
+
+    return x[..., -kernel_size:]
+
+
+class CausalConv1d(nn.Conv1d):
+    def __init__(
+        self, hidden_size: int, kernel_size: int, activation_function: str | None, add_bias: bool, std: float | None
+    ) -> CausalConv1d:
+        self.std = std
+
+        super().__init__(
+            in_channels=hidden_size,
+            out_channels=hidden_size,
+            kernel_size=kernel_size,
+            padding=kernel_size - 1,
+            groups=hidden_size,
+            bias=add_bias,
+        )
+
+        self.activation_string = activation_function
+        self.activation_function = _get_activation_function(self.activation_string)
+        self.use_activation_inside_kernel = self.activation_string in [None, "silu", "swish"]
+        self.kernel_size = kernel_size
+
+        self.reset_parameters()
+
+    def forward(
+        self,
+        x: torch.Tensor,
+        input_state: torch.Tensor | None = None,
+        attention_mask: torch.Tensor | None = None,
+        output_state: bool = False,
+    ) -> tuple[torch.Tensor, torch.Tensor | None]:
+        BLOCK_SIZE_S = x.size(1)
+        S = BLOCK_SIZE_S
+
+        x = _apply_mask_to_padding_states(x, attention_mask)
+
+        final_state = None
+
+        if input_state is None:
+            x = x.transpose(-1, -2)
+
+            if output_state:
+                final_state = _get_last_state(x, self.kernel_size)
+
+            if is_causal_conv1d_package_enabled():
+                x = causal_conv1d_fn(
+                    x=x,
+                    weight=self.weight.squeeze(1),
+                    bias=self.bias,
+                    initial_states=None,
+                    activation=self.activation_string if self.use_activation_inside_kernel else None,
+                )
+
+                if not self.use_activation_inside_kernel:
+                    x = self.activation_function(x)
+            else:
+                x = super().forward(x)
+
+                # removes padding on the right side of the sequence
+                if self.kernel_size > 1:
+                    x = x[..., : 1 - self.kernel_size]
+
+                x = self.activation_function(x)
+
+            x = x.transpose(-1, -2)
+        else:
+            if S == 1:
+                if is_causal_conv1d_package_enabled():
+                    input_state_buffer = input_state.clone()
+
+                    x = causal_conv1d_update(
+                        x=x.squeeze(1),
+                        conv_state=input_state_buffer,
+                        weight=self.weight.squeeze(1),
+                        bias=self.bias,
+                        activation=self.activation_string if self.use_activation_inside_kernel else None,
+                    )
+
+                    x = x[:, None, :]
+                    final_state = input_state_buffer if output_state else None
+
+                    if not self.use_activation_inside_kernel:
+                        x = self.activation_function(x)
+                else:
+                    final_state = input_state.roll(shifts=-1, dims=-1)
+                    final_state[..., -1] = x[:, 0]
+
+                    x = (final_state * self.weight.squeeze(1)).sum(dim=-1)
+                    x = x[:, None, :]
+                    if self.bias is not None:
+                        x = x + self.bias
+
+                    if not output_state:
+                        final_state = None
+
+                    x = self.activation_function(x)
+            else:
+                x = x.transpose(-1, -2)
+                # TODO: add fused multi-token continuation support for input_state=[batch, dim, kernel_size]
+                # and final_state=[batch, dim, kernel_size]
+                x = torch.cat([input_state, x], dim=-1)
+
+                if output_state:
+                    final_state = _get_last_state(x, self.kernel_size)
+
+                x = super().forward(x)
+
+                if self.kernel_size > 1:
+                    x = x[..., : 1 - self.kernel_size]
+
+                x = x[..., -BLOCK_SIZE_S:]
+                x = self.activation_function(x)
+                x = x.transpose(-1, -2)
+
+        x = _apply_mask_to_padding_states(x, attention_mask)
+
+        return x, final_state
+
+    @torch.no_grad()
+    def reset_parameters(self) -> None:
+        if self.std is None:
+            super().reset_parameters()
+        else:
+            nn.init.normal_(self.weight, mean=0, std=self.std)
+            if hasattr(self, "bias") and self.bias is not None:
+                self.bias.zero_()
+
+    def extra_repr(self) -> str:
+        output = super().extra_repr()
+        return f"{output}\nactivation = {self.activation_string}"
