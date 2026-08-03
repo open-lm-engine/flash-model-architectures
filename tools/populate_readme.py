@@ -61,7 +61,7 @@ def get_rst_table(key: str, name_col: str, widths: str) -> str:
 
 # Generate README.md
 readme = f"""<!-- **************************************************
-Copyright (c) 2025, Mayank Mishra
+Copyright (c) 2026, Mayank Mishra
 ************************************************** -->
 
 # <img src="assets/xma.png" width="90px" height="30px" style="vertical-align: middle;"> (Accelerated Model Architectures)
@@ -130,6 +130,7 @@ Join the `Discord server <https://discord.gg/AFDxmjH5RV>`_ if you are interested
 
    xma.functional
    xma.layers
+   xma.layers_jax
    xma.optimizers
 
 .. toctree::
