@@ -11,11 +11,11 @@ from ....layers_jax.linear_attention.pallas_implementation.forward import (
 
 
 def _output_shape_dtype_fn(
-    q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, h0: torch.Tensor
+    q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, h0: torch.Tensor | None
 ) -> list[tuple[tuple[int, ...], torch.dtype]]:
     B, _, S, K = q.shape
     V = v.size(-1)
-    N = h0.size(1)
+    N = max(q.size(1), k.size(1), v.size(1))
 
     return [((B, N, S, V), q.dtype), ((B, N, K, V), torch.float32)]
 
@@ -24,14 +24,14 @@ def _fake_function(
     q: torch.Tensor,
     k: torch.Tensor,
     v: torch.Tensor,
-    h0: torch.Tensor,
+    h0: torch.Tensor | None,
     attention_multiplier: float,
     BLOCK_SIZE_S: int,
     BLOCK_SIZE_V: int,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     B, _, S, K = q.shape
     V = v.shape[-1]
-    N = h0.shape[1]
+    N = max(q.size(1), k.size(1), v.size(1))
 
     y = torch.empty(B, N, S, V, dtype=q.dtype, device=q.device)
     h = torch.empty(B, N, K, V, dtype=torch.float32, device=q.device)
@@ -47,7 +47,7 @@ def _linear_attention_forward_core(
     q: torch.Tensor,
     k: torch.Tensor,
     v: torch.Tensor,
-    h0: torch.Tensor,
+    h0: torch.Tensor | None,
     attention_multiplier: float,
     BLOCK_SIZE_S: int,
     BLOCK_SIZE_V: int,
@@ -80,17 +80,6 @@ def _linear_attention_forward_pallas(
     BLOCK_SIZE_S: int = 128,
     BLOCK_SIZE_V: int = 128,
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    B, _, Nq, K = q.shape
-    Nk = k.shape[-2]
-    Nv, V = v.shape[-2:]
-
-    N = max(Nq, Nk, Nv)
-
-    if h0 is None:
-        h0 = torch.zeros(B, N, K, V, dtype=torch.float32, device=q.device)
-    else:
-        h0 = h0.float()
-
     q = q.transpose(1, 2)
     k = k.transpose(1, 2)
     v = v.transpose(1, 2)
