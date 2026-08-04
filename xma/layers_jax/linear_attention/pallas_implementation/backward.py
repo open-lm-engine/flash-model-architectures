@@ -15,7 +15,7 @@ from ....math import ceil_divide
 from .forward import _state_update
 
 
-def _checkpoint_kernel_body(k_ref, v_ref, h_checkpoint_ref, h_ref, *, BLOCK_SIZE_S: int, S: int) -> None:
+def _compute_state_passing(k_ref, v_ref, h_checkpoint_ref, h_ref, *, BLOCK_SIZE_S: int, S: int) -> None:
     dtype = k_ref.dtype
 
     BLOCK_ID_S = pl.program_id(3)
@@ -30,20 +30,24 @@ def _checkpoint_kernel_body(k_ref, v_ref, h_checkpoint_ref, h_ref, *, BLOCK_SIZE
     h_ref[...] = _state_update(h=h, k=k, v=v)
 
 
-def _checkpoint_kernel(k_ref, v_ref, h0_ref, h_checkpoint_ref, h_ref, *, BLOCK_SIZE_S: int, S: int) -> None:
+def _state_passing_kernel(k_ref, v_ref, h0_ref, h_checkpoint_ref, h_ref, *, BLOCK_SIZE_S: int, S: int) -> None:
     @pl.when(pl.program_id(3) == 0)
     def _():
         h_ref[...] = h0_ref[...]
 
-    _checkpoint_kernel_body(k_ref, v_ref, h_checkpoint_ref, h_ref, BLOCK_SIZE_S=BLOCK_SIZE_S, S=S)
+    _compute_state_passing(
+        k_ref=k_ref, v_ref=v_ref, h_checkpoint_ref=h_checkpoint_ref, h_ref=h_ref, BLOCK_SIZE_S=BLOCK_SIZE_S, S=S
+    )
 
 
-def _checkpoint_kernel_zero_h0(k_ref, v_ref, h_checkpoint_ref, h_ref, *, BLOCK_SIZE_S: int, S: int) -> None:
+def _state_passing_kernel_zero_h0(k_ref, v_ref, h_checkpoint_ref, h_ref, *, BLOCK_SIZE_S: int, S: int) -> None:
     @pl.when(pl.program_id(3) == 0)
     def _():
         h_ref[...] = jnp.zeros_like(h_ref)
 
-    _checkpoint_kernel_body(k_ref, v_ref, h_checkpoint_ref, h_ref, BLOCK_SIZE_S=BLOCK_SIZE_S, S=S)
+    _compute_state_passing(
+        k_ref=k_ref, v_ref=v_ref, h_checkpoint_ref=h_checkpoint_ref, h_ref=h_ref, BLOCK_SIZE_S=BLOCK_SIZE_S, S=S
+    )
 
 
 def _backward_kernel_body(
@@ -255,10 +259,10 @@ def _linear_attention_state_passing_core(
     h_spec = pl.BlockSpec(block_shape=(None, None, K, BLOCK_SIZE_V), index_map=lambda b, n, vb, c: (b, n, 0, vb))
 
     if h0 is None:
-        kernel_fn = _checkpoint_kernel_zero_h0
+        kernel_fn = _state_passing_kernel_zero_h0
         args = (k, v)
     else:
-        kernel_fn = _checkpoint_kernel
+        kernel_fn = _state_passing_kernel
         in_specs += [h_spec]
         args = (k, v, h0)
 
