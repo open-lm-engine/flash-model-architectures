@@ -66,7 +66,7 @@ def _forward_kernel(
 ) -> None:
     @pl.when(pl.program_id(3) == 0)
     def _():
-        h_ref[...] = h0_ref[...]
+        h_ref[...] = h0_ref[...].astype(jnp.float32)
 
     _forward(
         q_ref=q_ref,
