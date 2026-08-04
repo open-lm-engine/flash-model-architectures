@@ -19,7 +19,13 @@ def _output_shape_dtype_fn(
 
 
 def _fake_function(
-    q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, h0: torch.Tensor | None, attention_multiplier: float
+    q: torch.Tensor,
+    k: torch.Tensor,
+    v: torch.Tensor,
+    h0: torch.Tensor | None,
+    attention_multiplier: float,
+    BLOCK_SIZE_S: int,
+    BLOCK_SIZE_V: int,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     B, _, S, K = q.shape
     V = v.shape[-1]
@@ -36,7 +42,13 @@ _CACHE = None
 
 @xma_op(mutates_args={}, fake_func=_fake_function)
 def _forward_core(
-    q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, h0: torch.Tensor | None, attention_multiplier: float
+    q: torch.Tensor,
+    k: torch.Tensor,
+    v: torch.Tensor,
+    h0: torch.Tensor | None,
+    attention_multiplier: float,
+    BLOCK_SIZE_S: int,
+    BLOCK_SIZE_V: int,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     global _CACHE
 
@@ -52,17 +64,28 @@ def _forward_core(
         h0,
         static_argnames=("attention_multiplier", "BLOCK_SIZE_S", "BLOCK_SIZE_V"),
         attention_multiplier=attention_multiplier,
+        BLOCK_SIZE_S=BLOCK_SIZE_S,
+        BLOCK_SIZE_V=BLOCK_SIZE_V,
     )
 
 
 def _linear_attention_forward_pallas(
-    q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, h0: torch.Tensor | None, attention_multiplier: float
+    q: torch.Tensor,
+    k: torch.Tensor,
+    v: torch.Tensor,
+    h0: torch.Tensor | None,
+    attention_multiplier: float,
+    BLOCK_SIZE_S: int = 128,
+    BLOCK_SIZE_V: int = 128,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     q = q.transpose(1, 2)
     k = k.transpose(1, 2)
     v = v.transpose(1, 2)
 
-    y, ht = _forward_core(q, k, v, h0, attention_multiplier=attention_multiplier)
+    y, ht = _forward_core(
+        q, k, v, h0, attention_multiplier=attention_multiplier, BLOCK_SIZE_S=BLOCK_SIZE_S, BLOCK_SIZE_V=BLOCK_SIZE_V
+    )
+
     y = y.transpose(1, 2)
 
     return y, ht
