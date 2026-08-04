@@ -2,8 +2,6 @@
 # Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
-from __future__ import annotations
-
 from functools import partial
 
 import jax
@@ -82,7 +80,7 @@ def _forward_kernel(
     )
 
 
-def _forward_kernel_zero_h0(
+def _forward_zero_h0_kernel(
     q_ref, k_ref, v_ref, y_ref, h_ref, *, attention_multiplier: float, BLOCK_SIZE_S: int, S: int
 ) -> None:
     @pl.when(pl.program_id(3) == 0)
@@ -102,7 +100,7 @@ def _forward_kernel_zero_h0(
 
 
 @partial(jax.jit, static_argnames=("attention_multiplier", "BLOCK_SIZE_S", "BLOCK_SIZE_V"))
-def _linear_attention_forward_core(
+def _forward_core(
     q: jax.Array,
     k: jax.Array,
     v: jax.Array,
@@ -132,7 +130,7 @@ def _linear_attention_forward_core(
     ]
 
     if h0 is None:
-        kernel_fn = _forward_kernel_zero_h0
+        kernel_fn = _forward_zero_h0_kernel
         args = (q, k, v)
     else:
         kernel_fn = _forward_kernel
@@ -172,7 +170,7 @@ def _linear_attention_forward_pallas(
     k = jnp.swapaxes(k, 1, 2)
     v = jnp.swapaxes(v, 1, 2)
 
-    y, ht = _linear_attention_forward_core(
+    y, ht = _forward_core(
         q=q,
         k=k,
         v=v,
