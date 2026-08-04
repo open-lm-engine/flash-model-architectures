@@ -139,8 +139,8 @@ class _LinearAttention(CustomOp):
             q=q,
             k=k,
             v=v,
-            dy=dy,
             h0=h0,
+            dy=dy,
             dh=dht,
             attention_multiplier=ctx.attention_multiplier,
         )
