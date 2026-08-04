@@ -26,7 +26,7 @@ def _checkpoint_output_shape_dtype_fn(
     return [((B, N * NUM_BLOCKS_S, K, V), torch.float32), ((B, N, K, V), torch.float32)]
 
 
-def _checkpoint_fake_function(
+def _state_passing_fake_function(
     k: torch.Tensor, v: torch.Tensor, h0: torch.Tensor | None, N: int, BLOCK_SIZE_S: int, BLOCK_SIZE_V: int
 ) -> torch.Tensor:
     B, _, S, K = k.shape
@@ -36,25 +36,21 @@ def _checkpoint_fake_function(
     return torch.empty(B, N * NUM_BLOCKS_S, K, V, dtype=torch.float32, device=k.device)
 
 
-_CHECKPOINT_CACHE = None
+_STATE_PASSING_CACHE = None
 
 
-@xma_op(mutates_args={}, fake_func=_checkpoint_fake_function)
-def _linear_attention_checkpoint_core(
+@xma_op(mutates_args={}, fake_func=_state_passing_fake_function)
+def _state_passing_core(
     k: torch.Tensor, v: torch.Tensor, h0: torch.Tensor | None, N: int, BLOCK_SIZE_S: int, BLOCK_SIZE_V: int
 ) -> torch.Tensor:
-    # k, v: already transposed to (B, Nk/Nv, S, K/V). h0: (B, N, K, V) or None - None skips the HBM
-    # read/zero-fill entirely and seeds the running state on-chip instead (see the jax-side kernel,
-    # _checkpoint_kernel_zero_h0). N can't be derived from h0 alone since it may be None, and this function
-    # doesn't otherwise see q (so Nq isn't available here) - the caller already has it.
-    global _CHECKPOINT_CACHE
+    global _STATE_PASSING_CACHE
 
-    if _CHECKPOINT_CACHE is None:
+    if _STATE_PASSING_CACHE is None:
         from torch_xla.experimental.custom_kernel import make_kernel_from_pallas
 
-        _CHECKPOINT_CACHE = make_kernel_from_pallas(_state_passing_core_jax, _checkpoint_output_shape_dtype_fn)
+        _STATE_PASSING_CACHE = make_kernel_from_pallas(_state_passing_core_jax, _checkpoint_output_shape_dtype_fn)
 
-    h_checkpoints, _ = _CHECKPOINT_CACHE(k, v, h0, N, BLOCK_SIZE_S, BLOCK_SIZE_V, static_argnums=(3, 4, 5))
+    h_checkpoints, _ = _STATE_PASSING_CACHE(k, v, h0, N, BLOCK_SIZE_S, BLOCK_SIZE_V, static_argnums=(3, 4, 5))
 
     return h_checkpoints
 
@@ -162,18 +158,12 @@ def _linear_attention_backward_pallas(
     Gk = N // Nk
     Gv = N // Nv
 
-    if h0 is not None:
-        h0 = h0.float()
-
-    if dh is not None:
-        dh = dh.float()
-
     q = q.transpose(1, 2)
     k = k.transpose(1, 2)
     v = v.transpose(1, 2)
     dy = dy.transpose(1, 2)
 
-    h_checkpoints = _linear_attention_checkpoint_core(k, v, h0, N, BLOCK_SIZE_S, BLOCK_SIZE_V)
+    h_checkpoints = _state_passing_core(k=k, v=v, h0=h0, N=N, BLOCK_SIZE_S=BLOCK_SIZE_S, BLOCK_SIZE_V=BLOCK_SIZE_V)
 
     dq, dk, dv, dh0 = _linear_attention_backward_core(
         q=q,
