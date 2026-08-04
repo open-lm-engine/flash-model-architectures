@@ -32,9 +32,9 @@ def _fake_function(
     N = max(q.size(1), k.size(1), v.size(1))
 
     y = torch.empty(B, N, S, V, dtype=q.dtype, device=q.device)
-    h = torch.empty(B, N, K, V, dtype=torch.float32, device=q.device)
+    ht = torch.empty(B, N, K, V, dtype=torch.float32, device=q.device)
 
-    return y, h
+    return y, ht
 
 
 _CACHE = None
@@ -82,10 +82,10 @@ def _linear_attention_forward_pallas(
     k = k.transpose(1, 2)
     v = v.transpose(1, 2)
 
-    y, h = _forward_core(
+    y, ht = _forward_core(
         q, k, v, h0, attention_multiplier=attention_multiplier, BLOCK_SIZE_S=BLOCK_SIZE_S, BLOCK_SIZE_V=BLOCK_SIZE_V
     )
 
     y = y.transpose(1, 2)
 
-    return y, h
+    return y, ht
