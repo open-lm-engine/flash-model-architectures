@@ -5,11 +5,9 @@
 import torch
 
 from ....custom_op import xma_op
+from ....layers_jax.linear_attention.pallas_implementation.backward import _backward_core as _backward_core_jax
 from ....layers_jax.linear_attention.pallas_implementation.backward import (
-    _linear_attention_backward_core as _backward_core_jax,
-)
-from ....layers_jax.linear_attention.pallas_implementation.backward import (
-    _linear_attention_checkpoint_core as _checkpoint_core_jax,
+    _state_passing_core as _state_passing_core_jax,
 )
 from ....math import ceil_divide
 
@@ -54,7 +52,7 @@ def _linear_attention_checkpoint_core(
     if _CHECKPOINT_CACHE is None:
         from torch_xla.experimental.custom_kernel import make_kernel_from_pallas
 
-        _CHECKPOINT_CACHE = make_kernel_from_pallas(_checkpoint_core_jax, _checkpoint_output_shape_dtype_fn)
+        _CHECKPOINT_CACHE = make_kernel_from_pallas(_state_passing_core_jax, _checkpoint_output_shape_dtype_fn)
 
     h_checkpoints, _ = _CHECKPOINT_CACHE(k, v, h0, N, BLOCK_SIZE_S, BLOCK_SIZE_V, static_argnums=(3, 4, 5))
 

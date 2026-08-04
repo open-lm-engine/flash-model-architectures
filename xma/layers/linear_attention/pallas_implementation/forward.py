@@ -5,9 +5,7 @@
 import torch
 
 from ....custom_op import xma_op
-from ....layers_jax.linear_attention.pallas_implementation.forward import (
-    _linear_attention_forward_core as _forward_core_jax,
-)
+from ....layers_jax.linear_attention.pallas_implementation.forward import _forward_core as _forward_core_jax
 
 
 def _output_shape_dtype_fn(
@@ -43,7 +41,7 @@ _CACHE = None
 
 
 @xma_op(mutates_args={}, fake_func=_fake_function)
-def _linear_attention_forward_core(
+def _forward_core(
     q: torch.Tensor,
     k: torch.Tensor,
     v: torch.Tensor,
@@ -84,7 +82,7 @@ def _linear_attention_forward_pallas(
     k = k.transpose(1, 2)
     v = v.transpose(1, 2)
 
-    y, h = _linear_attention_forward_core(
+    y, h = _forward_core(
         q, k, v, h0, attention_multiplier=attention_multiplier, BLOCK_SIZE_S=BLOCK_SIZE_S, BLOCK_SIZE_V=BLOCK_SIZE_V
     )
 
