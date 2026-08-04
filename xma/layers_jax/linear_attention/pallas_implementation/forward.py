@@ -85,7 +85,6 @@ def _forward_kernel(
 def _forward_kernel_zero_h0(
     q_ref, k_ref, v_ref, y_ref, h_ref, *, attention_multiplier: float, BLOCK_SIZE_S: int, S: int
 ) -> None:
-    # h0 is None: nothing to read from HBM, seed the running state directly in VMEM instead.
     @pl.when(pl.program_id(3) == 0)
     def _():
         h_ref[...] = jnp.zeros_like(h_ref)
