@@ -50,9 +50,9 @@ def _state_passing_core(
 
         _STATE_PASSING_CACHE = make_kernel_from_pallas(_state_passing_core_jax, _checkpoint_output_shape_dtype_fn)
 
-    h_checkpoints, _ = _STATE_PASSING_CACHE(k, v, h0, N, BLOCK_SIZE_S, BLOCK_SIZE_V, static_argnums=(3, 4, 5))
+    h, _ = _STATE_PASSING_CACHE(k, v, h0, N, BLOCK_SIZE_S, BLOCK_SIZE_V, static_argnums=(3, 4, 5))
 
-    return h_checkpoints
+    return h
 
 
 def _backward_output_shape_dtype_fn(
@@ -60,7 +60,7 @@ def _backward_output_shape_dtype_fn(
     k: torch.Tensor,
     v: torch.Tensor,
     dy: torch.Tensor,
-    h_checkpoints: torch.Tensor,
+    h: torch.Tensor,
     dh: torch.Tensor | None,
 ) -> list[tuple[tuple[int, ...], torch.dtype]]:
     B, _, S, K = q.shape
@@ -80,7 +80,7 @@ def _backward_fake_function(
     k: torch.Tensor,
     v: torch.Tensor,
     dy: torch.Tensor,
-    h_checkpoints: torch.Tensor,
+    h: torch.Tensor,
     dh: torch.Tensor | None,
     attention_multiplier: float,
     BLOCK_SIZE_S: int,
@@ -107,7 +107,7 @@ def _linear_attention_backward_core(
     k: torch.Tensor,
     v: torch.Tensor,
     dy: torch.Tensor,
-    h_checkpoints: torch.Tensor,
+    h: torch.Tensor,
     dh: torch.Tensor | None,
     attention_multiplier: float,
     BLOCK_SIZE_S: int,
@@ -128,7 +128,7 @@ def _linear_attention_backward_core(
         k,
         v,
         dy,
-        h_checkpoints,
+        h,
         dh,
         static_argnames=("attention_multiplier", "BLOCK_SIZE_S", "BLOCK_SIZE_V"),
         attention_multiplier=attention_multiplier,
@@ -163,14 +163,14 @@ def _linear_attention_backward_pallas(
     v = v.transpose(1, 2)
     dy = dy.transpose(1, 2)
 
-    h_checkpoints = _state_passing_core(k=k, v=v, h0=h0, N=N, BLOCK_SIZE_S=BLOCK_SIZE_S, BLOCK_SIZE_V=BLOCK_SIZE_V)
+    h = _state_passing_core(k=k, v=v, h0=h0, N=N, BLOCK_SIZE_S=BLOCK_SIZE_S, BLOCK_SIZE_V=BLOCK_SIZE_V)
 
     dq, dk, dv, dh0 = _linear_attention_backward_core(
         q=q,
         k=k,
         v=v,
         dy=dy,
-        h_checkpoints=h_checkpoints,
+        h=h,
         dh=dh,
         attention_multiplier=attention_multiplier,
         BLOCK_SIZE_S=BLOCK_SIZE_S,
