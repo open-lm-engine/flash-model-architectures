@@ -234,11 +234,11 @@ def _backward_kernel_zero_dh(
 
 
 @partial(jax.jit, static_argnames=("N", "BLOCK_SIZE_S", "BLOCK_SIZE_V"))
-def _linear_attention_checkpoint_core(
+def _linear_attention_state_passing_core(
     k: jax.Array, v: jax.Array, h0: jax.Array | None, N: int, BLOCK_SIZE_S: int, BLOCK_SIZE_V: int
 ) -> tuple[jax.Array, jax.Array]:
     B, Nk, S, K = k.shape
-    Nv, V = v.shape[1], v.shape[-1]
+    Nv, V = v.shape[-2:]
 
     Gk = N // Nk
     Gv = N // Nv
@@ -391,7 +391,7 @@ def _linear_attention_backward_pallas(
     v: jax.Array,
     dy: jax.Array,
     h0: jax.Array | None,
-    dh: jax.Array | None,
+    dht: jax.Array | None,
     attention_multiplier: float,
     BLOCK_SIZE_S: int,
     BLOCK_SIZE_V: int,
@@ -411,7 +411,7 @@ def _linear_attention_backward_pallas(
     v = jnp.swapaxes(v, 1, 2)
     dy = jnp.swapaxes(dy, 1, 2)
 
-    h, _ = _linear_attention_checkpoint_core(
+    h, _ = _linear_attention_state_passing_core(
         k=k, v=v, h0=h0, N=N, BLOCK_SIZE_S=BLOCK_SIZE_S, BLOCK_SIZE_V=BLOCK_SIZE_V
     )
 
@@ -421,7 +421,7 @@ def _linear_attention_backward_pallas(
         v=v,
         dy=dy,
         h=h,
-        dh=dh,
+        dht=dht,
         attention_multiplier=attention_multiplier,
         BLOCK_SIZE_S=BLOCK_SIZE_S,
         BLOCK_SIZE_V=BLOCK_SIZE_V,
