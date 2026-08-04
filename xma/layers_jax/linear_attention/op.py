@@ -3,13 +3,12 @@
 # **************************************************
 
 import math
-from functools import partial
 
 import jax
-import jax.numpy as jnp
 
 from ...accelerator import Accelerator, KernelBackend
-from .pallas_implementation import _linear_attention_backward_pallas, _linear_attention_forward_pallas
+from .jax_implementation import _linear_attention_reference
+from .pallas_implementation import _linear_attention_jax_op
 
 
 def _get_num_heads(q: jax.Array, k: jax.Array, v: jax.Array) -> tuple[int, int, int, int]:
@@ -24,101 +23,6 @@ def _get_num_heads(q: jax.Array, k: jax.Array, v: jax.Array) -> tuple[int, int, 
     assert N % Nv == 0
 
     return Nq, Nk, Nv, N
-
-
-def _linear_attention_reference(
-    q: jax.Array, k: jax.Array, v: jax.Array, h0: jax.Array | None, attention_multiplier: float
-) -> tuple[jax.Array, jax.Array]:
-    B, S, Nq, K = q.shape
-    Nk = k.shape[-2]
-    Nv, V = v.shape[-2:]
-    N = max(Nq, Nk, Nv)
-    dtype = q.dtype
-
-    q = jnp.repeat(q, N // Nq, axis=-2).astype(jnp.float32)
-    k = jnp.repeat(k, N // Nk, axis=-2).astype(jnp.float32)
-    v = jnp.repeat(v, N // Nv, axis=-2).astype(jnp.float32)
-
-    h = jnp.zeros((B, N, K, V), dtype=jnp.float32) if h0 is None else h0.astype(jnp.float32)
-
-    y = []
-    for s in range(S):
-        y.append(jnp.einsum("bnk,bnkv->bnv", q[:, s], h))
-        h = h + k[:, s][..., :, None] * v[:, s][..., None, :]
-
-    y = jnp.stack(y, axis=1) * attention_multiplier
-
-    return y.astype(dtype), h
-
-
-@partial(jax.custom_vjp, nondiff_argnums=(4, 5, 6))
-def _linear_attention_jax_op(
-    q: jax.Array,
-    k: jax.Array,
-    v: jax.Array,
-    h0: jax.Array | None,
-    attention_multiplier: float,
-    BLOCK_SIZE_S: int,
-    BLOCK_SIZE_V: int,
-) -> tuple[jax.Array, jax.Array]:
-    return _linear_attention_forward_pallas(
-        q=q,
-        k=k,
-        v=v,
-        h0=h0,
-        attention_multiplier=attention_multiplier,
-        BLOCK_SIZE_S=BLOCK_SIZE_S,
-        BLOCK_SIZE_V=BLOCK_SIZE_V,
-    )
-
-
-def _linear_attention_forward_jax(
-    query: jax.Array,
-    key: jax.Array,
-    value: jax.Array,
-    input_state: jax.Array | None,
-    attention_multiplier: float,
-    BLOCK_SIZE_S: int,
-    BLOCK_SIZE_V: int,
-) -> tuple[tuple[jax.Array, jax.Array], tuple]:
-    y, h = _linear_attention_jax_op(
-        q=query,
-        k=key,
-        v=value,
-        h0=input_state,
-        attention_multiplier=attention_multiplier,
-        BLOCK_SIZE_S=BLOCK_SIZE_S,
-        BLOCK_SIZE_V=BLOCK_SIZE_V,
-    )
-
-    return (y, h), (query, key, value, input_state)
-
-
-def _linear_attention_backward_jax(
-    attention_multiplier: float, BLOCK_SIZE_S: int, BLOCK_SIZE_V: int, residuals: tuple, cotangents: tuple
-) -> tuple:
-    query, key, value, input_state = residuals
-    dy, dht = cotangents
-
-    dq, dk, dv, dh0 = _linear_attention_backward_pallas(
-        q=query,
-        k=key,
-        v=value,
-        dy=dy,
-        h0=input_state,
-        dht=dht,
-        attention_multiplier=attention_multiplier,
-        BLOCK_SIZE_S=BLOCK_SIZE_S,
-        BLOCK_SIZE_V=BLOCK_SIZE_V,
-    )
-
-    if input_state is None:
-        dh0 = None
-
-    return dq, dk, dv, dh0
-
-
-_linear_attention_jax_op.defvjp(_linear_attention_forward_jax, _linear_attention_backward_jax)
 
 
 def linear_attention_jax(
