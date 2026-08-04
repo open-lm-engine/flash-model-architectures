@@ -12,6 +12,7 @@ import jax
 from haliax import Axis, NamedArray
 from jaxtyping import PRNGKeyArray
 
+from ...accelerator import KernelBackend
 from .op import depthwise_causal_convolution_jax
 
 
@@ -56,6 +57,8 @@ class DepthwiseCausalConvolutionJAX(eqx.Module):
         input_state: NamedArray | None = None,
         attention_mask: NamedArray | None = None,
         output_state: bool = False,
+        *,
+        kernel_backend: KernelBackend | None = None,
     ) -> tuple[NamedArray, NamedArray | None]:
         # input: (Batch, Pos, Embed); Batch and Pos are whatever's left over once Embed is accounted for
         Batch, Pos = [axis for axis in input.axes if axis != self.Embed]
@@ -70,6 +73,7 @@ class DepthwiseCausalConvolutionJAX(eqx.Module):
             attention_mask=attention_mask.rearrange((Batch, Pos)).array if attention_mask is not None else None,
             output_state=output_state,
             activation_function=self.activation_function,
+            kernel_backend=kernel_backend,
         )
 
         output = hax.named(output, (Batch, Pos, self.Embed))

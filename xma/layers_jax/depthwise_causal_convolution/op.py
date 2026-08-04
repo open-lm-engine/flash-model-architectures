@@ -4,11 +4,18 @@
 
 from __future__ import annotations
 
+from functools import partial
 from typing import Callable
 
 import jax
 import jax.numpy as jnp
 from jax import lax
+
+from ...accelerator import Accelerator, KernelBackend
+from .pallas_implementation import (
+    _depthwise_causal_convolution_backward_pallas,
+    _depthwise_causal_convolution_forward_pallas,
+)
 
 
 _BASE_ACTIVATIONS = {
@@ -51,6 +58,21 @@ def _last_k_columns(xt: jax.Array, K: int) -> jax.Array:
     return xt[:, :, -K:]
 
 
+def _compute_final_state(x: jax.Array, input_state: jax.Array | None, K: int, output_state: bool) -> jax.Array | None:
+    # the trailing K raw input positions to hand back as `input_state` to a subsequent call - pure indexing,
+    # independent of however `y` itself gets computed, so this is shared unchanged by every kernel_backend.
+    if not output_state:
+        return None
+
+    xt = jnp.transpose(x, (0, 2, 1))  # (B, H, S)
+
+    if input_state is None:
+        return _last_k_columns(xt, K)
+
+    full = jnp.concatenate([input_state.astype(x.dtype), xt], axis=-1)  # (B, H, K + S)
+    return full[:, :, -K:]
+
+
 def _depthwise_causal_convolution_reference(
     x: jax.Array, weight: jax.Array, bias: jax.Array | None, input_state: jax.Array | None, output_state: bool
 ) -> tuple[jax.Array, jax.Array | None]:
@@ -67,12 +89,10 @@ def _depthwise_causal_convolution_reference(
     if input_state is None:
         conv_lhs = xt
         padding = [(K - 1, 0)]
-        final_state = _last_k_columns(xt, K) if output_state else None
     else:
         full = jnp.concatenate([input_state.astype(x.dtype), xt], axis=-1)  # (B, H, K + S)
         conv_lhs = full[:, :, 1:]
         padding = [(0, 0)]
-        final_state = full[:, :, -K:] if output_state else None
 
     y = lax.conv_general_dilated(
         lhs=conv_lhs,
@@ -88,6 +108,55 @@ def _depthwise_causal_convolution_reference(
 
     y = jnp.transpose(y, (0, 2, 1))  # (B, S, H)
 
+    final_state = _compute_final_state(x, input_state, K, output_state)
+
+    return y, final_state
+
+
+@partial(jax.custom_vjp, nondiff_argnums=(4,))
+def _depthwise_causal_convolution_pallas_op(
+    x: jax.Array, weight: jax.Array, bias: jax.Array | None, input_state: jax.Array | None, BLOCK_SIZE_S: int
+) -> jax.Array:
+    y, _ = _depthwise_causal_convolution_forward_pallas(x, weight, bias, input_state, BLOCK_SIZE_S)
+    return y
+
+
+def _depthwise_causal_convolution_pallas_fwd(
+    x: jax.Array, weight: jax.Array, bias: jax.Array | None, input_state: jax.Array | None, BLOCK_SIZE_S: int
+) -> tuple[jax.Array, tuple]:
+    y, _ = _depthwise_causal_convolution_forward_pallas(x, weight, bias, input_state, BLOCK_SIZE_S)
+    return y, (x, weight, bias, input_state)
+
+
+def _depthwise_causal_convolution_pallas_bwd(BLOCK_SIZE_S: int, residuals: tuple, dy: jax.Array) -> tuple:
+    x, weight, bias, input_state = residuals
+
+    dx, dweight, dbias, dh0 = _depthwise_causal_convolution_backward_pallas(
+        x, weight, input_state, dy, None, BLOCK_SIZE_S
+    )
+
+    return dx, dweight, (dbias if bias is not None else None), (dh0 if input_state is not None else None)
+
+
+_depthwise_causal_convolution_pallas_op.defvjp(
+    _depthwise_causal_convolution_pallas_fwd, _depthwise_causal_convolution_pallas_bwd
+)
+
+
+_BLOCK_SIZE_S = 128
+
+
+def _depthwise_causal_convolution_pallas(
+    x: jax.Array, weight: jax.Array, bias: jax.Array | None, input_state: jax.Array | None, output_state: bool
+) -> tuple[jax.Array, jax.Array | None]:
+    # hand-written VPU-only Pallas TPU kernel: a plain depthwise conv only reduces over the (typically tiny,
+    # e.g. 4) kernel_size taps, so routing it through lax.conv's MXU/systolic-array path wastes it - this
+    # kernel instead does the whole thing as unrolled elementwise shift-multiply-adds. See
+    # pallas_implementation/{forward,backward}.py.
+    K = weight.shape[-1]
+    y = _depthwise_causal_convolution_pallas_op(x, weight, bias, input_state, _BLOCK_SIZE_S)
+    final_state = _compute_final_state(x, input_state, K, output_state)
+
     return y, final_state
 
 
@@ -99,16 +168,14 @@ def depthwise_causal_convolution_jax(
     attention_mask: jax.Array | None = None,
     output_state: bool = False,
     activation_function: str | Callable[[jax.Array], jax.Array] | None = None,
+    *,
+    kernel_backend: KernelBackend | None = None,
 ) -> tuple[jax.Array, jax.Array | None]:
     """
     computes depthwise causal 1D convolution: `output[b, t, h] = act(bias[h] + sum_k weight[h, k] *
     z[b, t + k, h])` where `z` is `input` preceded by `kernel_size` raw history positions taken from
     `input_state` (or 0 if `input_state` is None), i.e. `output[b, t]` only depends on
     `input[b, t - kernel_size + 1 : t + 1]`.
-
-    there is no hand-written/fused TPU kernel here - this is a plain `jax.lax` reference implementation,
-    differentiable via ordinary JAX autodiff (`lax.conv_general_dilated` already has forward/reverse-mode
-    rules built in).
 
     :param input: input tensor of shape (B, S, H)
     :type input: jax.Array
@@ -130,6 +197,11 @@ def depthwise_causal_convolution_jax(
         {"gelu", "relu", "sigmoid", "silu", "swish", "tanh"}, an arbitrary callable, or None (identity).
         Defaults to None.
     :type activation_function: str | Callable[[jax.Array], jax.Array] | None
+    :param kernel_backend: KernelBackend.pallas uses a hand-written VPU-only Pallas TPU kernel (avoids the
+        MXU/systolic array, which a tiny `kernel_size` reduction dimension underutilizes badly).
+        KernelBackend.jax uses the plain `jax.lax.conv_general_dilated`-based reference. None auto-detects
+        based on the accelerator (KernelBackend.pallas on TPU). Defaults to None.
+    :type kernel_backend: KernelBackend | None
     :return: output tensor of shape (B, S, H), and the output state of shape (B, H, K) if `output_state` is
         True else None.
     :rtype: tuple[jax.Array, jax.Array | None]
@@ -152,9 +224,18 @@ def depthwise_causal_convolution_jax(
     if activation_function is None or isinstance(activation_function, str):
         activation_function = _get_activation_function(activation_function)
 
+    if kernel_backend is None:
+        kernel_backend = Accelerator.get_kernel_backend()
+
     x = _apply_mask_to_padding_states(input, attention_mask)
 
-    output, final_state = _depthwise_causal_convolution_reference(x, weight, bias, input_state, output_state)
+    if kernel_backend == KernelBackend.pallas:
+        output, final_state = _depthwise_causal_convolution_pallas(x, weight, bias, input_state, output_state)
+    elif kernel_backend == KernelBackend.jax:
+        output, final_state = _depthwise_causal_convolution_reference(x, weight, bias, input_state, output_state)
+    else:
+        raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
+
     output = activation_function(output)
     output = _apply_mask_to_padding_states(output, attention_mask)
 
