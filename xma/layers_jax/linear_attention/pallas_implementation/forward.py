@@ -127,8 +127,7 @@ def _linear_attention_forward_core(
         pl.BlockSpec(block_shape=(None, None, BLOCK_SIZE_S, K), index_map=lambda b, n, vb, c: (b, n // Gq, c, 0)),
         pl.BlockSpec(block_shape=(None, None, BLOCK_SIZE_S, K), index_map=lambda b, n, vb, c: (b, n // Gk, c, 0)),
         pl.BlockSpec(
-            block_shape=(None, None, BLOCK_SIZE_S, BLOCK_SIZE_V),
-            index_map=lambda b, n, vb, c: (b, n // Gv, c, vb),
+            block_shape=(None, None, BLOCK_SIZE_S, BLOCK_SIZE_V), index_map=lambda b, n, vb, c: (b, n // Gv, c, vb)
         ),
     ]
 
@@ -173,7 +172,7 @@ def _linear_attention_forward_pallas(
     k = jnp.swapaxes(k, 1, 2)
     v = jnp.swapaxes(v, 1, 2)
 
-    y, h = _linear_attention_forward_core(
+    y, ht = _linear_attention_forward_core(
         q=q,
         k=k,
         v=v,
@@ -185,4 +184,4 @@ def _linear_attention_forward_pallas(
 
     y = jnp.swapaxes(y, 1, 2)
 
-    return y, h
+    return y, ht
