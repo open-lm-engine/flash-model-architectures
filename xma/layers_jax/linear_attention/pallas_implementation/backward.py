@@ -53,7 +53,8 @@ def _state_passing_core(
     k: jax.Array, v: jax.Array, h0: jax.Array | None, N: int, BLOCK_SIZE_S: int, BLOCK_SIZE_V: int
 ) -> tuple[jax.Array, jax.Array]:
     B, Nk, S, K = k.shape
-    Nv, V = v.shape[-2:]
+    Nv = v.shape[1]
+    V = v.shape[-1]
 
     Gk = N // Nk
     Gv = N // Nv
@@ -296,7 +297,8 @@ def _backward_core(
 ) -> tuple[jax.Array, jax.Array, jax.Array, jax.Array]:
     B, Nq, S, K = q.shape
     Nk = k.shape[1]
-    Nv, V = v.shape[-2:]
+    Nv = v.shape[1]
+    V = v.shape[-1]
     N = dy.shape[1]
 
     Gq = N // Nq
