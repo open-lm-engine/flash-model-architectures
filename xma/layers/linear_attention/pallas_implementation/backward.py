@@ -15,11 +15,10 @@ from ....math import ceil_divide
 
 
 def _checkpoint_output_shape_dtype_fn(
-    k: torch.Tensor, v: torch.Tensor, h0: torch.Tensor, BLOCK_SIZE_S: int, BLOCK_SIZE_V: int
+    k: torch.Tensor, v: torch.Tensor, h0: torch.Tensor | None, N: int, BLOCK_SIZE_S: int, BLOCK_SIZE_V: int
 ) -> list[tuple[tuple[int, ...], torch.dtype]]:
     B, _, S, K = k.shape
     V = v.shape[-1]
-    N = h0.shape[1]
     NUM_BLOCKS_S = ceil_divide(S, BLOCK_SIZE_S)
 
     # NUM_BLOCKS_S is folded into the N axis (rather than kept as its own axis), matching the jax-side kernel, to
@@ -30,11 +29,10 @@ def _checkpoint_output_shape_dtype_fn(
 
 
 def _checkpoint_fake_function(
-    k: torch.Tensor, v: torch.Tensor, h0: torch.Tensor, BLOCK_SIZE_S: int, BLOCK_SIZE_V: int
+    k: torch.Tensor, v: torch.Tensor, h0: torch.Tensor | None, N: int, BLOCK_SIZE_S: int, BLOCK_SIZE_V: int
 ) -> torch.Tensor:
     B, _, S, K = k.shape
     V = v.shape[-1]
-    N = h0.shape[1]
     NUM_BLOCKS_S = ceil_divide(S, BLOCK_SIZE_S)
 
     return torch.empty(B, N * NUM_BLOCKS_S, K, V, dtype=torch.float32, device=k.device)
@@ -45,9 +43,12 @@ _CHECKPOINT_CACHE = None
 
 @xma_op(mutates_args={}, fake_func=_checkpoint_fake_function)
 def _linear_attention_checkpoint_core(
-    k: torch.Tensor, v: torch.Tensor, h0: torch.Tensor, BLOCK_SIZE_S: int, BLOCK_SIZE_V: int
+    k: torch.Tensor, v: torch.Tensor, h0: torch.Tensor | None, N: int, BLOCK_SIZE_S: int, BLOCK_SIZE_V: int
 ) -> torch.Tensor:
-    # k, v: already transposed to (B, Nk/Nv, S, K/V); h0: (B, N, K, V), never None (defaulted by the caller)
+    # k, v: already transposed to (B, Nk/Nv, S, K/V). h0: (B, N, K, V) or None - None skips the HBM
+    # read/zero-fill entirely and seeds the running state on-chip instead (see the jax-side kernel,
+    # _checkpoint_kernel_zero_h0). N can't be derived from h0 alone since it may be None, and this function
+    # doesn't otherwise see q (so Nq isn't available here) - the caller already has it.
     global _CHECKPOINT_CACHE
 
     if _CHECKPOINT_CACHE is None:
@@ -55,7 +56,7 @@ def _linear_attention_checkpoint_core(
 
         _CHECKPOINT_CACHE = make_kernel_from_pallas(_checkpoint_core_jax, _checkpoint_output_shape_dtype_fn)
 
-    h_checkpoints, _ = _CHECKPOINT_CACHE(k, v, h0, BLOCK_SIZE_S, BLOCK_SIZE_V, static_argnums=(3, 4))
+    h_checkpoints, _ = _CHECKPOINT_CACHE(k, v, h0, N, BLOCK_SIZE_S, BLOCK_SIZE_V, static_argnums=(3, 4, 5))
 
     return h_checkpoints
 
@@ -66,11 +67,11 @@ def _backward_output_shape_dtype_fn(
     v: torch.Tensor,
     dy: torch.Tensor,
     h_checkpoints: torch.Tensor,
-    dh: torch.Tensor,
+    dh: torch.Tensor | None,
 ) -> list[tuple[tuple[int, ...], torch.dtype]]:
     B, _, S, K = q.shape
     V = v.shape[-1]
-    N = dh.shape[1]
+    N = dy.shape[1]
 
     return [
         ((B, N, S, K), q.dtype),
@@ -86,14 +87,14 @@ def _backward_fake_function(
     v: torch.Tensor,
     dy: torch.Tensor,
     h_checkpoints: torch.Tensor,
-    dh: torch.Tensor,
+    dh: torch.Tensor | None,
     attention_multiplier: float,
     BLOCK_SIZE_S: int,
     BLOCK_SIZE_V: int,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     B, _, S, K = q.shape
     V = v.shape[-1]
-    N = dh.shape[1]
+    N = dy.shape[1]
 
     dq = torch.empty(B, N, S, K, dtype=q.dtype, device=q.device)
     dk = torch.empty(B, N, S, K, dtype=q.dtype, device=q.device)
@@ -113,12 +114,14 @@ def _linear_attention_backward_core(
     v: torch.Tensor,
     dy: torch.Tensor,
     h_checkpoints: torch.Tensor,
-    dh: torch.Tensor,
+    dh: torch.Tensor | None,
     attention_multiplier: float,
     BLOCK_SIZE_S: int,
     BLOCK_SIZE_V: int,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-    # q, k, v, dy: already transposed to (B, N, S, K/V); dh: (B, N, K, V), never None
+    # q, k, v, dy: already transposed to (B, N, S, K/V). dh: (B, N, K, V) or None - None skips the HBM
+    # read/zero-fill entirely and seeds the running state-gradient on-chip instead (see the jax-side
+    # kernel, _backward_kernel_zero_dh)
     global _BACKWARD_CACHE
 
     if _BACKWARD_CACHE is None:
@@ -161,14 +164,10 @@ def _linear_attention_backward_pallas(
     Gk = N // Nk
     Gv = N // Nv
 
-    if h0 is None:
-        h0 = torch.zeros(B, N, K, V, dtype=torch.float32, device=q.device)
-    else:
+    if h0 is not None:
         h0 = h0.float()
 
-    if dh is None:
-        dh = torch.zeros(B, N, K, V, dtype=torch.float32, device=q.device)
-    else:
+    if dh is not None:
         dh = dh.float()
 
     q = q.transpose(1, 2)
@@ -176,7 +175,7 @@ def _linear_attention_backward_pallas(
     v = v.transpose(1, 2)
     dy = dy.transpose(1, 2)
 
-    h_checkpoints = _linear_attention_checkpoint_core(k, v, h0, BLOCK_SIZE_S, BLOCK_SIZE_V)
+    h_checkpoints = _linear_attention_checkpoint_core(k, v, h0, N, BLOCK_SIZE_S, BLOCK_SIZE_V)
 
     dq, dk, dv, dh0 = _linear_attention_backward_core(
         q=q,
