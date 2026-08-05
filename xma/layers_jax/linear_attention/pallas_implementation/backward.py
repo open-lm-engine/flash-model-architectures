@@ -9,7 +9,7 @@ import jax.experimental.pallas as pl
 import jax.experimental.pallas.tpu as pltpu
 import jax.numpy as jnp
 
-from ....math import ceil_divide, get_next_power_of_2
+from ....math import ceil_divide
 from .forward import _state_update
 
 
@@ -59,22 +59,16 @@ def _state_passing_core(
     Gk = N // Nk
     Gv = N // Nv
 
-    BLOCK_SIZE_K = max(8, get_next_power_of_2(K))
-
     NUM_BLOCKS_S = ceil_divide(S, BLOCK_SIZE_S)
 
     in_specs = [
-        pl.BlockSpec(
-            block_shape=(None, None, BLOCK_SIZE_S, BLOCK_SIZE_K), index_map=lambda b, n, vb, c: (b, n // Gk, c, 0)
-        ),
+        pl.BlockSpec(block_shape=(None, None, BLOCK_SIZE_S, K), index_map=lambda b, n, vb, c: (b, n // Gk, c, 0)),
         pl.BlockSpec(
             block_shape=(None, None, BLOCK_SIZE_S, BLOCK_SIZE_V), index_map=lambda b, n, vb, c: (b, n // Gv, c, vb)
         ),
     ]
 
-    h_spec = pl.BlockSpec(
-        block_shape=(None, None, BLOCK_SIZE_K, BLOCK_SIZE_V), index_map=lambda b, n, vb, c: (b, n, 0, vb)
-    )
+    h_spec = pl.BlockSpec(block_shape=(None, None, K, BLOCK_SIZE_V), index_map=lambda b, n, vb, c: (b, n, 0, vb))
 
     if h0 is None:
         kernel_fn = _state_passing_zero_h0_kernel
@@ -311,22 +305,18 @@ def _backward_core(
     Gk = N // Nk
     Gv = N // Nv
 
-    BLOCK_SIZE_K = max(8, get_next_power_of_2(K))
-
     NUM_BLOCKS_S = ceil_divide(S, BLOCK_SIZE_S)
     NUM_V_TILES = ceil_divide(V, BLOCK_SIZE_V)
 
-    h_spec = pl.BlockSpec(
-        block_shape=(None, None, BLOCK_SIZE_K, BLOCK_SIZE_V), index_map=lambda b, n, rc, vb: (b, n, 0, vb)
-    )
+    h_spec = pl.BlockSpec(block_shape=(None, None, K, BLOCK_SIZE_V), index_map=lambda b, n, rc, vb: (b, n, 0, vb))
 
     in_specs = [
         pl.BlockSpec(
-            block_shape=(None, None, BLOCK_SIZE_S, BLOCK_SIZE_K),
+            block_shape=(None, None, BLOCK_SIZE_S, K),
             index_map=lambda b, n, rc, vb: (b, n // Gq, NUM_BLOCKS_S - 1 - rc, 0),
         ),
         pl.BlockSpec(
-            block_shape=(None, None, BLOCK_SIZE_S, BLOCK_SIZE_K),
+            block_shape=(None, None, BLOCK_SIZE_S, K),
             index_map=lambda b, n, rc, vb: (b, n // Gk, NUM_BLOCKS_S - 1 - rc, 0),
         ),
         pl.BlockSpec(
@@ -338,7 +328,7 @@ def _backward_core(
             index_map=lambda b, n, rc, vb: (b, n, NUM_BLOCKS_S - 1 - rc, vb),
         ),
         pl.BlockSpec(
-            block_shape=(None, None, BLOCK_SIZE_K, BLOCK_SIZE_V),
+            block_shape=(None, None, K, BLOCK_SIZE_V),
             index_map=lambda b, n, rc, vb: (b, n * NUM_BLOCKS_S + (NUM_BLOCKS_S - 1 - rc), 0, vb),
         ),
     ]
@@ -371,11 +361,11 @@ def _backward_core(
         in_specs=in_specs,
         out_specs=(
             pl.BlockSpec(
-                block_shape=(None, None, BLOCK_SIZE_S, BLOCK_SIZE_K),
+                block_shape=(None, None, BLOCK_SIZE_S, K),
                 index_map=lambda b, n, rc, vb: (b, n, NUM_BLOCKS_S - 1 - rc, 0),
             ),
             pl.BlockSpec(
-                block_shape=(None, None, BLOCK_SIZE_S, BLOCK_SIZE_K),
+                block_shape=(None, None, BLOCK_SIZE_S, K),
                 index_map=lambda b, n, rc, vb: (b, n, NUM_BLOCKS_S - 1 - rc, 0),
             ),
             pl.BlockSpec(
@@ -386,8 +376,8 @@ def _backward_core(
         ),
         scratch_shapes=[
             pltpu.VMEM((BLOCK_SIZE_S, BLOCK_SIZE_S), jnp.float32),
-            pltpu.VMEM((BLOCK_SIZE_S, BLOCK_SIZE_K), jnp.float32),
-            pltpu.VMEM((BLOCK_SIZE_S, BLOCK_SIZE_K), jnp.float32),
+            pltpu.VMEM((BLOCK_SIZE_S, K), jnp.float32),
+            pltpu.VMEM((BLOCK_SIZE_S, K), jnp.float32),
         ],
         compiler_params=pltpu.CompilerParams(dimension_semantics=("parallel", "parallel", "arbitrary", "arbitrary")),
     )

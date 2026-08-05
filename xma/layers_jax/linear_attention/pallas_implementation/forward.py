@@ -9,7 +9,7 @@ import jax.experimental.pallas as pl
 import jax.experimental.pallas.tpu as pltpu
 import jax.numpy as jnp
 
-from ....math import ceil_divide, get_next_power_of_2
+from ....math import ceil_divide
 
 
 def _state_update(h: jax.Array, k: jax.Array, v: jax.Array) -> jax.Array:
@@ -123,15 +123,11 @@ def _forward_core(
     Gk = N // Nk
     Gv = N // Nv
 
-    BLOCK_SIZE_K = max(8, get_next_power_of_2(K))
-
-    h_spec = pl.BlockSpec(
-        block_shape=(None, None, BLOCK_SIZE_K, BLOCK_SIZE_V), index_map=lambda b, n, vb, c: (b, n, 0, vb)
-    )
+    h_spec = pl.BlockSpec(block_shape=(None, None, K, BLOCK_SIZE_V), index_map=lambda b, n, vb, c: (b, n, 0, vb))
 
     in_specs = [
         pl.BlockSpec(
-            block_shape=(None, None, BLOCK_SIZE_S, BLOCK_SIZE_K),
+            block_shape=(None, None, BLOCK_SIZE_S, K),
             index_map=lambda BLOCK_ID_B, BLOCK_ID_N, BLOCK_ID_V, BLOCK_ID_S: (
                 BLOCK_ID_B,
                 BLOCK_ID_N // Gq,
@@ -140,7 +136,7 @@ def _forward_core(
             ),
         ),
         pl.BlockSpec(
-            block_shape=(None, None, BLOCK_SIZE_S, BLOCK_SIZE_K),
+            block_shape=(None, None, BLOCK_SIZE_S, K),
             index_map=lambda BLOCK_ID_B, BLOCK_ID_N, BLOCK_ID_V, BLOCK_ID_S: (
                 BLOCK_ID_B,
                 BLOCK_ID_N // Gk,
