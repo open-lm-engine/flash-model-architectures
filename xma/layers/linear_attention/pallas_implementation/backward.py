@@ -59,8 +59,8 @@ def _backward_output_shape_dtype_fn(
     q: torch.Tensor,
     k: torch.Tensor,
     v: torch.Tensor,
-    h: torch.Tensor,
     dy: torch.Tensor,
+    h: torch.Tensor,
     dh: torch.Tensor | None,
 ) -> list[tuple[tuple[int, ...], torch.dtype]]:
     B, _, S, K = q.shape
@@ -127,8 +127,8 @@ def _linear_attention_backward_core(
         q,
         k,
         v,
-        h,
         dy,
+        h,
         dh,
         static_argnames=("attention_multiplier", "BLOCK_SIZE_S", "BLOCK_SIZE_V"),
         attention_multiplier=attention_multiplier,
