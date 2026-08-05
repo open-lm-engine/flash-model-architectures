@@ -188,8 +188,8 @@ def _backward_kernel(
     q_ref,
     k_ref,
     v_ref,
-    dy_ref,
     h_checkpoint_ref,
+    dy_ref,
     dht_ref,
     dq_ref,
     dk_ref,
@@ -238,8 +238,8 @@ def _backward_zero_dh_kernel(
     q_ref,
     k_ref,
     v_ref,
-    dy_ref,
     h_checkpoint_ref,
+    dy_ref,
     dq_ref,
     dk_ref,
     dv_ref,
@@ -288,8 +288,8 @@ def _backward_core(
     q: jax.Array,
     k: jax.Array,
     v: jax.Array,
-    dy: jax.Array,
     h: jax.Array,
+    dy: jax.Array,
     dht: jax.Array | None,
     attention_multiplier: float,
     BLOCK_SIZE_S: int,
@@ -324,22 +324,22 @@ def _backward_core(
             index_map=lambda b, n, rc, vb: (b, n // Gv, NUM_BLOCKS_S - 1 - rc, vb),
         ),
         pl.BlockSpec(
-            block_shape=(None, None, BLOCK_SIZE_S, BLOCK_SIZE_V),
-            index_map=lambda b, n, rc, vb: (b, n, NUM_BLOCKS_S - 1 - rc, vb),
-        ),
-        pl.BlockSpec(
             block_shape=(None, None, K, BLOCK_SIZE_V),
             index_map=lambda b, n, rc, vb: (b, n * NUM_BLOCKS_S + (NUM_BLOCKS_S - 1 - rc), 0, vb),
+        ),
+        pl.BlockSpec(
+            block_shape=(None, None, BLOCK_SIZE_S, BLOCK_SIZE_V),
+            index_map=lambda b, n, rc, vb: (b, n, NUM_BLOCKS_S - 1 - rc, vb),
         ),
     ]
 
     if dht is None:
         kernel_fn = _backward_zero_dh_kernel
-        args = (q, k, v, dy, h)
+        args = (q, k, v, h, dy)
     else:
         kernel_fn = _backward_kernel
         in_specs += [h_spec]
-        args = (q, k, v, dy, h, dht)
+        args = (q, k, v, h, dy, dht)
 
     kernel = pl.pallas_call(
         partial(

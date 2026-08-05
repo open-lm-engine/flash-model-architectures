@@ -59,8 +59,8 @@ def _backward_output_shape_dtype_fn(
     q: torch.Tensor,
     k: torch.Tensor,
     v: torch.Tensor,
-    dy: torch.Tensor,
     h: torch.Tensor,
+    dy: torch.Tensor,
     dh: torch.Tensor | None,
 ) -> list[tuple[tuple[int, ...], torch.dtype]]:
     B, _, S, K = q.shape
@@ -79,8 +79,8 @@ def _backward_fake_function(
     q: torch.Tensor,
     k: torch.Tensor,
     v: torch.Tensor,
-    dy: torch.Tensor,
     h: torch.Tensor,
+    dy: torch.Tensor,
     dh: torch.Tensor | None,
     attention_multiplier: float,
     BLOCK_SIZE_S: int,
@@ -106,14 +106,14 @@ def _linear_attention_backward_core(
     q: torch.Tensor,
     k: torch.Tensor,
     v: torch.Tensor,
-    dy: torch.Tensor,
     h: torch.Tensor,
+    dy: torch.Tensor,
     dh: torch.Tensor | None,
     attention_multiplier: float,
     BLOCK_SIZE_S: int,
     BLOCK_SIZE_V: int,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-    # q, k, v, dy: already transposed to (B, N, S, K/V). dh: (B, N, K, V) or None - None skips the HBM
+    # q, k, v, h, dy: already transposed to (B, N, S, K/V). dh: (B, N, K, V) or None - None skips the HBM
     # read/zero-fill entirely and seeds the running state-gradient on-chip instead (see the jax-side
     # kernel, _backward_kernel_zero_dh)
     global _BACKWARD_CACHE
@@ -127,8 +127,8 @@ def _linear_attention_backward_core(
         q,
         k,
         v,
-        dy,
         h,
+        dy,
         dh,
         static_argnames=("attention_multiplier", "BLOCK_SIZE_S", "BLOCK_SIZE_V"),
         attention_multiplier=attention_multiplier,
@@ -169,8 +169,8 @@ def _linear_attention_backward_pallas(
         q=q,
         k=k,
         v=v,
-        dy=dy,
         h=h,
+        dy=dy,
         dh=dh,
         attention_multiplier=attention_multiplier,
         BLOCK_SIZE_S=BLOCK_SIZE_S,
