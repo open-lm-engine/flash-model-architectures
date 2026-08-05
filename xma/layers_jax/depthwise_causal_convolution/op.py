@@ -55,15 +55,20 @@ def _depthwise_causal_convolution_reference(
     K = W.shape[-1]
 
     x = jnp.transpose(x, (0, 2, 1))
+    ht = None
 
     if h0 is None:
         padding = [(K - 1, 0)]
-        ht = jnp.pad(x, ((0, 0), (0, 0), (K - S, 0))) if S < K else x[:, :, -K:]
+
+        if output_state:
+            ht = jnp.pad(x, ((0, 0), (0, 0), (K - S, 0))) if S < K else x[:, :, -K:]
     else:
         padding = [(0, 0)]
 
         x = jnp.concatenate([h0.astype(x.dtype), x], axis=-1)
-        ht = x[:, :, -K:]
+        if output_state:
+            ht = x[:, :, -K:]
+
         x = jnp.concatenate([h0.astype(x.dtype), x], axis=-1)[:, :, 1:]
 
     y = lax.conv_general_dilated(
