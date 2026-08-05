@@ -31,6 +31,8 @@ def _get_problem_shapes() -> list[tuple[int, int, int, int, int]]:
         (16, 16, 1, 1, 1),
         (32, 24, 4, 4, 4),
         (16, 16, 4, 2, 1),
+        (4, 16, 1, 1, 1),  # K smaller than the minimum Pallas tile size (8)
+        (10, 24, 4, 2, 1),  # K not a power of 2
     ]
 
 
