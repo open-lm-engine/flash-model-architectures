@@ -12,6 +12,10 @@ import jax.numpy as jnp
 from jax import lax
 
 from ...accelerator import Accelerator, KernelBackend
+from .pallas_implementation import (
+    _depthwise_causal_convolution_backward_pallas,
+    _depthwise_causal_convolution_forward_pallas,
+)
 
 
 _BASE_ACTIVATIONS = {
