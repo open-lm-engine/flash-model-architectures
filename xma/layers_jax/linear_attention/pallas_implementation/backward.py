@@ -88,7 +88,7 @@ def _state_passing_core(
         in_specs=in_specs,
         out_specs=(
             pl.BlockSpec(
-                block_shape=(None, None, BLOCK_SIZE_K, BLOCK_SIZE_V),
+                block_shape=(None, None, K, BLOCK_SIZE_V),
                 index_map=lambda b, n, vb, c: (b, n * NUM_BLOCKS_S + c, 0, vb),
             ),
             h_spec,
