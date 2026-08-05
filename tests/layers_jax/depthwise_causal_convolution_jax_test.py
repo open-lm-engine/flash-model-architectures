@@ -28,8 +28,6 @@ def _reference_numpy(
     input_state: np.ndarray | None,
     output_state: bool,
 ) -> tuple[np.ndarray, np.ndarray | None]:
-    # unifies prefill / decode / continuation exactly like `_depthwise_causal_convolution_reference`: pad the
-    # raw input with a (possibly all-zero) K-wide state and slide a length-K window over the concatenation
     B, S, H = x.shape
     K = weight.shape[-1]
 
@@ -101,9 +99,6 @@ def test_depthwise_causal_convolution_jax_forward(
 
 @pytest.mark.parametrize("kernel_size", [1, 2, 4])
 def test_depthwise_causal_convolution_jax_grad_runs(kernel_size: int) -> None:
-    # `lax.conv_general_dilated` already ships well-tested autodiff rules in JAX itself, so this only checks
-    # that gradients flow end to end with the right shapes/finiteness, not their numerical value (that's
-    # covered by the pure jnp/lax.conv machinery upstream, not anything custom written here)
     B, S, H = 2, 6, 5
     std = 0.1
 
@@ -149,8 +144,6 @@ def test_depthwise_causal_convolution_module_works(has_input_state: bool) -> Non
     input = haliax.random.normal(key_input, (Batch, Pos, Embed))
     input_state = haliax.random.normal(key_state, (Batch, module.Embed, module.Kernel)) if has_input_state else None
 
-    # this is a smoke test: it only checks that the module runs end to end and returns the expected shapes, not
-    # that the output is numerically correct (that's covered at the op level by the tests above)
     output, output_state = module(input, input_state, output_state=True, kernel_backend=KernelBackend.jax)
 
     assert output.axes == (Batch, Pos, Embed)

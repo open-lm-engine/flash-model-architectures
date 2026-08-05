@@ -109,7 +109,6 @@ def test_linear_attention_pallas(
     assert_allclose(np.asarray(y_kernel, dtype=np.float32), np.asarray(y_expected, dtype=np.float32), **tolerance)
     assert_allclose(np.asarray(ht_kernel, dtype=np.float32), np.asarray(ht_expected, dtype=np.float32), **tolerance)
 
-    # ht is always returned (even when no input_state was given), so it always needs a cotangent
     dy = jax.random.normal(key_dy, y_kernel.shape, dtype=jnp.float32).astype(jax_dtype) * std
     dht = jax.random.normal(key_dht, ht_kernel.shape, dtype=jnp.float32) * std
 
@@ -153,8 +152,6 @@ def test_linear_attention_module_works(has_input_state: bool) -> None:
     input = haliax.random.normal(key_input, (Batch, Pos, Embed))
     input_state = haliax.random.normal(key_state, (Batch, module.Heads, module.StateSize)) if has_input_state else None
 
-    # this is a smoke test: it only checks that the module runs end to end and returns the expected shapes, not
-    # that the output is numerically correct (that's covered at the op level by linear_attention_jax_test.py)
     output, output_state, conv_state = module(input, input_state, kernel_backend=KernelBackend.jax)
 
     assert output.axes == (Batch, Pos, Output)
