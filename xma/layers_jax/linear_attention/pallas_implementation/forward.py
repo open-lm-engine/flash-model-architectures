@@ -64,7 +64,9 @@ def _forward(q_ref, k_ref, v_ref, y_ref, h_ref, *, attention_multiplier: float, 
 def _forward_kernel(
     q_ref, k_ref, v_ref, h0_ref, y_ref, h_ref, *, attention_multiplier: float, BLOCK_SIZE_S: int, S: int
 ) -> None:
-    @pl.when(pl.program_id(3) == 0)
+    BLOCK_ID_S = pl.program_id(3)
+
+    @pl.when(BLOCK_ID_S == 0)
     def _():
         h_ref[...] = h0_ref[...].astype(jnp.float32)
 
@@ -83,7 +85,9 @@ def _forward_kernel(
 def _forward_zero_h0_kernel(
     q_ref, k_ref, v_ref, y_ref, h_ref, *, attention_multiplier: float, BLOCK_SIZE_S: int, S: int
 ) -> None:
-    @pl.when(pl.program_id(3) == 0)
+    BLOCK_ID_S = pl.program_id(3)
+
+    @pl.when(BLOCK_ID_S == 0)
     def _():
         h_ref[...] = jnp.zeros_like(h_ref)
 
