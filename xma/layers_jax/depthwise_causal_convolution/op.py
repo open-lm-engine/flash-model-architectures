@@ -48,69 +48,39 @@ def _apply_mask_to_padding_states(x: jax.Array, attention_mask: jax.Array | None
     return x
 
 
-def _last_k_columns(xt: jax.Array, K: int) -> jax.Array:
-    """Return the last K columns of `xt` along its trailing axis, left-zero-padded if `xt` is shorter than K."""
-
-    S = xt.shape[-1]
-    if S < K:
-        return jnp.pad(xt, ((0, 0), (0, 0), (K - S, 0)))
-
-    return xt[:, :, -K:]
-
-
-def _compute_final_state(x: jax.Array, input_state: jax.Array | None, K: int, output_state: bool) -> jax.Array | None:
-    # the trailing K raw input positions to hand back as `input_state` to a subsequent call - pure indexing,
-    # independent of however `y` itself gets computed, so this is shared unchanged by every kernel_backend.
-    if not output_state:
-        return None
-
-    xt = jnp.transpose(x, (0, 2, 1))  # (B, H, S)
-
-    if input_state is None:
-        return _last_k_columns(xt, K)
-
-    full = jnp.concatenate([input_state.astype(x.dtype), xt], axis=-1)  # (B, H, K + S)
-    return full[:, :, -K:]
-
-
 def _depthwise_causal_convolution_reference(
-    x: jax.Array, weight: jax.Array, bias: jax.Array | None, input_state: jax.Array | None, output_state: bool
+    x: jax.Array, W: jax.Array, b: jax.Array | None, h0: jax.Array | None, output_state: bool
 ) -> tuple[jax.Array, jax.Array | None]:
-    # decode / multi-token continuation prepend the given K-wide state and take a valid (unpadded)
-    # cross-correlation over the concatenation - output position j only depends on
-    # full[..., j + 1 : j + 1 + K], i.e. the K raw inputs ending at (and including) position j. Prefill
-    # (no state) is mathematically the same formula with an all-zero state, but we ask XLA for the
-    # equivalent (K - 1, 0) causal padding directly instead of materializing and concatenating zeros.
-    H = x.shape[-1]
-    K = weight.shape[-1]
+    _, S, H = x.shape
+    K = W.shape[-1]
 
-    xt = jnp.transpose(x, (0, 2, 1))  # (B, H, S)
+    x = jnp.transpose(x, (0, 2, 1))
 
-    if input_state is None:
-        conv_lhs = xt
+    if h0 is None:
         padding = [(K - 1, 0)]
+        ht = jnp.pad(x, ((0, 0), (0, 0), (K - S, 0))) if S < K else x[:, :, -K:]
     else:
-        full = jnp.concatenate([input_state.astype(x.dtype), xt], axis=-1)  # (B, H, K + S)
-        conv_lhs = full[:, :, 1:]
         padding = [(0, 0)]
 
+        x = jnp.concatenate([h0.astype(x.dtype), x], axis=-1)
+        ht = x[:, :, -K:]
+        x = jnp.concatenate([h0.astype(x.dtype), x], axis=-1)[:, :, 1:]
+
     y = lax.conv_general_dilated(
-        lhs=conv_lhs,
-        rhs=weight[:, None, :],
+        lhs=x,
+        rhs=W[:, None, :],
         window_strides=(1,),
         padding=padding,
         feature_group_count=H,
         dimension_numbers=("NCH", "OIH", "NCH"),
     )
 
-    if bias is not None:
-        y = y + bias[None, :, None]
+    if b is not None:
+        y = y + b[None, :, None]
 
-    y = jnp.transpose(y, (0, 2, 1))  # (B, S, H)
+    y = jnp.transpose(y, (0, 2, 1))
 
-    final_state = _compute_final_state(x, input_state, K, output_state)
-
-    return y, final_state
+    return y, ht
 
 
 @partial(jax.custom_vjp, nondiff_argnums=(4,))
@@ -207,12 +177,11 @@ def depthwise_causal_convolution_jax(
     :rtype: tuple[jax.Array, jax.Array | None]
     """
 
-    assert input.ndim == 3
     B, _, H = input.shape
+    K = weight.shape[-1]
 
     assert weight.ndim == 2
-    H_w, K = weight.shape
-    assert H_w == H
+    assert weight.shape[0] == H
     assert K >= 1
 
     if bias is not None:
@@ -227,12 +196,16 @@ def depthwise_causal_convolution_jax(
     if kernel_backend is None:
         kernel_backend = Accelerator.get_kernel_backend()
 
-    x = _apply_mask_to_padding_states(input, attention_mask)
+    input = _apply_mask_to_padding_states(input, attention_mask)
 
     if kernel_backend == KernelBackend.pallas:
-        output, final_state = _depthwise_causal_convolution_pallas(x, weight, bias, input_state, output_state)
+        output, final_state = _depthwise_causal_convolution_pallas(
+            x=input, W=weight, b=bias, h0=input_state, output_state=output_state
+        )
     elif kernel_backend == KernelBackend.jax:
-        output, final_state = _depthwise_causal_convolution_reference(x, weight, bias, input_state, output_state)
+        output, final_state = _depthwise_causal_convolution_reference(
+            x=input, W=weight, b=bias, h0=input_state, output_state=output_state
+        )
     else:
         raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
