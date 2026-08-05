@@ -31,7 +31,7 @@ def _compute_state_passing(k_ref, v_ref, h_checkpoint_ref, h_ref, *, BLOCK_SIZE_
 def _state_passing_kernel(k_ref, v_ref, h0_ref, h_checkpoint_ref, h_ref, *, BLOCK_SIZE_S: int, S: int) -> None:
     @pl.when(pl.program_id(3) == 0)
     def _():
-        h_ref[...] = h0_ref[...]
+        h_ref[...] = h0_ref[...].astype(jnp.float32)
 
     _compute_state_passing(
         k_ref=k_ref, v_ref=v_ref, h_checkpoint_ref=h_checkpoint_ref, h_ref=h_ref, BLOCK_SIZE_S=BLOCK_SIZE_S, S=S
