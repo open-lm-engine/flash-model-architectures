@@ -8,7 +8,11 @@ import jax
 
 from ...accelerator import Accelerator, KernelBackend
 from .jax_implementation import _depthwise_causal_convolution_reference
-from .pallas_implementation import _depthwise_causal_convolution_pallas
+from .pallas_implementation import (
+    _apply_mask_to_padding_states,
+    _depthwise_causal_convolution_pallas,
+    _get_activation_function,
+)
 
 
 def depthwise_causal_convolution_jax(
