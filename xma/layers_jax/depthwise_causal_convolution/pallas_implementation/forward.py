@@ -35,10 +35,15 @@ def _forward(x_ref, W_ref, b_ref, h_ref, y_ref, *, BLOCK_SIZE_S: int, S: int, K:
     for j in range(K - 1):
         row = b[0]
         for k in range(K):
-            p = j + k
             W = W_ref[k, :].astype(jnp.float32)
-            source = h_ref[offset + p, :] if p < K - 1 else x[p - K + 1, :].astype(jnp.float32)
-            row = row + W * source
+
+            p = j + k
+            if p < K - 1:
+                source = h_ref[offset + p, :]
+            else:
+                source = x[p - K + 1, :].astype(jnp.float32)
+
+            row += W * source
         head_rows.append(row)
 
     y = jnp.concatenate([jnp.stack(head_rows, axis=0), y_tail], axis=0)
