@@ -88,6 +88,8 @@ def depthwise_causal_convolution_jax(
         output, final_state = _depthwise_causal_convolution_pallas(
             x=input, W=weight, b=bias, h0=input_state, BLOCK_SIZE_S=BLOCK_SIZE_S
         )
+
+        final_state = final_state if output_state else None
     elif kernel_backend == KernelBackend.jax:
         output, final_state = _depthwise_causal_convolution_reference(
             x=input, W=weight, b=bias, h0=input_state, output_state=output_state
