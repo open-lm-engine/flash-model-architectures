@@ -33,34 +33,34 @@ def _depthwise_causal_convolution_forward(
     return (y, ht), (x, W, b, h0)
 
 
-# _BASE_ACTIVATIONS = {
-#     "gelu": jax.nn.gelu,
-#     "relu": jax.nn.relu,
-#     "sigmoid": jax.nn.sigmoid,
-#     "silu": jax.nn.silu,
-#     "swish": jax.nn.silu,
-#     "tanh": jnp.tanh,
-# }
+_BASE_ACTIVATIONS = {
+    "gelu": jax.nn.gelu,
+    "relu": jax.nn.relu,
+    "sigmoid": jax.nn.sigmoid,
+    "silu": jax.nn.silu,
+    "swish": jax.nn.silu,
+    "tanh": jnp.tanh,
+}
 
 
-# def _get_activation_function(name: str | None) -> Callable[[jax.Array], jax.Array]:
-#     if name is None:
-#         return lambda x: x
+def _get_activation_function(name: str | None) -> Callable[[jax.Array], jax.Array]:
+    if name is None:
+        return lambda x: x
 
-#     if name not in _BASE_ACTIVATIONS:
-#         raise ValueError(f"invalid activation function ({name})")
+    if name not in _BASE_ACTIVATIONS:
+        raise ValueError(f"invalid activation function ({name})")
 
-#     return _BASE_ACTIVATIONS[name]
+    return _BASE_ACTIVATIONS[name]
 
 
-# def _apply_mask_to_padding_states(x: jax.Array, attention_mask: jax.Array | None) -> jax.Array:
-#     """
-#     Tunes out the hidden states for padding tokens, see https://github.com/state-spaces/mamba/issues/66
-#     """
-#     if attention_mask is not None and attention_mask.shape[1] > 1 and attention_mask.shape[0] > 1:
-#         x = (x * attention_mask[:, :, None]).astype(x.dtype)
+def _apply_mask_to_padding_states(x: jax.Array, attention_mask: jax.Array | None) -> jax.Array:
+    """
+    Tunes out the hidden states for padding tokens, see https://github.com/state-spaces/mamba/issues/66
+    """
+    if attention_mask is not None and attention_mask.shape[1] > 1 and attention_mask.shape[0] > 1:
+        x = (x * attention_mask[:, :, None]).astype(x.dtype)
 
-#     return x
+    return x
 
 
 # def _last_k_columns(xt: jax.Array, K: int) -> jax.Array:
