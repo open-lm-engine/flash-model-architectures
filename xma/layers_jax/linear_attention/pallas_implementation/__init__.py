@@ -12,7 +12,7 @@ from .forward import _forward_core
 
 
 @partial(jax.custom_vjp, nondiff_argnums=(4, 5, 6))
-def _linear_attention_jax_op(
+def _linear_attention_pallas(
     q: jax.Array,
     k: jax.Array,
     v: jax.Array,
@@ -40,7 +40,7 @@ def _linear_attention_jax_op(
     return y, ht
 
 
-def _linear_attention_forward_jax(
+def _linear_attention_forward(
     query: jax.Array,
     key: jax.Array,
     value: jax.Array,
@@ -49,7 +49,7 @@ def _linear_attention_forward_jax(
     BLOCK_SIZE_S: int,
     BLOCK_SIZE_V: int,
 ) -> tuple[tuple[jax.Array, jax.Array], tuple]:
-    y, h = _linear_attention_jax_op(
+    y, h = _linear_attention_pallas(
         q=query,
         k=key,
         v=value,
@@ -63,7 +63,7 @@ def _linear_attention_forward_jax(
 
 
 @partial(jax.jit, static_argnames=("attention_multiplier", "BLOCK_SIZE_S", "BLOCK_SIZE_V"))
-def _linear_attention_backward_jax(
+def _linear_attention_backward(
     attention_multiplier: float, BLOCK_SIZE_S: int, BLOCK_SIZE_V: int, residuals: tuple, cotangents: tuple
 ) -> tuple:
     q, k, v, h0 = residuals
@@ -112,4 +112,4 @@ def _linear_attention_backward_jax(
     return dq, dk, dv, dh0
 
 
-_linear_attention_jax_op.defvjp(_linear_attention_forward_jax, _linear_attention_backward_jax)
+_linear_attention_pallas.defvjp(_linear_attention_forward, _linear_attention_backward)

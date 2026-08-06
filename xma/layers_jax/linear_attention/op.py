@@ -8,7 +8,7 @@ import jax
 
 from ...accelerator import Accelerator, KernelBackend
 from .jax_implementation import _linear_attention_reference
-from .pallas_implementation import _linear_attention_jax_op
+from .pallas_implementation import _linear_attention_pallas
 
 
 def _get_num_heads(q: jax.Array, k: jax.Array, v: jax.Array) -> tuple[int, int, int, int]:
@@ -81,7 +81,7 @@ def linear_attention_jax(
         kernel_backend = Accelerator.get_kernel_backend()
 
     if kernel_backend == KernelBackend.pallas:
-        y, ht = _linear_attention_jax_op(
+        y, ht = _linear_attention_pallas(
             q=query,
             k=key,
             v=value,
