@@ -9,9 +9,9 @@ from typing import Callable
 
 import jax
 import jax.numpy as jnp
-from jax import lax
 
 from ...accelerator import Accelerator, KernelBackend
+from .jax_implementation import _depthwise_causal_convolution_reference
 from .pallas_implementation import (
     _depthwise_causal_convolution_backward_pallas,
     _depthwise_causal_convolution_forward_pallas,
@@ -73,47 +73,6 @@ def _compute_final_state(x: jax.Array, input_state: jax.Array | None, K: int, ou
     return full[:, :, -K:]
 
 
-def _depthwise_causal_convolution_reference(
-    x: jax.Array, W: jax.Array, b: jax.Array | None, h0: jax.Array | None, output_state: bool
-) -> tuple[jax.Array, jax.Array | None]:
-    _, S, H = x.shape
-    K = W.shape[-1]
-
-    x = jnp.transpose(x, (0, 2, 1))
-    ht = None
-
-    if h0 is None:
-        padding = [(K - 1, 0)]
-
-        if output_state:
-            ht = jnp.pad(x, ((0, 0), (0, 0), (K - S, 0))) if S < K else x[:, :, -K:]
-    else:
-        padding = [(0, 0)]
-
-        x = jnp.concatenate([h0.astype(x.dtype), x], axis=-1)
-
-        if output_state:
-            ht = x[:, :, -K:]
-
-        x = x[:, :, 1:]
-
-    x = lax.conv_general_dilated(
-        lhs=x,
-        rhs=W[:, None, :],
-        window_strides=(1,),
-        padding=padding,
-        feature_group_count=H,
-        dimension_numbers=("NCH", "OIH", "NCH"),
-    )
-
-    if b is not None:
-        x = x + b[None, :, None]
-
-    x = jnp.transpose(x, (0, 2, 1))
-
-    return x, ht
-
-
 @partial(jax.custom_vjp, nondiff_argnums=(4,))
 def _depthwise_causal_convolution_pallas_op(
     x: jax.Array, weight: jax.Array, bias: jax.Array | None, input_state: jax.Array | None, BLOCK_SIZE_S: int
@@ -148,17 +107,14 @@ _BLOCK_SIZE_S = 128
 
 
 def _depthwise_causal_convolution_pallas(
-    x: jax.Array, weight: jax.Array, bias: jax.Array | None, input_state: jax.Array | None, output_state: bool
+    x: jax.Array, W: jax.Array, b: jax.Array | None, h0: jax.Array | None, output_state: bool
 ) -> tuple[jax.Array, jax.Array | None]:
-    # hand-written VPU-only Pallas TPU kernel: a plain depthwise conv only reduces over the (typically tiny,
-    # e.g. 4) kernel_size taps, so routing it through lax.conv's MXU/systolic-array path wastes it - this
-    # kernel instead does the whole thing as unrolled elementwise shift-multiply-adds. See
-    # pallas_implementation/{forward,backward}.py.
-    K = weight.shape[-1]
-    y = _depthwise_causal_convolution_pallas_op(x, weight, bias, input_state, _BLOCK_SIZE_S)
-    final_state = _compute_final_state(x, input_state, K, output_state)
+    K = W.shape[-1]
 
-    return y, final_state
+    y = _depthwise_causal_convolution_pallas_op(x=x, W=W, b=b, h0=h0, _BLOCK_SIZE_S)
+    ht = _compute_final_state(x, input_state, K, output_state)
+
+    return y, ht
 
 
 def depthwise_causal_convolution_jax(
