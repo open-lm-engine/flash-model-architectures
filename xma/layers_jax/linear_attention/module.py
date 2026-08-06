@@ -119,8 +119,6 @@ class LinearAttentionJAX(eqx.Module):
         *,
         kernel_backend: KernelBackend | None = None,
     ) -> tuple[NamedArray, NamedArray, NamedArray | None]:
-        # input: (Batch, Pos, Embed); the underlying pallas kernel only supports a single leading batch axis,
-        # so Batch and Pos are whatever's left over once Embed is accounted for, in their existing order
         Batch, Pos = [axis for axis in input.axes if axis != self.Embed]
 
         QuerySize = Axis("query_size", self.QHeads.size * self.KeyHeadDim.size)
