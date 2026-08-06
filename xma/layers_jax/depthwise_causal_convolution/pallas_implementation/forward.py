@@ -76,10 +76,13 @@ def _forward_core(
     K = W.shape[0]
     PAD = ceil_divide(K - 1, 8) * 8
 
-    x_spec = pl.BlockSpec(block_shape=(None, BLOCK_SIZE_S, H), index_map=lambda b, c: (b, c, 0))
-    W_spec = pl.BlockSpec(block_shape=(K, H), index_map=lambda b, c: (0, 0))
-    b_spec = pl.BlockSpec(block_shape=(1, H), index_map=lambda b, c: (0, 0))
-    h_spec = pl.BlockSpec(block_shape=(None, PAD, H), index_map=lambda b, c: (b, 0, 0))
+    x_spec = pl.BlockSpec(
+        block_shape=(None, BLOCK_SIZE_S, H), index_map=lambda BLOCK_ID_B, BLOCK_ID_S: (BLOCK_ID_B, BLOCK_ID_S, 0)
+    )
+
+    W_spec = pl.BlockSpec(block_shape=(K, H), index_map=lambda BLOCK_ID_B, BLOCK_ID_S: (0, 0))
+    b_spec = pl.BlockSpec(block_shape=(1, H), index_map=lambda BLOCK_ID_B, BLOCK_ID_S: (0, 0))
+    h_spec = pl.BlockSpec(block_shape=(None, PAD, H), index_map=lambda BLOCK_ID_B, BLOCK_ID_S: (BLOCK_ID_B, 0, 0))
 
     if h0 is None:
         kernel_fn = _forward_zero_h0_kernel
