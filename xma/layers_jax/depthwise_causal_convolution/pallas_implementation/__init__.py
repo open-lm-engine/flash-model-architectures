@@ -115,8 +115,8 @@ def _depthwise_causal_convolution_pallas_bwd(BLOCK_SIZE_S: int, residuals: tuple
     return dx, dweight, (dbias if bias is not None else None), (dh0 if input_state is not None else None)
 
 
-_depthwise_causal_convolution_pallas_op.defvjp(
-    _depthwise_causal_convolution_pallas_fwd, _depthwise_causal_convolution_pallas_bwd
+_depthwise_causal_convolution_pallas.defvjp(
+    _depthwise_causal_convolution_forward, _depthwise_causal_convolution_pallas_bwd
 )
 
 
