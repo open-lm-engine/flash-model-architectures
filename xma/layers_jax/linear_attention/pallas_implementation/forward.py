@@ -187,31 +187,3 @@ def _forward_core(
     )
 
     return kernel(*args)
-
-
-def _linear_attention_forward_pallas(
-    q: jax.Array,
-    k: jax.Array,
-    v: jax.Array,
-    h0: jax.Array | None,
-    attention_multiplier: float,
-    BLOCK_SIZE_S: int,
-    BLOCK_SIZE_V: int,
-) -> tuple[jax.Array, jax.Array]:
-    q = jnp.swapaxes(q, 1, 2)
-    k = jnp.swapaxes(k, 1, 2)
-    v = jnp.swapaxes(v, 1, 2)
-
-    y, ht = _forward_core(
-        q=q,
-        k=k,
-        v=v,
-        h0=h0,
-        attention_multiplier=attention_multiplier,
-        BLOCK_SIZE_S=BLOCK_SIZE_S,
-        BLOCK_SIZE_V=BLOCK_SIZE_V,
-    )
-
-    y = jnp.swapaxes(y, 1, 2)
-
-    return y, ht

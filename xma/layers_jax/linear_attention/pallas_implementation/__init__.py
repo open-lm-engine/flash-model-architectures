@@ -5,9 +5,10 @@
 from functools import partial
 
 import jax
+import jax.numpy as jnp
 
 from .backward import _linear_attention_backward_pallas
-from .forward import _linear_attention_forward_pallas
+from .forward import _forward_core
 
 
 @partial(jax.custom_vjp, nondiff_argnums=(4, 5, 6))
@@ -20,7 +21,11 @@ def _linear_attention_jax_op(
     BLOCK_SIZE_S: int,
     BLOCK_SIZE_V: int,
 ) -> tuple[jax.Array, jax.Array]:
-    return _linear_attention_forward_pallas(
+    q = jnp.swapaxes(q, 1, 2)
+    k = jnp.swapaxes(k, 1, 2)
+    v = jnp.swapaxes(v, 1, 2)
+
+    y, ht = _forward_core(
         q=q,
         k=k,
         v=v,
@@ -29,6 +34,10 @@ def _linear_attention_jax_op(
         BLOCK_SIZE_S=BLOCK_SIZE_S,
         BLOCK_SIZE_V=BLOCK_SIZE_V,
     )
+
+    y = jnp.swapaxes(y, 1, 2)
+
+    return y, ht
 
 
 def _linear_attention_forward_jax(
