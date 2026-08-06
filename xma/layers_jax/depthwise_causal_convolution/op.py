@@ -24,6 +24,7 @@ def depthwise_causal_convolution_jax(
     output_state: bool = False,
     activation_function: str | Callable[[jax.Array], jax.Array] | None = None,
     *,
+    BLOCK_SIZE_S: int = 128,
     kernel_backend: KernelBackend | None = None,
 ) -> tuple[jax.Array, jax.Array | None]:
     """
@@ -85,7 +86,7 @@ def depthwise_causal_convolution_jax(
 
     if kernel_backend == KernelBackend.pallas:
         output, final_state = _depthwise_causal_convolution_pallas(
-            x=input, W=weight, b=bias, h0=input_state, output_state=output_state
+            x=input, W=weight, b=bias, h0=input_state, BLOCK_SIZE_S=BLOCK_SIZE_S
         )
     elif kernel_backend == KernelBackend.jax:
         output, final_state = _depthwise_causal_convolution_reference(
