@@ -181,28 +181,38 @@ def test_depthwise_causal_convolution_pallas(kernel_size: int, S: int, has_input
             x, weight, bias, input_state, output_state=False, kernel_backend=kernel_backend
         )
 
-    # vjp is temporarily disabled on the pallas kernel_backend, so this only checks the forward pass for now.
-    y_kernel, _ = _run(KernelBackend.pallas, x, weight, bias, input_state)
-    y_expected, _ = _run(KernelBackend.jax, x, weight, bias, input_state)
+    def _run_vjp(kernel_backend: KernelBackend, x: jax.Array, weight: jax.Array, bias, input_state):
+        return jax.vjp(
+            lambda x, weight, bias, input_state: _run(kernel_backend, x, weight, bias, input_state),
+            x,
+            weight,
+            bias,
+            input_state,
+        )
+
+    (y_kernel, _), vjp_kernel = _run_vjp(KernelBackend.pallas, x, weight, bias, input_state)
+    (y_expected, _), vjp_expected = _run_vjp(KernelBackend.jax, x, weight, bias, input_state)
 
     assert_allclose(np.asarray(y_kernel), np.asarray(y_expected), **_TOLERANCE)
 
-    # dy = jax.random.normal(key_dy, y_kernel.shape, dtype=jnp.float32) * std
+    dy = jax.random.normal(key_dy, y_kernel.shape, dtype=jnp.float32) * std
 
-    # dx_kernel, dweight_kernel, dbias_kernel, dinput_state_kernel = vjp_kernel((dy, None))
-    # dx_expected, dweight_expected, dbias_expected, dinput_state_expected = vjp_expected((dy, None))
+    dx_kernel, dweight_kernel, dbias_kernel, dinput_state_kernel = vjp_kernel((dy, None))
+    dx_expected, dweight_expected, dbias_expected, dinput_state_expected = vjp_expected((dy, None))
 
-    # assert_allclose(np.asarray(dx_kernel), np.asarray(dx_expected), **_TOLERANCE)
-    # assert_allclose(np.asarray(dweight_kernel), np.asarray(dweight_expected), **_TOLERANCE)
+    grad_tolerance = {"atol": 1e-2, "rtol": 0}
 
-    # if add_bias:
-    #     assert_allclose(np.asarray(dbias_kernel), np.asarray(dbias_expected), **_TOLERANCE)
-    # else:
-    #     assert dbias_kernel is None
-    #     assert dbias_expected is None
+    assert_allclose(np.asarray(dx_kernel), np.asarray(dx_expected), **grad_tolerance)
+    assert_allclose(np.asarray(dweight_kernel), np.asarray(dweight_expected), **grad_tolerance)
 
-    # if has_input_state:
-    #     assert_allclose(np.asarray(dinput_state_kernel), np.asarray(dinput_state_expected), **_TOLERANCE)
-    # else:
-    #     assert dinput_state_kernel is None
-    #     assert dinput_state_expected is None
+    if add_bias:
+        assert_allclose(np.asarray(dbias_kernel), np.asarray(dbias_expected), **grad_tolerance)
+    else:
+        assert dbias_kernel is None
+        assert dbias_expected is None
+
+    if has_input_state:
+        assert_allclose(np.asarray(dinput_state_kernel), np.asarray(dinput_state_expected), **grad_tolerance)
+    else:
+        assert dinput_state_kernel is None
+        assert dinput_state_expected is None
