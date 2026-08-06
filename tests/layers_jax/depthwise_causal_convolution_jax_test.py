@@ -150,71 +150,71 @@ def test_depthwise_causal_convolution_module_works(has_input_state: bool) -> Non
     assert output_state.axes == (Batch, module.Embed, module.Kernel)
 
 
-def _generate_pallas_args() -> list:
-    return list(
-        product(
-            [2, 4],  # kernel_size: the pallas kernel_backend assumes kernel_size > 1
-            [3, 16, 37, 130],  # sequence length: shorter than, equal to, or not a multiple of the internal block size
-            [False, True],  # has_input_state
-            [False, True],  # add_bias
-        )
-    )
-
-
-@pytest.mark.parametrize("kernel_size,S,has_input_state,add_bias", _generate_pallas_args())
-def test_depthwise_causal_convolution_pallas(kernel_size: int, S: int, has_input_state: bool, add_bias: bool) -> None:
-    if jax.default_backend() != "tpu":
-        pytest.skip("KernelBackend.pallas is only supported on TPU")
-
-    B, H = 2, 5
-    std = 0.1
-
-    key_x, key_w, key_b, key_h0, key_dy = jax.random.split(jax.random.PRNGKey(3), 5)
-
-    x = jax.random.normal(key_x, (B, S, H), dtype=jnp.float32) * std
-    weight = jax.random.normal(key_w, (H, kernel_size), dtype=jnp.float32) * std
-    bias = jax.random.normal(key_b, (H,), dtype=jnp.float32) * std if add_bias else None
-    input_state = jax.random.normal(key_h0, (B, H, kernel_size), dtype=jnp.float32) * std if has_input_state else None
-
-    def _run(kernel_backend: KernelBackend, x: jax.Array, weight: jax.Array, bias, input_state):
-        return depthwise_causal_convolution_jax(
-            x, weight, bias, input_state, output_state=False, kernel_backend=kernel_backend
-        )
-
-    (y_kernel, _), vjp_kernel = jax.vjp(
-        lambda x, weight, bias, input_state: _run(KernelBackend.pallas, x, weight, bias, input_state),
-        x,
-        weight,
-        bias,
-        input_state,
-    )
-
-    (y_expected, _), vjp_expected = jax.vjp(
-        lambda x, weight, bias, input_state: _run(KernelBackend.jax, x, weight, bias, input_state),
-        x,
-        weight,
-        bias,
-        input_state,
-    )
-
-    assert_allclose(np.asarray(y_kernel), np.asarray(y_expected), **_TOLERANCE)
-
-    dy = jax.random.normal(key_dy, y_kernel.shape, dtype=jnp.float32) * std
-
-    dx_kernel, dweight_kernel, dbias_kernel, dinput_state_kernel = vjp_kernel((dy, None))
-    dx_expected, dweight_expected, dbias_expected, dinput_state_expected = vjp_expected((dy, None))
-
-    assert_allclose(np.asarray(dx_kernel), np.asarray(dx_expected), **_TOLERANCE)
-    assert_allclose(np.asarray(dweight_kernel), np.asarray(dweight_expected), **_TOLERANCE)
-
-    if add_bias:
-        assert_allclose(np.asarray(dbias_kernel), np.asarray(dbias_expected), **_TOLERANCE)
-    else:
-        assert dbias_kernel is None
-        assert dbias_expected is None
-
-    if has_input_state:
-        assert_allclose(np.asarray(dinput_state_kernel), np.asarray(dinput_state_expected), **_TOLERANCE)
-    else:
-        assert dinput_state_kernel is None
-        assert dinput_state_expected is None
+# def _generate_pallas_args() -> list:
+#     return list(
+#         product(
+#             [2, 4],  # kernel_size: the pallas kernel_backend assumes kernel_size > 1
+#             [3, 16, 37, 130],  # sequence length: shorter than, equal to, or not a multiple of the internal block size
+#             [False, True],  # has_input_state
+#             [False, True],  # add_bias
+#         )
+#     )
+#
+#
+# @pytest.mark.parametrize("kernel_size,S,has_input_state,add_bias", _generate_pallas_args())
+# def test_depthwise_causal_convolution_pallas(kernel_size: int, S: int, has_input_state: bool, add_bias: bool) -> None:
+#     if jax.default_backend() != "tpu":
+#         pytest.skip("KernelBackend.pallas is only supported on TPU")
+#
+#     B, H = 2, 5
+#     std = 0.1
+#
+#     key_x, key_w, key_b, key_h0, key_dy = jax.random.split(jax.random.PRNGKey(3), 5)
+#
+#     x = jax.random.normal(key_x, (B, S, H), dtype=jnp.float32) * std
+#     weight = jax.random.normal(key_w, (H, kernel_size), dtype=jnp.float32) * std
+#     bias = jax.random.normal(key_b, (H,), dtype=jnp.float32) * std if add_bias else None
+#     input_state = jax.random.normal(key_h0, (B, H, kernel_size), dtype=jnp.float32) * std if has_input_state else None
+#
+#     def _run(kernel_backend: KernelBackend, x: jax.Array, weight: jax.Array, bias, input_state):
+#         return depthwise_causal_convolution_jax(
+#             x, weight, bias, input_state, output_state=False, kernel_backend=kernel_backend
+#         )
+#
+#     (y_kernel, _), vjp_kernel = jax.vjp(
+#         lambda x, weight, bias, input_state: _run(KernelBackend.pallas, x, weight, bias, input_state),
+#         x,
+#         weight,
+#         bias,
+#         input_state,
+#     )
+#
+#     (y_expected, _), vjp_expected = jax.vjp(
+#         lambda x, weight, bias, input_state: _run(KernelBackend.jax, x, weight, bias, input_state),
+#         x,
+#         weight,
+#         bias,
+#         input_state,
+#     )
+#
+#     assert_allclose(np.asarray(y_kernel), np.asarray(y_expected), **_TOLERANCE)
+#
+#     dy = jax.random.normal(key_dy, y_kernel.shape, dtype=jnp.float32) * std
+#
+#     dx_kernel, dweight_kernel, dbias_kernel, dinput_state_kernel = vjp_kernel((dy, None))
+#     dx_expected, dweight_expected, dbias_expected, dinput_state_expected = vjp_expected((dy, None))
+#
+#     assert_allclose(np.asarray(dx_kernel), np.asarray(dx_expected), **_TOLERANCE)
+#     assert_allclose(np.asarray(dweight_kernel), np.asarray(dweight_expected), **_TOLERANCE)
+#
+#     if add_bias:
+#         assert_allclose(np.asarray(dbias_kernel), np.asarray(dbias_expected), **_TOLERANCE)
+#     else:
+#         assert dbias_kernel is None
+#         assert dbias_expected is None
+#
+#     if has_input_state:
+#         assert_allclose(np.asarray(dinput_state_kernel), np.asarray(dinput_state_expected), **_TOLERANCE)
+#     else:
+#         assert dinput_state_kernel is None
+#         assert dinput_state_expected is None

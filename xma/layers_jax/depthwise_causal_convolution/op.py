@@ -48,6 +48,31 @@ def _apply_mask_to_padding_states(x: jax.Array, attention_mask: jax.Array | None
     return x
 
 
+def _last_k_columns(xt: jax.Array, K: int) -> jax.Array:
+    """Return the last K columns of `xt` along its trailing axis, left-zero-padded if `xt` is shorter than K."""
+
+    S = xt.shape[-1]
+    if S < K:
+        return jnp.pad(xt, ((0, 0), (0, 0), (K - S, 0)))
+
+    return xt[:, :, -K:]
+
+
+def _compute_final_state(x: jax.Array, input_state: jax.Array | None, K: int, output_state: bool) -> jax.Array | None:
+    # the trailing K raw input positions to hand back as `input_state` to a subsequent call - pure indexing,
+    # independent of however `y` itself gets computed, so this is shared unchanged by every kernel_backend.
+    if not output_state:
+        return None
+
+    xt = jnp.transpose(x, (0, 2, 1))  # (B, H, S)
+
+    if input_state is None:
+        return _last_k_columns(xt, K)
+
+    full = jnp.concatenate([input_state.astype(x.dtype), xt], axis=-1)  # (B, H, K + S)
+    return full[:, :, -K:]
+
+
 def _depthwise_causal_convolution_reference(
     x: jax.Array, W: jax.Array, b: jax.Array | None, h0: jax.Array | None, output_state: bool
 ) -> tuple[jax.Array, jax.Array | None]:
@@ -66,12 +91,13 @@ def _depthwise_causal_convolution_reference(
         padding = [(0, 0)]
 
         x = jnp.concatenate([h0.astype(x.dtype), x], axis=-1)
+
         if output_state:
             ht = x[:, :, -K:]
 
-        x = jnp.concatenate([h0.astype(x.dtype), x], axis=-1)[:, :, 1:]
+        x = x[:, :, 1:]
 
-    y = lax.conv_general_dilated(
+    x = lax.conv_general_dilated(
         lhs=x,
         rhs=W[:, None, :],
         window_strides=(1,),
@@ -81,11 +107,11 @@ def _depthwise_causal_convolution_reference(
     )
 
     if b is not None:
-        y = y + b[None, :, None]
+        x = x + b[None, :, None]
 
-    y = jnp.transpose(y, (0, 2, 1))
+    x = jnp.transpose(x, (0, 2, 1))
 
-    return y, ht
+    return x, ht
 
 
 @partial(jax.custom_vjp, nondiff_argnums=(4,))
