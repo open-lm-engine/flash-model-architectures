@@ -51,7 +51,7 @@ def _forward_zero_h0_kernel(x_ref, W_ref, b_ref, y_ref, h_ref, *, BLOCK_SIZE_S: 
 
 
 @partial(jax.jit, static_argnames=("BLOCK_SIZE_S",))
-def _depthwise_causal_convolution_forward_core(
+def _forward_core(
     x: jax.Array, W: jax.Array, b: jax.Array, h0: jax.Array | None, BLOCK_SIZE_S: int
 ) -> tuple[jax.Array, jax.Array]:
     B, S, H = x.shape
@@ -84,19 +84,3 @@ def _depthwise_causal_convolution_forward_core(
     )
 
     return kernel(*args)
-
-
-def _depthwise_causal_convolution_forward_pallas(
-    x: jax.Array, W: jax.Array, b: jax.Array | None, h0: jax.Array | None, BLOCK_SIZE_S: int
-) -> tuple[jax.Array, jax.Array]:
-    H = x.shape[-1]
-
-    W = jnp.transpose(W, (1, 0))
-    b = jnp.zeros((1, H), dtype=jnp.float32) if b is None else b.astype(jnp.float32)[None, :]
-
-    if h0 is not None:
-        h0 = jnp.transpose(h0[:, :, 1:], (0, 2, 1)).astype(x.dtype)
-
-    y, ht = _depthwise_causal_convolution_forward_core(x=x, W=W, b=b, h0=h0, BLOCK_SIZE_S=BLOCK_SIZE_S)
-
-    return y, ht

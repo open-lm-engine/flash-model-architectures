@@ -8,6 +8,7 @@ import jax
 
 from ...accelerator import Accelerator, KernelBackend
 from .jax_implementation import _depthwise_causal_convolution_reference
+from .pallas_implementation import _depthwise_causal_convolution_pallas
 
 
 def depthwise_causal_convolution_jax(
