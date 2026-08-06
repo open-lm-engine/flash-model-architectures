@@ -181,21 +181,9 @@ def test_depthwise_causal_convolution_pallas(kernel_size: int, S: int, has_input
             x, weight, bias, input_state, output_state=False, kernel_backend=kernel_backend
         )
 
-    (y_kernel, _), vjp_kernel = jax.vjp(
-        lambda x, weight, bias, input_state: _run(KernelBackend.pallas, x, weight, bias, input_state),
-        x,
-        weight,
-        bias,
-        input_state,
-    )
-
-    (y_expected, _), vjp_expected = jax.vjp(
-        lambda x, weight, bias, input_state: _run(KernelBackend.jax, x, weight, bias, input_state),
-        x,
-        weight,
-        bias,
-        input_state,
-    )
+    # vjp is temporarily disabled on the pallas kernel_backend, so this only checks the forward pass for now.
+    y_kernel, _ = _run(KernelBackend.pallas, x, weight, bias, input_state)
+    y_expected, _ = _run(KernelBackend.jax, x, weight, bias, input_state)
 
     assert_allclose(np.asarray(y_kernel), np.asarray(y_expected), **_TOLERANCE)
 

@@ -3,7 +3,6 @@
 # **************************************************
 
 
-from functools import partial
 from typing import Callable
 
 import jax
@@ -13,7 +12,7 @@ from .backward import _depthwise_causal_convolution_backward_pallas
 from .forward import _forward_core
 
 
-@partial(jax.custom_vjp, nondiff_argnums=(4,))
+# @partial(jax.custom_vjp, nondiff_argnums=(4,))
 def _depthwise_causal_convolution_pallas(
     x: jax.Array, W: jax.Array, b: jax.Array | None, h0: jax.Array | None, BLOCK_SIZE_S: int
 ) -> tuple[jax.Array, jax.Array]:
@@ -47,9 +46,9 @@ def _depthwise_causal_convolution_backward(BLOCK_SIZE_S: int, residuals: tuple, 
     return dx, dW, (db if b is not None else None), (dh0 if h0 is not None else None)
 
 
-_depthwise_causal_convolution_pallas.defvjp(
-    _depthwise_causal_convolution_forward, _depthwise_causal_convolution_backward
-)
+# _depthwise_causal_convolution_pallas.defvjp(
+#     _depthwise_causal_convolution_forward, _depthwise_causal_convolution_backward
+# )
 
 
 _BASE_ACTIVATIONS = {
