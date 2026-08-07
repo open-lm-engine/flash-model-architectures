@@ -41,7 +41,18 @@ def _output_readout(
     return y.astype(dtype)
 
 
-def _forward(q_ref, k_ref, v_ref, y_ref, h_ref, *, attention_multiplier: float, BLOCK_SIZE_S: int, S: int) -> None:
+def _forward_kernel(
+    q_ref, k_ref, v_ref, h0_ref, y_ref, h_ref, *, attention_multiplier: float, BLOCK_SIZE_S: int, S: int
+) -> None:
+    BLOCK_ID_S = pl.program_id(3)
+
+    @pl.when(BLOCK_ID_S == 0)
+    def _():
+        if h0_ref is None:
+            h_ref[...] = jnp.zeros_like(h_ref)
+        else:
+            h_ref[...] = h0_ref[...].astype(jnp.float32)
+
     dtype = q_ref.dtype
 
     BLOCK_ID_S = pl.program_id(3)
@@ -59,48 +70,6 @@ def _forward(q_ref, k_ref, v_ref, y_ref, h_ref, *, attention_multiplier: float, 
 
     h = _state_update(h=h, k=k, v=v)
     h_ref[...] = h
-
-
-def _forward_kernel(
-    q_ref, k_ref, v_ref, h0_ref, y_ref, h_ref, *, attention_multiplier: float, BLOCK_SIZE_S: int, S: int
-) -> None:
-    BLOCK_ID_S = pl.program_id(3)
-
-    @pl.when(BLOCK_ID_S == 0)
-    def _():
-        h_ref[...] = h0_ref[...].astype(jnp.float32)
-
-    _forward(
-        q_ref=q_ref,
-        k_ref=k_ref,
-        v_ref=v_ref,
-        y_ref=y_ref,
-        h_ref=h_ref,
-        attention_multiplier=attention_multiplier,
-        BLOCK_SIZE_S=BLOCK_SIZE_S,
-        S=S,
-    )
-
-
-def _forward_zero_h0_kernel(
-    q_ref, k_ref, v_ref, y_ref, h_ref, *, attention_multiplier: float, BLOCK_SIZE_S: int, S: int
-) -> None:
-    BLOCK_ID_S = pl.program_id(3)
-
-    @pl.when(BLOCK_ID_S == 0)
-    def _():
-        h_ref[...] = jnp.zeros_like(h_ref)
-
-    _forward(
-        q_ref=q_ref,
-        k_ref=k_ref,
-        v_ref=v_ref,
-        y_ref=y_ref,
-        h_ref=h_ref,
-        attention_multiplier=attention_multiplier,
-        BLOCK_SIZE_S=BLOCK_SIZE_S,
-        S=S,
-    )
 
 
 @partial(jax.jit, static_argnames=("attention_multiplier", "BLOCK_SIZE_S", "BLOCK_SIZE_V"))
@@ -125,52 +94,43 @@ def _forward_core(
 
     h_spec = pl.BlockSpec(block_shape=(None, None, K, BLOCK_SIZE_V), index_map=lambda b, n, vb, c: (b, n, 0, vb))
 
-    in_specs = [
-        pl.BlockSpec(
-            block_shape=(None, None, BLOCK_SIZE_S, K),
-            index_map=lambda BLOCK_ID_B, BLOCK_ID_N, BLOCK_ID_V, BLOCK_ID_S: (
-                BLOCK_ID_B,
-                BLOCK_ID_N // Gq,
-                BLOCK_ID_S,
-                0,
-            ),
-        ),
-        pl.BlockSpec(
-            block_shape=(None, None, BLOCK_SIZE_S, K),
-            index_map=lambda BLOCK_ID_B, BLOCK_ID_N, BLOCK_ID_V, BLOCK_ID_S: (
-                BLOCK_ID_B,
-                BLOCK_ID_N // Gk,
-                BLOCK_ID_S,
-                0,
-            ),
-        ),
-        pl.BlockSpec(
-            block_shape=(None, None, BLOCK_SIZE_S, BLOCK_SIZE_V),
-            index_map=lambda BLOCK_ID_B, BLOCK_ID_N, BLOCK_ID_V, BLOCK_ID_S: (
-                BLOCK_ID_B,
-                BLOCK_ID_N // Gv,
-                BLOCK_ID_S,
-                BLOCK_ID_V,
-            ),
-        ),
-    ]
-
-    if h0 is None:
-        kernel_fn = _forward_zero_h0_kernel
-        args = (q, k, v)
-    else:
-        kernel_fn = _forward_kernel
-        in_specs += [h_spec]
-        args = (q, k, v, h0)
-
     kernel = pl.pallas_call(
-        partial(kernel_fn, attention_multiplier=attention_multiplier, BLOCK_SIZE_S=BLOCK_SIZE_S, S=S),
+        partial(_forward_kernel, attention_multiplier=attention_multiplier, BLOCK_SIZE_S=BLOCK_SIZE_S, S=S),
         out_shape=(
             jax.ShapeDtypeStruct(shape=(B, N, S, V), dtype=q.dtype),
             jax.ShapeDtypeStruct(shape=(B, N, K, V), dtype=jnp.float32),
         ),
         grid=(B, N, ceil_divide(V, BLOCK_SIZE_V), ceil_divide(S, BLOCK_SIZE_S)),
-        in_specs=in_specs,
+        in_specs=(
+            pl.BlockSpec(
+                block_shape=(None, None, BLOCK_SIZE_S, K),
+                index_map=lambda BLOCK_ID_B, BLOCK_ID_N, BLOCK_ID_V, BLOCK_ID_S: (
+                    BLOCK_ID_B,
+                    BLOCK_ID_N // Gq,
+                    BLOCK_ID_S,
+                    0,
+                ),
+            ),
+            pl.BlockSpec(
+                block_shape=(None, None, BLOCK_SIZE_S, K),
+                index_map=lambda BLOCK_ID_B, BLOCK_ID_N, BLOCK_ID_V, BLOCK_ID_S: (
+                    BLOCK_ID_B,
+                    BLOCK_ID_N // Gk,
+                    BLOCK_ID_S,
+                    0,
+                ),
+            ),
+            pl.BlockSpec(
+                block_shape=(None, None, BLOCK_SIZE_S, BLOCK_SIZE_V),
+                index_map=lambda BLOCK_ID_B, BLOCK_ID_N, BLOCK_ID_V, BLOCK_ID_S: (
+                    BLOCK_ID_B,
+                    BLOCK_ID_N // Gv,
+                    BLOCK_ID_S,
+                    BLOCK_ID_V,
+                ),
+            ),
+            None if h0 is None else h_spec,
+        ),
         out_specs=(
             pl.BlockSpec(
                 block_shape=(None, None, BLOCK_SIZE_S, BLOCK_SIZE_V),
@@ -186,4 +146,6 @@ def _forward_core(
         compiler_params=pltpu.CompilerParams(dimension_semantics=("parallel", "parallel", "parallel", "arbitrary")),
     )
 
-    return kernel(*args)
+    y, ht = kernel(q_ref=q, k_ref=k, v_ref=v, h0_ref=h0)
+
+    return y, ht
