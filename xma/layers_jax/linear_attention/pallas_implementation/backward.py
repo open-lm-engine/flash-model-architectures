@@ -100,16 +100,17 @@ def _state_passing_core(
     return kernel(k, v, h0)
 
 
-def _backward(
+def _backward_kernel(
     q_ref,
     k_ref,
     v_ref,
-    dy_ref,
     h_checkpoint_ref,
-    dh0_ref,
+    dy_ref,
+    dht_ref,
     dq_ref,
     dk_ref,
     dv_ref,
+    dh0_ref,
     dqk_ref,
     dq_term2_ref,
     dk_term2_ref,
@@ -123,6 +124,13 @@ def _backward(
 ) -> None:
     rc = pl.program_id(2)
     vb = pl.program_id(3)
+
+    @pl.when(rc == 0)
+    def _():
+        if dht_ref is None:
+            dh0_ref[...] = jnp.zeros_like(dh0_ref)
+        else:
+            dh0_ref[...] = dht_ref[...]
 
     dtype = q_ref.dtype
 
@@ -185,105 +193,6 @@ def _backward(
         dk_ref[...] = dk.astype(dtype)
 
 
-def _backward_kernel(
-    q_ref,
-    k_ref,
-    v_ref,
-    h_checkpoint_ref,
-    dy_ref,
-    dht_ref,
-    dq_ref,
-    dk_ref,
-    dv_ref,
-    dh0_ref,
-    dqk_ref,
-    dq_term2_ref,
-    dk_term2_ref,
-    *,
-    attention_multiplier: float,
-    BLOCK_SIZE_S: int,
-    S: int,
-    V: int,
-    NUM_BLOCKS_S: int,
-    NUM_V_TILES: int,
-) -> None:
-    rc = pl.program_id(2)
-
-    @pl.when(rc == 0)
-    def _():
-        dh0_ref[...] = dht_ref[...]
-
-    _backward(
-        q_ref=q_ref,
-        k_ref=k_ref,
-        v_ref=v_ref,
-        dy_ref=dy_ref,
-        h_checkpoint_ref=h_checkpoint_ref,
-        dh0_ref=dh0_ref,
-        dq_ref=dq_ref,
-        dk_ref=dk_ref,
-        dv_ref=dv_ref,
-        dqk_ref=dqk_ref,
-        dq_term2_ref=dq_term2_ref,
-        dk_term2_ref=dk_term2_ref,
-        attention_multiplier=attention_multiplier,
-        BLOCK_SIZE_S=BLOCK_SIZE_S,
-        S=S,
-        V=V,
-        NUM_BLOCKS_S=NUM_BLOCKS_S,
-        NUM_V_TILES=NUM_V_TILES,
-    )
-
-
-def _backward_zero_dh_kernel(
-    q_ref,
-    k_ref,
-    v_ref,
-    h_checkpoint_ref,
-    dy_ref,
-    dq_ref,
-    dk_ref,
-    dv_ref,
-    dh0_ref,
-    dqk_ref,
-    dq_term2_ref,
-    dk_term2_ref,
-    *,
-    attention_multiplier: float,
-    BLOCK_SIZE_S: int,
-    S: int,
-    V: int,
-    NUM_BLOCKS_S: int,
-    NUM_V_TILES: int,
-) -> None:
-    rc = pl.program_id(2)
-
-    @pl.when(rc == 0)
-    def _():
-        dh0_ref[...] = jnp.zeros_like(dh0_ref)
-
-    _backward(
-        q_ref=q_ref,
-        k_ref=k_ref,
-        v_ref=v_ref,
-        dy_ref=dy_ref,
-        h_checkpoint_ref=h_checkpoint_ref,
-        dh0_ref=dh0_ref,
-        dq_ref=dq_ref,
-        dk_ref=dk_ref,
-        dv_ref=dv_ref,
-        dqk_ref=dqk_ref,
-        dq_term2_ref=dq_term2_ref,
-        dk_term2_ref=dk_term2_ref,
-        attention_multiplier=attention_multiplier,
-        BLOCK_SIZE_S=BLOCK_SIZE_S,
-        S=S,
-        V=V,
-        NUM_BLOCKS_S=NUM_BLOCKS_S,
-        NUM_V_TILES=NUM_V_TILES,
-    )
-
-
 @partial(jax.jit, static_argnames=("attention_multiplier", "BLOCK_SIZE_S", "BLOCK_SIZE_V"))
 def _backward_core(
     q: jax.Array,
@@ -314,7 +223,7 @@ def _backward_core(
         index_map=lambda BLOCK_ID_B, BLOCK_ID_N, BLOCK_ID_S, BLOCK_ID_V: (BLOCK_ID_B, BLOCK_ID_N, 0, BLOCK_ID_V),
     )
 
-    in_specs = [
+    in_specs = (
         pl.BlockSpec(
             block_shape=(None, None, BLOCK_SIZE_S, K),
             index_map=lambda BLOCK_ID_B, BLOCK_ID_N, BLOCK_ID_S, BLOCK_ID_V: (
@@ -360,19 +269,12 @@ def _backward_core(
                 BLOCK_ID_V,
             ),
         ),
-    ]
-
-    if dht is None:
-        kernel_fn = _backward_zero_dh_kernel
-        args = (q, k, v, h, dy)
-    else:
-        kernel_fn = _backward_kernel
-        in_specs += [h_spec]
-        args = (q, k, v, h, dy, dht)
+        None if dht is None else h_spec,
+    )
 
     kernel = pl.pallas_call(
         partial(
-            kernel_fn,
+            _backward_kernel,
             attention_multiplier=attention_multiplier,
             BLOCK_SIZE_S=BLOCK_SIZE_S,
             S=S,
@@ -426,4 +328,4 @@ def _backward_core(
         compiler_params=pltpu.CompilerParams(dimension_semantics=("parallel", "parallel", "arbitrary", "arbitrary")),
     )
 
-    return kernel(*args)
+    return kernel(q, k, v, h, dy, dht)

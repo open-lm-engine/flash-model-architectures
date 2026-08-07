@@ -41,25 +41,25 @@ def _linear_attention_pallas(
 
 
 def _linear_attention_forward(
-    query: jax.Array,
-    key: jax.Array,
-    value: jax.Array,
-    input_state: jax.Array | None,
+    q: jax.Array,
+    k: jax.Array,
+    v: jax.Array,
+    h0: jax.Array | None,
     attention_multiplier: float,
     BLOCK_SIZE_S: int,
     BLOCK_SIZE_V: int,
 ) -> tuple[tuple[jax.Array, jax.Array], tuple]:
     y, h = _linear_attention_pallas(
-        q=query,
-        k=key,
-        v=value,
-        h0=input_state,
+        q=q,
+        k=k,
+        v=v,
+        h0=h0,
         attention_multiplier=attention_multiplier,
         BLOCK_SIZE_S=BLOCK_SIZE_S,
         BLOCK_SIZE_V=BLOCK_SIZE_V,
     )
 
-    return (y, h), (query, key, value, input_state)
+    return (y, h), (q, k, v, h0)
 
 
 @partial(jax.jit, static_argnames=("attention_multiplier", "BLOCK_SIZE_S", "BLOCK_SIZE_V"))
