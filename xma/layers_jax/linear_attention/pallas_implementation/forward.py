@@ -17,30 +17,6 @@ def _state_update(h: jax.Array, k: jax.Array, v: jax.Array) -> jax.Array:
     return h
 
 
-def _output_readout(
-    h: jax.Array,
-    q: jax.Array,
-    k: jax.Array,
-    v: jax.Array,
-    BLOCK_SIZE_S: int,
-    attention_multiplier: float,
-) -> jax.Array:
-    dtype = q.dtype
-
-    row = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, BLOCK_SIZE_S), 0)
-    col = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, BLOCK_SIZE_S), 1)
-    causal_mask = row >= col
-
-    qk = jax.lax.dot_general(q, k, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
-    qk = jnp.where(causal_mask, qk, 0).astype(dtype)
-
-    y = jnp.dot(qk, v, preferred_element_type=jnp.float32)
-    y += jnp.dot(q, h.astype(dtype), preferred_element_type=jnp.float32)
-    y *= attention_multiplier
-
-    return y.astype(dtype)
-
-
 def _forward_kernel(
     q_ref, k_ref, v_ref, h0_ref, y_ref, ht_ref, *, attention_multiplier: float, BLOCK_SIZE_S: int, S: int
 ) -> None:
@@ -64,11 +40,19 @@ def _forward_kernel(
     v = jnp.where(MASK_S, v_ref[...], 0).astype(dtype)
     h = ht_ref[...]
 
-    y_ref[...] = _output_readout(
-        h=h, q=q, k=k, v=v, BLOCK_SIZE_S=BLOCK_SIZE_S, attention_multiplier=attention_multiplier
-    )
+    row = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, BLOCK_SIZE_S), 0)
+    col = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, BLOCK_SIZE_S), 1)
+    causal_mask = row >= col
 
-    h = _state_update(h=h, k=k, v=v)
+    qk = jax.lax.dot_general(q, k, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
+    qk = jnp.where(causal_mask, qk, 0).astype(dtype)
+
+    y = jnp.dot(qk, v, preferred_element_type=jnp.float32)
+    y += jnp.dot(q, h.astype(dtype), preferred_element_type=jnp.float32)
+    y *= attention_multiplier
+    y_ref[...] = y.astype(dtype)
+
+    h += jax.lax.dot_general(k, v, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32)
     ht_ref[...] = h
 
 
