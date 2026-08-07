@@ -15,7 +15,10 @@ from ....math import ceil_divide
 def _state_passing_kernel(x_ref, h0_ref, h_ref, h_scratch, *, K: int) -> None:
     @pl.when(pl.program_id(1) == 0)
     def _():
-        h_scratch[...] = h0_ref[...]
+        if h0_ref is None:
+            h_scratch[...] = jnp.zeros_like(h_scratch)
+        else:
+            h_scratch[...] = h0_ref[...]
 
     h_ref[...] = h_scratch[...][None]
 
@@ -28,12 +31,13 @@ def _state_passing_kernel(x_ref, h0_ref, h_ref, h_scratch, *, K: int) -> None:
 
 
 @partial(jax.jit, static_argnames=("BLOCK_SIZE_S", "K"))
-def _state_passing_core(x: jax.Array, h0: jax.Array, BLOCK_SIZE_S: int, K: int) -> jax.Array:
+def _state_passing_core(x: jax.Array, h0: jax.Array | None, BLOCK_SIZE_S: int, K: int) -> jax.Array:
     B, S, H = x.shape
     NUM_BLOCKS_S = ceil_divide(S, BLOCK_SIZE_S)
     PAD = ceil_divide(K - 1, 8) * 8
 
-    h0 = jnp.pad(h0, ((0, 0), (PAD - K + 1, 0), (0, 0)))
+    if h0 is not None:
+        h0 = jnp.pad(h0, ((0, 0), (PAD - K + 1, 0), (0, 0)))
 
     kernel = pl.pallas_call(
         partial(_state_passing_kernel, K=K),
@@ -44,7 +48,13 @@ def _state_passing_core(x: jax.Array, h0: jax.Array, BLOCK_SIZE_S: int, K: int) 
                 block_shape=(None, BLOCK_SIZE_S, H),
                 index_map=lambda BLOCK_ID_B, BLOCK_ID_S: (BLOCK_ID_B, BLOCK_ID_S, 0),
             ),
-            pl.BlockSpec(block_shape=(None, PAD, H), index_map=lambda BLOCK_ID_B, BLOCK_ID_S: (BLOCK_ID_B, 0, 0)),
+            (
+                None
+                if h0 is None
+                else pl.BlockSpec(
+                    block_shape=(None, PAD, H), index_map=lambda BLOCK_ID_B, BLOCK_ID_S: (BLOCK_ID_B, 0, 0)
+                )
+            ),
         ),
         out_specs=pl.BlockSpec(
             block_shape=(None, 1, PAD, H), index_map=lambda BLOCK_ID_B, BLOCK_ID_S: (BLOCK_ID_B, BLOCK_ID_S, 0, 0)
@@ -99,15 +109,11 @@ def _backward_kernel(
 
     tail_len = BLOCK_SIZE_S - K + 1
 
-    # dx, bulk positions j in [0, tail_len): every tap of the adjoint gather stays inside this chunk's dy.
     dx_tail = jnp.zeros((tail_len, H), dtype=jnp.float32)
     for k in range(K):
         W = W_ref[k, :].astype(jnp.float32)
         dx_tail += W[None, :] * dy[K - 1 - k : K - 1 - k + tail_len, :]
 
-    # dx, boundary positions j in [tail_len, BLOCK_SIZE_S): part of the gradient already arrived from the
-    # NEXT chunk (carried in via `dh_scratch`, since this chunk's own trailing K - 1 positions served as
-    # that chunk's history), the rest comes from in-range taps of this chunk's own dy.
     dx_boundary_rows = []
     for i in range(K - 1):
         j = tail_len + i
@@ -122,9 +128,6 @@ def _backward_kernel(
     dx = jnp.concatenate([dx_tail, jnp.stack(dx_boundary_rows, axis=0)], axis=0) if K > 1 else dx_tail
     dx_ref[...] = jnp.where(MASK_S, dx, 0).astype(dtype)
 
-    # dW: split each tap's contribution into the part sourced from this chunk's own `x` (a plain, un-
-    # concatenated slice pair - safe) and the tiny part sourced from the incoming checkpoint history
-    # (scalar rows - also safe).
     for k in range(K):
         x_len = tail_len + k
         dw_k = jnp.sum(dy[K - 1 - k : BLOCK_SIZE_S, :] * x[:x_len, :], axis=0)
@@ -134,8 +137,6 @@ def _backward_kernel(
 
     db_ref[...] += jnp.sum(dy, axis=0, keepdims=True)
 
-    # gradient into this chunk's own incoming history -> becomes the outgoing `dh_scratch` for the previous
-    # (in forward order) chunk, i.e. the next chunk we process since this kernel runs in reverse.
     for p in range(K - 1):
         dh_p = jnp.zeros((H,), dtype=jnp.float32)
         for k in range(p + 1):

@@ -16,12 +16,11 @@ from .forward import _forward_core
 def _depthwise_causal_convolution_pallas(
     x: jax.Array, W: jax.Array, b: jax.Array | None, h0: jax.Array | None, BLOCK_SIZE_S: int
 ) -> tuple[jax.Array, jax.Array]:
-    H = x.shape[-1]
-
     W = jnp.transpose(W, (1, 0))
-    b = jnp.zeros((1, H), dtype=jnp.float32) if b is None else b.astype(jnp.float32)[None, :]
+    b = None if b is None else b.astype(jnp.float32)[None, :]
 
-    h0 = None if h0 is None else jnp.transpose(h0[:, :, 1:], (0, 2, 1)).astype(x.dtype)
+    if h0 is not None:
+        h0 = jnp.transpose(h0[:, :, 1:], (0, 2, 1)).astype(x.dtype)
 
     y, ht = _forward_core(x=x, W=W, b=b, h0=h0, BLOCK_SIZE_S=BLOCK_SIZE_S)
 
@@ -44,13 +43,10 @@ def _depthwise_causal_convolution_backward(BLOCK_SIZE_S: int, residuals: tuple, 
 
     W = jnp.transpose(W, (1, 0))
 
-    h0_in = (
-        jnp.zeros((B, K - 1, H), dtype=x.dtype)
-        if h0 is None
-        else jnp.transpose(h0[:, :, 1:], (0, 2, 1)).astype(x.dtype)
-    )
+    if h0 is not None:
+        h0 = jnp.transpose(h0[:, :, 1:], (0, 2, 1)).astype(x.dtype)
 
-    h = _state_passing_core(x=x, h0=h0_in, BLOCK_SIZE_S=BLOCK_SIZE_S, K=K)
+    h = _state_passing_core(x=x, h0=h0, BLOCK_SIZE_S=BLOCK_SIZE_S, K=K)
 
     dht = jnp.zeros((B, K - 1, H), dtype=jnp.float32) if dht is None else dht.astype(jnp.float32)
 

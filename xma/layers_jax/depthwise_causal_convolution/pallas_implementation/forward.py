@@ -28,7 +28,7 @@ def _forward_kernel(x_ref, W_ref, b_ref, h0_ref, y_ref, h_ref, *, BLOCK_SIZE_S: 
     MASK_S = (BLOCK_ID_S * BLOCK_SIZE_S + BLOCK_S) < S
 
     x = jnp.where(MASK_S, x_ref[...], 0).astype(dtype)
-    b = b_ref[...].astype(jnp.float32)
+    b = jnp.zeros((1, H), dtype=jnp.float32) if b_ref is None else b_ref[...].astype(jnp.float32)
 
     tail_len = BLOCK_SIZE_S - K + 1
     y_tail = jnp.zeros((tail_len, H), dtype=jnp.float32) + b
@@ -62,7 +62,7 @@ def _forward_kernel(x_ref, W_ref, b_ref, h0_ref, y_ref, h_ref, *, BLOCK_SIZE_S: 
 
 @partial(jax.jit, static_argnames=("BLOCK_SIZE_S",))
 def _forward_core(
-    x: jax.Array, W: jax.Array, b: jax.Array, h0: jax.Array | None, BLOCK_SIZE_S: int
+    x: jax.Array, W: jax.Array, b: jax.Array | None, h0: jax.Array | None, BLOCK_SIZE_S: int
 ) -> tuple[jax.Array, jax.Array]:
     B, S, H = x.shape
     K = W.shape[0]
@@ -87,7 +87,7 @@ def _forward_core(
         in_specs=(
             x_spec,
             pl.BlockSpec(block_shape=(K, H), index_map=lambda BLOCK_ID_B, BLOCK_ID_S: (0, 0)),
-            pl.BlockSpec(block_shape=(1, H), index_map=lambda BLOCK_ID_B, BLOCK_ID_S: (0, 0)),
+            None if b is None else pl.BlockSpec(block_shape=(1, H), index_map=lambda BLOCK_ID_B, BLOCK_ID_S: (0, 0)),
             None if h0 is None else h_spec,
         ),
         out_specs=(x_spec, h_spec),
