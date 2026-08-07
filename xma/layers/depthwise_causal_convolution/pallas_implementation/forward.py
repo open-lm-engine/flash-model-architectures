@@ -19,21 +19,23 @@ def _output_shape_dtype_fn(
     return [((B, S, H), x.dtype), ((B, K - 1, H), torch.float32)]
 
 
-_CACHE = None
+_CACHE = {}
 
 
 @xma_op(mutates_args={}, fake_func=_output_shape_dtype_fn)
 def _depthwise_causal_convolution_forward_core(
     x: torch.Tensor, W: torch.Tensor, b: torch.Tensor | None, h0: torch.Tensor | None, BLOCK_SIZE_S: int
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    global _CACHE
+    cache_key = (b is None, h0 is None)
 
-    if _CACHE is None:
+    if cache_key not in _CACHE:
         from torch_xla.experimental.custom_kernel import make_kernel_from_pallas
 
-        _CACHE = make_kernel_from_pallas(_depthwise_causal_convolution_forward_core_jax, _output_shape_dtype_fn)
+        _CACHE[cache_key] = make_kernel_from_pallas(
+            _depthwise_causal_convolution_forward_core_jax, _output_shape_dtype_fn
+        )
 
-    return _CACHE(x, W, b, h0, static_argnames=("BLOCK_SIZE_S",), BLOCK_SIZE_S=BLOCK_SIZE_S)
+    return _CACHE[cache_key](x, W, b, h0, static_argnames=("BLOCK_SIZE_S",), BLOCK_SIZE_S=BLOCK_SIZE_S)
 
 
 def _depthwise_causal_convolution_forward_pallas(

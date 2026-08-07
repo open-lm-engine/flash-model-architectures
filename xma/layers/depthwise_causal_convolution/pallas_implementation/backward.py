@@ -24,23 +24,25 @@ def _state_passing_output_shape_dtype_fn(
     return [((B, NUM_BLOCKS_S, PAD, H), torch.float32)]
 
 
-_STATE_PASSING_CACHE = None
+_STATE_PASSING_CACHE = {}
 
 
 @xma_op(mutates_args={}, fake_func=_state_passing_output_shape_dtype_fn)
 def _depthwise_causal_convolution_state_passing_core(
     x: torch.Tensor, h0: torch.Tensor | None, BLOCK_SIZE_S: int, K: int
 ) -> torch.Tensor:
-    global _STATE_PASSING_CACHE
+    cache_key = h0 is None
 
-    if _STATE_PASSING_CACHE is None:
+    if cache_key not in _STATE_PASSING_CACHE:
         from torch_xla.experimental.custom_kernel import make_kernel_from_pallas
 
-        _STATE_PASSING_CACHE = make_kernel_from_pallas(
+        _STATE_PASSING_CACHE[cache_key] = make_kernel_from_pallas(
             _depthwise_causal_convolution_state_passing_core_jax, _state_passing_output_shape_dtype_fn
         )
 
-    return _STATE_PASSING_CACHE(x, h0, static_argnames=("BLOCK_SIZE_S", "K"), BLOCK_SIZE_S=BLOCK_SIZE_S, K=K)
+    return _STATE_PASSING_CACHE[cache_key](
+        x, h0, static_argnames=("BLOCK_SIZE_S", "K"), BLOCK_SIZE_S=BLOCK_SIZE_S, K=K
+    )
 
 
 def _backward_output_shape_dtype_fn(
