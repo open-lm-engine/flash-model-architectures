@@ -223,55 +223,6 @@ def _backward_core(
         index_map=lambda BLOCK_ID_B, BLOCK_ID_N, BLOCK_ID_S, BLOCK_ID_V: (BLOCK_ID_B, BLOCK_ID_N, 0, BLOCK_ID_V),
     )
 
-    in_specs = (
-        pl.BlockSpec(
-            block_shape=(None, None, BLOCK_SIZE_S, K),
-            index_map=lambda BLOCK_ID_B, BLOCK_ID_N, BLOCK_ID_S, BLOCK_ID_V: (
-                BLOCK_ID_B,
-                BLOCK_ID_N // Gq,
-                NUM_BLOCKS_S - 1 - BLOCK_ID_S,
-                0,
-            ),
-        ),
-        pl.BlockSpec(
-            block_shape=(None, None, BLOCK_SIZE_S, K),
-            index_map=lambda BLOCK_ID_B, BLOCK_ID_N, BLOCK_ID_S, BLOCK_ID_V: (
-                BLOCK_ID_B,
-                BLOCK_ID_N // Gk,
-                NUM_BLOCKS_S - 1 - BLOCK_ID_S,
-                0,
-            ),
-        ),
-        pl.BlockSpec(
-            block_shape=(None, None, BLOCK_SIZE_S, BLOCK_SIZE_V),
-            index_map=lambda BLOCK_ID_B, BLOCK_ID_N, BLOCK_ID_S, BLOCK_ID_V: (
-                BLOCK_ID_B,
-                BLOCK_ID_N // Gv,
-                NUM_BLOCKS_S - 1 - BLOCK_ID_S,
-                BLOCK_ID_V,
-            ),
-        ),
-        pl.BlockSpec(
-            block_shape=(None, None, K, BLOCK_SIZE_V),
-            index_map=lambda BLOCK_ID_B, BLOCK_ID_N, BLOCK_ID_S, BLOCK_ID_V: (
-                BLOCK_ID_B,
-                BLOCK_ID_N * NUM_BLOCKS_S + (NUM_BLOCKS_S - 1 - BLOCK_ID_S),
-                0,
-                BLOCK_ID_V,
-            ),
-        ),
-        pl.BlockSpec(
-            block_shape=(None, None, BLOCK_SIZE_S, BLOCK_SIZE_V),
-            index_map=lambda BLOCK_ID_B, BLOCK_ID_N, BLOCK_ID_S, BLOCK_ID_V: (
-                BLOCK_ID_B,
-                BLOCK_ID_N,
-                NUM_BLOCKS_S - 1 - BLOCK_ID_S,
-                BLOCK_ID_V,
-            ),
-        ),
-        None if dht is None else h_spec,
-    )
-
     kernel = pl.pallas_call(
         partial(
             _backward_kernel,
@@ -289,7 +240,54 @@ def _backward_core(
             jax.ShapeDtypeStruct(shape=(B, N, K, V), dtype=jnp.float32),
         ),
         grid=(B, N, NUM_BLOCKS_S, NUM_V_TILES),
-        in_specs=in_specs,
+        in_specs=(
+            pl.BlockSpec(
+                block_shape=(None, None, BLOCK_SIZE_S, K),
+                index_map=lambda BLOCK_ID_B, BLOCK_ID_N, BLOCK_ID_S, BLOCK_ID_V: (
+                    BLOCK_ID_B,
+                    BLOCK_ID_N // Gq,
+                    NUM_BLOCKS_S - 1 - BLOCK_ID_S,
+                    0,
+                ),
+            ),
+            pl.BlockSpec(
+                block_shape=(None, None, BLOCK_SIZE_S, K),
+                index_map=lambda BLOCK_ID_B, BLOCK_ID_N, BLOCK_ID_S, BLOCK_ID_V: (
+                    BLOCK_ID_B,
+                    BLOCK_ID_N // Gk,
+                    NUM_BLOCKS_S - 1 - BLOCK_ID_S,
+                    0,
+                ),
+            ),
+            pl.BlockSpec(
+                block_shape=(None, None, BLOCK_SIZE_S, BLOCK_SIZE_V),
+                index_map=lambda BLOCK_ID_B, BLOCK_ID_N, BLOCK_ID_S, BLOCK_ID_V: (
+                    BLOCK_ID_B,
+                    BLOCK_ID_N // Gv,
+                    NUM_BLOCKS_S - 1 - BLOCK_ID_S,
+                    BLOCK_ID_V,
+                ),
+            ),
+            pl.BlockSpec(
+                block_shape=(None, None, K, BLOCK_SIZE_V),
+                index_map=lambda BLOCK_ID_B, BLOCK_ID_N, BLOCK_ID_S, BLOCK_ID_V: (
+                    BLOCK_ID_B,
+                    BLOCK_ID_N * NUM_BLOCKS_S + (NUM_BLOCKS_S - 1 - BLOCK_ID_S),
+                    0,
+                    BLOCK_ID_V,
+                ),
+            ),
+            pl.BlockSpec(
+                block_shape=(None, None, BLOCK_SIZE_S, BLOCK_SIZE_V),
+                index_map=lambda BLOCK_ID_B, BLOCK_ID_N, BLOCK_ID_S, BLOCK_ID_V: (
+                    BLOCK_ID_B,
+                    BLOCK_ID_N,
+                    NUM_BLOCKS_S - 1 - BLOCK_ID_S,
+                    BLOCK_ID_V,
+                ),
+            ),
+            None if dht is None else h_spec,
+        ),
         out_specs=(
             pl.BlockSpec(
                 block_shape=(None, None, BLOCK_SIZE_S, K),
