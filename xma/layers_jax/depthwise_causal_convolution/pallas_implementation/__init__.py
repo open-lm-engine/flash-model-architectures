@@ -24,7 +24,7 @@ def _depthwise_causal_convolution_pallas(
 
     y, ht = _forward_core(x=x, W=W, b=b, h0=h0, BLOCK_SIZE_S=BLOCK_SIZE_S)
 
-    return y, ht
+    return y, jnp.transpose(ht, (0, 2, 1))
 
 
 def _depthwise_causal_convolution_forward(
@@ -46,7 +46,11 @@ def _depthwise_causal_convolution_backward(BLOCK_SIZE_S: int, residuals: tuple, 
     if h0 is not None:
         h0 = jnp.transpose(h0, (0, 2, 1)).astype(x.dtype)
 
-    dht = jnp.zeros((B, K - 1, H), dtype=jnp.float32) if dht is None else dht.astype(jnp.float32)
+    dht = (
+        jnp.zeros((B, K - 1, H), dtype=jnp.float32)
+        if dht is None
+        else jnp.transpose(dht, (0, 2, 1)).astype(jnp.float32)
+    )
 
     h = _state_passing_core(x=x, h0=h0, BLOCK_SIZE_S=BLOCK_SIZE_S, K=K)
     dx, dW, db, dh0 = _backward_core(x=x, W=W, h=h, dy=dy, dht=dht, BLOCK_SIZE_S=BLOCK_SIZE_S, K=K)

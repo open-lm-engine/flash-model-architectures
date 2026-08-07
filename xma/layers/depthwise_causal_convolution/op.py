@@ -72,7 +72,7 @@ def depthwise_causal_convolution(
 ) -> tuple[torch.Tensor, torch.Tensor | None]:
     """computes depthwise causal 1D convolution using a hand-written Pallas TPU kernel, bound into torch via
     torch_xla: `output[b, t, h] = bias[h] + sum_k weight[h, k] * z[b, t + k, h]` where `z` is `input` preceded
-    by `kernel_size` raw history positions taken from `input_state` (or 0 if `input_state` is None).
+    by `kernel_size - 1` raw history positions taken from `input_state` (or 0 if `input_state` is None).
 
     :param input: input tensor of shape (B, S, H)
     :type input: torch.Tensor
@@ -101,6 +101,7 @@ def depthwise_causal_convolution(
 
     assert weight.ndim == 2
     assert weight.shape[0] == H
+    assert K > 1
 
     if bias is not None:
         assert bias.shape == (H,)
