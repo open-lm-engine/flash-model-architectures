@@ -12,13 +12,13 @@ import jax.numpy as jnp
 from ....math import ceil_divide
 
 
-def _state_passing_kernel(k_ref, v_ref, h0_ref, h_checkpoint_ref, h_ref, *, BLOCK_SIZE_S: int, S: int) -> None:
+def _state_passing_kernel(k_ref, v_ref, h0_ref, h_ref, h_scratch, *, BLOCK_SIZE_S: int, S: int) -> None:
     @pl.when(pl.program_id(3) == 0)
     def _():
         if h0_ref is None:
-            h_ref[...] = jnp.zeros_like(h_ref)
+            h_scratch[...] = jnp.zeros_like(h_scratch)
         else:
-            h_ref[...] = h0_ref[...].astype(jnp.float32)
+            h_scratch[...] = h0_ref[...].astype(jnp.float32)
 
     dtype = k_ref.dtype
 
@@ -28,16 +28,16 @@ def _state_passing_kernel(k_ref, v_ref, h0_ref, h_checkpoint_ref, h_ref, *, BLOC
 
     k = jnp.where(MASK_S, k_ref[...], 0).astype(dtype)
     v = jnp.where(MASK_S, v_ref[...], 0).astype(dtype)
-    h = h_ref[...]
+    h = h_scratch[...]
 
-    h_checkpoint_ref[...] = h
-    h_ref[...] = h + jax.lax.dot_general(k, v, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32)
+    h_ref[...] = h
+    h_scratch[...] = h + jax.lax.dot_general(k, v, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32)
 
 
 @partial(jax.jit, static_argnames=("N", "BLOCK_SIZE_S", "BLOCK_SIZE_V"))
 def _state_passing_core(
     k: jax.Array, v: jax.Array, h0: jax.Array | None, N: int, BLOCK_SIZE_S: int, BLOCK_SIZE_V: int
-) -> tuple[jax.Array, jax.Array]:
+) -> jax.Array:
     B, Nk, S, K = k.shape
     Nv = v.shape[1]
     V = v.shape[-1]
@@ -51,10 +51,7 @@ def _state_passing_core(
 
     kernel = pl.pallas_call(
         partial(_state_passing_kernel, BLOCK_SIZE_S=BLOCK_SIZE_S, S=S),
-        out_shape=(
-            jax.ShapeDtypeStruct(shape=(B, N * NUM_BLOCKS_S, K, V), dtype=jnp.float32),
-            jax.ShapeDtypeStruct(shape=(B, N, K, V), dtype=jnp.float32),
-        ),
+        out_shape=jax.ShapeDtypeStruct(shape=(B, N * NUM_BLOCKS_S, K, V), dtype=jnp.float32),
         grid=(B, N, ceil_divide(V, BLOCK_SIZE_V), NUM_BLOCKS_S),
         in_specs=(
             pl.BlockSpec(block_shape=(None, None, BLOCK_SIZE_S, K), index_map=lambda b, n, vb, c: (b, n // Gk, c, 0)),
@@ -63,13 +60,11 @@ def _state_passing_core(
             ),
             None if h0 is None else h_spec,
         ),
-        out_specs=(
-            pl.BlockSpec(
-                block_shape=(None, None, K, BLOCK_SIZE_V),
-                index_map=lambda b, n, vb, c: (b, n * NUM_BLOCKS_S + c, 0, vb),
-            ),
-            h_spec,
+        out_specs=pl.BlockSpec(
+            block_shape=(None, None, K, BLOCK_SIZE_V),
+            index_map=lambda b, n, vb, c: (b, n * NUM_BLOCKS_S + c, 0, vb),
         ),
+        scratch_shapes=[pltpu.VMEM((K, BLOCK_SIZE_V), jnp.float32)],
         compiler_params=pltpu.CompilerParams(dimension_semantics=("parallel", "parallel", "parallel", "arbitrary")),
     )
 

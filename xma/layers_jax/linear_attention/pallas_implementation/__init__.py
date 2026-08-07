@@ -84,7 +84,7 @@ def _linear_attention_backward(
     v = jnp.swapaxes(v, 1, 2)
     dy = jnp.swapaxes(dy, 1, 2)
 
-    h, _ = _state_passing_core(k=k, v=v, h0=h0, N=N, BLOCK_SIZE_S=BLOCK_SIZE_S, BLOCK_SIZE_V=BLOCK_SIZE_V)
+    h = _state_passing_core(k=k, v=v, h0=h0, N=N, BLOCK_SIZE_S=BLOCK_SIZE_S, BLOCK_SIZE_V=BLOCK_SIZE_V)
 
     dq, dk, dv, dh0 = _backward_core(
         q=q,
