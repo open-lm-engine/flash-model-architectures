@@ -74,7 +74,7 @@ def test_prefill_shapes(
 
     if output_state:
         assert state is not None
-        assert state.size() == (_BATCH, _HIDDEN_SIZE, kernel_size)
+        assert state.size() == (_BATCH, _HIDDEN_SIZE, kernel_size - 1)
     else:
         assert state is None
 
@@ -141,7 +141,7 @@ def test_zero_state_matches_fresh_prefill(
     conv.eval()
 
     x = torch.randn(_BATCH, seq_len, _HIDDEN_SIZE, device=device)
-    zero_state = torch.zeros(_BATCH, _HIDDEN_SIZE, kernel_size, device=device)
+    zero_state = torch.zeros(_BATCH, _HIDDEN_SIZE, kernel_size - 1, device=device)
 
     out_fresh, state_fresh = conv(
         x, input_state=None, attention_mask=None, output_state=True, kernel_backend=kernel_backend

@@ -84,14 +84,15 @@ def _depthwise_causal_convolution_backward_pallas(
     dht: torch.Tensor | None,
     BLOCK_SIZE_S: int = 128,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor | None, torch.Tensor | None]:
-    # x, W, b, h0: the forward's original (un-transposed) inputs, saved as residuals - mirrors the jax-side
-    # outer wrapper (pallas_implementation/__init__.py::_depthwise_causal_convolution_backward)
+    # x, W, b: the forward's original (un-transposed) inputs, saved as residuals - mirrors the jax-side outer
+    # wrapper (pallas_implementation/__init__.py::_depthwise_causal_convolution_backward). h0: (B, H, K - 1),
+    # matching the (B, H, K - 1) input_state/final_state contract - just transpose, no slicing needed.
     B, _, H = x.shape
     K = W.shape[-1]
 
     W = W.transpose(1, 0)
 
-    h0_in = None if h0 is None else h0[:, :, 1:].transpose(1, 2).to(x.dtype)
+    h0_in = None if h0 is None else h0.transpose(1, 2).to(x.dtype)
 
     h = _depthwise_causal_convolution_state_passing_core(x, h0_in, BLOCK_SIZE_S=BLOCK_SIZE_S, K=K)
 
@@ -101,6 +102,6 @@ def _depthwise_causal_convolution_backward_pallas(
 
     dW = dW.transpose(1, 0)
     db = None if b is None else db[0]
-    dh0 = None if h0 is None else torch.nn.functional.pad(dh0.transpose(1, 2), (1, 0))
+    dh0 = None if h0 is None else dh0.transpose(1, 2)
 
     return dx, dW, db, dh0

@@ -51,11 +51,14 @@ def _apply_mask_to_padding_states(x: torch.Tensor, attention_mask: torch.Tensor 
 def _get_last_state(x: torch.Tensor, kernel_size: int) -> torch.Tensor:
     """Return the convolution carry as the latest kernel_size raw inputs."""
 
-    # last kernel_size columns of x as passed, not of the original block
+    # last kernel_size columns of x as passed, not of the original block. Sliced via a positive start index
+    # (not x[..., -kernel_size:]) since kernel_size can be 0 (this is always called with self.kernel_size - 1,
+    # the input_state/final_state contract used throughout this module), and -0 means "start of tensor", not
+    # "empty", to Python's slicing.
     if x.size(-1) < kernel_size:
         return F.pad(x, (kernel_size - x.size(-1), 0))
 
-    return x[..., -kernel_size:]
+    return x[..., x.size(-1) - kernel_size :]
 
 
 class DepthwiseCausalConvolution(nn.Conv1d):
@@ -120,7 +123,7 @@ class DepthwiseCausalConvolution(nn.Conv1d):
             x = x.transpose(-1, -2)
 
             if output_state:
-                final_state = _get_last_state(x, self.kernel_size)
+                final_state = _get_last_state(x, self.kernel_size - 1)
 
             if kernel_backend == KernelBackend.cuda:
                 x = causal_conv1d_fn(
@@ -162,26 +165,27 @@ class DepthwiseCausalConvolution(nn.Conv1d):
                     if not self.use_activation_inside_kernel:
                         x = self.activation_function(x)
                 else:
-                    final_state = input_state.roll(shifts=-1, dims=-1)
-                    final_state[..., -1] = x[:, 0]
+                    # input_state: (B, H, K - 1); window: (B, H, K) = input_state's K - 1 history positions
+                    # followed by the one new position, i.e. the exact K raw taps this output depends on.
+                    window = torch.cat([input_state, x[:, 0][..., None]], dim=-1)
 
-                    x = (final_state * self.weight.squeeze(1)).sum(dim=-1)
+                    x = (window * self.weight.squeeze(1)).sum(dim=-1)
                     x = x[:, None, :]
                     if self.bias is not None:
                         x = x + self.bias
 
-                    if not output_state:
-                        final_state = None
+                    # drop the now-oldest position (was input_state[..., 0]) to get back to (B, H, K - 1)
+                    final_state = window[..., 1:] if output_state else None
 
                     x = self.activation_function(x)
             else:
                 x = x.transpose(-1, -2)
-                # TODO: add fused multi-token continuation support for input_state=[batch, dim, kernel_size]
-                # and final_state=[batch, dim, kernel_size]
+                # TODO: add fused multi-token continuation support for input_state=[batch, dim, kernel_size - 1]
+                # and final_state=[batch, dim, kernel_size - 1]
                 x = torch.cat([input_state, x], dim=-1)
 
                 if output_state:
-                    final_state = _get_last_state(x, self.kernel_size)
+                    final_state = _get_last_state(x, self.kernel_size - 1)
 
                 x = super().forward(x)
 
