@@ -11,6 +11,7 @@ def _depthwise_causal_convolution_reference(
 ) -> tuple[jax.Array, jax.Array | None]:
     _, S, H = x.shape
     K = W.shape[-1]
+    state_size = K - 1
 
     x = jnp.transpose(x, (0, 2, 1))
     ht = None
@@ -19,16 +20,14 @@ def _depthwise_causal_convolution_reference(
         padding = [(K - 1, 0)]
 
         if output_state:
-            ht = jnp.pad(x, ((0, 0), (0, 0), (K - S, 0))) if S < K else x[:, :, -K:]
+            ht = jnp.pad(x, ((0, 0), (0, 0), (state_size - S, 0))) if S < state_size else x[:, :, -state_size:]
     else:
         padding = [(0, 0)]
 
         x = jnp.concatenate([h0.astype(x.dtype), x], axis=-1)
 
         if output_state:
-            ht = x[:, :, -K:]
-
-        x = x[:, :, 1:]
+            ht = x[:, :, -state_size:]
 
     x = jax.lax.conv_general_dilated(
         lhs=x,

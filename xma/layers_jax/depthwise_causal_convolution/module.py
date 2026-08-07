@@ -22,6 +22,7 @@ class DepthwiseCausalConvolutionJAX(eqx.Module):
 
     Embed: Axis = eqx.field(static=True)
     Kernel: Axis = eqx.field(static=True)
+    StateSize: Axis = eqx.field(static=True)
     kernel_size: int = eqx.field(static=True)
     activation_function: str | Callable[[jax.Array], jax.Array] | None = eqx.field(static=True)
 
@@ -34,7 +35,10 @@ class DepthwiseCausalConvolutionJAX(eqx.Module):
         *,
         key: PRNGKeyArray,
     ) -> DepthwiseCausalConvolutionJAX:
+        assert kernel_size > 1
+
         Kernel = Axis("kernel_size", kernel_size)
+        StateSize = Axis("state_size", kernel_size - 1)
 
         weight_key, bias_key = jax.random.split(key, 2)
         bound = kernel_size**-0.5
@@ -47,6 +51,7 @@ class DepthwiseCausalConvolutionJAX(eqx.Module):
             bias=bias,
             Embed=Embed,
             Kernel=Kernel,
+            StateSize=StateSize,
             kernel_size=kernel_size,
             activation_function=activation_function,
         )
@@ -68,7 +73,7 @@ class DepthwiseCausalConvolutionJAX(eqx.Module):
             weight=self.weight.rearrange((self.Embed, self.Kernel)).array,
             bias=self.bias.array if self.bias is not None else None,
             input_state=(
-                input_state.rearrange((Batch, self.Embed, self.Kernel)).array if input_state is not None else None
+                input_state.rearrange((Batch, self.Embed, self.StateSize)).array if input_state is not None else None
             ),
             attention_mask=attention_mask.rearrange((Batch, Pos)).array if attention_mask is not None else None,
             output_state=output_state,
@@ -77,6 +82,6 @@ class DepthwiseCausalConvolutionJAX(eqx.Module):
         )
 
         output = hax.named(output, (Batch, Pos, self.Embed))
-        final_state = hax.named(final_state, (Batch, self.Embed, self.Kernel)) if final_state is not None else None
+        final_state = hax.named(final_state, (Batch, self.Embed, self.StateSize)) if final_state is not None else None
 
         return output, final_state

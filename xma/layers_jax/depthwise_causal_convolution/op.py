@@ -29,7 +29,7 @@ def depthwise_causal_convolution_jax(
 ) -> tuple[jax.Array, jax.Array | None]:
     """
     computes depthwise causal 1D convolution: `output[b, t, h] = act(bias[h] + sum_k weight[h, k] *
-    z[b, t + k, h])` where `z` is `input` preceded by `kernel_size` raw history positions taken from
+    z[b, t + k, h])` where `z` is `input` preceded by `kernel_size - 1` raw history positions taken from
     `input_state` (or 0 if `input_state` is None), i.e. `output[b, t]` only depends on
     `input[b, t - kernel_size + 1 : t + 1]`.
 
@@ -39,14 +39,14 @@ def depthwise_causal_convolution_jax(
     :type weight: jax.Array
     :param bias: bias tensor of shape (H,). None means no bias is added. Defaults to None.
     :type bias: jax.Array | None
-    :param input_state: the `K` raw (pre-convolution) input positions preceding `input`, of shape (B, H, K).
-        None is equivalent to a 0 tensor. Defaults to None.
+    :param input_state: the `K - 1` raw (pre-convolution) input positions preceding `input`, of shape
+        (B, H, K - 1). None is equivalent to a 0 tensor. Defaults to None.
     :type input_state: jax.Array | None
     :param attention_mask: mask of shape (B, S), zeroing out padding positions before and after the
         convolution. Defaults to None.
     :type attention_mask: jax.Array | None
-    :param output_state: whether to also return the trailing `K` raw input positions (taken from `input`,
-        falling back to `input_state` if `input` is shorter than `K`) for use as `input_state` in a
+    :param output_state: whether to also return the trailing `K - 1` raw input positions (taken from `input`,
+        falling back to `input_state` if `input` is shorter than `K - 1`) for use as `input_state` in a
         subsequent call. Defaults to False.
     :type output_state: bool
     :param activation_function: activation applied after the convolution + bias. Either a name in
@@ -58,8 +58,8 @@ def depthwise_causal_convolution_jax(
         KernelBackend.jax uses the plain `jax.lax.conv_general_dilated`-based reference. None auto-detects
         based on the accelerator (KernelBackend.pallas on TPU). Defaults to None.
     :type kernel_backend: KernelBackend | None
-    :return: output tensor of shape (B, S, H), and the output state of shape (B, H, K) if `output_state` is
-        True else None.
+    :return: output tensor of shape (B, S, H), and the output state of shape (B, H, K - 1) if `output_state`
+        is True else None.
     :rtype: tuple[jax.Array, jax.Array | None]
     """
 
@@ -68,13 +68,13 @@ def depthwise_causal_convolution_jax(
 
     assert weight.ndim == 2
     assert weight.shape[0] == H
-    assert K >= 1
+    assert K > 1
 
     if bias is not None:
         assert bias.shape == (H,)
 
     if input_state is not None:
-        assert input_state.shape == (B, H, K)
+        assert input_state.shape == (B, H, K - 1)
 
     if activation_function is None or isinstance(activation_function, str):
         activation_function = _get_activation_function(activation_function)

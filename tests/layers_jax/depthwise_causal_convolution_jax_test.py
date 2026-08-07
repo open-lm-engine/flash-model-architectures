@@ -32,19 +32,19 @@ def _reference_numpy(
     K = weight.shape[-1]
 
     xt = np.transpose(x, (0, 2, 1))
-    state = np.zeros((B, H, K), dtype=np.float32) if input_state is None else input_state.astype(np.float32)
+    state = np.zeros((B, H, K - 1), dtype=np.float32) if input_state is None else input_state.astype(np.float32)
     full = np.concatenate([state, xt.astype(np.float32)], axis=-1)
 
     y = np.zeros((B, H, S), dtype=np.float32)
     for j in range(S):
-        window = full[:, :, j + 1 : j + 1 + K]
+        window = full[:, :, j : j + K]
         y[:, :, j] = (window * weight[None, :, :].astype(np.float32)).sum(-1)
 
     if bias is not None:
         y = y + bias[None, :, None].astype(np.float32)
 
     y = np.transpose(y, (0, 2, 1)).astype(x.dtype)
-    final_state = full[:, :, -K:].astype(x.dtype) if output_state else None
+    final_state = full[:, :, 1 - K :].astype(x.dtype) if output_state else None
 
     return y, final_state
 
@@ -52,7 +52,7 @@ def _reference_numpy(
 def _generate_args() -> list:
     return list(
         product(
-            [1, 2, 4],  # kernel_size
+            [2, 4],  # kernel_size; K == 1 is intentionally unsupported
             [1, 2, 6, 9],  # sequence length: shorter than, equal to, or longer than kernel_size
             [False, True],  # has_input_state
             [False, True],  # add_bias
@@ -73,7 +73,9 @@ def test_depthwise_causal_convolution_jax_forward(
     x = jax.random.normal(key_x, (B, S, H), dtype=jnp.float32) * std
     weight = jax.random.normal(key_w, (H, kernel_size), dtype=jnp.float32) * std
     bias = jax.random.normal(key_b, (H,), dtype=jnp.float32) * std if add_bias else None
-    input_state = jax.random.normal(key_h0, (B, H, kernel_size), dtype=jnp.float32) * std if has_input_state else None
+    input_state = (
+        jax.random.normal(key_h0, (B, H, kernel_size - 1), dtype=jnp.float32) * std if has_input_state else None
+    )
 
     y, final_state = depthwise_causal_convolution_jax(
         x, weight, bias, input_state, output_state=output_state, kernel_backend=KernelBackend.jax
@@ -91,13 +93,13 @@ def test_depthwise_causal_convolution_jax_forward(
 
     if output_state:
         assert final_state is not None
-        assert final_state.shape == (B, H, kernel_size)
+        assert final_state.shape == (B, H, kernel_size - 1)
         assert_allclose(np.asarray(final_state), final_state_ref, **_TOLERANCE)
     else:
         assert final_state is None
 
 
-@pytest.mark.parametrize("kernel_size", [1, 2, 4])
+@pytest.mark.parametrize("kernel_size", [2, 4])
 def test_depthwise_causal_convolution_jax_grad_runs(kernel_size: int) -> None:
     B, S, H = 2, 6, 5
     std = 0.1
@@ -107,7 +109,7 @@ def test_depthwise_causal_convolution_jax_grad_runs(kernel_size: int) -> None:
     x = jax.random.normal(key_x, (B, S, H), dtype=jnp.float32) * std
     weight = jax.random.normal(key_w, (H, kernel_size), dtype=jnp.float32) * std
     bias = jax.random.normal(key_b, (H,), dtype=jnp.float32) * std
-    input_state = jax.random.normal(key_h0, (B, H, kernel_size), dtype=jnp.float32) * std
+    input_state = jax.random.normal(key_h0, (B, H, kernel_size - 1), dtype=jnp.float32) * std
 
     def f(x, weight, bias, input_state):
         y, _ = depthwise_causal_convolution_jax(
@@ -142,12 +144,12 @@ def test_depthwise_causal_convolution_module_works(has_input_state: bool) -> Non
     )
 
     input = haliax.random.normal(key_input, (Batch, Pos, Embed))
-    input_state = haliax.random.normal(key_state, (Batch, module.Embed, module.Kernel)) if has_input_state else None
+    input_state = haliax.random.normal(key_state, (Batch, module.Embed, module.StateSize)) if has_input_state else None
 
     output, output_state = module(input, input_state, output_state=True, kernel_backend=KernelBackend.jax)
 
     assert output.axes == (Batch, Pos, Embed)
-    assert output_state.axes == (Batch, module.Embed, module.Kernel)
+    assert output_state.axes == (Batch, module.Embed, module.StateSize)
 
 
 def _generate_pallas_args() -> list:
@@ -157,12 +159,15 @@ def _generate_pallas_args() -> list:
             [3, 16, 37, 130],  # sequence length: shorter than, equal to, or not a multiple of the internal block size
             [False, True],  # has_input_state
             [False, True],  # add_bias
+            [False, True],  # output_state
         )
     )
 
 
-@pytest.mark.parametrize("kernel_size,S,has_input_state,add_bias", _generate_pallas_args())
-def test_depthwise_causal_convolution_pallas(kernel_size: int, S: int, has_input_state: bool, add_bias: bool) -> None:
+@pytest.mark.parametrize("kernel_size,S,has_input_state,add_bias,output_state", _generate_pallas_args())
+def test_depthwise_causal_convolution_pallas(
+    kernel_size: int, S: int, has_input_state: bool, add_bias: bool, output_state: bool
+) -> None:
     if jax.default_backend() != "tpu":
         pytest.skip("KernelBackend.pallas is only supported on TPU")
 
@@ -174,11 +179,13 @@ def test_depthwise_causal_convolution_pallas(kernel_size: int, S: int, has_input
     x = jax.random.normal(key_x, (B, S, H), dtype=jnp.float32) * std
     weight = jax.random.normal(key_w, (H, kernel_size), dtype=jnp.float32) * std
     bias = jax.random.normal(key_b, (H,), dtype=jnp.float32) * std if add_bias else None
-    input_state = jax.random.normal(key_h0, (B, H, kernel_size), dtype=jnp.float32) * std if has_input_state else None
+    input_state = (
+        jax.random.normal(key_h0, (B, H, kernel_size - 1), dtype=jnp.float32) * std if has_input_state else None
+    )
 
     def _run(kernel_backend: KernelBackend, x: jax.Array, weight: jax.Array, bias, input_state):
         return depthwise_causal_convolution_jax(
-            x, weight, bias, input_state, output_state=False, kernel_backend=kernel_backend
+            x, weight, bias, input_state, output_state=output_state, kernel_backend=kernel_backend
         )
 
     def _run_vjp(kernel_backend: KernelBackend, x: jax.Array, weight: jax.Array, bias, input_state):
@@ -190,15 +197,25 @@ def test_depthwise_causal_convolution_pallas(kernel_size: int, S: int, has_input
             input_state,
         )
 
-    (y_kernel, _), vjp_kernel = _run_vjp(KernelBackend.pallas, x, weight, bias, input_state)
-    (y_expected, _), vjp_expected = _run_vjp(KernelBackend.jax, x, weight, bias, input_state)
+    (y_kernel, ht_kernel), vjp_kernel = _run_vjp(KernelBackend.pallas, x, weight, bias, input_state)
+    (y_expected, ht_expected), vjp_expected = _run_vjp(KernelBackend.jax, x, weight, bias, input_state)
 
     assert_allclose(np.asarray(y_kernel), np.asarray(y_expected), **_TOLERANCE)
 
-    dy = jax.random.normal(key_dy, y_kernel.shape, dtype=jnp.float32) * std
+    if output_state:
+        assert ht_kernel is not None
+        assert ht_expected is not None
+        assert ht_kernel.shape == (B, H, kernel_size - 1)
+        assert_allclose(np.asarray(ht_kernel), np.asarray(ht_expected), **_TOLERANCE)
+    else:
+        assert ht_kernel is None
+        assert ht_expected is None
 
-    dx_kernel, dweight_kernel, dbias_kernel, dinput_state_kernel = vjp_kernel((dy, None))
-    dx_expected, dweight_expected, dbias_expected, dinput_state_expected = vjp_expected((dy, None))
+    dy = jax.random.normal(key_dy, y_kernel.shape, dtype=jnp.float32) * std
+    dht = jax.random.normal(key_dy, ht_kernel.shape, dtype=jnp.float32) * std if output_state else None
+
+    dx_kernel, dweight_kernel, dbias_kernel, dinput_state_kernel = vjp_kernel((dy, dht))
+    dx_expected, dweight_expected, dbias_expected, dinput_state_expected = vjp_expected((dy, dht))
 
     grad_tolerance = {"atol": 1e-2, "rtol": 0}
 
