@@ -8,7 +8,7 @@ from typing import Callable
 import jax
 import jax.numpy as jnp
 
-from .backward import _depthwise_causal_convolution_backward_core, _state_passing_core
+from .backward import _backward_core, _state_passing_core
 from .forward import _forward_core
 
 
@@ -46,11 +46,10 @@ def _depthwise_causal_convolution_backward(BLOCK_SIZE_S: int, residuals: tuple, 
     if h0 is not None:
         h0 = jnp.transpose(h0[:, :, 1:], (0, 2, 1)).astype(x.dtype)
 
-    h = _state_passing_core(x=x, h0=h0, BLOCK_SIZE_S=BLOCK_SIZE_S, K=K)
-
     dht = jnp.zeros((B, K - 1, H), dtype=jnp.float32) if dht is None else dht.astype(jnp.float32)
 
-    dx, dW, db, dh0 = _depthwise_causal_convolution_backward_core(x, W, h, dy, dht, BLOCK_SIZE_S=BLOCK_SIZE_S, K=K)
+    h = _state_passing_core(x=x, h0=h0, BLOCK_SIZE_S=BLOCK_SIZE_S, K=K)
+    dx, dW, db, dh0 = _backward_core(x=x, W=W, h=h, dy=dy, dht=dht, BLOCK_SIZE_S=BLOCK_SIZE_S, K=K)
 
     dW = jnp.transpose(dW, (1, 0))
     db = None if b is None else db[0]

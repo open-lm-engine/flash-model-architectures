@@ -150,7 +150,7 @@ def _backward_kernel(
 
 
 @partial(jax.jit, static_argnames=("BLOCK_SIZE_S", "K"))
-def _depthwise_causal_convolution_backward_core(
+def _backward_core(
     x: jax.Array,
     W: jax.Array,
     h: jax.Array,
