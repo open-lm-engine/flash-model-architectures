@@ -12,7 +12,14 @@ import jax.numpy as jnp
 from ....math import ceil_divide
 
 
-def _compute_state_passing(k_ref, v_ref, h_checkpoint_ref, h_ref, *, BLOCK_SIZE_S: int, S: int) -> None:
+def _state_passing_kernel(k_ref, v_ref, h0_ref, h_checkpoint_ref, h_ref, *, BLOCK_SIZE_S: int, S: int) -> None:
+    @pl.when(pl.program_id(3) == 0)
+    def _():
+        if h0_ref is None:
+            h_ref[...] = jnp.zeros_like(h_ref)
+        else:
+            h_ref[...] = h0_ref[...].astype(jnp.float32)
+
     dtype = k_ref.dtype
 
     BLOCK_ID_S = pl.program_id(3)
@@ -25,26 +32,6 @@ def _compute_state_passing(k_ref, v_ref, h_checkpoint_ref, h_ref, *, BLOCK_SIZE_
 
     h_checkpoint_ref[...] = h
     h_ref[...] = h + jax.lax.dot_general(k, v, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32)
-
-
-def _state_passing_kernel(k_ref, v_ref, h0_ref, h_checkpoint_ref, h_ref, *, BLOCK_SIZE_S: int, S: int) -> None:
-    @pl.when(pl.program_id(3) == 0)
-    def _():
-        h_ref[...] = h0_ref[...].astype(jnp.float32)
-
-    _compute_state_passing(
-        k_ref=k_ref, v_ref=v_ref, h_checkpoint_ref=h_checkpoint_ref, h_ref=h_ref, BLOCK_SIZE_S=BLOCK_SIZE_S, S=S
-    )
-
-
-def _state_passing_zero_h0_kernel(k_ref, v_ref, h_checkpoint_ref, h_ref, *, BLOCK_SIZE_S: int, S: int) -> None:
-    @pl.when(pl.program_id(3) == 0)
-    def _():
-        h_ref[...] = jnp.zeros_like(h_ref)
-
-    _compute_state_passing(
-        k_ref=k_ref, v_ref=v_ref, h_checkpoint_ref=h_checkpoint_ref, h_ref=h_ref, BLOCK_SIZE_S=BLOCK_SIZE_S, S=S
-    )
 
 
 @partial(jax.jit, static_argnames=("N", "BLOCK_SIZE_S", "BLOCK_SIZE_V"))
@@ -60,31 +47,22 @@ def _state_passing_core(
 
     NUM_BLOCKS_S = ceil_divide(S, BLOCK_SIZE_S)
 
-    in_specs = [
-        pl.BlockSpec(block_shape=(None, None, BLOCK_SIZE_S, K), index_map=lambda b, n, vb, c: (b, n // Gk, c, 0)),
-        pl.BlockSpec(
-            block_shape=(None, None, BLOCK_SIZE_S, BLOCK_SIZE_V), index_map=lambda b, n, vb, c: (b, n // Gv, c, vb)
-        ),
-    ]
-
     h_spec = pl.BlockSpec(block_shape=(None, None, K, BLOCK_SIZE_V), index_map=lambda b, n, vb, c: (b, n, 0, vb))
 
-    if h0 is None:
-        kernel_fn = _state_passing_zero_h0_kernel
-        args = (k, v)
-    else:
-        kernel_fn = _state_passing_kernel
-        in_specs += [h_spec]
-        args = (k, v, h0)
-
     kernel = pl.pallas_call(
-        partial(kernel_fn, BLOCK_SIZE_S=BLOCK_SIZE_S, S=S),
+        partial(_state_passing_kernel, BLOCK_SIZE_S=BLOCK_SIZE_S, S=S),
         out_shape=(
             jax.ShapeDtypeStruct(shape=(B, N * NUM_BLOCKS_S, K, V), dtype=jnp.float32),
             jax.ShapeDtypeStruct(shape=(B, N, K, V), dtype=jnp.float32),
         ),
         grid=(B, N, ceil_divide(V, BLOCK_SIZE_V), NUM_BLOCKS_S),
-        in_specs=in_specs,
+        in_specs=(
+            pl.BlockSpec(block_shape=(None, None, BLOCK_SIZE_S, K), index_map=lambda b, n, vb, c: (b, n // Gk, c, 0)),
+            pl.BlockSpec(
+                block_shape=(None, None, BLOCK_SIZE_S, BLOCK_SIZE_V), index_map=lambda b, n, vb, c: (b, n // Gv, c, vb)
+            ),
+            None if h0 is None else h_spec,
+        ),
         out_specs=(
             pl.BlockSpec(
                 block_shape=(None, None, K, BLOCK_SIZE_V),
@@ -95,7 +73,7 @@ def _state_passing_core(
         compiler_params=pltpu.CompilerParams(dimension_semantics=("parallel", "parallel", "parallel", "arbitrary")),
     )
 
-    return kernel(*args)
+    return kernel(k, v, h0)
 
 
 def _backward(
