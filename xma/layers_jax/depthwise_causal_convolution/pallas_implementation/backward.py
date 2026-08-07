@@ -143,7 +143,7 @@ def _backward_kernel(
             dh_p = dh_p + W * dy[p - k, :]
         dh_scratch[offset + p, :] = dh_p
 
-    @pl.when(BLOCK_SIZE_S == 0)
+    @pl.when(BLOCK_ID_S == 0)
     def _():
         dh0_ref[...] = dh_scratch[...]
 
