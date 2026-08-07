@@ -42,16 +42,16 @@ def _output_readout(
 
 
 def _forward_kernel(
-    q_ref, k_ref, v_ref, h0_ref, y_ref, h_ref, *, attention_multiplier: float, BLOCK_SIZE_S: int, S: int
+    q_ref, k_ref, v_ref, h0_ref, y_ref, ht_ref, *, attention_multiplier: float, BLOCK_SIZE_S: int, S: int
 ) -> None:
     BLOCK_ID_S = pl.program_id(3)
 
     @pl.when(BLOCK_ID_S == 0)
     def _():
         if h0_ref is None:
-            h_ref[...] = jnp.zeros_like(h_ref)
+            ht_ref[...] = jnp.zeros_like(ht_ref)
         else:
-            h_ref[...] = h0_ref[...].astype(jnp.float32)
+            ht_ref[...] = h0_ref[...].astype(jnp.float32)
 
     dtype = q_ref.dtype
 
@@ -62,14 +62,14 @@ def _forward_kernel(
     q = jnp.where(MASK_S, q_ref[...], 0).astype(dtype)
     k = jnp.where(MASK_S, k_ref[...], 0).astype(dtype)
     v = jnp.where(MASK_S, v_ref[...], 0).astype(dtype)
-    h = h_ref[...]
+    h = ht_ref[...]
 
     y_ref[...] = _output_readout(
         h=h, q=q, k=k, v=v, BLOCK_SIZE_S=BLOCK_SIZE_S, attention_multiplier=attention_multiplier
     )
 
     h = _state_update(h=h, k=k, v=v)
-    h_ref[...] = h
+    ht_ref[...] = h
 
 
 @partial(jax.jit, static_argnames=("attention_multiplier", "BLOCK_SIZE_S", "BLOCK_SIZE_V"))
