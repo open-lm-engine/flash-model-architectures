@@ -47,18 +47,42 @@ def _state_passing_core(
 
     NUM_BLOCKS_S = ceil_divide(S, BLOCK_SIZE_S)
 
-    h_spec = pl.BlockSpec(block_shape=(None, None, K, BLOCK_SIZE_V), index_map=lambda b, n, vb, c: (b, n, 0, vb))
-
     kernel = pl.pallas_call(
         partial(_state_passing_kernel, BLOCK_SIZE_S=BLOCK_SIZE_S, S=S),
         out_shape=jax.ShapeDtypeStruct(shape=(B, N * NUM_BLOCKS_S, K, V), dtype=jnp.float32),
         grid=(B, N, ceil_divide(V, BLOCK_SIZE_V), NUM_BLOCKS_S),
         in_specs=(
-            pl.BlockSpec(block_shape=(None, None, BLOCK_SIZE_S, K), index_map=lambda b, n, vb, c: (b, n // Gk, c, 0)),
             pl.BlockSpec(
-                block_shape=(None, None, BLOCK_SIZE_S, BLOCK_SIZE_V), index_map=lambda b, n, vb, c: (b, n // Gv, c, vb)
+                block_shape=(None, None, BLOCK_SIZE_S, K),
+                index_map=lambda BLOCK_ID_B, BLOCK_ID_N, BLOCK_ID_V, BLOCK_ID_S: (
+                    BLOCK_ID_B,
+                    BLOCK_ID_N // Gk,
+                    BLOCK_ID_S,
+                    0,
+                ),
             ),
-            None if h0 is None else h_spec,
+            pl.BlockSpec(
+                block_shape=(None, None, BLOCK_SIZE_S, BLOCK_SIZE_V),
+                index_map=lambda BLOCK_ID_B, BLOCK_ID_N, BLOCK_ID_V, BLOCK_ID_S: (
+                    BLOCK_ID_B,
+                    BLOCK_ID_N // Gv,
+                    BLOCK_ID_S,
+                    BLOCK_ID_V,
+                ),
+            ),
+            (
+                None
+                if h0 is None
+                else pl.BlockSpec(
+                    block_shape=(None, None, K, BLOCK_SIZE_V),
+                    index_map=lambda BLOCK_ID_B, BLOCK_ID_N, BLOCK_ID_V, BLOCK_ID_S: (
+                        BLOCK_ID_B,
+                        BLOCK_ID_N,
+                        0,
+                        BLOCK_ID_V,
+                    ),
+                )
+            ),
         ),
         out_specs=pl.BlockSpec(
             block_shape=(None, None, K, BLOCK_SIZE_V),
