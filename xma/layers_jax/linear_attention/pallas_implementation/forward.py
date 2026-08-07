@@ -146,6 +146,6 @@ def _forward_core(
         compiler_params=pltpu.CompilerParams(dimension_semantics=("parallel", "parallel", "parallel", "arbitrary")),
     )
 
-    y, ht = kernel(q_ref=q, k_ref=k, v_ref=v, h0_ref=h0)
+    y, ht = kernel(q, k, v, h0)
 
     return y, ht
