@@ -86,7 +86,12 @@ def _state_passing_core(
         ),
         out_specs=pl.BlockSpec(
             block_shape=(None, None, K, BLOCK_SIZE_V),
-            index_map=lambda b, n, vb, c: (b, n * NUM_BLOCKS_S + c, 0, vb),
+            index_map=lambda BLOCK_ID_B, BLOCK_ID_N, BLOCK_ID_V, BLOCK_ID_S: (
+                BLOCK_ID_B,
+                BLOCK_ID_N * NUM_BLOCKS_S + BLOCK_ID_S,
+                0,
+                BLOCK_ID_V,
+            ),
         ),
         scratch_shapes=[pltpu.VMEM((K, BLOCK_SIZE_V), jnp.float32)],
         compiler_params=pltpu.CompilerParams(dimension_semantics=("parallel", "parallel", "parallel", "arbitrary")),
@@ -304,28 +309,56 @@ def _backward_core(
     NUM_BLOCKS_S = ceil_divide(S, BLOCK_SIZE_S)
     NUM_V_TILES = ceil_divide(V, BLOCK_SIZE_V)
 
-    h_spec = pl.BlockSpec(block_shape=(None, None, K, BLOCK_SIZE_V), index_map=lambda b, n, rc, vb: (b, n, 0, vb))
+    h_spec = pl.BlockSpec(
+        block_shape=(None, None, K, BLOCK_SIZE_V),
+        index_map=lambda BLOCK_ID_B, BLOCK_ID_N, BLOCK_ID_S, BLOCK_ID_V: (BLOCK_ID_B, BLOCK_ID_N, 0, BLOCK_ID_V),
+    )
 
     in_specs = [
         pl.BlockSpec(
             block_shape=(None, None, BLOCK_SIZE_S, K),
-            index_map=lambda b, n, rc, vb: (b, n // Gq, NUM_BLOCKS_S - 1 - rc, 0),
+            index_map=lambda BLOCK_ID_B, BLOCK_ID_N, BLOCK_ID_S, BLOCK_ID_V: (
+                BLOCK_ID_B,
+                BLOCK_ID_N // Gq,
+                NUM_BLOCKS_S - 1 - BLOCK_ID_S,
+                0,
+            ),
         ),
         pl.BlockSpec(
             block_shape=(None, None, BLOCK_SIZE_S, K),
-            index_map=lambda b, n, rc, vb: (b, n // Gk, NUM_BLOCKS_S - 1 - rc, 0),
+            index_map=lambda BLOCK_ID_B, BLOCK_ID_N, BLOCK_ID_S, BLOCK_ID_V: (
+                BLOCK_ID_B,
+                BLOCK_ID_N // Gk,
+                NUM_BLOCKS_S - 1 - BLOCK_ID_S,
+                0,
+            ),
         ),
         pl.BlockSpec(
             block_shape=(None, None, BLOCK_SIZE_S, BLOCK_SIZE_V),
-            index_map=lambda b, n, rc, vb: (b, n // Gv, NUM_BLOCKS_S - 1 - rc, vb),
+            index_map=lambda BLOCK_ID_B, BLOCK_ID_N, BLOCK_ID_S, BLOCK_ID_V: (
+                BLOCK_ID_B,
+                BLOCK_ID_N // Gv,
+                NUM_BLOCKS_S - 1 - BLOCK_ID_S,
+                BLOCK_ID_V,
+            ),
         ),
         pl.BlockSpec(
             block_shape=(None, None, K, BLOCK_SIZE_V),
-            index_map=lambda b, n, rc, vb: (b, n * NUM_BLOCKS_S + (NUM_BLOCKS_S - 1 - rc), 0, vb),
+            index_map=lambda BLOCK_ID_B, BLOCK_ID_N, BLOCK_ID_S, BLOCK_ID_V: (
+                BLOCK_ID_B,
+                BLOCK_ID_N * NUM_BLOCKS_S + (NUM_BLOCKS_S - 1 - BLOCK_ID_S),
+                0,
+                BLOCK_ID_V,
+            ),
         ),
         pl.BlockSpec(
             block_shape=(None, None, BLOCK_SIZE_S, BLOCK_SIZE_V),
-            index_map=lambda b, n, rc, vb: (b, n, NUM_BLOCKS_S - 1 - rc, vb),
+            index_map=lambda BLOCK_ID_B, BLOCK_ID_N, BLOCK_ID_S, BLOCK_ID_V: (
+                BLOCK_ID_B,
+                BLOCK_ID_N,
+                NUM_BLOCKS_S - 1 - BLOCK_ID_S,
+                BLOCK_ID_V,
+            ),
         ),
     ]
 
@@ -358,15 +391,30 @@ def _backward_core(
         out_specs=(
             pl.BlockSpec(
                 block_shape=(None, None, BLOCK_SIZE_S, K),
-                index_map=lambda b, n, rc, vb: (b, n, NUM_BLOCKS_S - 1 - rc, 0),
+                index_map=lambda BLOCK_ID_B, BLOCK_ID_N, BLOCK_ID_S, BLOCK_ID_V: (
+                    BLOCK_ID_B,
+                    BLOCK_ID_N,
+                    NUM_BLOCKS_S - 1 - BLOCK_ID_S,
+                    0,
+                ),
             ),
             pl.BlockSpec(
                 block_shape=(None, None, BLOCK_SIZE_S, K),
-                index_map=lambda b, n, rc, vb: (b, n, NUM_BLOCKS_S - 1 - rc, 0),
+                index_map=lambda BLOCK_ID_B, BLOCK_ID_N, BLOCK_ID_S, BLOCK_ID_V: (
+                    BLOCK_ID_B,
+                    BLOCK_ID_N,
+                    NUM_BLOCKS_S - 1 - BLOCK_ID_S,
+                    0,
+                ),
             ),
             pl.BlockSpec(
                 block_shape=(None, None, BLOCK_SIZE_S, BLOCK_SIZE_V),
-                index_map=lambda b, n, rc, vb: (b, n, NUM_BLOCKS_S - 1 - rc, vb),
+                index_map=lambda BLOCK_ID_B, BLOCK_ID_N, BLOCK_ID_S, BLOCK_ID_V: (
+                    BLOCK_ID_B,
+                    BLOCK_ID_N,
+                    NUM_BLOCKS_S - 1 - BLOCK_ID_S,
+                    BLOCK_ID_V,
+                ),
             ),
             h_spec,
         ),

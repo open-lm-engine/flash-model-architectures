@@ -174,17 +174,29 @@ def _depthwise_causal_convolution_backward_core(
         ),
         grid=(B, NUM_BLOCKS_S),
         in_specs=(
-            pl.BlockSpec(block_shape=(None, BLOCK_SIZE_S, H), index_map=lambda b, rc: (b, NUM_BLOCKS_S - 1 - rc, 0)),
-            pl.BlockSpec(block_shape=(K, H), index_map=lambda b, rc: (0, 0)),
-            pl.BlockSpec(block_shape=(None, 1, PAD, H), index_map=lambda b, rc: (b, NUM_BLOCKS_S - 1 - rc, 0, 0)),
-            pl.BlockSpec(block_shape=(None, BLOCK_SIZE_S, H), index_map=lambda b, rc: (b, NUM_BLOCKS_S - 1 - rc, 0)),
-            pl.BlockSpec(block_shape=(None, PAD, H), index_map=lambda b, rc: (b, 0, 0)),
+            pl.BlockSpec(
+                block_shape=(None, BLOCK_SIZE_S, H),
+                index_map=lambda BLOCK_ID_B, BLOCK_ID_S: (BLOCK_ID_B, NUM_BLOCKS_S - 1 - BLOCK_ID_S, 0),
+            ),
+            pl.BlockSpec(block_shape=(K, H), index_map=lambda BLOCK_ID_B, BLOCK_ID_S: (0, 0)),
+            pl.BlockSpec(
+                block_shape=(None, 1, PAD, H),
+                index_map=lambda BLOCK_ID_B, BLOCK_ID_S: (BLOCK_ID_B, NUM_BLOCKS_S - 1 - BLOCK_ID_S, 0, 0),
+            ),
+            pl.BlockSpec(
+                block_shape=(None, BLOCK_SIZE_S, H),
+                index_map=lambda BLOCK_ID_B, BLOCK_ID_S: (BLOCK_ID_B, NUM_BLOCKS_S - 1 - BLOCK_ID_S, 0),
+            ),
+            pl.BlockSpec(block_shape=(None, PAD, H), index_map=lambda BLOCK_ID_B, BLOCK_ID_S: (BLOCK_ID_B, 0, 0)),
         ),
         out_specs=(
-            pl.BlockSpec(block_shape=(None, BLOCK_SIZE_S, H), index_map=lambda b, rc: (b, NUM_BLOCKS_S - 1 - rc, 0)),
-            pl.BlockSpec(block_shape=(K, H), index_map=lambda b, rc: (0, 0)),
-            pl.BlockSpec(block_shape=(1, H), index_map=lambda b, rc: (0, 0)),
-            pl.BlockSpec(block_shape=(None, PAD, H), index_map=lambda b, rc: (b, 0, 0)),
+            pl.BlockSpec(
+                block_shape=(None, BLOCK_SIZE_S, H),
+                index_map=lambda BLOCK_ID_B, BLOCK_ID_S: (BLOCK_ID_B, NUM_BLOCKS_S - 1 - BLOCK_ID_S, 0),
+            ),
+            pl.BlockSpec(block_shape=(K, H), index_map=lambda BLOCK_ID_B, BLOCK_ID_S: (0, 0)),
+            pl.BlockSpec(block_shape=(1, H), index_map=lambda BLOCK_ID_B, BLOCK_ID_S: (0, 0)),
+            pl.BlockSpec(block_shape=(None, PAD, H), index_map=lambda BLOCK_ID_B, BLOCK_ID_S: (BLOCK_ID_B, 0, 0)),
         ),
         scratch_shapes=[pltpu.VMEM((PAD, H), jnp.float32)],
         compiler_params=pltpu.CompilerParams(dimension_semantics=("parallel", "arbitrary")),
