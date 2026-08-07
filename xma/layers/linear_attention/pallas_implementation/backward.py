@@ -19,11 +19,7 @@ def _checkpoint_output_shape_dtype_fn(
     V = v.shape[-1]
     NUM_BLOCKS_S = ceil_divide(S, BLOCK_SIZE_S)
 
-    # NUM_BLOCKS_S is folded into the N axis (rather than kept as its own axis), matching the jax-side kernel, to
-    # keep this rank 4. The underlying pallas_call always produces both the checkpoints and the final running
-    # state, even though the jax-side wrapper only returns the checkpoints; both outputs must be declared here to
-    # match its window_params
-    return [((B, N * NUM_BLOCKS_S, K, V), torch.float32), ((B, N, K, V), torch.float32)]
+    return [((B, N * NUM_BLOCKS_S, K, V), torch.float32)]
 
 
 def _state_passing_fake_function(
@@ -36,21 +32,23 @@ def _state_passing_fake_function(
     return torch.empty(B, N * NUM_BLOCKS_S, K, V, dtype=torch.float32, device=k.device)
 
 
-_STATE_PASSING_CACHE = None
+_STATE_PASSING_CACHE = {}
 
 
 @xma_op(mutates_args={}, fake_func=_state_passing_fake_function)
 def _state_passing_core(
     k: torch.Tensor, v: torch.Tensor, h0: torch.Tensor | None, N: int, BLOCK_SIZE_S: int, BLOCK_SIZE_V: int
 ) -> torch.Tensor:
-    global _STATE_PASSING_CACHE
+    cache_key = h0 is None
 
-    if _STATE_PASSING_CACHE is None:
+    if cache_key not in _STATE_PASSING_CACHE:
         from torch_xla.experimental.custom_kernel import make_kernel_from_pallas
 
-        _STATE_PASSING_CACHE = make_kernel_from_pallas(_state_passing_core_jax, _checkpoint_output_shape_dtype_fn)
+        _STATE_PASSING_CACHE[cache_key] = make_kernel_from_pallas(
+            _state_passing_core_jax, _checkpoint_output_shape_dtype_fn
+        )
 
-    h = _STATE_PASSING_CACHE(k, v, h0, N, BLOCK_SIZE_S, BLOCK_SIZE_V, static_argnums=(3, 4, 5))
+    h = _STATE_PASSING_CACHE[cache_key](k, v, h0, N, BLOCK_SIZE_S, BLOCK_SIZE_V, static_argnums=(3, 4, 5))
 
     return h
 
@@ -98,7 +96,7 @@ def _backward_fake_function(
     return dq, dk, dv, dh0
 
 
-_BACKWARD_CACHE = None
+_BACKWARD_CACHE = {}
 
 
 @xma_op(mutates_args={}, fake_func=_backward_fake_function)
@@ -116,14 +114,14 @@ def _linear_attention_backward_core(
     # q, k, v, h, dy: already transposed to (B, N, S, K/V). dh: (B, N, K, V) or None - None skips the HBM
     # read/zero-fill entirely and seeds the running state-gradient on-chip instead (see the jax-side
     # kernel, _backward_kernel_zero_dh)
-    global _BACKWARD_CACHE
+    cache_key = dh is None
 
-    if _BACKWARD_CACHE is None:
+    if cache_key not in _BACKWARD_CACHE:
         from torch_xla.experimental.custom_kernel import make_kernel_from_pallas
 
-        _BACKWARD_CACHE = make_kernel_from_pallas(_backward_core_jax, _backward_output_shape_dtype_fn)
+        _BACKWARD_CACHE[cache_key] = make_kernel_from_pallas(_backward_core_jax, _backward_output_shape_dtype_fn)
 
-    return _BACKWARD_CACHE(
+    return _BACKWARD_CACHE[cache_key](
         q,
         k,
         v,

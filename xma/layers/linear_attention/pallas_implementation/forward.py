@@ -37,7 +37,7 @@ def _fake_function(
     return y, ht
 
 
-_CACHE = None
+_CACHE = {}
 
 
 @xma_op(mutates_args={}, fake_func=_fake_function)
@@ -50,14 +50,14 @@ def _forward_core(
     BLOCK_SIZE_S: int,
     BLOCK_SIZE_V: int,
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    global _CACHE
+    cache_key = h0 is None
 
-    if _CACHE is None:
+    if cache_key not in _CACHE:
         from torch_xla.experimental.custom_kernel import make_kernel_from_pallas
 
-        _CACHE = make_kernel_from_pallas(_forward_core_jax, _output_shape_dtype_fn)
+        _CACHE[cache_key] = make_kernel_from_pallas(_forward_core_jax, _output_shape_dtype_fn)
 
-    return _CACHE(
+    return _CACHE[cache_key](
         q,
         k,
         v,
