@@ -50,7 +50,7 @@ def _state_passing_core(
 
         _STATE_PASSING_CACHE = make_kernel_from_pallas(_state_passing_core_jax, _checkpoint_output_shape_dtype_fn)
 
-    h, _ = _STATE_PASSING_CACHE(k, v, h0, N, BLOCK_SIZE_S, BLOCK_SIZE_V, static_argnums=(3, 4, 5))
+    h = _STATE_PASSING_CACHE(k, v, h0, N, BLOCK_SIZE_S, BLOCK_SIZE_V, static_argnums=(3, 4, 5))
 
     return h
 
