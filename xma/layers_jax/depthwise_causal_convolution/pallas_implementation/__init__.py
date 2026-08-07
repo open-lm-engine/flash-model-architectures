@@ -50,11 +50,11 @@ def _depthwise_causal_convolution_backward(BLOCK_SIZE_S: int, residuals: tuple, 
         else jnp.transpose(h0[:, :, 1:], (0, 2, 1)).astype(x.dtype)
     )
 
-    ckpt = _state_passing_core(x=x, h0=h0_in, BLOCK_SIZE_S=BLOCK_SIZE_S, K=K)
+    h = _state_passing_core(x=x, h0=h0_in, BLOCK_SIZE_S=BLOCK_SIZE_S, K=K)
 
     dht = jnp.zeros((B, K - 1, H), dtype=jnp.float32) if dht is None else dht.astype(jnp.float32)
 
-    dx, dW, db, dh0 = _depthwise_causal_convolution_backward_core(x, W, ckpt, dy, dht, BLOCK_SIZE_S=BLOCK_SIZE_S, K=K)
+    dx, dW, db, dh0 = _depthwise_causal_convolution_backward_core(x, W, h, dy, dht, BLOCK_SIZE_S=BLOCK_SIZE_S, K=K)
 
     dW = jnp.transpose(dW, (1, 0))
     db = None if b is None else db[0]

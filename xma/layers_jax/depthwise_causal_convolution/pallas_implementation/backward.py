@@ -12,19 +12,19 @@ import jax.numpy as jnp
 from ....math import ceil_divide
 
 
-def _state_passing_kernel(x_ref, h0_ref, ckpt_ref, h_ref, *, K: int) -> None:
+def _state_passing_kernel(x_ref, h0_ref, h_ref, h_scratch, *, K: int) -> None:
     @pl.when(pl.program_id(1) == 0)
     def _():
-        h_ref[...] = h0_ref[...]
+        h_scratch[...] = h0_ref[...]
 
-    ckpt_ref[...] = h_ref[...][None]
+    h_ref[...] = h_scratch[...][None]
 
     BLOCK_SIZE_S = x_ref.shape[0]
-    PAD = h_ref.shape[0]
+    PAD = h_scratch.shape[0]
     offset = PAD - K + 1
 
     for p in range(K - 1):
-        h_ref[offset + p, :] = x_ref[BLOCK_SIZE_S - K + 1 + p, :]
+        h_scratch[offset + p, :] = x_ref[BLOCK_SIZE_S - K + 1 + p, :]
 
 
 @partial(jax.jit, static_argnames=("BLOCK_SIZE_S", "K"))
