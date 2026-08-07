@@ -12,11 +12,6 @@ import jax.numpy as jnp
 from ....math import ceil_divide
 
 
-def _state_update(h: jax.Array, k: jax.Array, v: jax.Array) -> jax.Array:
-    h += jax.lax.dot_general(k, v, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32)
-    return h
-
-
 def _forward_kernel(
     q_ref, k_ref, v_ref, h0_ref, y_ref, ht_ref, *, attention_multiplier: float, BLOCK_SIZE_S: int, S: int
 ) -> None:

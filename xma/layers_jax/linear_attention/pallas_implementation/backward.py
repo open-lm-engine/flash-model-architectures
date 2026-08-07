@@ -10,7 +10,6 @@ import jax.experimental.pallas.tpu as pltpu
 import jax.numpy as jnp
 
 from ....math import ceil_divide
-from .forward import _state_update
 
 
 def _compute_state_passing(k_ref, v_ref, h_checkpoint_ref, h_ref, *, BLOCK_SIZE_S: int, S: int) -> None:
@@ -25,7 +24,7 @@ def _compute_state_passing(k_ref, v_ref, h_checkpoint_ref, h_ref, *, BLOCK_SIZE_
     h = h_ref[...]
 
     h_checkpoint_ref[...] = h
-    h_ref[...] = _state_update(h=h, k=k, v=v)
+    h_ref[...] = h + jax.lax.dot_general(k, v, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32)
 
 
 def _state_passing_kernel(k_ref, v_ref, h0_ref, h_checkpoint_ref, h_ref, *, BLOCK_SIZE_S: int, S: int) -> None:
