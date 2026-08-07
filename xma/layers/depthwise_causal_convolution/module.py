@@ -49,12 +49,12 @@ def _apply_mask_to_padding_states(x: torch.Tensor, attention_mask: torch.Tensor 
 
 
 def _get_last_state(x: torch.Tensor, kernel_size: int) -> torch.Tensor:
-    """Return the convolution carry as the latest kernel_size raw inputs."""
+    """Return the convolution carry as the latest kernel_size - 1 raw inputs (the state size used throughout
+    this module - kernel_size taps need only kernel_size - 1 history positions plus the current input)."""
 
-    # last kernel_size columns of x as passed, not of the original block. Sliced via a positive start index
-    # (not x[..., -kernel_size:]) since kernel_size can be 0 (this is always called with self.kernel_size - 1,
-    # the input_state/final_state contract used throughout this module), and -0 means "start of tensor", not
-    # "empty", to Python's slicing.
+    # last (kernel_size - 1) columns of x as passed, not of the original block.
+    kernel_size -= 1
+
     if x.size(-1) < kernel_size:
         return F.pad(x, (kernel_size - x.size(-1), 0))
 
@@ -65,6 +65,8 @@ class DepthwiseCausalConvolution(nn.Conv1d):
     def __init__(
         self, hidden_size: int, kernel_size: int, activation_function: str | None, add_bias: bool
     ) -> DepthwiseCausalConvolution:
+        assert kernel_size > 1
+
         super().__init__(
             in_channels=hidden_size,
             out_channels=hidden_size,

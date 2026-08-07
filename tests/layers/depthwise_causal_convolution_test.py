@@ -35,7 +35,7 @@ def _make_conv(
     )
 
 
-@pytest.mark.parametrize("kernel_size", [1, 4])
+@pytest.mark.parametrize("kernel_size", [4])
 @pytest.mark.parametrize("add_bias", [False, True])
 @pytest.mark.parametrize("activation", [None, "silu", "gelu"])
 @pytest.mark.parametrize("output_state", [False, True])
@@ -54,9 +54,6 @@ def test_prefill_shapes(
 
     if kernel_backend == KernelBackend.cuda and not is_causal_conv1d_available():
         pytest.skip("causal_conv1d unavailable")
-
-    if kernel_backend == KernelBackend.cuda and kernel_size == 1:
-        pytest.skip("causal_conv1d only supports kernel_size between 2 and 4")
 
     with torch.device(device):
         conv = _make_conv(kernel_size=kernel_size, add_bias=add_bias, activation=activation)
@@ -79,7 +76,7 @@ def test_prefill_shapes(
         assert state is None
 
 
-@pytest.mark.parametrize("kernel_size", [1, 4])
+@pytest.mark.parametrize("kernel_size", [4])
 @pytest.mark.parametrize("add_bias", [False, True])
 @pytest.mark.parametrize("activation", [None, "silu", "gelu"])
 @pytest.mark.parametrize("output_state", [False, True])
@@ -92,9 +89,6 @@ def test_generation_shapes(
 
     if kernel_backend == KernelBackend.cuda and not is_causal_conv1d_available():
         pytest.skip("causal_conv1d unavailable")
-
-    if kernel_backend == KernelBackend.cuda and kernel_size == 1:
-        pytest.skip("causal_conv1d only supports kernel_size between 2 and 4")
 
     with torch.device(device):
         conv = _make_conv(kernel_size=kernel_size, add_bias=add_bias, activation=activation)
@@ -118,7 +112,7 @@ def test_generation_shapes(
         assert state_out is None
 
 
-@pytest.mark.parametrize("kernel_size", [1, 4])
+@pytest.mark.parametrize("kernel_size", [4])
 @pytest.mark.parametrize("add_bias", [False, True])
 @pytest.mark.parametrize("activation", [None, "silu", "gelu"])
 @pytest.mark.parametrize("seq_len", [1, 2, 4])
@@ -131,9 +125,6 @@ def test_zero_state_matches_fresh_prefill(
 
     if kernel_backend == KernelBackend.cuda and not is_causal_conv1d_available():
         pytest.skip("causal_conv1d unavailable")
-
-    if kernel_backend == KernelBackend.cuda and kernel_size == 1:
-        pytest.skip("causal_conv1d only supports kernel_size between 2 and 4")
 
     with torch.device(device):
         conv = _make_conv(kernel_size=kernel_size, add_bias=add_bias, activation=activation)
@@ -155,7 +146,7 @@ def test_zero_state_matches_fresh_prefill(
     assert_close(state_zero, state_fresh, rtol=1e-5, atol=1e-5)
 
 
-@pytest.mark.parametrize("kernel_size", [1, 4])
+@pytest.mark.parametrize("kernel_size", [4])
 @pytest.mark.parametrize("add_bias", [False, True])
 @pytest.mark.parametrize("activation", [None, "silu", "gelu"])
 @pytest.mark.parametrize("continuation_len", [1, 2, 4])
@@ -176,9 +167,6 @@ def test_consistency(
 
     if kernel_backend == KernelBackend.cuda and not is_causal_conv1d_available():
         pytest.skip("causal_conv1d unavailable")
-
-    if kernel_backend == KernelBackend.cuda and kernel_size == 1:
-        pytest.skip("causal_conv1d only supports kernel_size between 2 and 4")
 
     with torch.device(device):
         conv = _make_conv(kernel_size=kernel_size, add_bias=add_bias, activation=activation)
@@ -250,7 +238,7 @@ def test_consistency(
     assert_close(state, state_full, rtol=1e-5, atol=1e-5)
 
 
-@pytest.mark.parametrize("kernel_size", [1, 4])
+@pytest.mark.parametrize("kernel_size", [4])
 @pytest.mark.parametrize("kernel_backend", [KernelBackend.cuda, KernelBackend.torch])
 def test_attention_mask(kernel_size: int, kernel_backend: KernelBackend) -> None:
     device = kernel_backend.get_compatible_accelerator().get_current_device()
@@ -258,9 +246,6 @@ def test_attention_mask(kernel_size: int, kernel_backend: KernelBackend) -> None
 
     if kernel_backend == KernelBackend.cuda and not is_causal_conv1d_available():
         pytest.skip("causal_conv1d unavailable")
-
-    if kernel_backend == KernelBackend.cuda and kernel_size == 1:
-        pytest.skip("causal_conv1d only supports kernel_size between 2 and 4")
 
     conv = _make_conv(kernel_size=kernel_size, activation=None).to(device)
     conv.eval()
@@ -292,7 +277,7 @@ def test_attention_mask(kernel_size: int, kernel_backend: KernelBackend) -> None
     assert_close(out_masked[1, 3:], out_zeroed[1, 3:], rtol=1e-5, atol=1e-5)
 
 
-@pytest.mark.parametrize("kernel_size", [1, 4])
+@pytest.mark.parametrize("kernel_size", [4])
 @pytest.mark.parametrize("activation", [None, "silu", "gelu"])
 def test_kernel_vs_fallback(kernel_size: int, activation: str | None) -> None:
     device = Accelerator.get_current_device()
@@ -300,9 +285,6 @@ def test_kernel_vs_fallback(kernel_size: int, activation: str | None) -> None:
 
     if not is_causal_conv1d_available():
         pytest.skip("causal_conv1d unavailable")
-
-    if kernel_size == 1:
-        pytest.skip("causal_conv1d only supports kernel_size between 2 and 4")
 
     conv = _make_conv(kernel_size=kernel_size, activation=activation).to(device)
     conv.eval()
