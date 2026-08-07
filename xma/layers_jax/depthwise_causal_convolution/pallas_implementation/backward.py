@@ -75,18 +75,18 @@ def _backward_kernel(
     NUM_BLOCKS_S: int,
 ) -> None:
     BLOCK_ID_B = pl.program_id(0)
-    rc = pl.program_id(1)
-    BLOCK_ID_S = NUM_BLOCKS_S - 1 - rc
+    BLOCK_ID_S_REVERSE = pl.program_id(1)
+    BLOCK_ID_S = NUM_BLOCKS_S - 1 - BLOCK_ID_S_REVERSE
 
     H = x_ref.shape[-1]
     dtype = x_ref.dtype
     offset = PAD - K + 1
 
-    @pl.when(rc == 0)
+    @pl.when(BLOCK_ID_S_REVERSE == 0)
     def _():
         dh_scratch[...] = dht_ref[...]
 
-    @pl.when((BLOCK_ID_B == 0) & (rc == 0))
+    @pl.when((BLOCK_ID_B == 0) & (BLOCK_ID_S_REVERSE == 0))
     def _():
         dW_ref[...] = jnp.zeros(dW_ref.shape, dtype=dW_ref.dtype)
         db_ref[...] = jnp.zeros(db_ref.shape, dtype=db_ref.dtype)
@@ -143,7 +143,7 @@ def _backward_kernel(
             dh_p = dh_p + W * dy[p - k, :]
         dh_scratch[offset + p, :] = dh_p
 
-    @pl.when(rc == NUM_BLOCKS_S - 1)
+    @pl.when(BLOCK_SIZE_S == 0)
     def _():
         dh0_ref[...] = dh_scratch[...]
 
