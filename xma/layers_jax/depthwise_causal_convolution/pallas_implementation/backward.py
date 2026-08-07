@@ -59,9 +59,9 @@ def _state_passing_core(x: jax.Array, h0: jax.Array, BLOCK_SIZE_S: int, K: int) 
 def _backward_kernel(
     x_ref,
     W_ref,
-    ckpt_ref,
+    h_ref,
     dy_ref,
-    dh_last_ref,
+    dht_ref,
     dx_ref,
     dW_ref,
     db_ref,
@@ -74,9 +74,9 @@ def _backward_kernel(
     PAD: int,
     NUM_BLOCKS_S: int,
 ) -> None:
-    b = pl.program_id(0)
+    BLOCK_ID_B = pl.program_id(0)
     rc = pl.program_id(1)
-    c = NUM_BLOCKS_S - 1 - rc
+    BLOCK_ID_S = NUM_BLOCKS_S - 1 - rc
 
     H = x_ref.shape[-1]
     dtype = x_ref.dtype
@@ -84,15 +84,15 @@ def _backward_kernel(
 
     @pl.when(rc == 0)
     def _():
-        dh_scratch[...] = dh_last_ref[...]
+        dh_scratch[...] = dht_ref[...]
 
-    @pl.when((b == 0) & (rc == 0))
+    @pl.when((BLOCK_ID_B == 0) & (rc == 0))
     def _():
         dW_ref[...] = jnp.zeros(dW_ref.shape, dtype=dW_ref.dtype)
         db_ref[...] = jnp.zeros(db_ref.shape, dtype=db_ref.dtype)
 
     BLOCK_S = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, 1), 0)
-    MASK_S = (c * BLOCK_SIZE_S + BLOCK_S) < S
+    MASK_S = (BLOCK_ID_S * BLOCK_SIZE_S + BLOCK_S) < S
 
     dy = jnp.where(MASK_S, dy_ref[...], 0).astype(jnp.float32)
     x = jnp.where(MASK_S, x_ref[...], 0).astype(jnp.float32)
@@ -129,7 +129,7 @@ def _backward_kernel(
         x_len = tail_len + k
         dw_k = jnp.sum(dy[K - 1 - k : BLOCK_SIZE_S, :] * x[:x_len, :], axis=0)
         for t in range(K - 1 - k):
-            dw_k = dw_k + dy[t, :] * ckpt_ref[0, offset + t + k, :]
+            dw_k = dw_k + dy[t, :] * h_ref[0, offset + t + k, :]
         dW_ref[k, :] += dw_k
 
     db_ref[...] += jnp.sum(dy, axis=0, keepdims=True)
@@ -152,9 +152,9 @@ def _backward_kernel(
 def _depthwise_causal_convolution_backward_core(
     x: jax.Array,
     W: jax.Array,
-    ckpt: jax.Array,
+    h: jax.Array,
     dy: jax.Array,
-    dh_last: jax.Array,
+    dht: jax.Array,
     BLOCK_SIZE_S: int,
     K: int,
 ) -> tuple[jax.Array, jax.Array, jax.Array, jax.Array]:
@@ -162,7 +162,7 @@ def _depthwise_causal_convolution_backward_core(
     NUM_BLOCKS_S = ceil_divide(S, BLOCK_SIZE_S)
     PAD = ceil_divide(K - 1, 8) * 8
 
-    dh_last = jnp.pad(dh_last, ((0, 0), (PAD - K + 1, 0), (0, 0)))
+    dht = jnp.pad(dht, ((0, 0), (PAD - K + 1, 0), (0, 0)))
 
     kernel = pl.pallas_call(
         partial(_backward_kernel, BLOCK_SIZE_S=BLOCK_SIZE_S, S=S, K=K, PAD=PAD, NUM_BLOCKS_S=NUM_BLOCKS_S),
@@ -202,6 +202,6 @@ def _depthwise_causal_convolution_backward_core(
         compiler_params=pltpu.CompilerParams(dimension_semantics=("parallel", "arbitrary")),
     )
 
-    dx, dW, db, dh0 = kernel(x, W, ckpt, dy, dh_last)
+    dx, dW, db, dh0 = kernel(x, W, h, dy, dht)
 
     return dx, dW, db, dh0[:, 1 - K :, :]
