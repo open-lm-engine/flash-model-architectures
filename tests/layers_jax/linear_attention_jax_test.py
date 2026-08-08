@@ -19,7 +19,7 @@ from xma.layers_jax import LinearAttentionJAX, linear_attention_jax
 
 
 _ATTENTION_MULTIPLIER = 0.3
-_TOLERANCES = {"float32": {"atol": 8e-4, "rtol": 0}, "bfloat16": {"atol": 8e-4, "rtol": 0}}
+_TOLERANCES = {jnp.float32: {"atol": 8e-4, "rtol": 0}, jnp.bfloat16: {"atol": 8e-4, "rtol": 0}}
 
 
 def _get_problem_shapes() -> list[tuple[int, int, int, int, int]]:
@@ -40,7 +40,7 @@ def _generate_args() -> list:
             [16, 32],  # BLOCK_SIZE_S
             [128],  # BLOCK_SIZE_V
             _get_problem_shapes(),
-            ["float32", "bfloat16"],
+            [jnp.float32, jnp.bfloat16],
             [False, True],  # has_input_state
         )
     )
@@ -50,7 +50,7 @@ def _generate_args() -> list:
             [16],
             [128],  # BLOCK_SIZE_V < V below: genuinely exercises multiple V-tiles (256 / 128 = 2)
             [(16, 256, 2, 2, 2)],  # (K, V, Nq, Nk, Nv)
-            ["float32", "bfloat16"],
+            [jnp.float32, jnp.bfloat16],
             [False, True],
         )
     )
@@ -73,15 +73,14 @@ def test_linear_attention_pallas(
     N = max(Nq, Nk, Nv)
     B = 2
 
-    jax_dtype = getattr(jnp, dtype)
     tolerance = _TOLERANCES[dtype]
 
     key_q, key_k, key_v, key_h0, key_dy, key_dht = jax.random.split(jax.random.PRNGKey(0), 6)
     std = 0.01
 
-    q = jax.random.normal(key_q, (B, S, Nq, K), dtype=jnp.float32).astype(jax_dtype) * std
-    k = jax.random.normal(key_k, (B, S, Nk, K), dtype=jnp.float32).astype(jax_dtype) * std
-    v = jax.random.normal(key_v, (B, S, Nv, V), dtype=jnp.float32).astype(jax_dtype) * std
+    q = jax.random.normal(key_q, (B, S, Nq, K), dtype=jnp.float32).astype(dtype) * std
+    k = jax.random.normal(key_k, (B, S, Nk, K), dtype=jnp.float32).astype(dtype) * std
+    v = jax.random.normal(key_v, (B, S, Nv, V), dtype=jnp.float32).astype(dtype) * std
     h0 = jax.random.normal(key_h0, (B, N, K, V), dtype=jnp.float32) * std if has_input_state else None
 
     def _run(kernel_backend: KernelBackend, q: jax.Array, k: jax.Array, v: jax.Array, h0: jax.Array | None):
@@ -106,7 +105,7 @@ def test_linear_attention_pallas(
     assert_allclose(np.asarray(y_kernel, dtype=np.float32), np.asarray(y_expected, dtype=np.float32), **tolerance)
     assert_allclose(np.asarray(ht_kernel, dtype=np.float32), np.asarray(ht_expected, dtype=np.float32), **tolerance)
 
-    dy = jax.random.normal(key_dy, y_kernel.shape, dtype=jnp.float32).astype(jax_dtype) * std
+    dy = jax.random.normal(key_dy, y_kernel.shape, dtype=jnp.float32).astype(dtype) * std
     dht = jax.random.normal(key_dht, ht_kernel.shape, dtype=jnp.float32) * std
 
     dq_kernel, dk_kernel, dv_kernel, dh0_kernel = vjp_kernel((dy, dht))
