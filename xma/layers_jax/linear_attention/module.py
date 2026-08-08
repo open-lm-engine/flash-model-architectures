@@ -130,7 +130,9 @@ class LinearAttentionJAX(eqx.Module):
         if self.conv1d is None:
             assert conv_state is None
         else:
-            projected, conv_state = self.conv1d(projected, input_state=conv_state, output_state=output_conv_state)
+            projected, conv_state = self.conv1d(
+                projected, input_state=conv_state, output_state=output_conv_state, kernel_backend=kernel_backend
+            )
 
         query, key, value = projected.split("qkv", [QuerySize, KeySize, ValueSize])
 
