@@ -26,11 +26,8 @@ def _state_passing_kernel(x_ref, h0_ref, h_ref, h_scratch, *, K: int) -> None:
     PAD = h_scratch.shape[0]
     offset = PAD - K + 1
 
-    # Mosaic's vector.extract (used for single-row indexing below) only supports 32-bit
-    # element types, so extract rows from a float32 copy rather than the bf16 `x_ref`.
     x_f32 = x_ref[...].astype(jnp.float32)
-    for p in range(K - 1):
-        h_scratch[offset + p, :] = x_f32[BLOCK_SIZE_S - K + 1 + p, :]
+    h_scratch[offset:, :] = x_f32[BLOCK_SIZE_S - K + 1 :, :]
 
 
 @partial(jax.jit, static_argnames=("BLOCK_SIZE_S", "K"))
