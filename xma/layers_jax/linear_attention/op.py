@@ -3,13 +3,12 @@
 # **************************************************
 
 import math
-from functools import partial
 
 import jax
-import jax.numpy as jnp
 
 from ...accelerator import Accelerator, KernelBackend
-from .pallas_implementation import _linear_attention_backward_pallas, _linear_attention_forward_pallas
+from .jax_implementation import _linear_attention_reference
+from .pallas_implementation import _linear_attention_pallas
 
 
 def _get_num_heads(q: jax.Array, k: jax.Array, v: jax.Array) -> tuple[int, int, int, int]:
@@ -26,88 +25,15 @@ def _get_num_heads(q: jax.Array, k: jax.Array, v: jax.Array) -> tuple[int, int, 
     return Nq, Nk, Nv, N
 
 
-def _linear_attention_reference(
-    q: jax.Array, k: jax.Array, v: jax.Array, h0: jax.Array | None, attention_multiplier: float
-) -> tuple[jax.Array, jax.Array]:
-    B, S, Nq, K = q.shape
-    Nk = k.shape[-2]
-    Nv, V = v.shape[-2:]
-    N = max(Nq, Nk, Nv)
-    dtype = q.dtype
-
-    q = jnp.repeat(q, N // Nq, axis=-2).astype(jnp.float32)
-    k = jnp.repeat(k, N // Nk, axis=-2).astype(jnp.float32)
-    v = jnp.repeat(v, N // Nv, axis=-2).astype(jnp.float32)
-
-    h = jnp.zeros((B, N, K, V), dtype=jnp.float32) if h0 is None else h0.astype(jnp.float32)
-
-    y = []
-    for s in range(S):
-        y.append(jnp.einsum("bnk,bnkv->bnv", q[:, s], h))
-        h = h + k[:, s][..., :, None] * v[:, s][..., None, :]
-
-    y = jnp.stack(y, axis=1) * attention_multiplier
-
-    return y.astype(dtype), h
-
-
-@partial(jax.custom_vjp, nondiff_argnums=(4, 5))
-def _linear_attention_jax_op(
-    query: jax.Array,
-    key: jax.Array,
-    value: jax.Array,
-    input_state: jax.Array | None,
-    attention_multiplier: float,
-    BLOCK_SIZE_S: int,
-) -> tuple[jax.Array, jax.Array]:
-    return _linear_attention_forward_pallas(
-        query, key, value, input_state, attention_multiplier=attention_multiplier, BLOCK_SIZE_S=BLOCK_SIZE_S
-    )
-
-
-def _linear_attention_forward_jax(
-    query: jax.Array,
-    key: jax.Array,
-    value: jax.Array,
-    input_state: jax.Array | None,
-    attention_multiplier: float,
-    BLOCK_SIZE_S: int,
-) -> tuple[tuple[jax.Array, jax.Array], tuple]:
-    y, h = _linear_attention_jax_op(query, key, value, input_state, attention_multiplier, BLOCK_SIZE_S)
-    return (y, h), (query, key, value, input_state)
-
-
-def _linear_attention_backward_jax(
-    attention_multiplier: float, BLOCK_SIZE_S: int, residuals: tuple, cotangents: tuple
-) -> tuple:
-    query, key, value, input_state = residuals
-    dy, dh = cotangents
-
-    dq, dk, dv, dh0 = _linear_attention_backward_pallas(
-        query,
-        key,
-        value,
-        dy,
-        input_state,
-        dh,
-        attention_multiplier=attention_multiplier,
-        BLOCK_SIZE_S=BLOCK_SIZE_S,
-    )
-
-    return dq, dk, dv, (dh0 if input_state is not None else None)
-
-
-_linear_attention_jax_op.defvjp(_linear_attention_forward_jax, _linear_attention_backward_jax)
-
-
 def linear_attention_jax(
     query: jax.Array,
     key: jax.Array,
     value: jax.Array,
     input_state: jax.Array | None = None,
     attention_multiplier: float | None = None,
-    BLOCK_SIZE_S: int = 128,
     *,
+    BLOCK_SIZE_S: int = 128,
+    BLOCK_SIZE_V: int = 128,
     kernel_backend: KernelBackend | None = None,
 ) -> tuple[jax.Array, jax.Array]:
     """computes linear attention: `y[s] = q[s] @ h[s]`, `h[s] = h[s - 1] + k[s].T @ v[s]`
@@ -126,6 +52,10 @@ def linear_attention_jax(
     :type attention_multiplier: float | None
     :param BLOCK_SIZE_S: sequence-length block size used by the pallas kernel. Defaults to 128.
     :type BLOCK_SIZE_S: int
+    :param BLOCK_SIZE_V: value-head-dimension block size used by the pallas kernel; `V <= BLOCK_SIZE_V`
+        (the default) means V is effectively untiled. Mosaic requires this to be a multiple of 128 or
+        exactly equal to `V` - other values raise at trace time. Defaults to 128.
+    :type BLOCK_SIZE_V: int
     :param kernel_backend: KernelBackend
     :type kernel_backend: KernelBackend | None
     :return: output tensor of shape (B, S, N, V) and output state of shape (B, N, K, V)
@@ -151,10 +81,20 @@ def linear_attention_jax(
         kernel_backend = Accelerator.get_kernel_backend()
 
     if kernel_backend == KernelBackend.pallas:
-        y, h = _linear_attention_jax_op(query, key, value, input_state, attention_multiplier, BLOCK_SIZE_S)
+        y, ht = _linear_attention_pallas(
+            q=query,
+            k=key,
+            v=value,
+            h0=input_state,
+            attention_multiplier=attention_multiplier,
+            BLOCK_SIZE_S=BLOCK_SIZE_S,
+            BLOCK_SIZE_V=BLOCK_SIZE_V,
+        )
     elif kernel_backend == KernelBackend.jax:
-        y, h = _linear_attention_reference(query, key, value, input_state, attention_multiplier)
+        y, ht = _linear_attention_reference(
+            q=query, k=key, v=value, h0=input_state, attention_multiplier=attention_multiplier
+        )
     else:
         raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
-    return y, h
+    return y, ht

@@ -49,7 +49,8 @@ def delete_unwanted_files(docs_dir: Path) -> None:
         module_name = rst_file.stem
         # Delete implementation files (triton/cuda/nki/pallas kernels)
         if any(
-            f"{impl}_implementation" in module_name for impl in ["torch", "triton", "cuda", "mps", "nki", "pallas"]
+            f"{impl}_implementation" in module_name
+            for impl in ["jax", "torch", "triton", "cuda", "mps", "nki", "pallas"]
         ):
             rst_file.unlink()
             print(f"Deleted: {rst_file}")

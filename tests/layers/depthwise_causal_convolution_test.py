@@ -13,6 +13,17 @@ from xma import Accelerator, KernelBackend
 from xma.layers import DepthwiseCausalConvolution
 from xma.utils import is_causal_conv1d_available
 
+from ..utils import assert_equal_tensors, skip_if_incompatible_kernel_backend
+
+
+# TPU downcasts FP32 matmuls/convs to bf16 by default ("default" precision), which is too imprecise
+# for this library's kernels (e.g. depthwise causal convolution's different codepaths for prefill vs
+# generation drift apart under bf16 rounding). "highest" keeps FP32 inputs at full FP32 precision.
+if Accelerator.get_accelerator() == Accelerator.tpu:
+    from torch_xla.backends import set_mat_mul_precision as _xla_set_mat_mul_precision
+
+    _xla_set_mat_mul_precision("highest")
+
 
 _HIDDEN_SIZE = 8
 _BATCH = 2
@@ -168,6 +179,8 @@ def test_consistency(
     if kernel_backend == KernelBackend.cuda and not is_causal_conv1d_available():
         pytest.skip("causal_conv1d unavailable")
 
+    rtol, atol = (2e-2, 2e-3) if Accelerator.get_accelerator() == Accelerator.tpu else (1e-5, 1e-5)
+
     with torch.device(device):
         conv = _make_conv(kernel_size=kernel_size, add_bias=add_bias, activation=activation)
 
@@ -200,8 +213,8 @@ def test_consistency(
     assert_close(
         out_continue,
         out_full[:, prefill_len : prefill_len + continuation_len],
-        rtol=1e-5,
-        atol=1e-5,
+        rtol=rtol,
+        atol=atol,
     )
 
     for step in range(n_gen_steps):
@@ -217,7 +230,7 @@ def test_consistency(
             kernel_backend=kernel_backend,
         )
 
-        assert_close(out_step, out_full[:, start : start + 1], rtol=1e-5, atol=1e-5)
+        assert_close(out_step, out_full[:, start : start + 1], rtol=rtol, atol=atol)
 
     assert state is None
     _, state = conv(
@@ -235,7 +248,7 @@ def test_consistency(
         output_state=True,
         kernel_backend=kernel_backend,
     )
-    assert_close(state, state_full, rtol=1e-5, atol=1e-5)
+    assert_close(state, state_full, rtol=rtol, atol=atol)
 
 
 @pytest.mark.parametrize("kernel_size", [4])
@@ -246,6 +259,8 @@ def test_attention_mask(kernel_size: int, kernel_backend: KernelBackend) -> None
 
     if kernel_backend == KernelBackend.cuda and not is_causal_conv1d_available():
         pytest.skip("causal_conv1d unavailable")
+
+    rtol, atol = (2e-2, 2e-3) if Accelerator.get_accelerator() == Accelerator.tpu else (1e-5, 1e-5)
 
     conv = _make_conv(kernel_size=kernel_size, activation=None).to(device)
     conv.eval()
@@ -259,7 +274,7 @@ def test_attention_mask(kernel_size: int, kernel_backend: KernelBackend) -> None
     out_ones, _ = conv(
         x, input_state=None, attention_mask=mask_ones, output_state=False, kernel_backend=kernel_backend
     )
-    assert_close(out_no_mask, out_ones, rtol=1e-5, atol=1e-5)
+    assert_close(out_no_mask, out_ones, rtol=rtol, atol=atol)
 
     # padding positions in the output must be exactly zero
     mask = mask_ones.clone()
@@ -273,8 +288,8 @@ def test_attention_mask(kernel_size: int, kernel_backend: KernelBackend) -> None
     out_zeroed, _ = conv(
         x_zeroed, input_state=None, attention_mask=None, output_state=False, kernel_backend=kernel_backend
     )
-    assert_close(out_masked[0], out_zeroed[0], rtol=1e-5, atol=1e-5)
-    assert_close(out_masked[1, 3:], out_zeroed[1, 3:], rtol=1e-5, atol=1e-5)
+    assert_close(out_masked[0], out_zeroed[0], rtol=rtol, atol=atol)
+    assert_close(out_masked[1, 3:], out_zeroed[1, 3:], rtol=rtol, atol=atol)
 
 
 @pytest.mark.parametrize("kernel_size", [4])
@@ -305,3 +320,70 @@ def test_kernel_vs_fallback(kernel_size: int, activation: str | None) -> None:
     assert_close(out_k, out_f, rtol=1e-5, atol=1e-5)
     assert_close(state_k, state_f, rtol=1e-5, atol=1e-5)
     assert_close(out_gen_k, out_gen_f, rtol=1e-5, atol=1e-5)
+
+
+@pytest.mark.parametrize("kernel_size", [4])
+@pytest.mark.parametrize("add_bias", [False, True])
+@pytest.mark.parametrize("activation", [None, "silu", "gelu"])
+@pytest.mark.parametrize("has_input_state", [False, True])
+@pytest.mark.parametrize("output_state", [False, True])
+@pytest.mark.parametrize("kernel_backend", [KernelBackend.pallas])
+def test_depthwise_causal_convolution_pallas(
+    kernel_size: int,
+    add_bias: bool,
+    activation: str | None,
+    has_input_state: bool,
+    output_state: bool,
+    kernel_backend: KernelBackend,
+) -> None:
+    skip_if_incompatible_kernel_backend(kernel_backend)
+    device = kernel_backend.get_compatible_accelerator().get_current_device()
+
+    # on TPU, the pallas kernel (hand-written, full float32 VPU accumulation) and the nn.Conv1d reference
+    # (likely lowered to a reduced-precision conv/matmul on the MXU) are two different compute paths for the
+    # same math, same as the KernelBackend.torch-vs-torch comparisons elsewhere in this file.
+    rtol, atol = (2e-2, 2e-3) if Accelerator.get_accelerator() == Accelerator.tpu else (1e-5, 1e-5)
+
+    torch.manual_seed(42)
+
+    with torch.device(device):
+        conv = _make_conv(kernel_size=kernel_size, add_bias=add_bias, activation=activation)
+
+    x_kernel = torch.randn(_BATCH, _PREFILL_LEN, _HIDDEN_SIZE, device=device, requires_grad=True)
+    x_torch = x_kernel.clone().detach().requires_grad_()
+
+    input_state_kernel = None
+    input_state_torch = None
+    if has_input_state:
+        input_state_kernel = torch.randn(_BATCH, _HIDDEN_SIZE, kernel_size - 1, device=device, requires_grad=True)
+        input_state_torch = input_state_kernel.clone().detach().requires_grad_()
+
+    y_kernel, state_kernel = conv(
+        x_kernel, input_state=input_state_kernel, output_state=output_state, kernel_backend=kernel_backend
+    )
+    y_torch, state_torch = conv(
+        x_torch, input_state=input_state_torch, output_state=output_state, kernel_backend=KernelBackend.torch
+    )
+
+    assert_equal_tensors(y_kernel, y_torch, False, rtol_float32=rtol, atol_float32=atol)
+
+    if output_state:
+        assert state_kernel is not None
+        assert state_torch is not None
+        assert_equal_tensors(state_kernel, state_torch, False, rtol_float32=rtol, atol_float32=atol)
+    else:
+        assert state_kernel is None
+        assert state_torch is None
+
+    loss_kernel = y_kernel.mean() + (state_kernel.mean() if output_state else 0.0)
+    loss_torch = y_torch.mean() + (state_torch.mean() if output_state else 0.0)
+
+    loss_kernel.backward()
+    loss_torch.backward()
+
+    assert_equal_tensors(x_kernel.grad, x_torch.grad, False, rtol_float32=rtol, atol_float32=atol)
+
+    if has_input_state:
+        assert_equal_tensors(
+            input_state_kernel.grad, input_state_torch.grad, False, rtol_float32=rtol, atol_float32=atol
+        )

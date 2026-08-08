@@ -9,7 +9,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from ...accelerator import Accelerator, KernelBackend
-from ...utils import is_causal_conv1d_available
+from ...utils import is_causal_conv1d_available, is_torch_xla_available
+from .op import depthwise_causal_convolution
 
 
 if is_causal_conv1d_available():
@@ -48,16 +49,17 @@ def _apply_mask_to_padding_states(x: torch.Tensor, attention_mask: torch.Tensor 
 
 
 def _get_last_state(x: torch.Tensor, kernel_size: int) -> torch.Tensor:
-    """Return the convolution carry as the latest kernel_size - 1 raw inputs (the state size used throughout
-    this module - kernel_size taps need only kernel_size - 1 history positions plus the current input)."""
+    """Return the convolution carry as the latest kernel_size raw inputs."""
 
-    # last (kernel_size - 1) columns of x as passed, not of the original block.
-    kernel_size -= 1
+    # last kernel_size columns of x as passed, not of the original block. Sliced via a positive start index
+    # (not x[..., -kernel_size:]) since kernel_size can be 0 (this is always called with self.kernel_size - 1,
+    # the input_state/final_state contract used throughout this module), and -0 means "start of tensor", not
+    # "empty", to Python's slicing.
 
     if x.size(-1) < kernel_size:
         return F.pad(x, (kernel_size - x.size(-1), 0))
 
-    return x[..., -kernel_size:]
+    return x[..., x.size(-1) - kernel_size :]
 
 
 class DepthwiseCausalConvolution(nn.Conv1d):
@@ -94,6 +96,22 @@ class DepthwiseCausalConvolution(nn.Conv1d):
         else:
             assert kernel_backend.verify_accelerator()
 
+        if kernel_backend == KernelBackend.pallas:
+            x = _apply_mask_to_padding_states(x, attention_mask)
+            x, final_state = depthwise_causal_convolution(
+                input=x,
+                weight=self.weight.squeeze(1),
+                bias=self.bias,
+                input_state=input_state,
+                output_state=output_state,
+                kernel_backend=kernel_backend,
+            )
+
+            x = self.activation_function(x)
+            x = _apply_mask_to_padding_states(x, attention_mask)
+
+            return x, final_state
+
         BLOCK_SIZE_S = x.size(1)
         S = BLOCK_SIZE_S
 
@@ -105,7 +123,7 @@ class DepthwiseCausalConvolution(nn.Conv1d):
             x = x.transpose(-1, -2)
 
             if output_state:
-                final_state = _get_last_state(x, self.kernel_size)
+                final_state = _get_last_state(x, self.kernel_size - 1)
 
             if kernel_backend == KernelBackend.cuda:
                 x = causal_conv1d_fn(
@@ -167,7 +185,7 @@ class DepthwiseCausalConvolution(nn.Conv1d):
                 x = torch.cat([input_state, x], dim=-1)
 
                 if output_state:
-                    final_state = _get_last_state(x, self.kernel_size)
+                    final_state = _get_last_state(x, self.kernel_size - 1)
 
                 x = super().forward(x)
 

@@ -19,10 +19,7 @@ from xma.layers_jax import LinearAttentionJAX, linear_attention_jax
 
 
 _ATTENTION_MULTIPLIER = 0.3
-_TOLERANCES = {
-    "float32": {"atol": 1e-4, "rtol": 1e-4},
-    "bfloat16": {"atol": 2e-2, "rtol": 2e-2},
-}
+_TOLERANCES = {jnp.float32: {"atol": 8e-4, "rtol": 0}, jnp.bfloat16: {"atol": 8e-4, "rtol": 0}}
 
 
 def _get_problem_shapes() -> list[tuple[int, int, int, int, int]]:
@@ -31,25 +28,40 @@ def _get_problem_shapes() -> list[tuple[int, int, int, int, int]]:
         (16, 16, 1, 1, 1),
         (32, 24, 4, 4, 4),
         (16, 16, 4, 2, 1),
+        (4, 16, 1, 1, 1),  # K smaller than the minimum Pallas tile size (8)
+        (10, 24, 4, 2, 1),  # K not a power of 2
     ]
 
 
 def _generate_args() -> list:
-    return list(
+    args = list(
         product(
             [3, 16, 37, 64, 130],  # sequence length: shorter than, equal to, or not a multiple of BLOCK_SIZE_S
             [16, 32],  # BLOCK_SIZE_S
+            [128],  # BLOCK_SIZE_V
             _get_problem_shapes(),
-            ["float32", "bfloat16"],
+            [jnp.float32, jnp.bfloat16],
             [False, True],  # has_input_state
         )
     )
+    args += list(
+        product(
+            [37],
+            [16],
+            [128],  # BLOCK_SIZE_V < V below: genuinely exercises multiple V-tiles (256 / 128 = 2)
+            [(16, 256, 2, 2, 2)],  # (K, V, Nq, Nk, Nv)
+            [jnp.float32, jnp.bfloat16],
+            [False, True],
+        )
+    )
+    return args
 
 
-@pytest.mark.parametrize("S,BLOCK_SIZE_S,problem_shape,dtype,has_input_state", _generate_args())
+@pytest.mark.parametrize("S,BLOCK_SIZE_S,BLOCK_SIZE_V,problem_shape,dtype,has_input_state", _generate_args())
 def test_linear_attention_pallas(
     S: int,
     BLOCK_SIZE_S: int,
+    BLOCK_SIZE_V: int,
     problem_shape: tuple[int, int, int, int, int],
     dtype: str,
     has_input_state: bool,
@@ -61,15 +73,14 @@ def test_linear_attention_pallas(
     N = max(Nq, Nk, Nv)
     B = 2
 
-    jax_dtype = getattr(jnp, dtype)
     tolerance = _TOLERANCES[dtype]
 
     key_q, key_k, key_v, key_h0, key_dy, key_dht = jax.random.split(jax.random.PRNGKey(0), 6)
     std = 0.01
 
-    q = jax.random.normal(key_q, (B, S, Nq, K), dtype=jnp.float32).astype(jax_dtype) * std
-    k = jax.random.normal(key_k, (B, S, Nk, K), dtype=jnp.float32).astype(jax_dtype) * std
-    v = jax.random.normal(key_v, (B, S, Nv, V), dtype=jnp.float32).astype(jax_dtype) * std
+    q = jax.random.normal(key_q, (B, S, Nq, K), dtype=jnp.float32).astype(dtype) * std
+    k = jax.random.normal(key_k, (B, S, Nk, K), dtype=jnp.float32).astype(dtype) * std
+    v = jax.random.normal(key_v, (B, S, Nv, V), dtype=jnp.float32).astype(dtype) * std
     h0 = jax.random.normal(key_h0, (B, N, K, V), dtype=jnp.float32) * std if has_input_state else None
 
     def _run(kernel_backend: KernelBackend, q: jax.Array, k: jax.Array, v: jax.Array, h0: jax.Array | None):
@@ -80,6 +91,7 @@ def test_linear_attention_pallas(
             h0,
             attention_multiplier=_ATTENTION_MULTIPLIER,
             BLOCK_SIZE_S=BLOCK_SIZE_S,
+            BLOCK_SIZE_V=BLOCK_SIZE_V,
             kernel_backend=kernel_backend,
         )
 
@@ -93,8 +105,7 @@ def test_linear_attention_pallas(
     assert_allclose(np.asarray(y_kernel, dtype=np.float32), np.asarray(y_expected, dtype=np.float32), **tolerance)
     assert_allclose(np.asarray(ht_kernel, dtype=np.float32), np.asarray(ht_expected, dtype=np.float32), **tolerance)
 
-    # ht is always returned (even when no input_state was given), so it always needs a cotangent
-    dy = jax.random.normal(key_dy, y_kernel.shape, dtype=jnp.float32).astype(jax_dtype) * std
+    dy = jax.random.normal(key_dy, y_kernel.shape, dtype=jnp.float32).astype(dtype) * std
     dht = jax.random.normal(key_dht, ht_kernel.shape, dtype=jnp.float32) * std
 
     dq_kernel, dk_kernel, dv_kernel, dh0_kernel = vjp_kernel((dy, dht))
@@ -137,9 +148,8 @@ def test_linear_attention_module_works(has_input_state: bool) -> None:
     input = haliax.random.normal(key_input, (Batch, Pos, Embed))
     input_state = haliax.random.normal(key_state, (Batch, module.Heads, module.StateSize)) if has_input_state else None
 
-    # this is a smoke test: it only checks that the module runs end to end and returns the expected shapes, not
-    # that the output is numerically correct (that's covered at the op level by linear_attention_jax_test.py)
-    output, output_state = module(input, input_state, kernel_backend=KernelBackend.jax)
+    output, output_state, conv_state = module(input, input_state, kernel_backend=KernelBackend.jax)
 
     assert output.axes == (Batch, Pos, Output)
     assert output_state.axes == (Batch, module.Heads, module.StateSize)
+    assert conv_state is None

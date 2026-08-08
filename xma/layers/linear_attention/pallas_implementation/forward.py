@@ -5,17 +5,15 @@
 import torch
 
 from ....custom_op import xma_op
-from ....layers_jax.linear_attention.pallas_implementation.forward import (
-    _linear_attention_forward_core as _forward_core_jax,
-)
+from ....layers_jax.linear_attention.pallas_implementation.forward import _forward_core as _forward_core_jax
 
 
 def _output_shape_dtype_fn(
-    q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, h0: torch.Tensor
+    q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, h0: torch.Tensor | None
 ) -> list[tuple[tuple[int, ...], torch.dtype]]:
     B, _, S, K = q.shape
     V = v.size(-1)
-    N = h0.size(1)
+    N = max(q.size(1), k.size(1), v.size(1))
 
     return [((B, N, S, V), q.dtype), ((B, N, K, V), torch.float32)]
 
@@ -24,47 +22,50 @@ def _fake_function(
     q: torch.Tensor,
     k: torch.Tensor,
     v: torch.Tensor,
-    h0: torch.Tensor,
+    h0: torch.Tensor | None,
     attention_multiplier: float,
     BLOCK_SIZE_S: int,
+    BLOCK_SIZE_V: int,
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    B, Nq, S, K = q.shape
+    B, _, S, K = q.shape
     V = v.shape[-1]
-    N = h0.shape[1]
+    N = max(q.size(1), k.size(1), v.size(1))
 
     y = torch.empty(B, N, S, V, dtype=q.dtype, device=q.device)
-    h = torch.empty(B, N, K, V, dtype=torch.float32, device=q.device)
+    ht = torch.empty(B, N, K, V, dtype=torch.float32, device=q.device)
 
-    return y, h
+    return y, ht
 
 
-_CACHE = None
+_CACHE = {}
 
 
 @xma_op(mutates_args={}, fake_func=_fake_function)
-def _linear_attention_forward_core(
+def _forward_core(
     q: torch.Tensor,
     k: torch.Tensor,
     v: torch.Tensor,
-    h0: torch.Tensor,
+    h0: torch.Tensor | None,
     attention_multiplier: float,
     BLOCK_SIZE_S: int,
+    BLOCK_SIZE_V: int,
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    global _CACHE
+    cache_key = h0 is None
 
-    if _CACHE is None:
+    if cache_key not in _CACHE:
         from torch_xla.experimental.custom_kernel import make_kernel_from_pallas
 
-        _CACHE = make_kernel_from_pallas(_forward_core_jax, _output_shape_dtype_fn)
+        _CACHE[cache_key] = make_kernel_from_pallas(_forward_core_jax, _output_shape_dtype_fn)
 
-    return _CACHE(
+    return _CACHE[cache_key](
         q,
         k,
         v,
         h0,
-        static_argnames=("attention_multiplier", "BLOCK_SIZE_S"),
+        static_argnames=("attention_multiplier", "BLOCK_SIZE_S", "BLOCK_SIZE_V"),
         attention_multiplier=attention_multiplier,
         BLOCK_SIZE_S=BLOCK_SIZE_S,
+        BLOCK_SIZE_V=BLOCK_SIZE_V,
     )
 
 
@@ -75,25 +76,16 @@ def _linear_attention_forward_pallas(
     h0: torch.Tensor | None,
     attention_multiplier: float,
     BLOCK_SIZE_S: int = 128,
+    BLOCK_SIZE_V: int = 128,
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    B, S, Nq, K = q.shape
-    Nk = k.shape[-2]
-    Nv, V = v.shape[-2:]
-
-    N = max(Nq, Nk, Nv)
-
-    if h0 is None:
-        h0 = torch.zeros(B, N, K, V, dtype=torch.float32, device=q.device)
-    else:
-        h0 = h0.float()
-
     q = q.transpose(1, 2)
     k = k.transpose(1, 2)
     v = v.transpose(1, 2)
 
-    y, h = _linear_attention_forward_core(
-        q, k, v, h0, attention_multiplier=attention_multiplier, BLOCK_SIZE_S=BLOCK_SIZE_S
+    y, ht = _forward_core(
+        q, k, v, h0, attention_multiplier=attention_multiplier, BLOCK_SIZE_S=BLOCK_SIZE_S, BLOCK_SIZE_V=BLOCK_SIZE_V
     )
+
     y = y.transpose(1, 2)
 
-    return y, h
+    return y, ht

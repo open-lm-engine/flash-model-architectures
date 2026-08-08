@@ -12,6 +12,7 @@ import jax
 from haliax import Axis, NamedArray
 from jaxtyping import PRNGKeyArray
 
+from ...accelerator import KernelBackend
 from .op import depthwise_causal_convolution_jax
 
 
@@ -21,6 +22,7 @@ class DepthwiseCausalConvolutionJAX(eqx.Module):
 
     Embed: Axis = eqx.field(static=True)
     Kernel: Axis = eqx.field(static=True)
+    StateSize: Axis = eqx.field(static=True)
     kernel_size: int = eqx.field(static=True)
     activation_function: str | Callable[[jax.Array], jax.Array] | None = eqx.field(static=True)
 
@@ -33,7 +35,10 @@ class DepthwiseCausalConvolutionJAX(eqx.Module):
         *,
         key: PRNGKeyArray,
     ) -> DepthwiseCausalConvolutionJAX:
+        assert kernel_size > 1
+
         Kernel = Axis("kernel_size", kernel_size)
+        StateSize = Axis("state_size", kernel_size - 1)
 
         weight_key, bias_key = jax.random.split(key, 2)
         bound = kernel_size**-0.5
@@ -46,6 +51,7 @@ class DepthwiseCausalConvolutionJAX(eqx.Module):
             bias=bias,
             Embed=Embed,
             Kernel=Kernel,
+            StateSize=StateSize,
             kernel_size=kernel_size,
             activation_function=activation_function,
         )
@@ -56,6 +62,8 @@ class DepthwiseCausalConvolutionJAX(eqx.Module):
         input_state: NamedArray | None = None,
         attention_mask: NamedArray | None = None,
         output_state: bool = False,
+        *,
+        kernel_backend: KernelBackend | None = None,
     ) -> tuple[NamedArray, NamedArray | None]:
         # input: (Batch, Pos, Embed); Batch and Pos are whatever's left over once Embed is accounted for
         Batch, Pos = [axis for axis in input.axes if axis != self.Embed]
@@ -65,14 +73,15 @@ class DepthwiseCausalConvolutionJAX(eqx.Module):
             weight=self.weight.rearrange((self.Embed, self.Kernel)).array,
             bias=self.bias.array if self.bias is not None else None,
             input_state=(
-                input_state.rearrange((Batch, self.Embed, self.Kernel)).array if input_state is not None else None
+                input_state.rearrange((Batch, self.Embed, self.StateSize)).array if input_state is not None else None
             ),
             attention_mask=attention_mask.rearrange((Batch, Pos)).array if attention_mask is not None else None,
             output_state=output_state,
             activation_function=self.activation_function,
+            kernel_backend=kernel_backend,
         )
 
         output = hax.named(output, (Batch, Pos, self.Embed))
-        final_state = hax.named(final_state, (Batch, self.Embed, self.Kernel)) if final_state is not None else None
+        final_state = hax.named(final_state, (Batch, self.Embed, self.StateSize)) if final_state is not None else None
 
         return output, final_state
