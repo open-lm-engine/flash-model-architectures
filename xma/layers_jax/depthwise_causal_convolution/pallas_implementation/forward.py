@@ -68,7 +68,7 @@ def _forward_kernel(
     y_ref[...] = y.astype(dtype)
 
     for p in range(K - 1):
-        h_scratch[offset + p, :] = x[tail_len + p, :].astype(jnp.float32)
+        h_scratch[offset + p, :] = x[tail_len + p, :]
 
 
 @partial(jax.jit, static_argnames=("BLOCK_SIZE_S",))
