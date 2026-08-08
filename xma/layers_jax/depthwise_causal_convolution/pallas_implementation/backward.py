@@ -77,7 +77,7 @@ def _backward_kernel(
     db_ref,
     dh0_ref,
     dh_scratch,
-    *,
+    dht_scratch,
     BLOCK_SIZE_S: int,
     S: int,
     K: int,
@@ -94,7 +94,10 @@ def _backward_kernel(
 
     @pl.when(BLOCK_ID_S_REVERSE == 0)
     def _():
-        dh_scratch[...] = dht_ref[...]
+        dh_scratch[...] = jnp.zeros_like(dh_scratch)
+        dht_scratch[...] = jnp.zeros_like(dht_scratch)
+        if dht_ref is not None:
+            dht_scratch[offset:, :] = dht_ref[...]
 
     @pl.when((BLOCK_ID_B == 0) & (BLOCK_ID_S_REVERSE == 0))
     def _():
@@ -126,6 +129,16 @@ def _backward_kernel(
         dx_boundary_rows.append(row)
 
     dx = jnp.concatenate([dx_tail, jnp.stack(dx_boundary_rows, axis=0)], axis=0) if K > 1 else dx_tail
+
+    state_prefix = max(K - 1 - S, 0)
+    x_state_start = max(S - (K - 1), 0)
+    for p in range(state_prefix, K - 1):
+        x_position = x_state_start + p - state_prefix
+        x_position_in_block = x_position - BLOCK_ID_S * BLOCK_SIZE_S
+        x_position_in_block_safe = jnp.clip(x_position_in_block, 0, BLOCK_SIZE_S - 1)
+        is_in_block = (x_position_in_block >= 0) & (x_position_in_block < BLOCK_SIZE_S)
+        dx = dx.at[x_position_in_block_safe, :].add(jnp.where(is_in_block, dht_scratch[offset + p, :], 0))
+
     dx_ref[...] = jnp.where(MASK_S, dx, 0).astype(dtype)
 
     for k in range(K):
@@ -147,6 +160,8 @@ def _backward_kernel(
     @pl.when(BLOCK_ID_S == 0)
     def _():
         dh0_ref[...] = dh_scratch[...]
+        for p in range(state_prefix):
+            dh0_ref[offset + p, :] += dht_scratch[offset + p, :]
 
 
 @partial(jax.jit, static_argnames=("BLOCK_SIZE_S", "K"))
@@ -155,15 +170,14 @@ def _backward_core(
     W: jax.Array,
     h: jax.Array,
     dy: jax.Array,
-    dht: jax.Array,
+    dht: jax.Array | None,
     BLOCK_SIZE_S: int,
     K: int,
 ) -> tuple[jax.Array, jax.Array, jax.Array, jax.Array]:
     B, S, H = x.shape
     NUM_BLOCKS_S = ceil_divide(S, BLOCK_SIZE_S)
     PAD = ceil_divide(K - 1, 8) * 8
-
-    dht = jnp.pad(dht, ((0, 0), (PAD - K + 1, 0), (0, 0)))
+    state_size = K - 1
 
     kernel = pl.pallas_call(
         partial(_backward_kernel, BLOCK_SIZE_S=BLOCK_SIZE_S, S=S, K=K, PAD=PAD, NUM_BLOCKS_S=NUM_BLOCKS_S),
@@ -188,7 +202,14 @@ def _backward_core(
                 block_shape=(None, BLOCK_SIZE_S, H),
                 index_map=lambda BLOCK_ID_B, BLOCK_ID_S: (BLOCK_ID_B, NUM_BLOCKS_S - 1 - BLOCK_ID_S, 0),
             ),
-            pl.BlockSpec(block_shape=(None, PAD, H), index_map=lambda BLOCK_ID_B, BLOCK_ID_S: (BLOCK_ID_B, 0, 0)),
+            (
+                None
+                if dht is None
+                else pl.BlockSpec(
+                    block_shape=(None, state_size, H),
+                    index_map=lambda BLOCK_ID_B, BLOCK_ID_S: (BLOCK_ID_B, 0, 0),
+                )
+            ),
         ),
         out_specs=(
             pl.BlockSpec(
@@ -199,10 +220,11 @@ def _backward_core(
             pl.BlockSpec(block_shape=(1, H), index_map=lambda BLOCK_ID_B, BLOCK_ID_S: (0, 0)),
             pl.BlockSpec(block_shape=(None, PAD, H), index_map=lambda BLOCK_ID_B, BLOCK_ID_S: (BLOCK_ID_B, 0, 0)),
         ),
-        scratch_shapes=[pltpu.VMEM((PAD, H), jnp.float32)],
+        scratch_shapes=[pltpu.VMEM((PAD, H), jnp.float32), pltpu.VMEM((PAD, H), jnp.float32)],
         compiler_params=pltpu.CompilerParams(dimension_semantics=("parallel", "arbitrary")),
     )
 
     dx, dW, db, dh0 = kernel(x, W, h, dy, dht)
+    dh0 = dh0[:, 1 - K :, :]
 
-    return dx, dW, db, dh0[:, 1 - K :, :]
+    return dx, dW, db, dh0

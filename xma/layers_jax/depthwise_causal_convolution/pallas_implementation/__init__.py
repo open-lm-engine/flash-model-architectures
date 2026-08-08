@@ -12,29 +12,57 @@ from .backward import _backward_core, _state_passing_core
 from .forward import _forward_core
 
 
-@partial(jax.custom_vjp, nondiff_argnums=(4,))
+@partial(jax.custom_vjp, nondiff_argnums=(4, 5))
 def _depthwise_causal_convolution_pallas(
-    x: jax.Array, W: jax.Array, b: jax.Array | None, h0: jax.Array | None, BLOCK_SIZE_S: int
-) -> tuple[jax.Array, jax.Array]:
+    x: jax.Array,
+    W: jax.Array,
+    b: jax.Array | None,
+    h0: jax.Array | None,
+    output_state: bool,
+    BLOCK_SIZE_S: int,
+) -> tuple[jax.Array, jax.Array | None]:
     W = jnp.transpose(W, (1, 0))
     b = None if b is None else b.astype(jnp.float32)[None, :]
 
     if h0 is not None:
         h0 = jnp.transpose(h0, (0, 2, 1)).astype(x.dtype)
 
-    y, ht = _forward_core(x=x, W=W, b=b, h0=h0, BLOCK_SIZE_S=BLOCK_SIZE_S)
+    y = _forward_core(x=x, W=W, b=b, h0=h0, BLOCK_SIZE_S=BLOCK_SIZE_S)
 
-    return y, jnp.transpose(ht, (0, 2, 1))
+    if not output_state:
+        return y, None
+
+    state_size = W.shape[0] - 1
+    if h0 is None:
+        ht = (
+            jnp.pad(x, ((0, 0), (state_size - x.shape[1], 0), (0, 0)))
+            if x.shape[1] < state_size
+            else x[:, -state_size:, :]
+        )
+    else:
+        ht = jnp.concatenate([h0.astype(x.dtype), x], axis=1)[:, -state_size:, :]
+
+    return y, jnp.transpose(ht.astype(jnp.float32), (0, 2, 1))
 
 
 def _depthwise_causal_convolution_forward(
-    x: jax.Array, W: jax.Array, b: jax.Array | None, h0: jax.Array | None, BLOCK_SIZE_S: int
-) -> tuple[tuple[jax.Array, jax.Array], tuple]:
-    y, ht = _depthwise_causal_convolution_pallas(x, W, b, h0, BLOCK_SIZE_S)
+    x: jax.Array,
+    W: jax.Array,
+    b: jax.Array | None,
+    h0: jax.Array | None,
+    output_state: bool,
+    BLOCK_SIZE_S: int,
+) -> tuple[tuple[jax.Array, jax.Array | None], tuple]:
+    y, ht = _depthwise_causal_convolution_pallas(
+        x=x, W=W, b=b, h0=h0, output_state=output_state, BLOCK_SIZE_S=BLOCK_SIZE_S
+    )
+
     return (y, ht), (x, W, b, h0)
 
 
-def _depthwise_causal_convolution_backward(BLOCK_SIZE_S: int, residuals: tuple, cotangents: tuple) -> tuple:
+def _depthwise_causal_convolution_backward(
+    output_state: bool, BLOCK_SIZE_S: int, residuals: tuple, cotangents: tuple
+) -> tuple:
     x, W, b, h0 = residuals
     dy, dht = cotangents
 
@@ -46,11 +74,7 @@ def _depthwise_causal_convolution_backward(BLOCK_SIZE_S: int, residuals: tuple, 
     if h0 is not None:
         h0 = jnp.transpose(h0, (0, 2, 1)).astype(x.dtype)
 
-    dht = (
-        jnp.zeros((B, K - 1, H), dtype=jnp.float32)
-        if dht is None
-        else jnp.transpose(dht, (0, 2, 1)).astype(jnp.float32)
-    )
+    dht = None if dht is None or not output_state else jnp.transpose(dht, (0, 2, 1)).astype(jnp.float32)
 
     h = _state_passing_core(x=x, h0=h0, BLOCK_SIZE_S=BLOCK_SIZE_S, K=K)
     dx, dW, db, dh0 = _backward_core(x=x, W=W, h=h, dy=dy, dht=dht, BLOCK_SIZE_S=BLOCK_SIZE_S, K=K)
