@@ -97,10 +97,7 @@ class DepthwiseCausalConvolution(nn.Conv1d):
             assert kernel_backend.verify_accelerator()
 
         if kernel_backend == KernelBackend.pallas:
-            assert is_torch_xla_available()
-
             x = _apply_mask_to_padding_states(x, attention_mask)
-
             x, final_state = depthwise_causal_convolution(
                 input=x,
                 weight=self.weight.squeeze(1),
