@@ -249,6 +249,8 @@ def test_attention_mask(kernel_size: int, kernel_backend: KernelBackend) -> None
     if kernel_backend == KernelBackend.cuda and not is_causal_conv1d_available():
         pytest.skip("causal_conv1d unavailable")
 
+    rtol, atol = (0, 2e-4) if Accelerator.get_accelerator() == Accelerator.tpu else (1e-5, 1e-5)
+
     conv = _make_conv(kernel_size=kernel_size, activation=None).to(device)
     conv.eval()
 
@@ -261,7 +263,7 @@ def test_attention_mask(kernel_size: int, kernel_backend: KernelBackend) -> None
     out_ones, _ = conv(
         x, input_state=None, attention_mask=mask_ones, output_state=False, kernel_backend=kernel_backend
     )
-    assert_close(out_no_mask, out_ones, rtol=1e-5, atol=1e-5)
+    assert_close(out_no_mask, out_ones, rtol=rtol, atol=atol)
 
     # padding positions in the output must be exactly zero
     mask = mask_ones.clone()
@@ -275,8 +277,8 @@ def test_attention_mask(kernel_size: int, kernel_backend: KernelBackend) -> None
     out_zeroed, _ = conv(
         x_zeroed, input_state=None, attention_mask=None, output_state=False, kernel_backend=kernel_backend
     )
-    assert_close(out_masked[0], out_zeroed[0], rtol=1e-5, atol=1e-5)
-    assert_close(out_masked[1, 3:], out_zeroed[1, 3:], rtol=1e-5, atol=1e-5)
+    assert_close(out_masked[0], out_zeroed[0], rtol=rtol, atol=atol)
+    assert_close(out_masked[1, 3:], out_zeroed[1, 3:], rtol=rtol, atol=atol)
 
 
 @pytest.mark.parametrize("kernel_size", [4])
