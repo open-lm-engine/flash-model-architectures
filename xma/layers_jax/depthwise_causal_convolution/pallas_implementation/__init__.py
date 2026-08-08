@@ -9,8 +9,9 @@ import jax
 import jax.numpy as jnp
 
 from ....math import ceil_divide
-from .backward import _backward_core, _state_passing_core
+from .backward import _backward_core
 from .forward import _forward_core
+from .state_passing import _state_passing_core
 
 
 def _pad_h0(h0: jax.Array, K: int) -> jax.Array:
