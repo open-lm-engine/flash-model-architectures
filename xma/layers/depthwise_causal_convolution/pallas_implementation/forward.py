@@ -41,7 +41,7 @@ def _depthwise_causal_convolution_forward_pallas(
     x: torch.Tensor, W: torch.Tensor, b: torch.Tensor | None, h0: torch.Tensor | None, BLOCK_SIZE_S: int = 128
 ) -> tuple[torch.Tensor, torch.Tensor]:
     W = W.transpose(1, 0)
-    b = None if b is None else b.float()[None, :]
+    b = None if b is None else b[None, :]
     h0 = None if h0 is None else h0.transpose(1, 2).to(x.dtype)
 
     state_size = W.shape[0] - 1
@@ -57,4 +57,4 @@ def _depthwise_causal_convolution_forward_pallas(
 
     y = _depthwise_causal_convolution_forward_core(x=x, W=W, b=b, h0=h0, BLOCK_SIZE_S=BLOCK_SIZE_S)
 
-    return y, ht.float()
+    return y, ht
