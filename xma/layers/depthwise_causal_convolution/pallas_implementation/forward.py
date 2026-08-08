@@ -14,9 +14,8 @@ def _output_shape_dtype_fn(
     x: torch.Tensor, W: torch.Tensor, b: torch.Tensor | None, h0: torch.Tensor | None, BLOCK_SIZE_S: int
 ) -> list[tuple[tuple[int, ...], torch.dtype]]:
     B, S, H = x.shape
-    K = W.shape[0]
 
-    return [((B, S, H), x.dtype), ((B, K - 1, H), torch.float32)]
+    return [((B, S, H), x.dtype)]
 
 
 _CACHE = {}
@@ -25,7 +24,7 @@ _CACHE = {}
 @xma_op(mutates_args={}, fake_func=_output_shape_dtype_fn)
 def _depthwise_causal_convolution_forward_core(
     x: torch.Tensor, W: torch.Tensor, b: torch.Tensor | None, h0: torch.Tensor | None, BLOCK_SIZE_S: int
-) -> tuple[torch.Tensor, torch.Tensor]:
+) -> torch.Tensor:
     cache_key = (b is None, h0 is None)
 
     if cache_key not in _CACHE:
@@ -46,6 +45,16 @@ def _depthwise_causal_convolution_forward_pallas(
     b = None if b is None else b.float()[None, :]
     h0 = None if h0 is None else h0.transpose(1, 2).to(x.dtype)
 
-    y, ht = _depthwise_causal_convolution_forward_core(x, W, b, h0, BLOCK_SIZE_S=BLOCK_SIZE_S)
+    y = _depthwise_causal_convolution_forward_core(x, W, b, h0, BLOCK_SIZE_S=BLOCK_SIZE_S)
 
-    return y, ht
+    state_size = W.shape[0] - 1
+    if h0 is None:
+        ht = (
+            torch.nn.functional.pad(x, (0, 0, state_size - x.shape[1], 0))
+            if x.shape[1] < state_size
+            else x[:, -state_size:, :]
+        )
+    else:
+        ht = torch.cat((h0, x), dim=1)[:, -state_size:, :]
+
+    return y, ht.float()
