@@ -327,6 +327,7 @@ def test_kernel_vs_fallback(kernel_size: int, activation: str | None) -> None:
 @pytest.mark.parametrize("activation", [None, "silu", "gelu"])
 @pytest.mark.parametrize("has_input_state", [False, True])
 @pytest.mark.parametrize("output_state", [False, True])
+@pytest.mark.parametrize("dtype", [torch.float32, torch.bfloat16])
 @pytest.mark.parametrize("kernel_backend", [KernelBackend.pallas])
 def test_depthwise_causal_convolution_pallas(
     kernel_size: int,
@@ -334,6 +335,7 @@ def test_depthwise_causal_convolution_pallas(
     activation: str | None,
     has_input_state: bool,
     output_state: bool,
+    dtype: torch.dtype,
     kernel_backend: KernelBackend,
 ) -> None:
     skip_if_incompatible_kernel_backend(kernel_backend)
@@ -347,15 +349,17 @@ def test_depthwise_causal_convolution_pallas(
     torch.manual_seed(42)
 
     with torch.device(device):
-        conv = _make_conv(kernel_size=kernel_size, add_bias=add_bias, activation=activation)
+        conv = _make_conv(kernel_size=kernel_size, add_bias=add_bias, activation=activation).to(dtype)
 
-    x_kernel = torch.randn(_BATCH, _PREFILL_LEN, _HIDDEN_SIZE, device=device, requires_grad=True)
+    x_kernel = torch.randn(_BATCH, _PREFILL_LEN, _HIDDEN_SIZE, device=device, dtype=dtype, requires_grad=True)
     x_torch = x_kernel.clone().detach().requires_grad_()
 
     input_state_kernel = None
     input_state_torch = None
     if has_input_state:
-        input_state_kernel = torch.randn(_BATCH, _HIDDEN_SIZE, kernel_size - 1, device=device, requires_grad=True)
+        input_state_kernel = torch.randn(
+            _BATCH, _HIDDEN_SIZE, kernel_size - 1, device=device, dtype=dtype, requires_grad=True
+        )
         input_state_torch = input_state_kernel.clone().detach().requires_grad_()
 
     y_kernel, state_kernel = conv(
@@ -365,12 +369,22 @@ def test_depthwise_causal_convolution_pallas(
         x_torch, input_state=input_state_torch, output_state=output_state, kernel_backend=KernelBackend.torch
     )
 
-    assert_equal_tensors(y_kernel, y_torch, False, rtol_float32=rtol, atol_float32=atol)
+    assert_equal_tensors(
+        y_kernel, y_torch, False, rtol_float32=rtol, atol_float32=atol, rtol_bfloat16=0, atol_bfloat16=1e-2
+    )
 
     if output_state:
         assert state_kernel is not None
         assert state_torch is not None
-        assert_equal_tensors(state_kernel, state_torch, False, rtol_float32=rtol, atol_float32=atol)
+        assert_equal_tensors(
+            state_kernel,
+            state_torch,
+            False,
+            rtol_float32=rtol,
+            atol_float32=atol,
+            rtol_bfloat16=0,
+            atol_bfloat16=1e-2,
+        )
     else:
         assert state_kernel is None
         assert state_torch is None
@@ -381,9 +395,17 @@ def test_depthwise_causal_convolution_pallas(
     loss_kernel.backward()
     loss_torch.backward()
 
-    assert_equal_tensors(x_kernel.grad, x_torch.grad, False, rtol_float32=rtol, atol_float32=atol)
+    assert_equal_tensors(
+        x_kernel.grad, x_torch.grad, False, rtol_float32=rtol, atol_float32=atol, rtol_bfloat16=0, atol_bfloat16=2e-2
+    )
 
     if has_input_state:
         assert_equal_tensors(
-            input_state_kernel.grad, input_state_torch.grad, False, rtol_float32=rtol, atol_float32=atol
+            input_state_kernel.grad,
+            input_state_torch.grad,
+            False,
+            rtol_float32=rtol,
+            atol_float32=atol,
+            rtol_bfloat16=0,
+            atol_bfloat16=2e-2,
         )

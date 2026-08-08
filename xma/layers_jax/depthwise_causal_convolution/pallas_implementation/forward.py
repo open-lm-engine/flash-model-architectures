@@ -39,13 +39,16 @@ def _forward_kernel(
     MASK_S = (BLOCK_ID_S * BLOCK_SIZE_S + BLOCK_S) < S
 
     x = jnp.where(MASK_S, x_ref[...], 0).astype(dtype)
+    # Mosaic's vector.extract (used for single-row indexing below) only supports 32-bit
+    # element types, so extract rows from a float32 copy rather than the bf16 `x`.
+    x_f32 = x.astype(jnp.float32)
     b = jnp.zeros((1, H), dtype=jnp.float32) if b_ref is None else b_ref[...].astype(jnp.float32)
 
     tail_len = BLOCK_SIZE_S - K + 1
     y_tail = jnp.zeros((tail_len, H), dtype=jnp.float32) + b
     for k in range(K):
         W = W_ref[k, :].astype(jnp.float32)
-        y_tail += W[None, :] * x[k : k + tail_len, :].astype(jnp.float32)
+        y_tail += W[None, :] * x_f32[k : k + tail_len, :]
 
     offset = PAD - K + 1
 
@@ -59,7 +62,7 @@ def _forward_kernel(
             if p < K - 1:
                 source = h_scratch[offset + p, :]
             else:
-                source = x[p - K + 1, :].astype(jnp.float32)
+                source = x_f32[p - K + 1, :]
 
             row += W * source
         head_rows.append(row)
@@ -68,7 +71,7 @@ def _forward_kernel(
     y_ref[...] = y.astype(dtype)
 
     for p in range(K - 1):
-        h_scratch[offset + p, :] = x[tail_len + p, :].astype(jnp.float32)
+        h_scratch[offset + p, :] = x_f32[tail_len + p, :].astype(dtype)
 
 
 @partial(jax.jit, static_argnames=("BLOCK_SIZE_S",))
