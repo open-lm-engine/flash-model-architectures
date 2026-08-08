@@ -172,7 +172,7 @@
           <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
         </button>
       </div>
-      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+      <label class="toc-overlay-icon toc-header-icon no-toc" for="__toc">
         <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
       </label>
     </div>
@@ -269,73 +269,14 @@
               <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
             </button>
           </div>
-          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+          <label class="toc-overlay-icon toc-content-icon no-toc" for="__toc">
             <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section id="module-xma.layers_jax.depthwise_causal_convolution.module">
-<span id="xma-layers-jax-depthwise-causal-convolution"></span><h1>xma.layers_jax.depthwise_causal_convolution<a class="headerlink" href="#module-xma.layers_jax.depthwise_causal_convolution.module" title="Link to this heading">¶</a></h1>
-<dl class="py class">
-<dt class="sig sig-object py" id="xma.layers_jax.depthwise_causal_convolution.module.DepthwiseCausalConvolutionJAX">
-<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">DepthwiseCausalConvolutionJAX</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/xma/layers_jax/depthwise_causal_convolution/module.html#DepthwiseCausalConvolutionJAX"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#xma.layers_jax.depthwise_causal_convolution.module.DepthwiseCausalConvolutionJAX" title="Link to this definition">¶</a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></p>
-<dl class="py attribute">
-<dt class="sig sig-object py" id="xma.layers_jax.depthwise_causal_convolution.module.DepthwiseCausalConvolutionJAX.bias">
-<span class="sig-name descname"><span class="pre">bias</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">NamedArray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><a class="headerlink" href="#xma.layers_jax.depthwise_causal_convolution.module.DepthwiseCausalConvolutionJAX.bias" title="Link to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="xma.layers_jax.depthwise_causal_convolution.module.DepthwiseCausalConvolutionJAX.init">
-<span class="property"><span class="k"><span class="pre">static</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">init</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">Embed</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">haliax.Axis</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kernel_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">activation_function</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Callable</span><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><span class="pre">jax.Array</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">jax.Array</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">add_bias</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">jaxtyping.PRNGKeyArray</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#xma.layers_jax.depthwise_causal_convolution.module.DepthwiseCausalConvolutionJAX" title="xma.layers_jax.depthwise_causal_convolution.module.DepthwiseCausalConvolutionJAX"><span class="pre">DepthwiseCausalConvolutionJAX</span></a></span></span><a class="reference internal" href="_modules/xma/layers_jax/depthwise_causal_convolution/module.html#DepthwiseCausalConvolutionJAX.init"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#xma.layers_jax.depthwise_causal_convolution.module.DepthwiseCausalConvolutionJAX.init" title="Link to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="xma.layers_jax.depthwise_causal_convolution.module.DepthwiseCausalConvolutionJAX.weight">
-<span class="sig-name descname"><span class="pre">weight</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">NamedArray</span></span><a class="headerlink" href="#xma.layers_jax.depthwise_causal_convolution.module.DepthwiseCausalConvolutionJAX.weight" title="Link to this definition">¶</a></dt>
-<dd></dd></dl>
-
-</dd></dl>
-
-<dl class="py function" id="module-xma.layers_jax.depthwise_causal_convolution.op">
-<dt class="sig sig-object py" id="xma.layers_jax.depthwise_causal_convolution.op.depthwise_causal_convolution_jax">
-<span class="sig-name descname"><span class="pre">depthwise_causal_convolution_jax</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">jax.Array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">jax.Array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bias</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">jax.Array</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_state</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">jax.Array</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">attention_mask</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">jax.Array</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_state</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">activation_function</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Callable</span><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><span class="pre">jax.Array</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">jax.Array</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">jax.Array</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">jax.Array</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/xma/layers_jax/depthwise_causal_convolution/op.html#depthwise_causal_convolution_jax"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#xma.layers_jax.depthwise_causal_convolution.op.depthwise_causal_convolution_jax" title="Link to this definition">¶</a></dt>
-<dd><p>computes depthwise causal 1D convolution: <cite>output[b, t, h] = act(bias[h] + sum_k weight[h, k] *
-z[b, t + k, h])</cite> where <cite>z</cite> is <cite>input</cite> preceded by <cite>kernel_size</cite> raw history positions taken from
-<cite>input_state</cite> (or 0 if <cite>input_state</cite> is None), i.e. <cite>output[b, t]</cite> only depends on
-<cite>input[b, t - kernel_size + 1 : t + 1]</cite>.</p>
-<p>there is no hand-written/fused TPU kernel here - this is a plain <cite>jax.lax</cite> reference implementation,
-differentiable via ordinary JAX autodiff (<cite>lax.conv_general_dilated</cite> already has forward/reverse-mode
-rules built in).</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>input</strong> (<em>jax.Array</em>) – input tensor of shape (B, S, H)</p></li>
-<li><p><strong>weight</strong> (<em>jax.Array</em>) – depthwise convolution weight of shape (H, K), K being the kernel size</p></li>
-<li><p><strong>bias</strong> (<em>jax.Array</em><em> | </em><em>None</em>) – bias tensor of shape (H,). None means no bias is added. Defaults to None.</p></li>
-<li><p><strong>input_state</strong> (<em>jax.Array</em><em> | </em><em>None</em>) – the <cite>K</cite> raw (pre-convolution) input positions preceding <cite>input</cite>, of shape (B, H, K).
-None is equivalent to a 0 tensor. Defaults to None.</p></li>
-<li><p><strong>attention_mask</strong> (<em>jax.Array</em><em> | </em><em>None</em>) – mask of shape (B, S), zeroing out padding positions before and after the
-convolution. Defaults to None.</p></li>
-<li><p><strong>output_state</strong> (<em>bool</em>) – whether to also return the trailing <cite>K</cite> raw input positions (taken from <cite>input</cite>,
-falling back to <cite>input_state</cite> if <cite>input</cite> is shorter than <cite>K</cite>) for use as <cite>input_state</cite> in a
-subsequent call. Defaults to False.</p></li>
-<li><p><strong>activation_function</strong> (<em>str</em><em> | </em><em>Callable</em><em>[</em><em>[</em><em>jax.Array</em><em>]</em><em>, </em><em>jax.Array</em><em>] </em><em>| </em><em>None</em>) – activation applied after the convolution + bias. Either a name in
-{“gelu”, “relu”, “sigmoid”, “silu”, “swish”, “tanh”}, an arbitrary callable, or None (identity).
-Defaults to None.</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>output tensor of shape (B, S, H), and the output state of shape (B, H, K) if <cite>output_state</cite> is
-True else None.</p>
-</dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>tuple[jax.Array, jax.Array | None]</p>
-</dd>
-</dl>
-</dd></dl>
-
-<span class="target" id="module-xma.layers_jax.depthwise_causal_convolution"></span></section>
+          <section id="xma-layers-jax-depthwise-causal-convolution">
+<h1>xma.layers_jax.depthwise_causal_convolution<a class="headerlink" href="#xma-layers-jax-depthwise-causal-convolution" title="Link to this heading">¶</a></h1>
+</section>
 
         </article>
       </div>
@@ -380,33 +321,8 @@ True else None.</p>
         
       </footer>
     </div>
-    <aside class="toc-drawer">
+    <aside class="toc-drawer no-toc">
       
-      
-      <div class="toc-sticky toc-scroll">
-        <div class="toc-title-container">
-          <span class="toc-title">
-            On this page
-          </span>
-        </div>
-        <div class="toc-tree-container">
-          <div class="toc-tree">
-            <ul>
-<li><a class="reference internal" href="#">xma.layers_jax.depthwise_causal_convolution</a><ul>
-<li><a class="reference internal" href="#xma.layers_jax.depthwise_causal_convolution.module.DepthwiseCausalConvolutionJAX"><code class="docutils literal notranslate"><span class="pre">DepthwiseCausalConvolutionJAX</span></code></a><ul>
-<li><a class="reference internal" href="#xma.layers_jax.depthwise_causal_convolution.module.DepthwiseCausalConvolutionJAX.bias"><code class="docutils literal notranslate"><span class="pre">DepthwiseCausalConvolutionJAX.bias</span></code></a></li>
-<li><a class="reference internal" href="#xma.layers_jax.depthwise_causal_convolution.module.DepthwiseCausalConvolutionJAX.init"><code class="docutils literal notranslate"><span class="pre">DepthwiseCausalConvolutionJAX.init()</span></code></a></li>
-<li><a class="reference internal" href="#xma.layers_jax.depthwise_causal_convolution.module.DepthwiseCausalConvolutionJAX.weight"><code class="docutils literal notranslate"><span class="pre">DepthwiseCausalConvolutionJAX.weight</span></code></a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#xma.layers_jax.depthwise_causal_convolution.op.depthwise_causal_convolution_jax"><code class="docutils literal notranslate"><span class="pre">depthwise_causal_convolution_jax()</span></code></a></li>
-</ul>
-</li>
-</ul>
-
-          </div>
-        </div>
-      </div>
       
       
     </aside>
