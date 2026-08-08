@@ -19,10 +19,7 @@ from xma.layers_jax import LinearAttentionJAX, linear_attention_jax
 
 
 _ATTENTION_MULTIPLIER = 0.3
-_TOLERANCES = {
-    "float32": {"atol": 1e-4, "rtol": 1e-4},
-    "bfloat16": {"atol": 2e-2, "rtol": 2e-2},
-}
+_TOLERANCES = {"float32": {"atol": 8e-4, "rtol": 0}, "bfloat16": {"atol": 8e-4, "rtol": 0}}
 
 
 def _get_problem_shapes() -> list[tuple[int, int, int, int, int]]:
