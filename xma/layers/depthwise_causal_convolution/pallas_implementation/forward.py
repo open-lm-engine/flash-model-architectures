@@ -10,7 +10,7 @@ from ....layers_jax.depthwise_causal_convolution.pallas_implementation.forward i
 
 
 def _output_shape_dtype_fn(
-    x: torch.Tensor, W: torch.Tensor, b: torch.Tensor | None, h0: torch.Tensor | None, BLOCK_SIZE_S: int
+    x: torch.Tensor, W: torch.Tensor, b: torch.Tensor | None, h0: torch.Tensor | None
 ) -> list[tuple[tuple[int, ...], torch.dtype]]:
     B, S, H = x.shape
 

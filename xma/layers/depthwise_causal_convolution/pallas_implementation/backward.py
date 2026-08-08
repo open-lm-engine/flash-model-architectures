@@ -2,6 +2,8 @@
 # Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
+from typing import Callable
+
 import torch
 
 from ....layers_jax.depthwise_causal_convolution.pallas_implementation.backward import (
@@ -13,14 +15,17 @@ from ....layers_jax.depthwise_causal_convolution.pallas_implementation.backward 
 from ....math import ceil_divide
 
 
-def _state_passing_output_shape_dtype_fn(
-    x: torch.Tensor, h0: torch.Tensor | None, BLOCK_SIZE_S: int, K: int
-) -> list[tuple[tuple[int, ...], torch.dtype]]:
-    B, S, H = x.shape
-    NUM_BLOCKS_S = ceil_divide(S, BLOCK_SIZE_S)
-    PAD = ceil_divide(K - 1, 8) * 8
+def _make_state_passing_output_shape_dtype_fn(BLOCK_SIZE_S: int, K: int) -> Callable:
+    # make_kernel_from_pallas calls this with only the non-static tensor args (x, h0), so BLOCK_SIZE_S/K
+    # (needed for the output shape) must be captured via closure instead of taken as parameters.
+    def _output_shape_dtype_fn(x: torch.Tensor, h0: torch.Tensor | None) -> list[tuple[tuple[int, ...], torch.dtype]]:
+        B, S, H = x.shape
+        NUM_BLOCKS_S = ceil_divide(S, BLOCK_SIZE_S)
+        PAD = ceil_divide(K - 1, 8) * 8
 
-    return [((B, NUM_BLOCKS_S, PAD, H), torch.float32)]
+        return [((B, NUM_BLOCKS_S, PAD, H), torch.float32)]
+
+    return _output_shape_dtype_fn
 
 
 _STATE_PASSING_CACHE = {}
@@ -29,13 +34,14 @@ _STATE_PASSING_CACHE = {}
 def _depthwise_causal_convolution_state_passing_core(
     x: torch.Tensor, h0: torch.Tensor | None, BLOCK_SIZE_S: int, K: int
 ) -> torch.Tensor:
-    cache_key = h0 is None
+    cache_key = (h0 is None, BLOCK_SIZE_S, K)
 
     if cache_key not in _STATE_PASSING_CACHE:
         from torch_xla.experimental.custom_kernel import make_kernel_from_pallas
 
         _STATE_PASSING_CACHE[cache_key] = make_kernel_from_pallas(
-            _depthwise_causal_convolution_state_passing_core_jax, _state_passing_output_shape_dtype_fn
+            _depthwise_causal_convolution_state_passing_core_jax,
+            _make_state_passing_output_shape_dtype_fn(BLOCK_SIZE_S, K),
         )
 
     return _STATE_PASSING_CACHE[cache_key](
@@ -44,9 +50,10 @@ def _depthwise_causal_convolution_state_passing_core(
 
 
 def _backward_output_shape_dtype_fn(
-    x: torch.Tensor, W: torch.Tensor, h: torch.Tensor, dy: torch.Tensor, dht: torch.Tensor, BLOCK_SIZE_S: int, K: int
+    x: torch.Tensor, W: torch.Tensor, h: torch.Tensor, dy: torch.Tensor, dht: torch.Tensor
 ) -> list[tuple[tuple[int, ...], torch.dtype]]:
     B, S, H = x.shape
+    K = W.shape[0]
 
     return [
         ((B, S, H), x.dtype),
