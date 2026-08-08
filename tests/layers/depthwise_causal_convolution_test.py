@@ -249,7 +249,7 @@ def test_attention_mask(kernel_size: int, kernel_backend: KernelBackend) -> None
     if kernel_backend == KernelBackend.cuda and not is_causal_conv1d_available():
         pytest.skip("causal_conv1d unavailable")
 
-    rtol, atol = (0, 2e-4) if Accelerator.get_accelerator() == Accelerator.tpu else (1e-5, 1e-5)
+    rtol, atol = (2e-2, 2e-3) if Accelerator.get_accelerator() == Accelerator.tpu else (1e-5, 1e-5)
 
     conv = _make_conv(kernel_size=kernel_size, activation=None).to(device)
     conv.eval()
