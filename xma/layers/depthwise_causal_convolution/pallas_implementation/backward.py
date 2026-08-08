@@ -54,12 +54,13 @@ def _backward_output_shape_dtype_fn(
 ) -> list[tuple[tuple[int, ...], torch.dtype]]:
     B, S, H = x.shape
     K = W.shape[0]
+    pad = ceil_divide(K - 1, 8) * 8
 
     return [
         ((B, S, H), x.dtype),
         ((K, H), torch.float32),
         ((1, H), torch.float32),
-        ((B, K - 1, H), torch.float32),
+        ((B, pad, H), torch.float32),
     ]
 
 
@@ -88,24 +89,28 @@ def _depthwise_causal_convolution_backward_pallas(
     dht: torch.Tensor | None,
     BLOCK_SIZE_S: int = 128,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor | None, torch.Tensor | None]:
-    # x, W, b: the forward's original (un-transposed) inputs, saved as residuals - mirrors the jax-side outer
-    # wrapper (pallas_implementation/__init__.py::_depthwise_causal_convolution_backward). h0: (B, H, K - 1),
-    # matching the (B, H, K - 1) input_state/final_state contract - just transpose, no slicing needed.
     B, _, H = x.shape
     K = W.shape[-1]
 
     W = W.transpose(1, 0)
 
-    h0_in = None if h0 is None else h0.transpose(1, 2).to(x.dtype)
+    if h0 is not None:
+        h0 = h0.transpose(1, 2).to(x.dtype)
 
-    h = _depthwise_causal_convolution_state_passing_core(x, h0_in, BLOCK_SIZE_S=BLOCK_SIZE_S, K=K)
+        state_size = K - 1
+        pad = ceil_divide(state_size, 8) * 8
+        h0 = torch.nn.functional.pad(h0, (0, 0, pad - state_size, 0))
+
+    h = _depthwise_causal_convolution_state_passing_core(x=x, h0=h0, BLOCK_SIZE_S=BLOCK_SIZE_S, K=K)
 
     dht = torch.zeros(B, K - 1, H, dtype=torch.float32, device=x.device) if dht is None else dht.float()
 
-    dx, dW, db, dh0 = _depthwise_causal_convolution_backward_core(x, W, h, dy, dht, BLOCK_SIZE_S=BLOCK_SIZE_S, K=K)
+    dx, dW, db, dh0 = _depthwise_causal_convolution_backward_core(
+        x=x, W=W, h=h, dy=dy, dht=dht, BLOCK_SIZE_S=BLOCK_SIZE_S, K=K
+    )
 
     dW = dW.transpose(1, 0)
     db = None if b is None else db[0]
-    dh0 = None if h0 is None else dh0.transpose(1, 2)
+    dh0 = None if h0 is None else dh0[:, 1 - K :, :].transpose(1, 2)
 
     return dx, dW, db, dh0

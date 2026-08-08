@@ -36,9 +36,6 @@ def _state_passing_core(x: jax.Array, h0: jax.Array | None, BLOCK_SIZE_S: int, K
     NUM_BLOCKS_S = ceil_divide(S, BLOCK_SIZE_S)
     PAD = ceil_divide(K - 1, 8) * 8
 
-    if h0 is not None:
-        h0 = jnp.pad(h0, ((0, 0), (PAD - K + 1, 0), (0, 0)))
-
     kernel = pl.pallas_call(
         partial(_state_passing_kernel, K=K),
         out_shape=jax.ShapeDtypeStruct((B, NUM_BLOCKS_S, PAD, H), jnp.float32),
@@ -223,6 +220,5 @@ def _backward_core(
     )
 
     dx, dW, db, dh0 = kernel(x, W, h, dy, dht)
-    dh0 = dh0[:, 1 - K :, :]
 
     return dx, dW, db, dh0

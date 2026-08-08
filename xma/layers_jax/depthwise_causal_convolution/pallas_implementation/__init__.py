@@ -8,8 +8,15 @@ from typing import Callable
 import jax
 import jax.numpy as jnp
 
+from ....math import ceil_divide
 from .backward import _backward_core, _state_passing_core
 from .forward import _forward_core
+
+
+def _pad_h0(h0: jax.Array, K: int) -> jax.Array:
+    state_size = K - 1
+    pad = ceil_divide(state_size, 8) * 8
+    return jnp.pad(h0, ((0, 0), (pad - state_size, 0), (0, 0)))
 
 
 @partial(jax.custom_vjp, nondiff_argnums=(4, 5))
@@ -26,6 +33,7 @@ def _depthwise_causal_convolution_pallas(
 
     if h0 is not None:
         h0 = jnp.transpose(h0, (0, 2, 1)).astype(x.dtype)
+        h0 = _pad_h0(h0, K=W.shape[0])
 
     y = _forward_core(x=x, W=W, b=b, h0=h0, BLOCK_SIZE_S=BLOCK_SIZE_S)
 
@@ -73,6 +81,7 @@ def _depthwise_causal_convolution_backward(
 
     if h0 is not None:
         h0 = jnp.transpose(h0, (0, 2, 1)).astype(x.dtype)
+        h0 = _pad_h0(h0, K=K)
 
     dht = None if dht is None or not output_state else jnp.transpose(dht, (0, 2, 1)).astype(jnp.float32)
 
@@ -81,7 +90,7 @@ def _depthwise_causal_convolution_backward(
 
     dW = jnp.transpose(dW, (1, 0))
     db = None if b is None else db[0]
-    dh0 = None if h0 is None else jnp.transpose(dh0, (0, 2, 1))
+    dh0 = None if h0 is None else jnp.transpose(dh0[:, 1 - K :, :], (0, 2, 1))
 
     return dx, dW, db, dh0
 

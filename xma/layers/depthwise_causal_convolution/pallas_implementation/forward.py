@@ -7,6 +7,7 @@ import torch
 from ....layers_jax.depthwise_causal_convolution.pallas_implementation.forward import (
     _forward_core as _depthwise_causal_convolution_forward_core_jax,
 )
+from ....math import ceil_divide
 
 
 def _output_shape_dtype_fn(
@@ -43,9 +44,8 @@ def _depthwise_causal_convolution_forward_pallas(
     b = None if b is None else b.float()[None, :]
     h0 = None if h0 is None else h0.transpose(1, 2).to(x.dtype)
 
-    y = _depthwise_causal_convolution_forward_core(x, W, b, h0, BLOCK_SIZE_S=BLOCK_SIZE_S)
-
     state_size = W.shape[0] - 1
+
     if h0 is None:
         ht = (
             torch.nn.functional.pad(x, (0, 0, state_size - x.shape[1], 0))
@@ -54,5 +54,11 @@ def _depthwise_causal_convolution_forward_pallas(
         )
     else:
         ht = torch.cat((h0, x), dim=1)[:, -state_size:, :]
+
+    if h0 is not None:
+        pad = ceil_divide(state_size, 8) * 8
+        h0 = torch.nn.functional.pad(h0, (0, 0, pad - state_size, 0))
+
+    y = _depthwise_causal_convolution_forward_core(x=x, W=W, b=b, h0=h0, BLOCK_SIZE_S=BLOCK_SIZE_S)
 
     return y, ht.float()

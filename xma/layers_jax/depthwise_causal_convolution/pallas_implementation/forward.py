@@ -81,15 +81,11 @@ def _forward_core(
 ) -> jax.Array:
     B, S, H = x.shape
     K = W.shape[0]
-    state_size = K - 1
     PAD = ceil_divide(K - 1, 8) * 8
 
     x_spec = pl.BlockSpec(
         block_shape=(None, BLOCK_SIZE_S, H), index_map=lambda BLOCK_ID_B, BLOCK_ID_S: (BLOCK_ID_B, BLOCK_ID_S, 0)
     )
-
-    if h0 is not None:
-        h0 = jnp.pad(h0, ((0, 0), (PAD - state_size, 0), (0, 0)))
 
     kernel = pl.pallas_call(
         partial(_forward_kernel, BLOCK_SIZE_S=BLOCK_SIZE_S, S=S, K=K, PAD=PAD),
