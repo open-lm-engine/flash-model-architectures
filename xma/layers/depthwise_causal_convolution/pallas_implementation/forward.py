@@ -4,7 +4,6 @@
 
 import torch
 
-from ....custom_op import xma_op
 from ....layers_jax.depthwise_causal_convolution.pallas_implementation.forward import (
     _forward_core as _depthwise_causal_convolution_forward_core_jax,
 )
@@ -21,7 +20,6 @@ def _output_shape_dtype_fn(
 _CACHE = {}
 
 
-@xma_op(mutates_args={}, fake_func=_output_shape_dtype_fn)
 def _depthwise_causal_convolution_forward_core(
     x: torch.Tensor, W: torch.Tensor, b: torch.Tensor | None, h0: torch.Tensor | None, BLOCK_SIZE_S: int
 ) -> torch.Tensor:

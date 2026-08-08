@@ -4,7 +4,6 @@
 
 import torch
 
-from ....custom_op import xma_op
 from ....layers_jax.depthwise_causal_convolution.pallas_implementation.backward import (
     _backward_core as _backward_core_jax,
 )
@@ -27,7 +26,6 @@ def _state_passing_output_shape_dtype_fn(
 _STATE_PASSING_CACHE = {}
 
 
-@xma_op(mutates_args={}, fake_func=_state_passing_output_shape_dtype_fn)
 def _depthwise_causal_convolution_state_passing_core(
     x: torch.Tensor, h0: torch.Tensor | None, BLOCK_SIZE_S: int, K: int
 ) -> torch.Tensor:
@@ -61,7 +59,6 @@ def _backward_output_shape_dtype_fn(
 _BACKWARD_CACHE = None
 
 
-@xma_op(mutates_args={}, fake_func=_backward_output_shape_dtype_fn)
 def _depthwise_causal_convolution_backward_core(
     x: torch.Tensor, W: torch.Tensor, h: torch.Tensor, dy: torch.Tensor, dht: torch.Tensor, BLOCK_SIZE_S: int, K: int
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
