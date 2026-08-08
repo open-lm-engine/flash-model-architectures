@@ -16,6 +16,15 @@ from xma.utils import is_causal_conv1d_available
 from ..utils import assert_equal_tensors, skip_if_incompatible_kernel_backend
 
 
+# TPU downcasts FP32 matmuls/convs to bf16 by default ("default" precision), which is too imprecise
+# for this library's kernels (e.g. depthwise causal convolution's different codepaths for prefill vs
+# generation drift apart under bf16 rounding). "highest" keeps FP32 inputs at full FP32 precision.
+if Accelerator.get_accelerator() == Accelerator.tpu:
+    from torch_xla.backends import set_mat_mul_precision as _xla_set_mat_mul_precision
+
+    _xla_set_mat_mul_precision("highest")
+
+
 _HIDDEN_SIZE = 8
 _BATCH = 2
 _PREFILL_LEN = 6
