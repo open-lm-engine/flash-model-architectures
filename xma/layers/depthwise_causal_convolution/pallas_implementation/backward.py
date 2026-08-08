@@ -11,7 +11,7 @@ from ....layers_jax.depthwise_causal_convolution.pallas_implementation.backward 
     _backward_core as _backward_core_jax,
 )
 from ....layers_jax.depthwise_causal_convolution.pallas_implementation.backward import (
-    _state_passing_core as _depthwise_causal_convolution_state_passing_core_jax,
+    _state_passing_core as _state_passing_core_jax,
 )
 from ....math import ceil_divide
 
@@ -24,7 +24,7 @@ def _make_state_passing_output_shape_dtype_fn(BLOCK_SIZE_S: int, K: int) -> Call
         NUM_BLOCKS_S = ceil_divide(S, BLOCK_SIZE_S)
         PAD = ceil_divide(K - 1, 8) * 8
 
-        return [((B, NUM_BLOCKS_S, PAD, H), torch.float32)]
+        return [((B, NUM_BLOCKS_S, PAD, H), x.dtype)]
 
     return _output_shape_dtype_fn
 
@@ -41,7 +41,7 @@ def _depthwise_causal_convolution_state_passing_core(
         from torch_xla.experimental.custom_kernel import make_kernel_from_pallas
 
         _STATE_PASSING_CACHE[cache_key] = make_kernel_from_pallas(
-            _depthwise_causal_convolution_state_passing_core_jax,
+            _state_passing_core_jax,
             _make_state_passing_output_shape_dtype_fn(BLOCK_SIZE_S, K),
         )
 
