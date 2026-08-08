@@ -44,17 +44,13 @@ def _forward_kernel(
 
     hist_padded = jnp.pad(h_scratch[...].astype(jnp.float32), ((BLOCK_SIZE_S - PAD, 0), (0, 0)))
 
-    y = jnp.broadcast_to(b, (BLOCK_SIZE_S, H))
-    W = W_ref[K - 1, :].astype(jnp.float32)
-    y += W[None, :] * x_f32
+    taps = [
+        jnp.where(BLOCK_S < shift, pltpu.roll(hist_padded, shift, axis=0), pltpu.roll(x_f32, shift, axis=0))
+        for shift in (K - 1 - k for k in range(K))
+    ]
 
-    for k in range(K - 1):
-        shift = K - 1 - k
-
-        W = W_ref[k, :].astype(jnp.float32)
-        y += W[None, :] * jnp.where(
-            BLOCK_S < shift, pltpu.roll(hist_padded, shift, axis=0), pltpu.roll(x_f32, shift, axis=0)
-        )
+    W = W_ref[...].astype(jnp.float32)
+    y = jnp.sum(jnp.stack(taps, axis=0) * W[:, None, :], axis=0) + b
 
     y_ref[...] = y.astype(dtype)
     h_scratch[...] = x_f32[BLOCK_SIZE_S - PAD :, :].astype(dtype)
