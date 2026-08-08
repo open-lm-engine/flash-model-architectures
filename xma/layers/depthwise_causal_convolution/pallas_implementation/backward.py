@@ -5,6 +5,7 @@
 from typing import Callable
 
 import torch
+import torch.nn.functional as F
 
 from ....layers_jax.depthwise_causal_convolution.pallas_implementation.backward import (
     _backward_core as _backward_core_jax,
@@ -99,7 +100,7 @@ def _depthwise_causal_convolution_backward_pallas(
 
         state_size = K - 1
         pad = ceil_divide(state_size, 8) * 8
-        h0 = torch.nn.functional.pad(h0, (0, 0, pad - state_size, 0))
+        h0 = F.pad(h0, (0, 0, pad - state_size, 0))
 
     h = _depthwise_causal_convolution_state_passing_core(x=x, h0=h0, BLOCK_SIZE_S=BLOCK_SIZE_S, K=K)
 

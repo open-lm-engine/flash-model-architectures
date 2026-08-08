@@ -29,7 +29,7 @@ def _forward_kernel(
         if h0_ref is None:
             h_scratch[...] = jnp.zeros_like(h_scratch)
         else:
-            h_scratch[...] = h0_ref[...].astype(jnp.float32)
+            h_scratch[...] = h0_ref[...]
 
     dtype = x_ref.dtype
     H = x_ref.shape[-1]
@@ -104,7 +104,7 @@ def _forward_core(
             ),
         ),
         out_specs=x_spec,
-        scratch_shapes=[pltpu.VMEM((PAD, H), jnp.float32)],
+        scratch_shapes=[pltpu.VMEM((PAD, H), x.dtype)],
         compiler_params=pltpu.CompilerParams(dimension_semantics=("parallel", "arbitrary")),
     )
 
