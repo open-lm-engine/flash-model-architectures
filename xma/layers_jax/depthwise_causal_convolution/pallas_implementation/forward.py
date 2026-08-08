@@ -42,17 +42,22 @@ def _forward_kernel(
     x_f32 = x.astype(jnp.float32)
     b = jnp.zeros((1, H), dtype=jnp.float32) if b_ref is None else b_ref[...].astype(jnp.float32)
 
-    offset = PAD - K + 1
-    hist = h_scratch[offset:, :].astype(jnp.float32)
-    combined = jnp.concatenate([hist, x_f32], axis=0)
+    hist_padded = jnp.pad(h_scratch[...].astype(jnp.float32), ((BLOCK_SIZE_S - PAD, 0), (0, 0)))
 
     y = jnp.broadcast_to(b, (BLOCK_SIZE_S, H))
     for k in range(K):
         W = W_ref[k, :].astype(jnp.float32)
-        y = y + W[None, :] * combined[k : k + BLOCK_SIZE_S, :]
+        shift = K - 1 - k
+
+        if shift == 0:
+            tap = x_f32
+        else:
+            tap = jnp.where(BLOCK_S < shift, pltpu.roll(hist_padded, shift, axis=0), pltpu.roll(x_f32, shift, axis=0))
+
+        y = y + W[None, :] * tap
 
     y_ref[...] = y.astype(dtype)
-    h_scratch[offset:, :] = x_f32[BLOCK_SIZE_S - K + 1 :, :].astype(dtype)
+    h_scratch[...] = x_f32[BLOCK_SIZE_S - PAD :, :].astype(dtype)
 
 
 @partial(jax.jit, static_argnames=("BLOCK_SIZE_S",))
