@@ -24,7 +24,9 @@ def _forward_kernel(
     K: int,
     PAD: int,
 ) -> None:
-    @pl.when(pl.program_id(1) == 0)
+    BLOCK_ID_S = pl.program_id(1)
+
+    @pl.when(BLOCK_ID_S == 0)
     def _():
         if h0_ref is None:
             h_scratch[...] = jnp.zeros_like(h_scratch)
@@ -34,7 +36,6 @@ def _forward_kernel(
     dtype = x_ref.dtype
     H = x_ref.shape[-1]
 
-    BLOCK_ID_S = pl.program_id(1)
     BLOCK_S = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, 1), 0)
     MASK_S = (BLOCK_ID_S * BLOCK_SIZE_S + BLOCK_S) < S
 
