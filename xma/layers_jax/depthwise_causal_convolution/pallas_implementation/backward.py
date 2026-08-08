@@ -135,9 +135,7 @@ def _backward_kernel(
     for p in range(state_prefix, K - 1):
         x_position = x_state_start + p - state_prefix
         x_position_in_block = x_position - BLOCK_ID_S * BLOCK_SIZE_S
-        x_position_in_block_safe = jnp.clip(x_position_in_block, 0, BLOCK_SIZE_S - 1)
-        is_in_block = (x_position_in_block >= 0) & (x_position_in_block < BLOCK_SIZE_S)
-        dx = dx.at[x_position_in_block_safe, :].add(jnp.where(is_in_block, dht_scratch[offset + p, :], 0))
+        dx += jnp.where(BLOCK_S == x_position_in_block, dht_scratch[offset + p, :], 0)
 
     dx_ref[...] = jnp.where(MASK_S, dx, 0).astype(dtype)
 
