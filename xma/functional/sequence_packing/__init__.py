@@ -7,177 +7,32 @@ from typing import Sequence
 import torch
 
 from ...accelerator import KernelBackend
-from ...custom_op import CustomOp, ctx_save_for_backward
+from ...custom_op import CustomOp
 from ...utils import is_cute_dsl_available, is_triton_available
+from .torch_implementation import _pack_torch, _unpack_torch
+
+
+class _PackSequence(CustomOp): ...
+
+
+class _UnpackSequence(CustomOp): ...
+
+
+_PackSequence[KernelBackend.torch] = _pack_torch
+_UnpackSequence[KernelBackend.torch] = _unpack_torch
 
 
 if is_cute_dsl_available():
-    from .cuda_implementation import _pack_unpack_sequence_cuda
+    from .cuda_implementation import _PackSequenceCUDA, _UnpackSequenceCUDA
+
+    _PackSequence[KernelBackend.cuda] = _PackSequenceCUDA
+    _UnpackSequence[KernelBackend.cuda] = _UnpackSequenceCUDA
 
 if is_triton_available():
-    from .triton_implementation import _pack_unpack_sequence_triton
+    from .triton_implementation import _PackSequenceTriton, _UnpackSequenceTriton
 
-
-class _PackSequence(CustomOp):
-    @staticmethod
-    def forward_backward_torch(
-        x: torch.Tensor, cu_seqlens: torch.Tensor, output_shape: tuple[int], padding_side: str
-    ) -> torch.Tensor:
-        B, S = x.size()[:2]
-        seqlens = cu_seqlens[1:] - cu_seqlens[:-1]
-        batch_indices = torch.arange(B, device=x.device).repeat_interleave(seqlens)
-
-        if padding_side == "left":
-            pad_tokens = S - seqlens
-            seq_indices = torch.cat([torch.arange(sl, S, device=x.device) for sl in pad_tokens])
-        elif padding_side == "right":
-            seq_indices = torch.cat([torch.arange(sl, device=x.device) for sl in seqlens])
-        else:
-            raise ValueError(f"unexpected padding_side ({padding_side})")
-
-        x = x[batch_indices, seq_indices]
-
-        return x
-
-    @staticmethod
-    def forward(
-        ctx,
-        x: torch.Tensor,
-        cu_seqlens: torch.Tensor,
-        output_shape: tuple[int],
-        padding_side: str,
-        kernel_backend: KernelBackend,
-    ) -> torch.Tensor:
-        ctx.kernel_backend = kernel_backend
-
-        if kernel_backend == KernelBackend.cuda:
-            x = x.contiguous()
-            cu_seqlens = cu_seqlens.contiguous()
-
-        ctx_save_for_backward(ctx, cu_seqlens)
-        ctx.padding_side = padding_side
-        ctx.x_shape = x.size()
-
-        y = torch.empty(output_shape, device=x.device, dtype=x.dtype)
-
-        if kernel_backend == KernelBackend.cuda:
-            _pack_unpack_sequence_cuda(
-                x=x, y=y, cu_seqlens=cu_seqlens, padding_side=padding_side, pack=True, BLOCK_SIZE=1024
-            )
-        elif kernel_backend == KernelBackend.triton:
-            _pack_unpack_sequence_triton(x=x, y=y, cu_seqlens=cu_seqlens, padding_side=padding_side, pack=True)
-        else:
-            raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
-
-        return y
-
-    @staticmethod
-    def backward(ctx, dy: torch.Tensor) -> tuple[torch.Tensor, None, None, None, None]:
-        kernel_backend = ctx.kernel_backend
-        cu_seqlens = ctx.saved_tensors[0]
-
-        dx = torch.zeros(*ctx.x_shape, device=dy.device, dtype=dy.dtype)
-
-        if kernel_backend == KernelBackend.cuda:
-            dy = dy.contiguous()
-
-            _pack_unpack_sequence_cuda(
-                x=dy,
-                y=dx,
-                cu_seqlens=cu_seqlens,
-                padding_side=ctx.padding_side,
-                pack=False,
-                BLOCK_SIZE=1024,
-            )
-        elif kernel_backend == KernelBackend.triton:
-            _pack_unpack_sequence_triton(x=dy, y=dx, cu_seqlens=cu_seqlens, padding_side=ctx.padding_side, pack=False)
-        else:
-            raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
-
-        return dx, *[None] * 4
-
-
-class _UnpackSequence(CustomOp):
-    @staticmethod
-    def forward_backward_torch(
-        x: torch.Tensor, cu_seqlens: torch.Tensor, output_shape: tuple[int], padding_side: str
-    ) -> torch.Tensor:
-        B = cu_seqlens.size(0) - 1
-        S = output_shape[1]
-
-        seqlens = cu_seqlens[1:] - cu_seqlens[:-1]
-        batch_indices = torch.arange(B, device=x.device).repeat_interleave(seqlens)
-
-        if padding_side == "left":
-            pad_tokens = S - seqlens
-            seq_indices = torch.cat([torch.arange(sl, S, device=x.device) for sl in pad_tokens])
-        elif padding_side == "right":
-            seq_indices = torch.cat([torch.arange(sl, device=x.device) for sl in seqlens])
-        else:
-            raise ValueError(f"unexpected padding_side ({padding_side})")
-
-        padded = torch.zeros(output_shape, dtype=x.dtype, device=x.device)
-        padded[batch_indices, seq_indices] = x
-
-        return padded
-
-    @staticmethod
-    def forward(
-        ctx,
-        x: torch.Tensor,
-        cu_seqlens: torch.Tensor,
-        output_shape: tuple[int],
-        padding_side: str,
-        kernel_backend: KernelBackend,
-    ) -> torch.Tensor:
-        ctx.kernel_backend = kernel_backend
-
-        if kernel_backend == KernelBackend.cuda:
-            x = x.contiguous()
-            cu_seqlens = cu_seqlens.contiguous()
-
-        ctx_save_for_backward(ctx, cu_seqlens)
-        ctx.padding_side = padding_side
-        ctx.x_shape = x.size()
-
-        y = torch.zeros(*output_shape, device=x.device, dtype=x.dtype)
-
-        if kernel_backend == KernelBackend.cuda:
-            _pack_unpack_sequence_cuda(
-                x=x, y=y, cu_seqlens=cu_seqlens, padding_side=padding_side, pack=False, BLOCK_SIZE=1024
-            )
-        elif kernel_backend == KernelBackend.triton:
-            _pack_unpack_sequence_triton(x=x, y=y, cu_seqlens=cu_seqlens, padding_side=padding_side, pack=False)
-        else:
-            raise ValueError(f"unexpected padding_side ({padding_side})")
-
-        return y
-
-    @staticmethod
-    def backward(ctx, dy: torch.Tensor) -> tuple[torch.Tensor, None, None, None, None]:
-        kernel_backend = ctx.kernel_backend
-        padding_side = ctx.padding_side
-        cu_seqlens = ctx.saved_tensors[0]
-
-        dx = torch.empty(ctx.x_shape, device=dy.device, dtype=dy.dtype)
-
-        if kernel_backend == KernelBackend.cuda:
-            dy = dy.contiguous()
-
-            _pack_unpack_sequence_cuda(
-                x=dy,
-                y=dx,
-                cu_seqlens=cu_seqlens,
-                padding_side=padding_side,
-                pack=True,
-                BLOCK_SIZE=1024,
-            )
-        elif kernel_backend == KernelBackend.triton:
-            _pack_unpack_sequence_triton(x=dy, y=dx, cu_seqlens=cu_seqlens, padding_side=padding_side, pack=True)
-        else:
-            raise ValueError(f"unexpected padding_side ({padding_side})")
-
-        return dx, *[None] * 4
+    _PackSequence[KernelBackend.triton] = _PackSequenceTriton
+    _UnpackSequence[KernelBackend.triton] = _UnpackSequenceTriton
 
 
 def pack_sequence(

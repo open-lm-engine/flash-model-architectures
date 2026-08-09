@@ -35,7 +35,7 @@ def _forward_single_step(h_prev, W, k, v, f):
 
 
 @triton.jit
-def _m2rnn_forward(
+def _forward(
     q_ptr,
     q_stride,
     k_ptr,
@@ -215,7 +215,7 @@ def _m2rnn_forward_triton_kernel(
     BLOCK_SIZE_V: tl.constexpr,
     ATOMIC_ADD: tl.constexpr,
 ):
-    _m2rnn_forward(
+    _forward(
         q_ptr=q_ptr,
         q_stride=q_stride,
         k_ptr=k_ptr,
@@ -282,7 +282,7 @@ def _m2rnn_forward_no_output_triton_kernel(
     BLOCK_SIZE_K: tl.constexpr,
     BLOCK_SIZE_V: tl.constexpr,
 ):
-    _m2rnn_forward(
+    _forward(
         q_ptr=q_ptr,
         q_stride=q_stride,
         k_ptr=k_ptr,

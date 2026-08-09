@@ -12,7 +12,7 @@ import jax.numpy as jnp
 from ....math import ceil_divide
 
 
-def _forward_kernel(
+def _linear_attention_forward_kernel(
     q_ref, k_ref, v_ref, h0_ref, y_ref, ht_ref, *, attention_multiplier: float, BLOCK_SIZE_S: int, S: int
 ) -> None:
     BLOCK_ID_S = pl.program_id(3)
@@ -52,7 +52,7 @@ def _forward_kernel(
 
 
 @partial(jax.jit, static_argnames=("attention_multiplier", "BLOCK_SIZE_S", "BLOCK_SIZE_V"))
-def _forward_core(
+def _linear_attention_forward_core(
     q: jax.Array,
     k: jax.Array,
     v: jax.Array,
@@ -77,7 +77,9 @@ def _forward_core(
     )
 
     kernel = pl.pallas_call(
-        partial(_forward_kernel, attention_multiplier=attention_multiplier, BLOCK_SIZE_S=BLOCK_SIZE_S, S=S),
+        partial(
+            _linear_attention_forward_kernel, attention_multiplier=attention_multiplier, BLOCK_SIZE_S=BLOCK_SIZE_S, S=S
+        ),
         out_shape=(
             jax.ShapeDtypeStruct(shape=(B, N, S, V), dtype=q.dtype),
             jax.ShapeDtypeStruct(shape=(B, N, K, V), dtype=jnp.float32),

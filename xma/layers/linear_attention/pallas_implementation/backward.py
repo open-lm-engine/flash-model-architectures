@@ -4,56 +4,10 @@
 
 import torch
 
-from ....custom_op import xma_op
-from ....layers_jax.linear_attention.pallas_implementation.backward import _backward_core as _backward_core_jax
-from ....layers_jax.linear_attention.pallas_implementation.backward import (
-    _state_passing_core as _state_passing_core_jax,
-)
-from ....math import ceil_divide
+from ....layers_jax.linear_attention.pallas_implementation import _linear_attention_backward_core as _backward_core_jax
 
 
-def _checkpoint_output_shape_dtype_fn(
-    k: torch.Tensor, v: torch.Tensor, h0: torch.Tensor | None, N: int, BLOCK_SIZE_S: int, BLOCK_SIZE_V: int
-) -> list[tuple[tuple[int, ...], torch.dtype]]:
-    B, _, S, K = k.shape
-    V = v.shape[-1]
-    NUM_BLOCKS_S = ceil_divide(S, BLOCK_SIZE_S)
-
-    return [((B, N * NUM_BLOCKS_S, K, V), torch.float32)]
-
-
-def _state_passing_fake_function(
-    k: torch.Tensor, v: torch.Tensor, h0: torch.Tensor | None, N: int, BLOCK_SIZE_S: int, BLOCK_SIZE_V: int
-) -> torch.Tensor:
-    B, _, S, K = k.shape
-    V = v.shape[-1]
-    NUM_BLOCKS_S = ceil_divide(S, BLOCK_SIZE_S)
-
-    return torch.empty(B, N * NUM_BLOCKS_S, K, V, dtype=torch.float32, device=k.device)
-
-
-_STATE_PASSING_CACHE = {}
-
-
-@xma_op(mutates_args={}, fake_func=_state_passing_fake_function)
-def _state_passing_core(
-    k: torch.Tensor, v: torch.Tensor, h0: torch.Tensor | None, N: int, BLOCK_SIZE_S: int, BLOCK_SIZE_V: int
-) -> torch.Tensor:
-    cache_key = h0 is None
-
-    if cache_key not in _STATE_PASSING_CACHE:
-        from torch_xla.experimental.custom_kernel import make_kernel_from_pallas
-
-        _STATE_PASSING_CACHE[cache_key] = make_kernel_from_pallas(
-            _state_passing_core_jax, _checkpoint_output_shape_dtype_fn
-        )
-
-    h = _STATE_PASSING_CACHE[cache_key](k, v, h0, N, BLOCK_SIZE_S, BLOCK_SIZE_V, static_argnums=(3, 4, 5))
-
-    return h
-
-
-def _backward_output_shape_dtype_fn(
+def _output_shape_dtype_fn(
     q: torch.Tensor,
     k: torch.Tensor,
     v: torch.Tensor,
@@ -73,7 +27,7 @@ def _backward_output_shape_dtype_fn(
     ]
 
 
-def _backward_fake_function(
+def _linear_attention_backward_pallas(
     q: torch.Tensor,
     k: torch.Tensor,
     v: torch.Tensor,
@@ -84,44 +38,19 @@ def _backward_fake_function(
     BLOCK_SIZE_S: int,
     BLOCK_SIZE_V: int,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-    B, _, S, K = q.shape
-    V = v.shape[-1]
-    N = dy.shape[1]
+    if not hasattr(_linear_attention_backward_pallas, "cache"):
+        _linear_attention_backward_pallas.cache = {}
 
-    dq = torch.empty(B, N, S, K, dtype=q.dtype, device=q.device)
-    dk = torch.empty(B, N, S, K, dtype=q.dtype, device=q.device)
-    dv = torch.empty(B, N, S, V, dtype=q.dtype, device=q.device)
-    dh0 = torch.empty(B, N, K, V, dtype=torch.float32, device=q.device)
-
-    return dq, dk, dv, dh0
-
-
-_BACKWARD_CACHE = {}
-
-
-@xma_op(mutates_args={}, fake_func=_backward_fake_function)
-def _linear_attention_backward_core(
-    q: torch.Tensor,
-    k: torch.Tensor,
-    v: torch.Tensor,
-    h: torch.Tensor,
-    dy: torch.Tensor,
-    dh: torch.Tensor | None,
-    attention_multiplier: float,
-    BLOCK_SIZE_S: int,
-    BLOCK_SIZE_V: int,
-) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-    # q, k, v, h, dy: already transposed to (B, N, S, K/V). dh: (B, N, K, V) or None - None skips the HBM
-    # read/zero-fill entirely and seeds the running state-gradient on-chip instead (see the jax-side
-    # kernel, _backward_kernel_zero_dh)
     cache_key = dh is None
+    kernel = _linear_attention_backward_pallas.cache.get(cache_key)
 
-    if cache_key not in _BACKWARD_CACHE:
+    if kernel is None:
         from torch_xla.experimental.custom_kernel import make_kernel_from_pallas
 
-        _BACKWARD_CACHE[cache_key] = make_kernel_from_pallas(_backward_core_jax, _backward_output_shape_dtype_fn)
+        kernel = make_kernel_from_pallas(_backward_core_jax, _output_shape_dtype_fn)
+        _linear_attention_backward_pallas.cache[cache_key] = kernel
 
-    return _BACKWARD_CACHE[cache_key](
+    return kernel(
         q,
         k,
         v,
@@ -133,54 +62,3 @@ def _linear_attention_backward_core(
         BLOCK_SIZE_S=BLOCK_SIZE_S,
         BLOCK_SIZE_V=BLOCK_SIZE_V,
     )
-
-
-def _linear_attention_backward_pallas(
-    q: torch.Tensor,
-    k: torch.Tensor,
-    v: torch.Tensor,
-    h0: torch.Tensor | None,
-    dy: torch.Tensor,
-    dh: torch.Tensor | None,
-    attention_multiplier: float,
-    BLOCK_SIZE_S: int = 128,
-    BLOCK_SIZE_V: int = 128,
-) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-    B, S, Nq, K = q.shape
-    Nk = k.size(-2)
-    Nv, V = v.size()[-2:]
-
-    N = max(Nq, Nk, Nv)
-
-    Gq = N // Nq
-    Gk = N // Nk
-    Gv = N // Nv
-
-    q = q.transpose(1, 2)
-    k = k.transpose(1, 2)
-    v = v.transpose(1, 2)
-    dy = dy.transpose(1, 2)
-
-    h = _state_passing_core(k=k, v=v, h0=h0, N=N, BLOCK_SIZE_S=BLOCK_SIZE_S, BLOCK_SIZE_V=BLOCK_SIZE_V)
-
-    dq, dk, dv, dh0 = _linear_attention_backward_core(
-        q=q,
-        k=k,
-        v=v,
-        h=h,
-        dy=dy,
-        dh=dh,
-        attention_multiplier=attention_multiplier,
-        BLOCK_SIZE_S=BLOCK_SIZE_S,
-        BLOCK_SIZE_V=BLOCK_SIZE_V,
-    )
-
-    dq = dq.transpose(1, 2)
-    dk = dk.transpose(1, 2)
-    dv = dv.transpose(1, 2)
-
-    dq = dq.reshape(B, S, Nq, Gq, K).sum(dim=3)
-    dk = dk.reshape(B, S, Nk, Gk, K).sum(dim=3)
-    dv = dv.reshape(B, S, Nv, Gv, V).sum(dim=3)
-
-    return dq, dk, dv, dh0

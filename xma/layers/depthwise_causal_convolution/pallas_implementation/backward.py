@@ -2,52 +2,12 @@
 # Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
-from typing import Callable
-
 import torch
 import torch.nn.functional as F
 
-from ....layers_jax.depthwise_causal_convolution.pallas_implementation.backward import (
-    _backward_core as _backward_core_jax,
-)
-from ....layers_jax.depthwise_causal_convolution.pallas_implementation.backward import (
-    _state_passing_core as _depthwise_causal_convolution_state_passing_core_jax,
-)
+from ....layers_jax.depthwise_causal_convolution.pallas_implementation import _backward_core as _backward_core_jax
 from ....math import ceil_divide
-
-
-def _make_state_passing_output_shape_dtype_fn(BLOCK_SIZE_S: int, K: int) -> Callable:
-    # make_kernel_from_pallas calls this with only the non-static tensor args (x, h0), so BLOCK_SIZE_S/K
-    # (needed for the output shape) must be captured via closure instead of taken as parameters.
-    def _output_shape_dtype_fn(x: torch.Tensor, h0: torch.Tensor | None) -> list[tuple[tuple[int, ...], torch.dtype]]:
-        B, S, H = x.shape
-        NUM_BLOCKS_S = ceil_divide(S, BLOCK_SIZE_S)
-        PAD = ceil_divide(K - 1, 8) * 8
-
-        return [((B, NUM_BLOCKS_S, PAD, H), torch.float32)]
-
-    return _output_shape_dtype_fn
-
-
-_STATE_PASSING_CACHE = {}
-
-
-def _depthwise_causal_convolution_state_passing_core(
-    x: torch.Tensor, h0: torch.Tensor | None, BLOCK_SIZE_S: int, K: int
-) -> torch.Tensor:
-    cache_key = (h0 is None, BLOCK_SIZE_S, K)
-
-    if cache_key not in _STATE_PASSING_CACHE:
-        from torch_xla.experimental.custom_kernel import make_kernel_from_pallas
-
-        _STATE_PASSING_CACHE[cache_key] = make_kernel_from_pallas(
-            _depthwise_causal_convolution_state_passing_core_jax,
-            _make_state_passing_output_shape_dtype_fn(BLOCK_SIZE_S, K),
-        )
-
-    return _STATE_PASSING_CACHE[cache_key](
-        x, h0, static_argnames=("BLOCK_SIZE_S", "K"), BLOCK_SIZE_S=BLOCK_SIZE_S, K=K
-    )
+from .state_passing import _state_passing_core
 
 
 def _backward_output_shape_dtype_fn(
@@ -65,10 +25,7 @@ def _backward_output_shape_dtype_fn(
     ]
 
 
-_BACKWARD_CACHE = {}
-
-
-def _depthwise_causal_convolution_backward_core(
+def _backward_core(
     x: torch.Tensor,
     W: torch.Tensor,
     h: torch.Tensor,
@@ -77,16 +34,19 @@ def _depthwise_causal_convolution_backward_core(
     BLOCK_SIZE_S: int,
     K: int,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-    cache_key = dht is None
+    if not hasattr(_backward_core, "cache"):
+        _backward_core.cache = {}
 
-    if cache_key not in _BACKWARD_CACHE:
+    cache_key = dht is None
+    kernel = _backward_core.cache.get(cache_key)
+
+    if kernel is None:
         from torch_xla.experimental.custom_kernel import make_kernel_from_pallas
 
-        _BACKWARD_CACHE[cache_key] = make_kernel_from_pallas(_backward_core_jax, _backward_output_shape_dtype_fn)
+        kernel = make_kernel_from_pallas(_backward_core_jax, _backward_output_shape_dtype_fn)
+        _backward_core.cache[cache_key] = kernel
 
-    return _BACKWARD_CACHE[cache_key](
-        x, W, h, dy, dht, static_argnames=("BLOCK_SIZE_S", "K"), BLOCK_SIZE_S=BLOCK_SIZE_S, K=K
-    )
+    return kernel(x, W, h, dy, dht, static_argnames=("BLOCK_SIZE_S", "K"), BLOCK_SIZE_S=BLOCK_SIZE_S, K=K)
 
 
 def _depthwise_causal_convolution_backward_pallas(
@@ -109,14 +69,62 @@ def _depthwise_causal_convolution_backward_pallas(
         pad = ceil_divide(state_size, 8) * 8
         h0 = F.pad(h0, (0, 0, pad - state_size, 0))
 
-    h = _depthwise_causal_convolution_state_passing_core(x=x, h0=h0, BLOCK_SIZE_S=BLOCK_SIZE_S, K=K)
-
-    dx, dW, db, dh0 = _depthwise_causal_convolution_backward_core(
-        x=x, W=W, h=h, dy=dy, dht=dht, BLOCK_SIZE_S=BLOCK_SIZE_S, K=K
-    )
+    h = _state_passing_core(x=x, h0=h0, BLOCK_SIZE_S=BLOCK_SIZE_S, K=K)
+    dx, dW, db, dh0 = _backward_core(x=x, W=W, h=h, dy=dy, dht=dht, BLOCK_SIZE_S=BLOCK_SIZE_S, K=K)
 
     dW = dW.transpose(1, 0)
     db = None if b is None else db[0]
     dh0 = None if h0 is None else dh0[:, 1 - K :, :].transpose(1, 2)
 
     return dx, dW, db, dh0
+
+
+def _linear_attention_backward_pallas(
+    q: torch.Tensor,
+    k: torch.Tensor,
+    v: torch.Tensor,
+    h0: torch.Tensor | None,
+    dy: torch.Tensor,
+    dh: torch.Tensor | None,
+    attention_multiplier: float,
+    BLOCK_SIZE_S: int = 128,
+    BLOCK_SIZE_V: int = 128,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    B, S, Nq, K = q.shape
+    Nk = k.size(-2)
+    Nv, V = v.size()[-2:]
+
+    N = max(Nq, Nk, Nv)
+
+    Gq = N // Nq
+    Gk = N // Nk
+    Gv = N // Nv
+
+    q = q.transpose(1, 2)
+    k = k.transpose(1, 2)
+    v = v.transpose(1, 2)
+    dy = dy.transpose(1, 2)
+
+    h = _state_passing_core(k=k, v=v, h0=h0, N=N, BLOCK_SIZE_S=BLOCK_SIZE_S, BLOCK_SIZE_V=BLOCK_SIZE_V)
+
+    dq, dk, dv, dh0 = _backward_core(
+        q=q,
+        k=k,
+        v=v,
+        h=h,
+        dy=dy,
+        dh=dh,
+        attention_multiplier=attention_multiplier,
+        BLOCK_SIZE_S=BLOCK_SIZE_S,
+        BLOCK_SIZE_V=BLOCK_SIZE_V,
+    )
+
+    dq = dq.transpose(1, 2)
+    dk = dk.transpose(1, 2)
+    dv = dv.transpose(1, 2)
+
+    dq = dq.reshape(B, S, Nq, Gq, K).sum(dim=3)
+    dk = dk.reshape(B, S, Nk, Gk, K).sum(dim=3)
+    dv = dv.reshape(B, S, Nv, Gv, V).sum(dim=3)
+
+    return dq, dk, dv, dh0

@@ -51,7 +51,7 @@ def delete_unwanted_files(docs_dir: Path) -> None:
         if any(
             f"{impl}_implementation" in module_name
             for impl in ["jax", "torch", "triton", "cuda", "mps", "nki", "pallas"]
-        ):
+        ) or any(module_name.endswith(impl) for impl in ["template"]):
             rst_file.unlink()
             print(f"Deleted: {rst_file}")
         # Delete utility/helper files

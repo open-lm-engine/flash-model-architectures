@@ -9,7 +9,7 @@ from ....custom_op import xma_op
 from ....math import ceil_divide
 from ..utils import _get_num_heads
 from .output_forward import _output_forward_triton_kernel
-from .recurrent_state_forward import _recurrent_state_forward_triton_kernel
+from .state_passing import _state_passing_forward_triton_kernel
 
 
 @xma_op(mutates_args={"y", "h", "ht"})
@@ -67,7 +67,7 @@ def _linear_attention_forward_triton(
     GRID = lambda kwargs: (B * N, ceil_divide(K, kwargs["BLOCK_SIZE_K"]), ceil_divide(V, kwargs["BLOCK_SIZE_V"]))
 
     if use_fused_kernel_in_forward:
-        _recurrent_state_forward_triton_kernel[GRID](
+        _state_passing_forward_triton_kernel[GRID](
             q_ptr=q,
             q_stride=q.stride(),
             ht_ptr=ht,
@@ -78,7 +78,7 @@ def _linear_attention_forward_triton(
             **kwargs,
         )
     else:
-        _recurrent_state_forward_triton_kernel[GRID](
+        _state_passing_forward_triton_kernel[GRID](
             q_ptr=None,
             q_stride=None,
             ht_ptr=ht,

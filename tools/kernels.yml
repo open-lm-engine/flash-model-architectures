@@ -16,8 +16,6 @@ layers:
     - triton
 
 functional:
-  bmm:
-    - triton
   continuous_count:
     - cuda
   cross_entropy:
