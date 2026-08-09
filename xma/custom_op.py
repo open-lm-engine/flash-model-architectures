@@ -37,9 +37,14 @@ class _CustomOpMeta(type(torch.autograd.Function)):
 
         return cls.functions[kernel_backend]
 
-    def __call__(cls, kernel_backend: KernelBackend | None = None, **kwargs) -> Any:
-        # `SomeOp(...)` in place of `SomeOp.run(...)` - ops are never actually instantiated (only
-        # `.apply()`'d), so overriding the metaclass's `__call__` doesn't collide with anything.
+
+class CustomOp(torch.autograd.Function, metaclass=_CustomOpMeta):
+    def __init_subclass__(cls, **kwargs) -> None:
+        super().__init_subclass__(**kwargs)
+        cls.functions: dict[KernelBackend, tuple[Callable, Callable]] = {}
+
+    @classmethod
+    def run(cls, kernel_backend: KernelBackend | None = None, **kwargs) -> Any:
         if kernel_backend is None:
             kernel_backend = Accelerator.get_kernel_backend()
         else:
@@ -63,12 +68,6 @@ class _CustomOpMeta(type(torch.autograd.Function)):
             return cls.forward_backward_torch(**kwargs)
 
         return cls.apply(*tuple(kwargs.values()), kernel_backend)
-
-
-class CustomOp(torch.autograd.Function, metaclass=_CustomOpMeta):
-    def __init_subclass__(cls, **kwargs) -> None:
-        super().__init_subclass__(**kwargs)
-        cls.functions: dict[KernelBackend, tuple[Callable, Callable]] = {}
 
     @staticmethod
     def forward(ctx, *args) -> Any:

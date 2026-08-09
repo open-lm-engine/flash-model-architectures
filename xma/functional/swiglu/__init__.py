@@ -39,7 +39,7 @@ def swiglu(gate: torch.Tensor, up: torch.Tensor, *, kernel_backend: KernelBacken
     gate = gate.flatten(0, -2)
     up = up.flatten(0, -2)
 
-    y = _Swiglu(g=gate, u=up, kernel_backend=kernel_backend)
+    y = _Swiglu.run(g=gate, u=up, kernel_backend=kernel_backend)
     y = y.view(original_shape)
 
     return y
@@ -63,7 +63,7 @@ def swiglu_packed(x: torch.Tensor, *, kernel_backend: KernelBackend | None = Non
 
     H = divide_if_divisible(original_shape[-1], 2)
 
-    y = _SwigluPacked(x=x, kernel_backend=kernel_backend)
+    y = _SwigluPacked.run(x=x, kernel_backend=kernel_backend)
     y = y.view(*original_shape[:-1], H)
 
     return y
