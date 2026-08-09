@@ -11,7 +11,12 @@ from .state_passing import _state_passing_core
 
 
 def _backward_output_shape_dtype_fn(
-    x: torch.Tensor, W: torch.Tensor, h: torch.Tensor, dy: torch.Tensor, dht: torch.Tensor | None
+    x: torch.Tensor,
+    W: torch.Tensor,
+    b: torch.Tensor | None,
+    h: torch.Tensor,
+    dy: torch.Tensor,
+    dht: torch.Tensor | None,
 ) -> list[tuple[tuple[int, ...], torch.dtype]]:
     B, S, H = x.shape
     K = W.shape[0]
@@ -28,6 +33,7 @@ def _backward_output_shape_dtype_fn(
 def _backward_core(
     x: torch.Tensor,
     W: torch.Tensor,
+    b: torch.Tensor | None,
     h: torch.Tensor,
     dy: torch.Tensor,
     dht: torch.Tensor | None,
@@ -37,7 +43,7 @@ def _backward_core(
     if not hasattr(_backward_core, "cache"):
         _backward_core.cache = {}
 
-    cache_key = dht is None
+    cache_key = (b is None, dht is None)
     kernel = _backward_core.cache.get(cache_key)
 
     if kernel is None:
@@ -46,7 +52,7 @@ def _backward_core(
         kernel = make_kernel_from_pallas(_backward_core_jax, _backward_output_shape_dtype_fn)
         _backward_core.cache[cache_key] = kernel
 
-    return kernel(x, W, h, dy, dht, static_argnames=("BLOCK_SIZE_S", "K"), BLOCK_SIZE_S=BLOCK_SIZE_S, K=K)
+    return kernel(x, W, b, h, dy, dht, static_argnames=("BLOCK_SIZE_S", "K"), BLOCK_SIZE_S=BLOCK_SIZE_S, K=K)
 
 
 def _depthwise_causal_convolution_backward_pallas(
@@ -70,7 +76,16 @@ def _depthwise_causal_convolution_backward_pallas(
         h0 = F.pad(h0, (0, 0, pad - state_size, 0))
 
     h = _state_passing_core(x=x, h0=h0, BLOCK_SIZE_S=BLOCK_SIZE_S, K=K)
-    dx, dW, db, dh0 = _backward_core(x=x, W=W, h=h, dy=dy, dht=dht, BLOCK_SIZE_S=BLOCK_SIZE_S, K=K)
+    dx, dW, db, dh0 = _backward_core(
+        x=x,
+        W=W,
+        b=None if b is None else b[None, :],
+        h=h,
+        dy=dy,
+        dht=dht,
+        BLOCK_SIZE_S=BLOCK_SIZE_S,
+        K=K,
+    )
 
     dW = dW.transpose(1, 0)
     db = None if b is None else db[0]

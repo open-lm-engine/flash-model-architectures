@@ -23,6 +23,7 @@ def _forward_kernel(
     S: int,
     K: int,
     PAD: int,
+    ACTIVATION: str | None,
 ) -> None:
     BLOCK_ID_S = pl.program_id(1)
 
@@ -53,17 +54,21 @@ def _forward_kernel(
     W = W_ref[...].astype(jnp.float32)
     y = jnp.sum(jnp.stack(taps, axis=0) * W[:, None, :], axis=0) + b
 
+    if ACTIVATION in ["silu", "swish"]:
+        y = y * jax.nn.sigmoid(y)
+
     y_ref[...] = y.astype(dtype)
     h_scratch[...] = x_f32[BLOCK_SIZE_S - PAD :, :].astype(dtype)
 
 
-@partial(jax.jit, static_argnames=("BLOCK_SIZE_S",))
+@partial(jax.jit, static_argnames=("BLOCK_SIZE_S", "ACTIVATION"))
 def _forward_core(
     x: jax.Array,
     W: jax.Array,
     b: jax.Array | None,
     h0: jax.Array | None,
     BLOCK_SIZE_S: int,
+    ACTIVATION: str | None = None,
 ) -> jax.Array:
     B, S, H = x.shape
     K = W.shape[0]
@@ -74,7 +79,7 @@ def _forward_core(
     )
 
     kernel = pl.pallas_call(
-        partial(_forward_kernel, BLOCK_SIZE_S=BLOCK_SIZE_S, S=S, K=K, PAD=PAD),
+        partial(_forward_kernel, BLOCK_SIZE_S=BLOCK_SIZE_S, S=S, K=K, PAD=PAD, ACTIVATION=ACTIVATION),
         out_shape=jax.ShapeDtypeStruct((B, S, H), x.dtype),
         grid=(B, ceil_divide(S, BLOCK_SIZE_S)),
         in_specs=(

@@ -4,8 +4,6 @@
 
 from __future__ import annotations
 
-from typing import Callable
-
 import equinox as eqx
 import haliax as hax
 import jax
@@ -24,13 +22,13 @@ class DepthwiseCausalConvolutionJAX(eqx.Module):
     Kernel: Axis = eqx.field(static=True)
     StateSize: Axis = eqx.field(static=True)
     kernel_size: int = eqx.field(static=True)
-    activation_function: str | Callable[[jax.Array], jax.Array] | None = eqx.field(static=True)
+    activation_function: str | None = eqx.field(static=True)
 
     @staticmethod
     def init(
         Embed: Axis,
         kernel_size: int,
-        activation_function: str | Callable[[jax.Array], jax.Array] | None,
+        activation_function: str | None,
         add_bias: bool,
         *,
         key: PRNGKeyArray,

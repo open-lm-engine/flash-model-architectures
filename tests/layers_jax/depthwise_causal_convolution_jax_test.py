@@ -166,13 +166,22 @@ def _generate_pallas_args() -> list:
             [False, True],  # add_bias
             [False, True],  # output_state
             [jnp.float32, jnp.bfloat16],
+            [None, "silu", "swish"],
         )
     )
 
 
-@pytest.mark.parametrize("kernel_size,S,has_input_state,add_bias,output_state,dtype", _generate_pallas_args())
+@pytest.mark.parametrize(
+    "kernel_size,S,has_input_state,add_bias,output_state,dtype,activation_function", _generate_pallas_args()
+)
 def test_depthwise_causal_convolution_pallas(
-    kernel_size: int, S: int, has_input_state: bool, add_bias: bool, output_state: bool, dtype: jnp.dtype
+    kernel_size: int,
+    S: int,
+    has_input_state: bool,
+    add_bias: bool,
+    output_state: bool,
+    dtype: jnp.dtype,
+    activation_function: str | None,
 ) -> None:
     if jax.default_backend() != "tpu":
         pytest.skip("KernelBackend.pallas is only supported on TPU")
@@ -195,7 +204,13 @@ def test_depthwise_causal_convolution_pallas(
 
     def _run(kernel_backend: KernelBackend, x: jax.Array, weight: jax.Array, bias, input_state):
         return depthwise_causal_convolution_jax(
-            x, weight, bias, input_state, output_state=output_state, kernel_backend=kernel_backend
+            x,
+            weight,
+            bias,
+            input_state,
+            output_state=output_state,
+            activation_function=activation_function,
+            kernel_backend=kernel_backend,
         )
 
     def _run_vjp(kernel_backend: KernelBackend, x: jax.Array, weight: jax.Array, bias, input_state):

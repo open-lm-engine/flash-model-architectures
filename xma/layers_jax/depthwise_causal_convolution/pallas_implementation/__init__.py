@@ -3,7 +3,6 @@
 # **************************************************
 
 from functools import partial
-from typing import Callable
 
 import jax
 import jax.numpy as jnp
@@ -20,7 +19,7 @@ def _pad_h0(h0: jax.Array, K: int) -> jax.Array:
     return jnp.pad(h0, ((0, 0), (pad - state_size, 0), (0, 0)))
 
 
-@partial(jax.custom_vjp, nondiff_argnums=(4, 5))
+@partial(jax.custom_vjp, nondiff_argnums=(4, 5, 6))
 def _depthwise_causal_convolution_pallas(
     x: jax.Array,
     W: jax.Array,
@@ -28,6 +27,7 @@ def _depthwise_causal_convolution_pallas(
     h0: jax.Array | None,
     output_state: bool,
     BLOCK_SIZE_S: int,
+    ACTIVATION: str | None,
 ) -> tuple[jax.Array, jax.Array | None]:
     W = jnp.transpose(W, (1, 0))
     b = None if b is None else b[None, :]
@@ -36,7 +36,7 @@ def _depthwise_causal_convolution_pallas(
         h0 = jnp.transpose(h0, (0, 2, 1)).astype(x.dtype)
         h0 = _pad_h0(h0, K=W.shape[0])
 
-    y = _forward_core(x=x, W=W, b=b, h0=h0, BLOCK_SIZE_S=BLOCK_SIZE_S)
+    y = _forward_core(x=x, W=W, b=b, h0=h0, BLOCK_SIZE_S=BLOCK_SIZE_S, ACTIVATION=ACTIVATION)
 
     if not output_state:
         return y, None
@@ -61,16 +61,17 @@ def _depthwise_causal_convolution_forward(
     h0: jax.Array | None,
     output_state: bool,
     BLOCK_SIZE_S: int,
+    ACTIVATION: str | None,
 ) -> tuple[tuple[jax.Array, jax.Array | None], tuple]:
     y, ht = _depthwise_causal_convolution_pallas(
-        x=x, W=W, b=b, h0=h0, output_state=output_state, BLOCK_SIZE_S=BLOCK_SIZE_S
+        x=x, W=W, b=b, h0=h0, output_state=output_state, BLOCK_SIZE_S=BLOCK_SIZE_S, ACTIVATION=ACTIVATION
     )
 
     return (y, ht), (x, W, b, h0)
 
 
 def _depthwise_causal_convolution_backward(
-    output_state: bool, BLOCK_SIZE_S: int, residuals: tuple, cotangents: tuple
+    output_state: bool, BLOCK_SIZE_S: int, ACTIVATION: str | None, residuals: tuple, cotangents: tuple
 ) -> tuple:
     x, W, b, h0 = residuals
     dy, dht = cotangents
@@ -85,7 +86,17 @@ def _depthwise_causal_convolution_backward(
     dht = None if dht is None or not output_state else jnp.transpose(dht, (0, 2, 1))
 
     h = _state_passing_core(x=x, h0=h0, BLOCK_SIZE_S=BLOCK_SIZE_S, K=K)
-    dx, dW, db, dh0 = _backward_core(x=x, W=W, h=h, dy=dy, dht=dht, BLOCK_SIZE_S=BLOCK_SIZE_S, K=K)
+    dx, dW, db, dh0 = _backward_core(
+        x=x,
+        W=W,
+        b=None if b is None else b[None, :],
+        h=h,
+        dy=dy,
+        dht=dht,
+        BLOCK_SIZE_S=BLOCK_SIZE_S,
+        K=K,
+        ACTIVATION=ACTIVATION,
+    )
 
     dW = jnp.transpose(dW, (1, 0))
     db = None if b is None else db[0]
@@ -97,26 +108,6 @@ def _depthwise_causal_convolution_backward(
 _depthwise_causal_convolution_pallas.defvjp(
     _depthwise_causal_convolution_forward, _depthwise_causal_convolution_backward
 )
-
-
-_BASE_ACTIVATIONS = {
-    "gelu": jax.nn.gelu,
-    "relu": jax.nn.relu,
-    "sigmoid": jax.nn.sigmoid,
-    "silu": jax.nn.silu,
-    "swish": jax.nn.silu,
-    "tanh": jnp.tanh,
-}
-
-
-def _get_activation_function(name: str | None) -> Callable[[jax.Array], jax.Array]:
-    if name is None:
-        return lambda x: x
-
-    if name not in _BASE_ACTIVATIONS:
-        raise ValueError(f"invalid activation function ({name})")
-
-    return _BASE_ACTIVATIONS[name]
 
 
 def _apply_mask_to_padding_states(x: jax.Array, attention_mask: jax.Array | None) -> jax.Array:

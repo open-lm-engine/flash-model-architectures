@@ -2,17 +2,11 @@
 # Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
-from typing import Callable
-
 import jax
 
 from ...accelerator import Accelerator, KernelBackend
 from .jax_implementation import _depthwise_causal_convolution_reference
-from .pallas_implementation import (
-    _apply_mask_to_padding_states,
-    _depthwise_causal_convolution_pallas,
-    _get_activation_function,
-)
+from .pallas_implementation import _apply_mask_to_padding_states, _depthwise_causal_convolution_pallas
 
 
 def depthwise_causal_convolution_jax(
@@ -22,7 +16,7 @@ def depthwise_causal_convolution_jax(
     input_state: jax.Array | None = None,
     attention_mask: jax.Array | None = None,
     output_state: bool = False,
-    activation_function: str | Callable[[jax.Array], jax.Array] | None = None,
+    activation_function: str | None = None,
     *,
     BLOCK_SIZE_S: int = 128,
     kernel_backend: KernelBackend | None = None,
@@ -49,10 +43,9 @@ def depthwise_causal_convolution_jax(
         falling back to `input_state` if `input` is shorter than `K - 1`) for use as `input_state` in a
         subsequent call. Defaults to False.
     :type output_state: bool
-    :param activation_function: activation applied after the convolution + bias. Either a name in
-        {"gelu", "relu", "sigmoid", "silu", "swish", "tanh"}, an arbitrary callable, or None (identity).
-        Defaults to None.
-    :type activation_function: str | Callable[[jax.Array], jax.Array] | None
+    :param activation_function: activation applied after the convolution + bias, fused into the kernel.
+        Either "silu", its alias "swish", or None (no activation). Defaults to None.
+    :type activation_function: str | None
     :param kernel_backend: KernelBackend.pallas uses a hand-written VPU-only Pallas TPU kernel (avoids the
         MXU/systolic array, which a tiny `kernel_size` reduction dimension underutilizes badly).
         KernelBackend.jax uses the plain `jax.lax.conv_general_dilated`-based reference. None auto-detects
@@ -70,14 +63,13 @@ def depthwise_causal_convolution_jax(
     assert weight.shape[0] == H
     assert K > 1
 
+    assert activation_function in [None, "silu", "swish"]
+
     if bias is not None:
         assert bias.shape == (H,)
 
     if input_state is not None:
         assert input_state.shape == (B, H, K - 1)
-
-    if activation_function is None or isinstance(activation_function, str):
-        activation_function = _get_activation_function(activation_function)
 
     if kernel_backend is None:
         kernel_backend = Accelerator.get_kernel_backend()
@@ -86,16 +78,26 @@ def depthwise_causal_convolution_jax(
 
     if kernel_backend == KernelBackend.pallas:
         output, final_state = _depthwise_causal_convolution_pallas(
-            x=input, W=weight, b=bias, h0=input_state, output_state=output_state, BLOCK_SIZE_S=BLOCK_SIZE_S
+            x=input,
+            W=weight,
+            b=bias,
+            h0=input_state,
+            output_state=output_state,
+            BLOCK_SIZE_S=BLOCK_SIZE_S,
+            ACTIVATION=activation_function,
         )
     elif kernel_backend == KernelBackend.jax:
         output, final_state = _depthwise_causal_convolution_reference(
-            x=input, W=weight, b=bias, h0=input_state, output_state=output_state
+            x=input,
+            W=weight,
+            b=bias,
+            h0=input_state,
+            output_state=output_state,
+            activation_function=activation_function,
         )
     else:
         raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
-    output = activation_function(output)
     output = _apply_mask_to_padding_states(output, attention_mask)
 
     return output, final_state

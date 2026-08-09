@@ -15,6 +15,7 @@ from ....math import ceil_divide
 def _backward_kernel(
     x_ref,
     W_ref,
+    b_ref,
     h_ref,
     dy_ref,
     dht_ref,
@@ -29,6 +30,7 @@ def _backward_kernel(
     K: int,
     PAD: int,
     NUM_BLOCKS_S: int,
+    ACTIVATION: str | None,
 ) -> None:
     BLOCK_ID_B = pl.program_id(0)
     BLOCK_ID_S_REVERSE = pl.program_id(1)
@@ -64,6 +66,26 @@ def _backward_kernel(
     dy_next = jnp.pad(dy_scratch[...], ((0, BLOCK_SIZE_S - PAD), (0, 0)))
     hist = jnp.pad(h_ref[0].astype(jnp.float32), ((BLOCK_SIZE_S - PAD, 0), (0, 0)))
 
+    def x_tap(k: int):
+        # x[j - shift], falling off the front of the block into hist once j < shift
+        shift = K - 1 - k
+        return jnp.where(BLOCK_S < shift, pltpu.roll(hist, shift, axis=0), pltpu.roll(x, shift, axis=0))
+
+    if ACTIVATION in ["silu", "swish"]:
+        # recompute the pre-activation output rather than keeping a second (B, S, H) tensor live across
+        # the backward, then pull dy back through silu' before it reaches dx, dW, db and dh0. The taps
+        # are the same ones dW needs below, so CSE folds the two sets of rolls together.
+        y = jnp.zeros((BLOCK_SIZE_S, H), dtype=jnp.float32)
+        if b_ref is not None:
+            y += b_ref[...].astype(jnp.float32)
+
+        for k in range(K):
+            y += W_ref[k, :].astype(jnp.float32)[None, :] * x_tap(k)
+
+        # d/dz (z * sigmoid(z)) == sigmoid(z) * (1 + z * (1 - sigmoid(z)))
+        sigmoid = jax.nn.sigmoid(y)
+        dy = dy * sigmoid * (1 + y * (1 - sigmoid))
+
     dx = jnp.zeros((BLOCK_SIZE_S, H), dtype=jnp.float32)
     for k in range(K):
         shift = K - 1 - k
@@ -79,9 +101,7 @@ def _backward_kernel(
         )
         dx += W[None, :] * dy_tap
 
-        # x[j - shift], falling off the front of the block into hist once j < shift
-        x_tap = jnp.where(BLOCK_S < shift, pltpu.roll(hist, shift, axis=0), pltpu.roll(x, shift, axis=0))
-        dW_ref[k, :] += jnp.sum(dy * x_tap, axis=0)
+        dW_ref[k, :] += jnp.sum(dy * x_tap(k), axis=0)
 
     db_ref[...] += jnp.sum(dy, axis=0, keepdims=True)
     dx_ref[...] = jnp.where(MASK_S, dx, 0).astype(dtype)
@@ -130,15 +150,17 @@ def _backward_kernel(
     dy_scratch[...] = dy[:PAD, :]
 
 
-@partial(jax.jit, static_argnames=("BLOCK_SIZE_S", "K"))
+@partial(jax.jit, static_argnames=("BLOCK_SIZE_S", "K", "ACTIVATION"))
 def _backward_core(
     x: jax.Array,
     W: jax.Array,
+    b: jax.Array | None,
     h: jax.Array,
     dy: jax.Array,
     dht: jax.Array | None,
     BLOCK_SIZE_S: int,
     K: int,
+    ACTIVATION: str | None = None,
 ) -> tuple[jax.Array, jax.Array, jax.Array, jax.Array]:
     B, S, H = x.shape
     NUM_BLOCKS_S = ceil_divide(S, BLOCK_SIZE_S)
@@ -149,7 +171,15 @@ def _backward_core(
     assert BLOCK_SIZE_S >= PAD, f"BLOCK_SIZE_S ({BLOCK_SIZE_S}) must be >= {PAD} for kernel_size ({K})"
 
     kernel = pl.pallas_call(
-        partial(_backward_kernel, BLOCK_SIZE_S=BLOCK_SIZE_S, S=S, K=K, PAD=PAD, NUM_BLOCKS_S=NUM_BLOCKS_S),
+        partial(
+            _backward_kernel,
+            BLOCK_SIZE_S=BLOCK_SIZE_S,
+            S=S,
+            K=K,
+            PAD=PAD,
+            NUM_BLOCKS_S=NUM_BLOCKS_S,
+            ACTIVATION=ACTIVATION,
+        ),
         out_shape=(
             jax.ShapeDtypeStruct((B, S, H), x.dtype),
             jax.ShapeDtypeStruct((K, H), jnp.float32),
@@ -163,6 +193,7 @@ def _backward_core(
                 index_map=lambda BLOCK_ID_B, BLOCK_ID_S: (BLOCK_ID_B, NUM_BLOCKS_S - 1 - BLOCK_ID_S, 0),
             ),
             pl.BlockSpec(block_shape=(K, H), index_map=lambda BLOCK_ID_B, BLOCK_ID_S: (0, 0)),
+            None if b is None else pl.BlockSpec(block_shape=(1, H), index_map=lambda BLOCK_ID_B, BLOCK_ID_S: (0, 0)),
             pl.BlockSpec(
                 block_shape=(None, 1, PAD, H),
                 index_map=lambda BLOCK_ID_B, BLOCK_ID_S: (BLOCK_ID_B, NUM_BLOCKS_S - 1 - BLOCK_ID_S, 0, 0),
@@ -193,6 +224,6 @@ def _backward_core(
         compiler_params=pltpu.CompilerParams(dimension_semantics=("parallel", "arbitrary")),
     )
 
-    dx, dW, db, dh0 = kernel(x, W, h, dy, dht)
+    dx, dW, db, dh0 = kernel(x, W, b, h, dy, dht)
 
     return dx, dW, db, dh0
