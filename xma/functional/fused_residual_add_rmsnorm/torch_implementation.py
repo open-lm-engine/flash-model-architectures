@@ -6,7 +6,7 @@ import torch
 import torch.nn.functional as F
 
 
-def _torch(
+def _fused_residual_add_rmsnorm_torch(
     x: torch.Tensor,
     r: torch.Tensor | None,
     W: torch.Tensor | None,

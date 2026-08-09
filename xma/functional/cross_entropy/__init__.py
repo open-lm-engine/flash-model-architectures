@@ -7,13 +7,13 @@ import torch
 from ...accelerator import KernelBackend
 from ...custom_op import CustomOp
 from ...utils import is_triton_available
-from .torch_implementation import _torch
+from .torch_implementation import _cross_entropy_torch
 
 
 class _CrossEntropy(CustomOp): ...
 
 
-_CrossEntropy[KernelBackend.torch] = _torch
+_CrossEntropy[KernelBackend.torch] = _cross_entropy_torch
 
 
 if is_triton_available():

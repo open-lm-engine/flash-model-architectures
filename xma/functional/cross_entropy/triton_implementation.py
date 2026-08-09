@@ -115,12 +115,12 @@ def _cross_entropy_forward_backward_triton_kernel(
             BLOCK_V += BLOCK_SIZE_V
 
 
-@xma_op(mutates_args={"loss", "x_grad"})
+@xma_op(mutates_args={"loss", "dx"})
 def _cross_entropy_forward_backward_triton(
     x: torch.Tensor,
     labels: torch.Tensor,
     loss: torch.Tensor,
-    x_grad: torch.Tensor | None,
+    dx: torch.Tensor | None,
     logits_multiplier: float | None,
     reduction: str,
 ) -> None:
@@ -135,8 +135,8 @@ def _cross_entropy_forward_backward_triton(
         y_ptr=labels,
         y_stride=labels.stride(),
         l_ptr=loss,
-        dx_ptr=x_grad,
-        dx_stride=None if x_grad is None else x_grad.stride(),
+        dx_ptr=dx,
+        dx_stride=None if dx is None else dx.stride(),
         logits_multiplier=logits_multiplier,
         B=B,
         V=V,
@@ -151,19 +151,19 @@ class _CrossEntropyTriton(torch.autograd.Function):
         ctx, x: torch.Tensor, labels: torch.Tensor, reduction: str, logits_multiplier: float | None
     ) -> torch.Tensor:
         loss = torch.zeros((), device=x.device, dtype=torch.float32)
-        x_grad = torch.empty_like(x, memory_format=torch.contiguous_format) if ctx_needs_gradients(ctx) else None
+        dx = torch.empty_like(x, memory_format=torch.contiguous_format) if ctx_needs_gradients(ctx) else None
 
         _cross_entropy_forward_backward_triton(
-            x=x, labels=labels, loss=loss, x_grad=x_grad, logits_multiplier=logits_multiplier, reduction=reduction
+            x=x, labels=labels, loss=loss, dx=dx, logits_multiplier=logits_multiplier, reduction=reduction
         )
 
-        ctx_save_for_backward(ctx, x_grad)
+        ctx_save_for_backward(ctx, dx)
 
         return loss
 
     @staticmethod
-    def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor, None, None, None]:
-        x_grad = ctx.saved_tensors[0]
-        x_grad *= output_grad
+    def backward(ctx, dy: torch.Tensor) -> tuple[torch.Tensor, None, None, None]:
+        dx = ctx.saved_tensors[0]
+        dx *= dy
 
-        return x_grad, None, None, None
+        return dx, None, None, None

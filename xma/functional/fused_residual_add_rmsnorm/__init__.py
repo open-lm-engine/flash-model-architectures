@@ -7,13 +7,13 @@ import torch
 from ...accelerator import KernelBackend
 from ...custom_op import CustomOp
 from ...utils import is_triton_available
-from .torch_implementation import _torch
+from .torch_implementation import _fused_residual_add_rmsnorm_torch
 
 
 class _FusedResidualAddRMSNorm(CustomOp): ...
 
 
-_FusedResidualAddRMSNorm[KernelBackend.torch] = _torch
+_FusedResidualAddRMSNorm[KernelBackend.torch] = _fused_residual_add_rmsnorm_torch
 
 
 if is_triton_available():

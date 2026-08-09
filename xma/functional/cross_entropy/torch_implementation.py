@@ -6,7 +6,7 @@ import torch
 import torch.nn.functional as F
 
 
-def _torch(
+def _cross_entropy_torch(
     x: torch.Tensor, labels: torch.Tensor, reduction: str = "mean", logits_multiplier: float | None = None
 ) -> torch.Tensor:
     x = x.float()
