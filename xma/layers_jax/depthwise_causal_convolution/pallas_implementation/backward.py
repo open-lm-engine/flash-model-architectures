@@ -56,19 +56,32 @@ def _backward_kernel(
     dy = jnp.where(MASK_S, dy_ref[...], 0).astype(jnp.float32)
     x = jnp.where(MASK_S, x_ref[...], 0).astype(jnp.float32)
 
-    # same windowing trick as the forward, in both directions: dx reads dy forward in time so it needs
-    # the next block's leading rows appended, while dW correlates dy against the input so it needs the
-    # previous block's trailing rows prepended. Both then become full-block slices at static offsets,
-    # replacing the K * (K - 1) single-row reads the boundary rows used to need (a row is 1/8 of a
-    # vreg, and dynamic row indexing lowers to vector.extract, which is slow and 32-bit only).
-    dy_ext = jnp.concatenate([dy, dy_scratch[...]], axis=0)
-    x_ext = jnp.concatenate([h_ref[0].astype(jnp.float32), x], axis=0)
+    # same windowing trick as the forward, in both directions: dx reads dy forward in time so its tail
+    # rows come from the next block's leading rows, while dW correlates dy against the input so its
+    # leading rows come from the previous block's trailing rows. Both are a whole-block roll plus a
+    # select, replacing the K * (K - 1) single-row reads the boundary rows used to need (a row is 1/8
+    # of a vreg, and dynamic row indexing lowers to vector.extract, which is slow and 32-bit only).
+    dy_next = jnp.pad(dy_scratch[...], ((0, BLOCK_SIZE_S - PAD), (0, 0)))
+    hist = jnp.pad(h_ref[0].astype(jnp.float32), ((BLOCK_SIZE_S - PAD, 0), (0, 0)))
 
     dx = jnp.zeros((BLOCK_SIZE_S, H), dtype=jnp.float32)
     for k in range(K):
+        shift = K - 1 - k
         W = W_ref[k, :].astype(jnp.float32)
-        dx += W[None, :] * dy_ext[K - 1 - k : K - 1 - k + BLOCK_SIZE_S, :]
-        dW_ref[k, :] += jnp.sum(dy * x_ext[offset + k : offset + k + BLOCK_SIZE_S, :], axis=0)
+
+        # dy[j + shift], falling off the end of the block into dy_next once j + shift >= BLOCK_SIZE_S
+        # (rolling up by shift is rolling down by BLOCK_SIZE_S - shift, which pltpu.roll can express)
+        forward_shift = (BLOCK_SIZE_S - shift) % BLOCK_SIZE_S
+        dy_tap = jnp.where(
+            BLOCK_S < BLOCK_SIZE_S - shift,
+            pltpu.roll(dy, forward_shift, axis=0),
+            pltpu.roll(dy_next, forward_shift, axis=0),
+        )
+        dx += W[None, :] * dy_tap
+
+        # x[j - shift], falling off the front of the block into hist once j < shift
+        x_tap = jnp.where(BLOCK_S < shift, pltpu.roll(hist, shift, axis=0), pltpu.roll(x, shift, axis=0))
+        dW_ref[k, :] += jnp.sum(dy * x_tap, axis=0)
 
     db_ref[...] += jnp.sum(dy, axis=0, keepdims=True)
     dx_ref[...] = jnp.where(MASK_S, dx, 0).astype(dtype)
@@ -97,16 +110,16 @@ def _backward_kernel(
 
     @pl.when(BLOCK_ID_S == 0)
     def _():
-        # dh0[offset + p] = sum_{k <= p} W[k] * dy[p - k]; zero-padding dy on the left drops the
-        # out-of-range taps on its own, so this is the same fixed-offset slice pattern as above
-        dy_padded = jnp.concatenate([jnp.zeros((PAD, H), dtype=jnp.float32), dy_ext], axis=0)
-
-        dh0 = jnp.zeros((PAD, H), dtype=jnp.float32)
+        # dh0[offset + p] = sum_{k <= p} W[k] * dy[p - k]; masking instead of wrapping the roll drops
+        # the taps that would read before the start of the sequence
+        dh0 = jnp.zeros((BLOCK_SIZE_S, H), dtype=jnp.float32)
         for k in range(K):
             W = W_ref[k, :].astype(jnp.float32)
-            dh0 += W[None, :] * dy_padded[K - 1 - k : K - 1 - k + PAD, :]
+            dh0 += W[None, :] * jnp.where(BLOCK_S < k, 0, pltpu.roll(dy, k, axis=0))
 
-        dh0_ref[...] = dh0
+        # only the last K - 1 rows of dh0_ref are kept by the caller, so rotate row p into row
+        # offset + p and let the rows the rotation wraps into the head be garbage
+        dh0_ref[...] = pltpu.roll(dh0[:PAD, :], offset, axis=0)
 
         # when S < K - 1, x is too short to fill ht, so ht keeps the tail of h0: ht[p] == h0[S + p]
         # for p < state_prefix, and dht flows straight back to that row
