@@ -5,17 +5,35 @@
 import torch
 
 from ...accelerator import KernelBackend
+from ...custom_op import CustomOp
 from ...math import divide_if_divisible
 from ...utils import is_cute_dsl_available, is_triton_available
-from . import mps_implementation, torch_implementation
-from .op import _Swiglu, _SwigluPacked
+from .mps_implementation import _SwigluMPS
+from .torch_implementation import _torch, _torch_packed
+
+
+class _Swiglu(CustomOp): ...
+
+
+class _SwigluPacked(CustomOp): ...
+
+
+_Swiglu[KernelBackend.mps] = _SwigluMPS
+_Swiglu[KernelBackend.torch] = _torch
+_SwigluPacked[KernelBackend.torch] = _torch_packed
 
 
 if is_cute_dsl_available():
-    from . import cuda_implementation
+    from .cuda_implementation import _SwigluCUDA, _SwigluPackedCUDA
+
+    _Swiglu[KernelBackend.cuda] = _SwigluCUDA
+    _SwigluPacked[KernelBackend.cuda] = _SwigluPackedCUDA
+
 
 if is_triton_available():
-    from . import triton_implementation
+    from .triton_implementation import _SwigluTriton
+
+    _Swiglu[KernelBackend.triton] = _SwigluTriton
 
 
 def swiglu(gate: torch.Tensor, up: torch.Tensor, *, kernel_backend: KernelBackend | None = None) -> torch.Tensor:

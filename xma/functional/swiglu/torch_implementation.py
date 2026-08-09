@@ -6,7 +6,6 @@ import torch
 import torch.nn.functional as F
 
 from ...accelerator import KernelBackend
-from .op import _Swiglu, _SwigluPacked
 
 
 def _torch(g: torch.Tensor, u: torch.Tensor) -> torch.Tensor:
@@ -31,7 +30,3 @@ def _torch_packed(x: torch.Tensor) -> torch.Tensor:
     x = u * F.silu(g)
 
     return x.to(dtype)
-
-
-_Swiglu[KernelBackend.torch] = _torch
-_SwigluPacked[KernelBackend.torch] = _torch_packed

@@ -4,11 +4,9 @@
 
 import torch
 
-from ....accelerator import KernelBackend
 from ....custom_op import ctx_save_for_backward
 from ....math import divide_if_divisible
 from ....utils import empty_like_contiguous
-from ..op import _Swiglu, _SwigluPacked
 from .backward import _swiglu_backward_cuda, _swiglu_packed_backward_cuda
 from .forward import _forward_cuda, _packed_forward_cuda
 
@@ -55,7 +53,3 @@ class _SwigluPackedCUDA(torch.autograd.Function):
         _swiglu_packed_backward_cuda(x=x, dy=dy, dx=dx)
 
         return dx
-
-
-_Swiglu[KernelBackend.cuda] = _SwigluCUDA
-_SwigluPacked[KernelBackend.cuda] = _SwigluPackedCUDA

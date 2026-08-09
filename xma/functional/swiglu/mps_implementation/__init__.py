@@ -7,7 +7,6 @@ import torch
 from ....accelerator import KernelBackend
 from ....custom_op import ctx_save_for_backward, xma_op
 from ....jit import cpp_jit
-from ..op import _Swiglu
 
 
 @xma_op(mutates_args={"y"})
@@ -41,6 +40,3 @@ class _SwigluMPS(torch.autograd.Function):
         _swiglu_backward_mps(g=g, u=u, dy=dy, dg=dg, du=du)
 
         return dg, du
-
-
-_Swiglu[KernelBackend.mps] = _SwigluMPS
