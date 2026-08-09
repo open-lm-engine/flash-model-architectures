@@ -24,14 +24,16 @@ def ctx_save_for_backward(ctx, *args) -> None:
 
 
 class _CustomOpMeta(type(torch.autograd.Function)):
-    """lets `_Op[kernel_backend] = (forward_function, backward_function)` register an op's per-backend
-    implementations directly on the class; assignment via `[]` requires a metaclass in Python, there's no
+    """lets `_Op[kernel_backend] = ...` register an op's implementation for that backend directly on
+    the class - either a real `torch.autograd.Function` subclass (for a compiled kernel, `.apply()`'d),
+    or a plain callable (for `KernelBackend.torch`, which needs no custom backward since it's built from
+    already-differentiable torch ops). Assignment via `[]` requires a metaclass in Python, there's no
     per-class `__setitem__` equivalent."""
 
-    def __setitem__(cls, kernel_backend: KernelBackend, funcs: tuple[Callable, Callable]) -> None:
-        cls.functions[kernel_backend] = funcs
+    def __setitem__(cls, kernel_backend: KernelBackend, function: type[torch.autograd.Function] | Callable) -> None:
+        cls.functions[kernel_backend] = function
 
-    def __getitem__(cls, kernel_backend: KernelBackend) -> tuple[Callable, Callable]:
+    def __getitem__(cls, kernel_backend: KernelBackend) -> type[torch.autograd.Function] | Callable:
         if kernel_backend not in cls.functions:
             raise NotImplementedError(f"{cls.__name__} has nothing registered for kernel_backend ({kernel_backend})")
 
@@ -41,7 +43,7 @@ class _CustomOpMeta(type(torch.autograd.Function)):
 class CustomOp(torch.autograd.Function, metaclass=_CustomOpMeta):
     def __init_subclass__(cls, **kwargs) -> None:
         super().__init_subclass__(**kwargs)
-        cls.functions: dict[KernelBackend, tuple[Callable, Callable]] = {}
+        cls.functions: dict[KernelBackend, type[torch.autograd.Function] | Callable] = {}
 
     @classmethod
     def run(cls, kernel_backend: KernelBackend | None = None, **kwargs) -> Any:
@@ -56,11 +58,16 @@ class CustomOp(torch.autograd.Function, metaclass=_CustomOpMeta):
         increment_counter(cls._get_key(kernel_backend))
 
         if kernel_backend in cls.functions:
-            forward_function, backward_function = cls.functions[kernel_backend]
-            if backward_function is None:
-                return forward_function(**kwargs)
+            function = cls.functions[kernel_backend]
 
-            return cls.apply(*tuple(kwargs.values()), forward_function, backward_function)
+            if isinstance(function, type) and issubclass(function, torch.autograd.Function):
+                # a real, self-contained `torch.autograd.Function` with its own literal forward/backward -
+                # `.apply()` here only ever sees real tensor/data args, never a callable, so there's
+                # nothing generic/inherited or dynamo-unfriendly in the traced call.
+                return function.apply(*tuple(kwargs.values()))
+
+            # a plain callable (e.g. KernelBackend.torch): already differentiable, no custom backward
+            return function(**kwargs)
 
         # ops that haven't migrated to the `functions` registry yet keep the old calling convention,
         # so registering only some backends for an op doesn't break the rest of them
@@ -68,28 +75,6 @@ class CustomOp(torch.autograd.Function, metaclass=_CustomOpMeta):
             return cls.forward_backward_torch(**kwargs)
 
         return cls.apply(*tuple(kwargs.values()), kernel_backend)
-
-    @staticmethod
-    def forward(ctx, *args) -> Any:
-        """dispatches to the (forward_function, backward_function) pair `run()` resolved and appended as
-        the trailing two positional args - `apply()` takes no kwargs, so they can't be named parameters
-        after `*inputs` without becoming keyword-only."""
-
-        *inputs, forward_function, backward_function = args
-        ctx.backward_function = backward_function
-
-        return forward_function(ctx, *inputs)
-
-    @staticmethod
-    def backward(ctx, *grad_outputs) -> Any:
-        """calls the backward_function `forward()` stashed on `ctx`, padding its result with `None`s for
-        the non-differentiable forward_function/backward_function slots `apply()` was given."""
-
-        grads = ctx.backward_function(ctx, *grad_outputs)
-        if not isinstance(grads, tuple):
-            grads = (grads,)
-
-        return (*grads, None, None)
 
     @classmethod
     def _get_key(cls, kernel_backend: KernelBackend) -> str:

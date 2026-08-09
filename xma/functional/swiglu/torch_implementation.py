@@ -33,5 +33,5 @@ def _torch_packed(x: torch.Tensor) -> torch.Tensor:
     return x.to(dtype)
 
 
-_Swiglu[KernelBackend.torch] = (_torch, None)
-_SwigluPacked[KernelBackend.torch] = (_torch_packed, None)
+_Swiglu[KernelBackend.torch] = _torch
+_SwigluPacked[KernelBackend.torch] = _torch_packed
