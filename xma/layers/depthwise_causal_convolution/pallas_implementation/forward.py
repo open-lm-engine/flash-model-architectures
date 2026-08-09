@@ -18,11 +18,10 @@ def _output_shape_dtype_fn(
 def _forward_core(
     x: torch.Tensor, W: torch.Tensor, b: torch.Tensor | None, h0: torch.Tensor | None, BLOCK_SIZE_S: int
 ) -> torch.Tensor:
-    cache_key = (b is None, h0 is None)
-
     if not hasattr(_forward_core, "cache"):
         _forward_core.cache = {}
 
+    cache_key = (b is None, h0 is None)
     kernel = _forward_core.cache.get(cache_key)
 
     if kernel is None:
