@@ -12,13 +12,13 @@ from ....triton_utils import elementwise_2d_kernel, sigmoid
 
 
 @triton.jit
-def _swiglu_fwd_compute(g, u):
+def _compute(g, u):
     g = g.to(tl.float32)
     return u * g * sigmoid(g)
 
 
 @xma_op(mutates_args={"y"})
-def _forward_triton(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> None:
+def _swiglu_forward_triton(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> None:
     B, H = g.size()
     GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), ceil_divide(H, meta["BLOCK_SIZE_H"]))
 
@@ -35,5 +35,5 @@ def _forward_triton(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> None:
         y1_stride=None,
         B=B,
         H=H,
-        COMPUTE_FN=_swiglu_fwd_compute,
+        COMPUTE_FN=_compute,
     )

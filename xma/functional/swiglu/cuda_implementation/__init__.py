@@ -7,7 +7,7 @@ import torch
 from ....custom_op import ctx_save_for_backward
 from ....math import divide_if_divisible
 from .backward import _swiglu_backward_cuda, _swiglu_packed_backward_cuda
-from .forward import _forward_cuda, _packed_forward_cuda
+from .forward import _swiglu_forward_cuda, _swiglu_packed_forward_cuda
 
 
 class _SwigluCUDA(torch.autograd.Function):
@@ -18,7 +18,7 @@ class _SwigluCUDA(torch.autograd.Function):
         ctx_save_for_backward(ctx, g, u)
 
         y = torch.empty_like(g, memory_format=torch.contiguous_format)
-        _forward_cuda(g=g, u=u, y=y)
+        _swiglu_forward_cuda(g=g, u=u, y=y)
 
         return y
 
@@ -40,7 +40,7 @@ class _SwigluPackedCUDA(torch.autograd.Function):
         ctx_save_for_backward(ctx, x)
 
         y = torch.empty(*x.size()[:-1], divide_if_divisible(x.size(-1), 2), device=x.device, dtype=x.dtype)
-        _packed_forward_cuda(x=x, y=y)
+        _swiglu_packed_forward_cuda(x=x, y=y)
 
         return y
 

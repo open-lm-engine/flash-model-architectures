@@ -5,10 +5,8 @@
 import torch
 import torch.nn.functional as F
 
-from ...accelerator import KernelBackend
 
-
-def _torch(g: torch.Tensor, u: torch.Tensor) -> torch.Tensor:
+def _swiglu_torch(g: torch.Tensor, u: torch.Tensor) -> torch.Tensor:
     dtype = g.dtype
 
     g = g.float()
@@ -20,7 +18,7 @@ def _torch(g: torch.Tensor, u: torch.Tensor) -> torch.Tensor:
     return y
 
 
-def _torch_packed(x: torch.Tensor) -> torch.Tensor:
+def _swiglu_packed_torch(x: torch.Tensor) -> torch.Tensor:
     dtype = x.dtype
     x = x.float()
 

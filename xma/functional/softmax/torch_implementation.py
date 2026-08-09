@@ -6,7 +6,7 @@ import torch
 import torch.nn.functional as F
 
 
-def _torch(x: torch.Tensor, logits_multiplier: float | None) -> torch.Tensor:
+def _softmax_torch(x: torch.Tensor, logits_multiplier: float | None) -> torch.Tensor:
     dtype = x.dtype
     x = x.float()
 

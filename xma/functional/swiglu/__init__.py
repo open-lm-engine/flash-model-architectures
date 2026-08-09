@@ -9,7 +9,7 @@ from ...custom_op import CustomOp
 from ...math import divide_if_divisible
 from ...utils import is_cute_dsl_available, is_triton_available
 from .mps_implementation import _SwigluMPS
-from .torch_implementation import _torch, _torch_packed
+from .torch_implementation import _swiglu_packed_torch, _swiglu_torch
 
 
 class _Swiglu(CustomOp): ...
@@ -19,8 +19,8 @@ class _SwigluPacked(CustomOp): ...
 
 
 _Swiglu[KernelBackend.mps] = _SwigluMPS
-_Swiglu[KernelBackend.torch] = _torch
-_SwigluPacked[KernelBackend.torch] = _torch_packed
+_Swiglu[KernelBackend.torch] = _swiglu_torch
+_SwigluPacked[KernelBackend.torch] = _swiglu_packed_torch
 
 
 if is_cute_dsl_available():

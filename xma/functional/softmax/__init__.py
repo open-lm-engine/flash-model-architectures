@@ -7,13 +7,13 @@ import torch
 from ...accelerator import KernelBackend
 from ...custom_op import CustomOp
 from ...utils import is_triton_available
-from .torch_implementation import _torch
+from .torch_implementation import _softmax_torch
 
 
 class _Softmax(CustomOp): ...
 
 
-_Softmax[KernelBackend.torch] = _torch
+_Softmax[KernelBackend.torch] = _softmax_torch
 
 
 if is_triton_available():
