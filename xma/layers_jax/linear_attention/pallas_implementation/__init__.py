@@ -7,8 +7,9 @@ from functools import partial
 import jax
 import jax.numpy as jnp
 
-from .backward import _backward_core, _state_passing_core
+from .backward import _backward_core
 from .forward import _forward_core
+from .state_passing import _state_passing_core
 
 
 @partial(jax.custom_vjp, nondiff_argnums=(4, 5, 6))
