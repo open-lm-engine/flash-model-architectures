@@ -5,9 +5,7 @@
 import torch
 import torch.nn.functional as F
 
-from ....layers_jax.depthwise_causal_convolution.pallas_implementation.forward import (
-    _forward_core as _depthwise_causal_convolution_forward_core_jax,
-)
+from ....layers_jax.depthwise_causal_convolution.pallas_implementation import _forward_core as _forward_core_jax
 from ....math import ceil_divide
 
 
@@ -17,7 +15,23 @@ def _output_shape_dtype_fn(
     return [(x.shape, x.dtype)]
 
 
-_CACHE = {}
+def _forward_core(
+    x: torch.Tensor, W: torch.Tensor, b: torch.Tensor | None, h0: torch.Tensor | None, BLOCK_SIZE_S: int
+) -> torch.Tensor:
+    cache_key = (b is None, h0 is None)
+
+    if not hasattr(_forward_core, "cache"):
+        _forward_core.cache = {}
+
+    kernel = _forward_core.cache.get(cache_key)
+
+    if kernel is None:
+        from torch_xla.experimental.custom_kernel import make_kernel_from_pallas
+
+        kernel = make_kernel_from_pallas(_forward_core_jax, _output_shape_dtype_fn)
+        _forward_core.cache[cache_key] = kernel
+
+    return kernel(x, W, b, h0, static_argnames=("BLOCK_SIZE_S",), BLOCK_SIZE_S=BLOCK_SIZE_S)
 
 
 def _depthwise_causal_convolution_forward_pallas(
@@ -38,15 +52,6 @@ def _depthwise_causal_convolution_forward_pallas(
         pad = ceil_divide(state_size, 8) * 8
         h0 = F.pad(h0, (0, 0, pad - state_size, 0))
 
-    cache_key = (b is None, h0 is None)
-
-    if cache_key not in _CACHE:
-        from torch_xla.experimental.custom_kernel import make_kernel_from_pallas
-
-        _CACHE[cache_key] = make_kernel_from_pallas(
-            _depthwise_causal_convolution_forward_core_jax, _output_shape_dtype_fn
-        )
-
-    y = _CACHE[cache_key](x, W, b, h0, static_argnames=("BLOCK_SIZE_S",), BLOCK_SIZE_S=BLOCK_SIZE_S)
+    y = _forward_core(x=x, W=W, b=b, h0=h0, BLOCK_SIZE_S=BLOCK_SIZE_S)
 
     return y, ht
