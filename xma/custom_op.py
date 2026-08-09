@@ -57,24 +57,12 @@ class CustomOp(torch.autograd.Function, metaclass=_CustomOpMeta):
 
         increment_counter(cls._get_key(kernel_backend))
 
-        if kernel_backend in cls.functions:
-            function = cls.functions[kernel_backend]
-
-            if hasattr(function, "apply"):
-                # a real, self-contained `torch.autograd.Function` with its own literal forward/backward -
-                # `.apply()` here only ever sees real tensor/data args, never a callable, so there's
-                # nothing generic/inherited or dynamo-unfriendly in the traced call.
-                return function.apply(*tuple(kwargs.values()))
-
-            # a plain callable (e.g. KernelBackend.torch): already differentiable, no custom backward
+        if kernel_backend == KernelBackend.torch:
             return function(**kwargs)
 
-        # ops that haven't migrated to the `functions` registry yet keep the old calling convention,
-        # so registering only some backends for an op doesn't break the rest of them
-        if kernel_backend == KernelBackend.torch:
-            return cls.forward_backward_torch(**kwargs)
-
-        return cls.apply(*tuple(kwargs.values()), kernel_backend)
+        function = cls.functions[kernel_backend]
+        if kernel_backend in cls.functions:
+            return function.apply(*tuple(kwargs.values()))
 
     @classmethod
     def _get_key(cls, kernel_backend: KernelBackend) -> str:
