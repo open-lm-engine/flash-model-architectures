@@ -156,7 +156,10 @@ def _generate_pallas_args() -> list:
     return list(
         product(
             [2, 4],  # kernel_size: the pallas kernel_backend assumes kernel_size > 1
-            [3, 16, 37, 130],  # sequence length: shorter than, equal to, or not a multiple of the internal block size
+            # sequence length: shorter than, equal to, or not a multiple of the internal block size.
+            # 1 and 2 also cover S < kernel_size - 1, where ht keeps part of input_state rather than
+            # being filled entirely from input.
+            [1, 2, 3, 16, 37, 130],
             [False, True],  # has_input_state
             [False, True],  # add_bias
             [False, True],  # output_state
