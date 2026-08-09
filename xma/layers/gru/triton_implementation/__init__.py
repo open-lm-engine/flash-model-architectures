@@ -5,7 +5,6 @@
 import torch
 
 from ....custom_op import ctx_needs_gradients, ctx_save_for_backward
-from ....utils import zeros_like_contiguous
 from ..utils import _get_backward_tensor, _get_num_heads
 from .backward import _gru_backward_triton
 from .forward import _gru_forward_triton
@@ -87,9 +86,9 @@ class _GRUTriton(torch.autograd.Function):
         dxf = _get_backward_tensor(y=y, Nx=Nxf, N=y.size(-2))
         dxr = _get_backward_tensor(y=y, Nx=Nxr, N=y.size(-2))
 
-        dW = zeros_like_contiguous(W, dtype=torch.float32)
-        dWf = zeros_like_contiguous(Wf, dtype=torch.float32)
-        dWr = zeros_like_contiguous(Wr, dtype=torch.float32)
+        dW = torch.zeros_like(W, dtype=torch.float32, memory_format=torch.contiguous_format)
+        dWf = torch.zeros_like(Wf, dtype=torch.float32, memory_format=torch.contiguous_format)
+        dWr = torch.zeros_like(Wr, dtype=torch.float32, memory_format=torch.contiguous_format)
 
         dh0 = (
             torch.empty_like(h0, memory_format=torch.contiguous_format)

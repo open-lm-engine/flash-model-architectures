@@ -8,7 +8,7 @@ import torch.nn.functional as F
 from ..accelerator import KernelBackend
 from ..custom_op import CustomOp, ctx_needs_gradients, ctx_save_for_backward
 from ..math import ceil_divide, get_next_power_of_2
-from ..utils import is_triton_available, zeros_like_contiguous
+from ..utils import is_triton_available
 from .cross_entropy import cross_entropy
 
 
@@ -59,7 +59,7 @@ if is_triton_available():
 
             needs_grad = ctx_needs_gradients(ctx)
             dx = torch.empty_like(x, memory_format=torch.contiguous_format) if needs_grad else None
-            dW = zeros_like_contiguous(W) if needs_grad else None
+            dW = torch.zeros_like(W, memory_format=torch.contiguous_format) if needs_grad else None
 
             for i in range(num_chunks):
                 start = i * chunk_size

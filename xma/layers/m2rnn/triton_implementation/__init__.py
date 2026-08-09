@@ -7,7 +7,6 @@ from functools import partial
 import torch
 
 from ....custom_op import ctx_save_for_backward
-from ....utils import zeros_like_contiguous
 from ..utils import _get_num_heads
 from .backward import _m2rnn_backward_triton
 from .forward import _MAX_BLOCK_SIZE_K, _m2rnn_forward_triton
@@ -108,11 +107,11 @@ class _M2RNNTriton(torch.autograd.Function):
         )
 
         empty = partial(torch.empty_like, memory_format=torch.contiguous_format)
-        function = partial(zeros_like_contiguous, dtype=torch.float32)
+        function = partial(torch.zeros_like, dtype=torch.float32, memory_format=torch.contiguous_format)
 
         dq = (empty if Nq == N else function)(q)
         dk = (empty if Nk == N else function)(k)
-        dW = zeros_like_contiguous(W, dtype=torch.float32)
+        dW = torch.zeros_like(W, dtype=torch.float32, memory_format=torch.contiguous_format)
         dh0 = empty(h0) if h0 is not None and h0.requires_grad else None
 
         if K > _MAX_BLOCK_SIZE_K:

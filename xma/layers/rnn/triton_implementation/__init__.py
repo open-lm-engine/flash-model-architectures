@@ -5,7 +5,6 @@
 import torch
 
 from ....custom_op import ctx_save_for_backward
-from ....utils import zeros_like_contiguous
 from ..utils import _get_num_heads
 from .backward import _rnn_backward_triton
 from .forward import _rnn_forward_triton
@@ -63,7 +62,7 @@ class _RNNTriton(torch.autograd.Function):
             x_shape[-2] = Nx
             dx = torch.zeros(x_shape, device=y.device, dtype=torch.float32)
 
-        dW = zeros_like_contiguous(W, dtype=torch.float32)
+        dW = torch.zeros_like(W, dtype=torch.float32, memory_format=torch.contiguous_format)
         dh0 = (
             torch.empty_like(h0, memory_format=torch.contiguous_format)
             if h0 is not None and h0.requires_grad

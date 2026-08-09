@@ -7,10 +7,6 @@ import torch
 from ..math import get_powers_of_2
 
 
-def zeros_like_contiguous(x: torch.Tensor, dtype: torch.dtype | None = None) -> torch.Tensor:
-    return torch.zeros_like(x, dtype=dtype, memory_format=torch.contiguous_format)
-
-
 def get_alignment(x: torch.Tensor) -> int:
     x = x.data_ptr()
 
