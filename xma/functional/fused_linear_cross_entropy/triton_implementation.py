@@ -46,7 +46,7 @@ class _FusedLinearCrossEntropyTriton(torch.autograd.Function):
             _y = y[start:end]
 
             _cross_entropy_forward_backward_triton(
-                x=_h, labels=_y, loss=l, x_grad=_dh, logits_multiplier=logits_multiplier, reduction="sum"
+                x=_h, labels=_y, loss=l, dx=_dh, logits_multiplier=logits_multiplier, reduction="sum"
             )
 
             if needs_grad:
