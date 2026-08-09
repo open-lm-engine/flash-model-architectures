@@ -56,11 +56,11 @@ class CustomOp(torch.autograd.Function, metaclass=_CustomOpMeta):
             raise ValueError("code is not supposed to reach here! kernel_backend was not inferrable")
 
         increment_counter(cls._get_key(kernel_backend))
+        function = cls.functions[kernel_backend]
 
         if kernel_backend == KernelBackend.torch:
             return function(**kwargs)
 
-        function = cls.functions[kernel_backend]
         if kernel_backend in cls.functions:
             return function.apply(*tuple(kwargs.values()))
 
