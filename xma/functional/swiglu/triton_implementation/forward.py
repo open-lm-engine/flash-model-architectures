@@ -18,7 +18,7 @@ def _swiglu_fwd_compute(g, u):
 
 
 @xma_op(mutates_args={"y"})
-def _swiglu_forward_triton(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> None:
+def _forward_triton(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> None:
     B, H = g.size()
     GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), ceil_divide(H, meta["BLOCK_SIZE_H"]))
 

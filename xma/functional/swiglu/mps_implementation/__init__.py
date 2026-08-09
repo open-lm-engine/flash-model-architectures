@@ -4,8 +4,10 @@
 
 import torch
 
-from ....custom_op import xma_op
+from ....accelerator import KernelBackend
+from ....custom_op import ctx_save_for_backward, xma_op
 from ....jit import cpp_jit
+from ..op import _Swiglu
 
 
 @xma_op(mutates_args={"y"})
@@ -18,3 +20,25 @@ def _swiglu_forward_mps(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) -> No
 def _swiglu_backward_mps(
     g: torch.Tensor, u: torch.Tensor, dy: torch.Tensor, dg: torch.Tensor, du: torch.Tensor
 ) -> None: ...
+
+
+def _forward(ctx, g: torch.Tensor, u: torch.Tensor) -> torch.Tensor:
+    ctx_save_for_backward(ctx, g, u)
+
+    y = torch.empty_like(g, memory_format=torch.contiguous_format)
+    _swiglu_forward_mps(g=g, u=u, y=y)
+
+    return y
+
+
+def _backward(ctx, dy: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    g, u = ctx.saved_tensors
+
+    dg = torch.empty_like(g, memory_format=torch.contiguous_format)
+    du = torch.empty_like(u, memory_format=torch.contiguous_format)
+    _swiglu_backward_mps(g=g, u=u, dy=dy, dg=dg, du=du)
+
+    return dg, du
+
+
+_Swiglu[KernelBackend.mps] = (_forward, _backward)

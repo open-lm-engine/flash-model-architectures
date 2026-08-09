@@ -2,5 +2,10 @@
 # Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
-from .backward import _swiglu_backward_nki
-from .forward import _swiglu_forward_nki
+from ...custom_op import CustomOp
+
+
+class _Swiglu(CustomOp): ...
+
+
+class _SwigluPacked(CustomOp): ...

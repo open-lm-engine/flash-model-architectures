@@ -3,120 +3,19 @@
 # **************************************************
 
 import torch
-import torch.nn.functional as F
 
 from ...accelerator import KernelBackend
-from ...custom_op import CustomOp, ctx_save_for_backward
 from ...math import divide_if_divisible
-from ...utils import empty_like_contiguous, is_cute_dsl_available, is_torch_neuronx_available, is_triton_available
-from .mps_implementation import _swiglu_backward_mps, _swiglu_forward_mps
+from ...utils import is_cute_dsl_available, is_torch_neuronx_available, is_triton_available
+from . import mps_implementation, torch_implementation
+from .op import _Swiglu, _SwigluPacked
 
-
-_FUNCTIONS = {KernelBackend.mps: (_swiglu_forward_mps, _swiglu_backward_mps)}
 
 if is_cute_dsl_available():
-    from .cuda_implementation import (
-        _swiglu_backward_cuda,
-        _swiglu_forward_cuda,
-        _swiglu_packed_backward_cuda,
-        _swiglu_packed_forward_cuda,
-    )
-
-    _FUNCTIONS[KernelBackend.cuda] = (_swiglu_forward_cuda, _swiglu_backward_cuda)
-
-if is_torch_neuronx_available():
-    from .nki_implementation import _swiglu_backward_nki, _swiglu_forward_nki
-
-    _FUNCTIONS[KernelBackend.nki] = (_swiglu_forward_nki, _swiglu_backward_nki)
+    from . import cuda_implementation
 
 if is_triton_available():
-    from .triton_implementation import _swiglu_backward_triton, _swiglu_forward_triton
-
-    _FUNCTIONS[KernelBackend.triton] = (_swiglu_forward_triton, _swiglu_backward_triton)
-
-
-class _Swiglu(CustomOp):
-    @staticmethod
-    def forward_backward_torch(g: torch.Tensor, u: torch.Tensor) -> torch.Tensor:
-        dtype = g.dtype
-
-        g = g.float()
-        u = u.float()
-
-        y = u * F.silu(g)
-        y = y.to(dtype)
-
-        return y
-
-    @staticmethod
-    def forward(ctx, g: torch.Tensor, u: torch.Tensor, kernel_backend: KernelBackend) -> torch.Tensor:
-        ctx.kernel_backend = kernel_backend
-
-        if kernel_backend == KernelBackend.cuda:
-            g = g.contiguous()
-            u = u.contiguous()
-        elif kernel_backend == KernelBackend.pallas:
-            raise NotImplementedError
-
-        ctx_save_for_backward(ctx, g, u)
-
-        y = empty_like_contiguous(g)
-
-        forward_function, backward_function = _FUNCTIONS[kernel_backend]
-        forward_function(g=g, u=u, y=y)
-        ctx.backward_function = backward_function
-
-        return y
-
-    @staticmethod
-    def backward(ctx, dy: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        g, u = ctx.saved_tensors
-        kernel_backend = ctx.kernel_backend
-
-        if kernel_backend in [KernelBackend.cuda, KernelBackend.pallas]:
-            dy = dy.contiguous()
-
-        dg = empty_like_contiguous(g)
-        du = empty_like_contiguous(u)
-
-        ctx.backward_function(g=g, u=u, dy=dy, dg=dg, du=du)
-
-        return dg, du, None
-
-
-class _SwigluPacked(CustomOp):
-    @staticmethod
-    def forward_backward_torch(x: torch.Tensor) -> torch.Tensor:
-        dtype = x.dtype
-        x = x.float()
-
-        u = x[..., 1::2]
-        g = x[..., ::2]
-
-        x = u * F.silu(g)
-
-        return x.to(dtype)
-
-    @staticmethod
-    def forward(ctx, x: torch.Tensor, kernel_backend: KernelBackend) -> torch.Tensor:
-        if kernel_backend != KernelBackend.cuda:
-            raise NotImplementedError
-
-        ctx_save_for_backward(ctx, x)
-        y = torch.empty(*x.size()[:-1], divide_if_divisible(x.size(-1), 2), device=x.device, dtype=x.dtype)
-
-        _swiglu_packed_forward_cuda(x=x, y=y)
-
-        return y
-
-    @staticmethod
-    def backward(ctx, dy: torch.Tensor) -> torch.Tensor:
-        x = ctx.saved_tensors[0]
-        dx = empty_like_contiguous(x)
-
-        _swiglu_packed_backward_cuda(x=x, dy=dy, dx=dx)
-
-        return dx, None
+    from . import triton_implementation
 
 
 def swiglu(gate: torch.Tensor, up: torch.Tensor, *, kernel_backend: KernelBackend | None = None) -> torch.Tensor:
@@ -140,7 +39,7 @@ def swiglu(gate: torch.Tensor, up: torch.Tensor, *, kernel_backend: KernelBacken
     gate = gate.flatten(0, -2)
     up = up.flatten(0, -2)
 
-    y = _Swiglu.run(g=gate, u=up, kernel_backend=kernel_backend)
+    y = _Swiglu(g=gate, u=up, kernel_backend=kernel_backend)
     y = y.view(original_shape)
 
     return y
@@ -164,7 +63,7 @@ def swiglu_packed(x: torch.Tensor, *, kernel_backend: KernelBackend | None = Non
 
     H = divide_if_divisible(original_shape[-1], 2)
 
-    y = _SwigluPacked.run(x=x, kernel_backend=kernel_backend)
+    y = _SwigluPacked(x=x, kernel_backend=kernel_backend)
     y = y.view(*original_shape[:-1], H)
 
     return y

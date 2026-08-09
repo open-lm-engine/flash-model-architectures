@@ -24,9 +24,7 @@ def _swiglu_bwd_compute(g, u, dy):
 
 
 @xma_op(mutates_args={"dg", "du"})
-def _swiglu_backward_triton(
-    g: torch.Tensor, u: torch.Tensor, dy: torch.Tensor, dg: torch.Tensor, du: torch.Tensor
-) -> None:
+def _backward_triton(g: torch.Tensor, u: torch.Tensor, dy: torch.Tensor, dg: torch.Tensor, du: torch.Tensor) -> None:
     B, H = g.size()
     GRID = lambda meta: (ceil_divide(B, meta["BLOCK_SIZE_B"]), ceil_divide(H, meta["BLOCK_SIZE_H"]))
 
