@@ -4,7 +4,6 @@
 
 import torch
 
-from ....accelerator import KernelBackend
 from ....custom_op import ctx_save_for_backward, xma_op
 from ....jit import cpp_jit
 

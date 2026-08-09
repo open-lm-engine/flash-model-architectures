@@ -4,10 +4,8 @@
 
 import torch
 
-from ....accelerator import KernelBackend
 from ....custom_op import ctx_save_for_backward
 from ....utils import empty_like_contiguous
-from ..op import _Swiglu
 from .backward import _backward_triton
 from .forward import _forward_triton
 
@@ -31,6 +29,3 @@ class _SwigluTriton(torch.autograd.Function):
         _backward_triton(g=g, u=u, dy=dy, dg=dg, du=du)
 
         return dg, du
-
-
-_Swiglu[KernelBackend.triton] = _SwigluTriton
