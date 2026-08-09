@@ -4,9 +4,7 @@
 
 import torch
 
-from .....layers_jax.linear_attention.pallas_implementation.state_passing import (
-    _state_passing_core as _state_passing_core_jax,
-)
+from .....layers_jax.linear_attention.pallas_implementation import _state_passing_core as _state_passing_core_jax
 from .....math import ceil_divide
 
 
@@ -20,21 +18,20 @@ def _checkpoint_output_shape_dtype_fn(
     return [((B, N * NUM_BLOCKS_S, K, V), torch.float32)]
 
 
-_STATE_PASSING_CACHE = {}
-
-
 def _state_passing_core(
     k: torch.Tensor, v: torch.Tensor, h0: torch.Tensor | None, N: int, BLOCK_SIZE_S: int, BLOCK_SIZE_V: int
 ) -> torch.Tensor:
-    cache_key = h0 is None
+    if not hasattr(_state_passing_core, "cache"):
+        _state_passing_core.cache = {}
 
-    if cache_key not in _STATE_PASSING_CACHE:
+    cache_key = h0 is None
+    kernel = _state_passing_core.cache.get(cache_key)
+
+    if kernel is None:
         from torch_xla.experimental.custom_kernel import make_kernel_from_pallas
 
-        _STATE_PASSING_CACHE[cache_key] = make_kernel_from_pallas(
-            _state_passing_core_jax, _checkpoint_output_shape_dtype_fn
-        )
+        kernel = make_kernel_from_pallas(_state_passing_core_jax, _checkpoint_output_shape_dtype_fn)
 
-    h = _STATE_PASSING_CACHE[cache_key](k, v, h0, N, BLOCK_SIZE_S, BLOCK_SIZE_V, static_argnums=(3, 4, 5))
+        _state_passing_core.cache[cache_key] = kernel
 
-    return h
+    return kernel(k, v, h0, N, BLOCK_SIZE_S, BLOCK_SIZE_V, static_argnums=(3, 4, 5))

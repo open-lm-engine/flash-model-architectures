@@ -4,7 +4,7 @@
 
 import torch
 
-from .....layers_jax.linear_attention.pallas_implementation.backward import _backward_core as _backward_core_jax
+from .....layers_jax.linear_attention.pallas_implementation import _backward_core as _backward_core_jax
 
 
 def _backward_output_shape_dtype_fn(
@@ -27,9 +27,6 @@ def _backward_output_shape_dtype_fn(
     ]
 
 
-_BACKWARD_CACHE = {}
-
-
 def _backward_core(
     q: torch.Tensor,
     k: torch.Tensor,
@@ -41,17 +38,19 @@ def _backward_core(
     BLOCK_SIZE_S: int,
     BLOCK_SIZE_V: int,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-    # q, k, v, h, dy: already transposed to (B, N, S, K/V). dh: (B, N, K, V) or None - None skips the HBM
-    # read/zero-fill entirely and seeds the running state-gradient on-chip instead (see the jax-side
-    # kernel, _backward_kernel_zero_dh)
-    cache_key = dh is None
+    if not hasattr(_backward_core, "cache"):
+        _backward_core.cache = {}
 
-    if cache_key not in _BACKWARD_CACHE:
+    cache_key = dh is None
+    kernel = _backward_core.cache.get(cache_key)
+
+    if kernel is None:
         from torch_xla.experimental.custom_kernel import make_kernel_from_pallas
 
-        _BACKWARD_CACHE[cache_key] = make_kernel_from_pallas(_backward_core_jax, _backward_output_shape_dtype_fn)
+        kernel = make_kernel_from_pallas(_backward_core_jax, _backward_output_shape_dtype_fn)
+        _backward_core.cache[cache_key] = kernel
 
-    return _BACKWARD_CACHE[cache_key](
+    return kernel(
         q,
         k,
         v,
