@@ -6,6 +6,11 @@ import torch
 
 from .backward import _linear_attention_backward_pallas
 from .forward import _linear_attention_forward_pallas
+from .state_passing import _state_passing_core
+
+
+_BLOCK_SIZE_S = 128
+_BLOCK_SIZE_V = 128
 
 
 class _LinearAttentionPallas(torch.autograd.Function):
@@ -41,15 +46,37 @@ class _LinearAttentionPallas(torch.autograd.Function):
         else:
             q, k, v, h0 = ctx.saved_tensors
 
+        B, S, Nq, K = q.size()
+        Nk = k.size(-2)
+        Nv, V = v.shape[-2:]
+        N = max(Nq, Nk, Nv)
+
+        Gq = N // Nq
+        Gk = N // Nk
+        Gv = N // Nv
+
+        q = q.transpose(1, 2)
+        k = k.transpose(1, 2)
+        v = v.transpose(1, 2)
+        dy = dy.transpose(1, 2)
+
+        h = _state_passing_core(k=k, v=v, h0=h0, N=N, BLOCK_SIZE_S=_BLOCK_SIZE_S, BLOCK_SIZE_V=_BLOCK_SIZE_V)
+
         dq, dk, dv, dh0 = _linear_attention_backward_pallas(
             q=q,
             k=k,
             v=v,
-            h0=h0,
+            h=h,
             dy=dy,
             dh=dht,
             attention_multiplier=ctx.attention_multiplier,
+            BLOCK_SIZE_S=_BLOCK_SIZE_S,
+            BLOCK_SIZE_V=_BLOCK_SIZE_V,
         )
+
+        dq = dq.transpose(1, 2).reshape(B, S, Nq, Gq, K).sum(dim=3)
+        dk = dk.transpose(1, 2).reshape(B, S, Nk, Gk, K).sum(dim=3)
+        dv = dv.transpose(1, 2).reshape(B, S, Nv, Gv, V).sum(dim=3)
 
         if h0 is None:
             dh0 = None
