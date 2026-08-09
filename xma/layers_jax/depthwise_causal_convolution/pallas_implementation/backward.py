@@ -43,7 +43,7 @@ def _backward_kernel(
         dy_scratch[...] = jnp.zeros_like(dy_scratch)
         dht_scratch[...] = jnp.zeros_like(dht_scratch)
         if dht_ref is not None:
-            dht_scratch[offset:, :] = dht_ref[...]
+            dht_scratch[offset:, :] = dht_ref[...].astype(jnp.float32)
 
     @pl.when((BLOCK_ID_B == 0) & (BLOCK_ID_S_REVERSE == 0))
     def _():

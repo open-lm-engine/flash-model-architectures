@@ -12,7 +12,7 @@ import jax.numpy as jnp
 from ....math import ceil_divide
 
 
-def _state_passing_kernel(x_ref, h0_ref, h_ref, h_scratch, *, K: int) -> None:
+def _state_passing_kernel(x_ref, h0_ref, h_ref, h_scratch) -> None:
     @pl.when(pl.program_id(1) == 0)
     def _():
         if h0_ref is None:
@@ -21,12 +21,10 @@ def _state_passing_kernel(x_ref, h0_ref, h_ref, h_scratch, *, K: int) -> None:
             h_scratch[...] = h0_ref[...]
 
     h_ref[...] = h_scratch[...][None]
-
-    BLOCK_SIZE_S = x_ref.shape[0]
     PAD = h_scratch.shape[0]
-    offset = PAD - K + 1
 
-    h_scratch[offset:, :] = x_ref[...][BLOCK_SIZE_S - K + 1 :, :]
+    x_f32 = x_ref[...].astype(jnp.float32)
+    h_scratch[...] = pltpu.roll(x_f32, PAD, axis=0)[:PAD, :].astype(h_scratch.dtype)
 
 
 @partial(jax.jit, static_argnames=("BLOCK_SIZE_S", "K"))
@@ -36,7 +34,7 @@ def _state_passing_core(x: jax.Array, h0: jax.Array | None, BLOCK_SIZE_S: int, K
     PAD = ceil_divide(K - 1, 8) * 8
 
     kernel = pl.pallas_call(
-        partial(_state_passing_kernel, K=K),
+        _state_passing_kernel,
         out_shape=jax.ShapeDtypeStruct((B, NUM_BLOCKS_S, PAD, H), x.dtype),
         grid=(B, NUM_BLOCKS_S),
         in_specs=(
