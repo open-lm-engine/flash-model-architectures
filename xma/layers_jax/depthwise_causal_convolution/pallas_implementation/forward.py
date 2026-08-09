@@ -23,8 +23,11 @@ def _forward_kernel(
     S: int,
     K: int,
     PAD: int,
+    ACTIVATION: str | None,
 ) -> None:
-    @pl.when(pl.program_id(1) == 0)
+    BLOCK_ID_S = pl.program_id(1)
+
+    @pl.when(BLOCK_ID_S == 0)
     def _():
         if h0_ref is None:
             h_scratch[...] = jnp.zeros_like(h_scratch)
@@ -34,53 +37,38 @@ def _forward_kernel(
     dtype = x_ref.dtype
     H = x_ref.shape[-1]
 
-    BLOCK_ID_S = pl.program_id(1)
     BLOCK_S = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, 1), 0)
     MASK_S = (BLOCK_ID_S * BLOCK_SIZE_S + BLOCK_S) < S
 
     x = jnp.where(MASK_S, x_ref[...], 0).astype(dtype)
-    # Mosaic's vector.extract (used for single-row indexing below) only supports 32-bit
-    # element types, so extract rows from a float32 copy rather than the bf16 `x`.
     x_f32 = x.astype(jnp.float32)
     b = jnp.zeros((1, H), dtype=jnp.float32) if b_ref is None else b_ref[...].astype(jnp.float32)
 
-    tail_len = BLOCK_SIZE_S - K + 1
-    y_tail = jnp.zeros((tail_len, H), dtype=jnp.float32) + b
-    for k in range(K):
-        W = W_ref[k, :].astype(jnp.float32)
-        y_tail += W[None, :] * x_f32[k : k + tail_len, :]
+    hist_padded = jnp.pad(h_scratch[...].astype(jnp.float32), ((BLOCK_SIZE_S - PAD, 0), (0, 0)))
 
-    offset = PAD - K + 1
+    taps = [
+        jnp.where(BLOCK_S < shift, pltpu.roll(hist_padded, shift, axis=0), pltpu.roll(x_f32, shift, axis=0))
+        for shift in (K - 1 - k for k in range(K))
+    ]
 
-    head_rows = []
-    for j in range(K - 1):
-        row = b[0]
-        for k in range(K):
-            W = W_ref[k, :].astype(jnp.float32)
+    W = W_ref[...].astype(jnp.float32)
+    y = jnp.sum(jnp.stack(taps, axis=0) * W[:, None, :], axis=0) + b
 
-            p = j + k
-            if p < K - 1:
-                source = h_scratch[offset + p, :]
-            else:
-                source = x_f32[p - K + 1, :]
+    if ACTIVATION in ["silu", "swish"]:
+        y = y * jax.nn.sigmoid(y)
 
-            row += W * source
-        head_rows.append(row)
-
-    y = jnp.concatenate([jnp.stack(head_rows, axis=0), y_tail], axis=0)
     y_ref[...] = y.astype(dtype)
-
-    for p in range(K - 1):
-        h_scratch[offset + p, :] = x_f32[tail_len + p, :].astype(dtype)
+    h_scratch[...] = x_f32[BLOCK_SIZE_S - PAD :, :].astype(dtype)
 
 
-@partial(jax.jit, static_argnames=("BLOCK_SIZE_S",))
+@partial(jax.jit, static_argnames=("BLOCK_SIZE_S", "ACTIVATION"))
 def _forward_core(
     x: jax.Array,
     W: jax.Array,
     b: jax.Array | None,
     h0: jax.Array | None,
     BLOCK_SIZE_S: int,
+    ACTIVATION: str | None = None,
 ) -> jax.Array:
     B, S, H = x.shape
     K = W.shape[0]
@@ -91,7 +79,7 @@ def _forward_core(
     )
 
     kernel = pl.pallas_call(
-        partial(_forward_kernel, BLOCK_SIZE_S=BLOCK_SIZE_S, S=S, K=K, PAD=PAD),
+        partial(_forward_kernel, BLOCK_SIZE_S=BLOCK_SIZE_S, S=S, K=K, PAD=PAD, ACTIVATION=ACTIVATION),
         out_shape=jax.ShapeDtypeStruct((B, S, H), x.dtype),
         grid=(B, ceil_divide(S, BLOCK_SIZE_S)),
         in_specs=(

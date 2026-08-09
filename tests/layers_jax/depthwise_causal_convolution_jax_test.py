@@ -19,6 +19,8 @@ from xma.layers_jax import DepthwiseCausalConvolutionJAX, depthwise_causal_convo
 
 
 _TOLERANCE = {"atol": 2e-4, "rtol": 0}
+_PALLAS_TOLERANCE = {jnp.float32: {"atol": 2e-4, "rtol": 0}, jnp.bfloat16: {"atol": 2e-2, "rtol": 0}}
+_PALLAS_GRAD_TOLERANCE = {jnp.float32: {"atol": 1e-2, "rtol": 0}, jnp.bfloat16: {"atol": 5e-2, "rtol": 0}}
 
 
 def _reference_numpy(
@@ -156,36 +158,59 @@ def _generate_pallas_args() -> list:
     return list(
         product(
             [2, 4],  # kernel_size: the pallas kernel_backend assumes kernel_size > 1
-            [3, 16, 37, 130],  # sequence length: shorter than, equal to, or not a multiple of the internal block size
+            # sequence length: shorter than, equal to, or not a multiple of the internal block size.
+            # 1 and 2 also cover S < kernel_size - 1, where ht keeps part of input_state rather than
+            # being filled entirely from input.
+            [1, 2, 3, 16, 37, 130],
             [False, True],  # has_input_state
             [False, True],  # add_bias
             [False, True],  # output_state
+            [jnp.float32, jnp.bfloat16],
+            [None, "silu", "swish"],
         )
     )
 
 
-@pytest.mark.parametrize("kernel_size,S,has_input_state,add_bias,output_state", _generate_pallas_args())
+@pytest.mark.parametrize(
+    "kernel_size,S,has_input_state,add_bias,output_state,dtype,activation_function", _generate_pallas_args()
+)
 def test_depthwise_causal_convolution_pallas(
-    kernel_size: int, S: int, has_input_state: bool, add_bias: bool, output_state: bool
+    kernel_size: int,
+    S: int,
+    has_input_state: bool,
+    add_bias: bool,
+    output_state: bool,
+    dtype: jnp.dtype,
+    activation_function: str | None,
 ) -> None:
     if jax.default_backend() != "tpu":
         pytest.skip("KernelBackend.pallas is only supported on TPU")
 
     B, H = 2, 5
     std = 0.1
+    tolerance = _PALLAS_TOLERANCE[dtype]
+    grad_tolerance = _PALLAS_GRAD_TOLERANCE[dtype]
 
     key_x, key_w, key_b, key_h0, key_dy = jax.random.split(jax.random.PRNGKey(3), 5)
 
-    x = jax.random.normal(key_x, (B, S, H), dtype=jnp.float32) * std
-    weight = jax.random.normal(key_w, (H, kernel_size), dtype=jnp.float32) * std
-    bias = jax.random.normal(key_b, (H,), dtype=jnp.float32) * std if add_bias else None
+    x = (jax.random.normal(key_x, (B, S, H), dtype=jnp.float32) * std).astype(dtype)
+    weight = (jax.random.normal(key_w, (H, kernel_size), dtype=jnp.float32) * std).astype(dtype)
+    bias = (jax.random.normal(key_b, (H,), dtype=jnp.float32) * std).astype(dtype) if add_bias else None
     input_state = (
-        jax.random.normal(key_h0, (B, H, kernel_size - 1), dtype=jnp.float32) * std if has_input_state else None
+        (jax.random.normal(key_h0, (B, H, kernel_size - 1), dtype=jnp.float32) * std).astype(dtype)
+        if has_input_state
+        else None
     )
 
     def _run(kernel_backend: KernelBackend, x: jax.Array, weight: jax.Array, bias, input_state):
         return depthwise_causal_convolution_jax(
-            x, weight, bias, input_state, output_state=output_state, kernel_backend=kernel_backend
+            x,
+            weight,
+            bias,
+            input_state,
+            output_state=output_state,
+            activation_function=activation_function,
+            kernel_backend=kernel_backend,
         )
 
     def _run_vjp(kernel_backend: KernelBackend, x: jax.Array, weight: jax.Array, bias, input_state):
@@ -200,36 +225,46 @@ def test_depthwise_causal_convolution_pallas(
     (y_kernel, ht_kernel), vjp_kernel = _run_vjp(KernelBackend.pallas, x, weight, bias, input_state)
     (y_expected, ht_expected), vjp_expected = _run_vjp(KernelBackend.jax, x, weight, bias, input_state)
 
-    assert_allclose(np.asarray(y_kernel), np.asarray(y_expected), **_TOLERANCE)
+    assert_allclose(np.asarray(y_kernel, dtype=np.float32), np.asarray(y_expected, dtype=np.float32), **tolerance)
 
     if output_state:
         assert ht_kernel is not None
         assert ht_expected is not None
         assert ht_kernel.shape == (B, H, kernel_size - 1)
-        assert_allclose(np.asarray(ht_kernel), np.asarray(ht_expected), **_TOLERANCE)
+        assert_allclose(
+            np.asarray(ht_kernel, dtype=np.float32), np.asarray(ht_expected, dtype=np.float32), **tolerance
+        )
     else:
         assert ht_kernel is None
         assert ht_expected is None
 
-    dy = jax.random.normal(key_dy, y_kernel.shape, dtype=jnp.float32) * std
-    dht = jax.random.normal(key_dy, ht_kernel.shape, dtype=jnp.float32) * std if output_state else None
+    dy = (jax.random.normal(key_dy, y_kernel.shape, dtype=jnp.float32) * std).astype(dtype)
+    dht = (jax.random.normal(key_dy, ht_kernel.shape, dtype=jnp.float32) * std).astype(dtype) if output_state else None
 
     dx_kernel, dweight_kernel, dbias_kernel, dinput_state_kernel = vjp_kernel((dy, dht))
     dx_expected, dweight_expected, dbias_expected, dinput_state_expected = vjp_expected((dy, dht))
 
-    grad_tolerance = {"atol": 1e-2, "rtol": 0}
-
-    assert_allclose(np.asarray(dx_kernel), np.asarray(dx_expected), **grad_tolerance)
-    assert_allclose(np.asarray(dweight_kernel), np.asarray(dweight_expected), **grad_tolerance)
+    assert_allclose(
+        np.asarray(dx_kernel, dtype=np.float32), np.asarray(dx_expected, dtype=np.float32), **grad_tolerance
+    )
+    assert_allclose(
+        np.asarray(dweight_kernel, dtype=np.float32), np.asarray(dweight_expected, dtype=np.float32), **grad_tolerance
+    )
 
     if add_bias:
-        assert_allclose(np.asarray(dbias_kernel), np.asarray(dbias_expected), **grad_tolerance)
+        assert_allclose(
+            np.asarray(dbias_kernel, dtype=np.float32), np.asarray(dbias_expected, dtype=np.float32), **grad_tolerance
+        )
     else:
         assert dbias_kernel is None
         assert dbias_expected is None
 
     if has_input_state:
-        assert_allclose(np.asarray(dinput_state_kernel), np.asarray(dinput_state_expected), **grad_tolerance)
+        assert_allclose(
+            np.asarray(dinput_state_kernel, dtype=np.float32),
+            np.asarray(dinput_state_expected, dtype=np.float32),
+            **grad_tolerance,
+        )
     else:
         assert dinput_state_kernel is None
         assert dinput_state_expected is None

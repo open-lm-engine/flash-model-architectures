@@ -9,7 +9,7 @@ from ....layers_jax.depthwise_causal_convolution.pallas_implementation import _f
 from ....math import ceil_divide
 
 
-def _output_shape_dtype_fn(
+def _metadata(
     x: torch.Tensor, W: torch.Tensor, b: torch.Tensor | None, h0: torch.Tensor | None
 ) -> list[tuple[tuple[int, ...], torch.dtype]]:
     return [(x.shape, x.dtype)]
@@ -27,7 +27,7 @@ def _forward_core(
     if kernel is None:
         from torch_xla.experimental.custom_kernel import make_kernel_from_pallas
 
-        kernel = make_kernel_from_pallas(_forward_core_jax, _output_shape_dtype_fn)
+        kernel = make_kernel_from_pallas(_forward_core_jax, _metadata)
         _forward_core.cache[cache_key] = kernel
 
     return kernel(x, W, b, h0, static_argnames=("BLOCK_SIZE_S",), BLOCK_SIZE_S=BLOCK_SIZE_S)

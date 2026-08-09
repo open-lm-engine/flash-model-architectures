@@ -7,7 +7,12 @@ import jax.numpy as jnp
 
 
 def _depthwise_causal_convolution_reference(
-    x: jax.Array, W: jax.Array, b: jax.Array | None, h0: jax.Array | None, output_state: bool
+    x: jax.Array,
+    W: jax.Array,
+    b: jax.Array | None,
+    h0: jax.Array | None,
+    output_state: bool,
+    activation_function: str | None,
 ) -> tuple[jax.Array, jax.Array | None]:
     _, S, H = x.shape
     K = W.shape[-1]
@@ -42,5 +47,7 @@ def _depthwise_causal_convolution_reference(
         x = x + b[None, :, None]
 
     x = jnp.transpose(x, (0, 2, 1))
+    if activation_function in ["silu", "swish"]:
+        x = jax.nn.silu(x.astype(jnp.float32)).astype(x.dtype)
 
     return x, ht
