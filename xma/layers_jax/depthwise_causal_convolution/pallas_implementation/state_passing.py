@@ -23,7 +23,7 @@ def _state_passing_kernel(x_ref, h0_ref, h_ref, h_scratch) -> None:
     h_ref[...] = h_scratch[...][None]
     PAD = h_scratch.shape[0]
 
-    x = x_ref[...]
+    x = x_ref[...].astype(jnp.float32)
     h_scratch[...] = pltpu.roll(x, PAD, axis=0)[:PAD, :].astype(h_scratch.dtype)
 
 
