@@ -4,7 +4,6 @@
 
 import torch
 
-from ....custom_op import xma_op
 from ....layers_jax.linear_attention.pallas_implementation.forward import _forward_core as _forward_core_jax
 
 
@@ -18,55 +17,7 @@ def _output_shape_dtype_fn(
     return [((B, N, S, V), q.dtype), ((B, N, K, V), torch.float32)]
 
 
-def _fake_function(
-    q: torch.Tensor,
-    k: torch.Tensor,
-    v: torch.Tensor,
-    h0: torch.Tensor | None,
-    attention_multiplier: float,
-    BLOCK_SIZE_S: int,
-    BLOCK_SIZE_V: int,
-) -> tuple[torch.Tensor, torch.Tensor]:
-    B, _, S, K = q.shape
-    V = v.shape[-1]
-    N = max(q.size(1), k.size(1), v.size(1))
-
-    y = torch.empty(B, N, S, V, dtype=q.dtype, device=q.device)
-    ht = torch.empty(B, N, K, V, dtype=torch.float32, device=q.device)
-
-    return y, ht
-
-
 _CACHE = {}
-
-
-@xma_op(mutates_args={}, fake_func=_fake_function)
-def _forward_core(
-    q: torch.Tensor,
-    k: torch.Tensor,
-    v: torch.Tensor,
-    h0: torch.Tensor | None,
-    attention_multiplier: float,
-    BLOCK_SIZE_S: int,
-    BLOCK_SIZE_V: int,
-) -> tuple[torch.Tensor, torch.Tensor]:
-    cache_key = h0 is None
-
-    if cache_key not in _CACHE:
-        from torch_xla.experimental.custom_kernel import make_kernel_from_pallas
-
-        _CACHE[cache_key] = make_kernel_from_pallas(_forward_core_jax, _output_shape_dtype_fn)
-
-    return _CACHE[cache_key](
-        q,
-        k,
-        v,
-        h0,
-        static_argnames=("attention_multiplier", "BLOCK_SIZE_S", "BLOCK_SIZE_V"),
-        attention_multiplier=attention_multiplier,
-        BLOCK_SIZE_S=BLOCK_SIZE_S,
-        BLOCK_SIZE_V=BLOCK_SIZE_V,
-    )
 
 
 def _linear_attention_forward_pallas(
@@ -82,8 +33,22 @@ def _linear_attention_forward_pallas(
     k = k.transpose(1, 2)
     v = v.transpose(1, 2)
 
-    y, ht = _forward_core(
-        q, k, v, h0, attention_multiplier=attention_multiplier, BLOCK_SIZE_S=BLOCK_SIZE_S, BLOCK_SIZE_V=BLOCK_SIZE_V
+    cache_key = h0 is None
+
+    if cache_key not in _CACHE:
+        from torch_xla.experimental.custom_kernel import make_kernel_from_pallas
+
+        _CACHE[cache_key] = make_kernel_from_pallas(_forward_core_jax, _output_shape_dtype_fn)
+
+    y, ht = _CACHE[cache_key](
+        q,
+        k,
+        v,
+        h0,
+        static_argnames=("attention_multiplier", "BLOCK_SIZE_S", "BLOCK_SIZE_V"),
+        attention_multiplier=attention_multiplier,
+        BLOCK_SIZE_S=BLOCK_SIZE_S,
+        BLOCK_SIZE_V=BLOCK_SIZE_V,
     )
 
     y = y.transpose(1, 2)
