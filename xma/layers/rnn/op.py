@@ -2,21 +2,19 @@
 # Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
-from __future__ import annotations
-
 import torch
 
 from ...accelerator import KernelBackend
 from ...custom_op import CustomOp
 from ...utils import is_triton_available
-from .torch_implementation import _torch
+from .torch_implementation import _rnn_torch
 from .utils import _get_num_heads
 
 
 class _RNN(CustomOp): ...
 
 
-_RNN[KernelBackend.torch] = _torch
+_RNN[KernelBackend.torch] = _rnn_torch
 
 
 if is_triton_available():

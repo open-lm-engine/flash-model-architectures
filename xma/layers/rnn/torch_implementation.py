@@ -8,7 +8,7 @@ from ...torch_utils import clip_gradients, tanh
 from .utils import _get_num_heads
 
 
-def _torch(
+def _rnn_torch(
     x: torch.Tensor,
     W: torch.Tensor,
     h0: torch.Tensor | None,

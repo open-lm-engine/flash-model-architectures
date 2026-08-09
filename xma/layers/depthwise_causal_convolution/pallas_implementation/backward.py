@@ -7,10 +7,8 @@ from typing import Callable
 import torch
 import torch.nn.functional as F
 
-from ....layers_jax.depthwise_causal_convolution.pallas_implementation.backward import (
-    _backward_core as _backward_core_jax,
-)
-from ....layers_jax.depthwise_causal_convolution.pallas_implementation.backward import (
+from ....layers_jax.depthwise_causal_convolution.pallas_implementation import _backward_core as _backward_core_jax
+from ....layers_jax.depthwise_causal_convolution.pallas_implementation import (
     _state_passing_core as _depthwise_causal_convolution_state_passing_core_jax,
 )
 from ....math import ceil_divide

@@ -9,14 +9,14 @@ import torch
 from ...accelerator import KernelBackend
 from ...custom_op import CustomOp
 from ...utils import is_torch_xla_available, is_triton_available
-from .torch_implementation import _torch
+from .torch_implementation import _linear_attention_torch
 from .utils import _get_num_heads
 
 
 class _LinearAttention(CustomOp): ...
 
 
-_LinearAttention[KernelBackend.torch] = _torch
+_LinearAttention[KernelBackend.torch] = _linear_attention_torch
 
 
 if is_triton_available():

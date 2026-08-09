@@ -7,7 +7,7 @@ import torch
 from .utils import _get_num_heads
 
 
-def _torch(
+def _linear_attention_torch(
     q: torch.Tensor,
     k: torch.Tensor,
     v: torch.Tensor,

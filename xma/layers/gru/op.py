@@ -7,14 +7,14 @@ import torch
 from ...accelerator import KernelBackend
 from ...custom_op import CustomOp
 from ...utils import is_triton_available
-from .torch_implementation import _torch
+from .torch_implementation import _gru_torch
 from .utils import _get_num_heads
 
 
 class _GRU(CustomOp): ...
 
 
-_GRU[KernelBackend.torch] = _torch
+_GRU[KernelBackend.torch] = _gru_torch
 
 
 if is_triton_available():
