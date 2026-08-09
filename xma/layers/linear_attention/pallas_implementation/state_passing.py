@@ -18,20 +18,20 @@ def _checkpoint_output_shape_dtype_fn(
     return [((B, N * NUM_BLOCKS_S, K, V), torch.float32)]
 
 
-def _state_passing_core(
+def _state_passing_pallas(
     k: torch.Tensor, v: torch.Tensor, h0: torch.Tensor | None, N: int, BLOCK_SIZE_S: int, BLOCK_SIZE_V: int
 ) -> torch.Tensor:
-    if not hasattr(_state_passing_core, "cache"):
-        _state_passing_core.cache = {}
+    if not hasattr(_state_passing_pallas, "cache"):
+        _state_passing_pallas.cache = {}
 
     cache_key = h0 is None
-    kernel = _state_passing_core.cache.get(cache_key)
+    kernel = _state_passing_pallas.cache.get(cache_key)
 
     if kernel is None:
         from torch_xla.experimental.custom_kernel import make_kernel_from_pallas
 
         kernel = make_kernel_from_pallas(_state_passing_core_jax, _checkpoint_output_shape_dtype_fn)
 
-        _state_passing_core.cache[cache_key] = kernel
+        _state_passing_pallas.cache[cache_key] = kernel
 
     return kernel(k, v, h0, N, BLOCK_SIZE_S, BLOCK_SIZE_V, static_argnums=(3, 4, 5))

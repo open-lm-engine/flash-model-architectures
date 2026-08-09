@@ -6,7 +6,7 @@ import torch
 
 from .backward import _linear_attention_backward_pallas
 from .forward import _linear_attention_forward_pallas
-from .state_passing import _state_passing_core
+from .state_passing import _state_passing_pallas
 
 
 _BLOCK_SIZE_S = 128
@@ -60,7 +60,7 @@ class _LinearAttentionPallas(torch.autograd.Function):
         v = v.transpose(1, 2)
         dy = dy.transpose(1, 2)
 
-        h = _state_passing_core(k=k, v=v, h0=h0, N=N, BLOCK_SIZE_S=_BLOCK_SIZE_S, BLOCK_SIZE_V=_BLOCK_SIZE_V)
+        h = _state_passing_pallas(k=k, v=v, h0=h0, N=N, BLOCK_SIZE_S=_BLOCK_SIZE_S, BLOCK_SIZE_V=_BLOCK_SIZE_V)
 
         dq, dk, dv, dh0 = _linear_attention_backward_pallas(
             q=q,
