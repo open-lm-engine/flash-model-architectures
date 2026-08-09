@@ -12,7 +12,7 @@ import jax.numpy as jnp
 from ....math import ceil_divide
 
 
-def _backward_kernel(
+def _linear_attention_backward_kernel(
     q_ref,
     k_ref,
     v_ref,
@@ -106,7 +106,7 @@ def _backward_kernel(
 
 
 @partial(jax.jit, static_argnames=("attention_multiplier", "BLOCK_SIZE_S", "BLOCK_SIZE_V"))
-def _backward_core(
+def _linear_attention_backward_core(
     q: jax.Array,
     k: jax.Array,
     v: jax.Array,
@@ -137,7 +137,7 @@ def _backward_core(
 
     kernel = pl.pallas_call(
         partial(
-            _backward_kernel,
+            _linear_attention_backward_kernel,
             attention_multiplier=attention_multiplier,
             BLOCK_SIZE_S=BLOCK_SIZE_S,
             S=S,

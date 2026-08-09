@@ -7,8 +7,8 @@ from functools import partial
 import jax
 import jax.numpy as jnp
 
-from .backward import _backward_core
-from .forward import _forward_core
+from .backward import _linear_attention_backward_core
+from .forward import _linear_attention_forward_core
 from .state_passing import _state_passing_core
 
 
@@ -26,7 +26,7 @@ def _linear_attention_pallas(
     k = jnp.swapaxes(k, 1, 2)
     v = jnp.swapaxes(v, 1, 2)
 
-    y, ht = _forward_core(
+    y, ht = _linear_attention_forward_core(
         q=q,
         k=k,
         v=v,
@@ -87,7 +87,7 @@ def _linear_attention_backward(
 
     h = _state_passing_core(k=k, v=v, h0=h0, N=N, BLOCK_SIZE_S=BLOCK_SIZE_S, BLOCK_SIZE_V=BLOCK_SIZE_V)
 
-    dq, dk, dv, dh0 = _backward_core(
+    dq, dk, dv, dh0 = _linear_attention_backward_core(
         q=q,
         k=k,
         v=v,

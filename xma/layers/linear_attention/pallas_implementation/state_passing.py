@@ -4,8 +4,8 @@
 
 import torch
 
-from .....layers_jax.linear_attention.pallas_implementation import _state_passing_core as _state_passing_core_jax
-from .....math import ceil_divide
+from ....layers_jax.linear_attention.pallas_implementation import _state_passing_core as _state_passing_core_jax
+from ....math import ceil_divide
 
 
 def _checkpoint_output_shape_dtype_fn(

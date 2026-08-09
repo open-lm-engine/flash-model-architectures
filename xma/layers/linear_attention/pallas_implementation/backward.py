@@ -4,10 +4,10 @@
 
 import torch
 
-from .....layers_jax.linear_attention.pallas_implementation import _backward_core as _backward_core_jax
+from ....layers_jax.linear_attention.pallas_implementation import _linear_attention_backward_core as _backward_core_jax
 
 
-def _backward_output_shape_dtype_fn(
+def _output_shape_dtype_fn(
     q: torch.Tensor,
     k: torch.Tensor,
     v: torch.Tensor,
@@ -27,7 +27,7 @@ def _backward_output_shape_dtype_fn(
     ]
 
 
-def _backward_core(
+def _linear_attention_backward_pallas(
     q: torch.Tensor,
     k: torch.Tensor,
     v: torch.Tensor,
@@ -38,17 +38,17 @@ def _backward_core(
     BLOCK_SIZE_S: int,
     BLOCK_SIZE_V: int,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-    if not hasattr(_backward_core, "cache"):
-        _backward_core.cache = {}
+    if not hasattr(_linear_attention_backward_pallas, "cache"):
+        _linear_attention_backward_pallas.cache = {}
 
     cache_key = dh is None
-    kernel = _backward_core.cache.get(cache_key)
+    kernel = _linear_attention_backward_pallas.cache.get(cache_key)
 
     if kernel is None:
         from torch_xla.experimental.custom_kernel import make_kernel_from_pallas
 
-        kernel = make_kernel_from_pallas(_backward_core_jax, _backward_output_shape_dtype_fn)
-        _backward_core.cache[cache_key] = kernel
+        kernel = make_kernel_from_pallas(_backward_core_jax, _output_shape_dtype_fn)
+        _linear_attention_backward_pallas.cache[cache_key] = kernel
 
     return kernel(
         q,
