@@ -7,10 +7,6 @@ import torch
 from ..math import get_powers_of_2
 
 
-def empty_like_contiguous(x: torch.Tensor, dtype: torch.dtype | None = None) -> torch.Tensor:
-    return torch.empty_like(x, dtype=dtype, memory_format=torch.contiguous_format)
-
-
 def zeros_like_contiguous(x: torch.Tensor, dtype: torch.dtype | None = None) -> torch.Tensor:
     return torch.zeros_like(x, dtype=dtype, memory_format=torch.contiguous_format)
 

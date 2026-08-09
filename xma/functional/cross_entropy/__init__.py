@@ -3,57 +3,24 @@
 # **************************************************
 
 import torch
-import torch.nn.functional as F
 
 from ...accelerator import KernelBackend
-from ...custom_op import CustomOp, ctx_needs_gradients, ctx_save_for_backward
-from ...utils import empty_like_contiguous, is_triton_available
+from ...custom_op import CustomOp
+from ...utils import is_triton_available
+from .torch_implementation import _torch
+
+
+class _CrossEntropy(CustomOp): ...
+
+
+_CrossEntropy[KernelBackend.torch] = _torch
 
 
 if is_triton_available():
-    from .triton_implementation import _cross_entropy_forward_backward_triton
+    from .triton_implementation import _CrossEntropyTriton
 
-
-class _CrossEntropy(CustomOp):
-    @staticmethod
-    def forward_backward_torch(
-        x: torch.Tensor, labels: torch.Tensor, reduction: str = "mean", logits_multiplier: float | None = None
-    ) -> torch.Tensor:
-        x = x.float()
-
-        if logits_multiplier not in [None, 1]:
-            x = x * logits_multiplier
-
-        return F.cross_entropy(x, labels, reduction=reduction)
-
-    @staticmethod
-    def forward(
-        ctx,
-        x: torch.Tensor,
-        labels: torch.Tensor,
-        reduction: str,
-        logits_multiplier: float | None,
-        kernel_backend: KernelBackend,
-    ) -> torch.Tensor:
-        assert kernel_backend in [KernelBackend.cuda, KernelBackend.triton]
-
-        loss = torch.zeros((), device=x.device, dtype=torch.float32)
-        x_grad = empty_like_contiguous(x) if ctx_needs_gradients(ctx) else None
-
-        _cross_entropy_forward_backward_triton(
-            x=x, labels=labels, loss=loss, x_grad=x_grad, logits_multiplier=logits_multiplier, reduction=reduction
-        )
-
-        ctx_save_for_backward(ctx, x_grad)
-
-        return loss
-
-    @staticmethod
-    def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor, None, None, None]:
-        x_grad = ctx.saved_tensors[0]
-        x_grad *= output_grad
-
-        return x_grad, *[None] * 4
+    _CrossEntropy[KernelBackend.cuda] = _CrossEntropyTriton
+    _CrossEntropy[KernelBackend.triton] = _CrossEntropyTriton
 
 
 def cross_entropy(

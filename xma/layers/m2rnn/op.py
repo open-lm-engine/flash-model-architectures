@@ -2,217 +2,26 @@
 # Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
-from functools import partial
-
 import torch
 
 from ...accelerator import KernelBackend
-from ...custom_op import CustomOp, ctx_save_for_backward
-from ...torch_utils import clip_gradients, tanh
-from ...utils import empty_like_contiguous, is_triton_available, zeros_like_contiguous
+from ...custom_op import CustomOp
+from ...utils import is_triton_available
+from .torch_implementation import _torch
 from .utils import _get_num_heads
 
 
+class _M2RNN(CustomOp): ...
+
+
+_M2RNN[KernelBackend.torch] = _torch
+
+
 if is_triton_available():
-    from .triton_implementation import _MAX_BLOCK_SIZE_K, _m2rnn_backward_triton, _m2rnn_forward_triton
+    from .triton_implementation import _M2RNNTriton
 
-
-class _M2RNN(CustomOp):
-    @staticmethod
-    def forward_backward_torch(
-        q: torch.Tensor,
-        k: torch.Tensor,
-        v: torch.Tensor,
-        W: torch.Tensor,
-        xf: torch.Tensor,
-        h0: torch.Tensor | None,
-        gradient_clipping: float | None,
-        cu_seqlens: torch.Tensor | None,
-        max_seqlen: int | None,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
-        Nq, Nk, Nv, Nw, Nxf, N = _get_num_heads(q=q, k=k, v=v, W=W, xf=xf, run_check=False)
-
-        V = v.size(-1)
-
-        if cu_seqlens is None:
-            B, S, _, K = q.size()
-            y = torch.empty(B, S, N, K, V, device=q.device, dtype=q.dtype)
-        else:
-            raise NotImplementedError
-
-        if h0 is None:
-            h0 = torch.zeros(B, N, K, V, device=k.device, dtype=k.dtype)
-
-        Gq = N // Nq
-        Gk = N // Nk
-        Gv = N // Nv
-
-        Gw = N // Nw
-        Gxf = N // Nxf
-
-        q = q.repeat_interleave(Gq, dim=-2)
-        k = k.repeat_interleave(Gk, dim=-2)
-        v = v.repeat_interleave(Gv, dim=-2)
-        W = W.repeat_interleave(Gw, dim=0)
-        xf = xf.repeat_interleave(Gxf, dim=-1)
-
-        # (B, S, N, K, V) = (B, S, N, K, 1) * (B, S, N, 1, V)
-        x = k[..., None] * v[..., None, :]
-        W = W[None, ...]
-
-        for s in range(S):
-            f = xf[:, s, :, None, None]
-            # (B, N, K, V) = (B, N, K, V) @ (1, N, V, V) + (B, N, K, V)
-            h = h0 @ W + x[:, s]
-            h = tanh(h)
-            h = f * h0 + (1 - f) * h
-            h = clip_gradients(h, gradient_clipping)
-
-            y[:, s] = h
-            h0 = h
-
-        y = q[..., None, :] @ y
-        y = y.squeeze(-2)
-
-        return y, h0
-
-    @staticmethod
-    def forward(
-        ctx,
-        q: torch.Tensor,
-        k: torch.Tensor,
-        v: torch.Tensor,
-        W: torch.Tensor,
-        xf: torch.Tensor,
-        h0: torch.Tensor | None,
-        gradient_clipping: float | None,
-        cu_seqlens: torch.Tensor | None,
-        max_seqlen: int | None,
-        kernel_backend: KernelBackend,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
-        assert kernel_backend in [KernelBackend.cuda, KernelBackend.triton]
-
-        Nq, Nk, Nv, Nw, Nxf, N = _get_num_heads(q=q, k=k, v=v, W=W, xf=xf, run_check=False)
-
-        if cu_seqlens is None:
-            B = k.size(0)
-        else:
-            B = cu_seqlens.size(0) - 1
-
-        K = k.size(-1)
-        V = v.size(-1)
-
-        ht = torch.empty(B, N, K, V, device=k.device, dtype=k.dtype)
-
-        y_shape = list(v.size())
-        y_shape[-2] = N
-
-        if K > _MAX_BLOCK_SIZE_K:
-            y = torch.zeros(y_shape, device=q.device, dtype=torch.float32)
-        else:
-            y = torch.empty(y_shape, device=q.device, dtype=q.dtype)
-
-        _m2rnn_forward_triton(
-            q=q,
-            k=k,
-            v=v,
-            W=W,
-            xf=xf,
-            h0=h0,
-            h=None,
-            ht=ht,
-            y=y,
-            cu_seqlens=cu_seqlens,
-            Nq=Nq,
-            Nk=Nk,
-            Nv=Nv,
-            Nw=Nw,
-            Nxf=Nxf,
-            N=N,
-        )
-
-        y = y.type_as(v)
-
-        ctx_save_for_backward(ctx, q, k, v, W, xf, h0, cu_seqlens)
-        ctx.gradient_clipping = gradient_clipping
-        ctx.num_heads = Nq, Nk, Nv, Nw, Nxf, N
-
-        return y, ht
-
-    @staticmethod
-    def backward(ctx, dy: torch.Tensor, dht: torch.Tensor) -> tuple[torch.Tensor | None]:
-        q, k, v, W, xf, h0, cu_seqlens = ctx.saved_tensors
-        Nq, Nk, Nv, Nw, Nxf, N = ctx.num_heads
-
-        V = v.size(-1)
-
-        if cu_seqlens is None:
-            B, S, _, K = q.size()
-            h = torch.empty(B, S, N, K, V, dtype=q.dtype, device=q.device)
-        else:
-            T, _, K = q.size()
-            h = torch.empty(T, N, K, V, dtype=q.dtype, device=q.device)
-
-        _m2rnn_forward_triton(
-            q=None,
-            k=k,
-            v=v,
-            W=W,
-            xf=xf,
-            h0=h0,
-            h=h,
-            ht=None,
-            y=None,
-            cu_seqlens=cu_seqlens,
-            Nq=Nq,
-            Nk=Nk,
-            Nv=Nv,
-            Nw=Nw,
-            Nxf=Nxf,
-            N=N,
-        )
-
-        function = partial(zeros_like_contiguous, dtype=torch.float32)
-
-        dq = (empty_like_contiguous if Nq == N else function)(q)
-        dk = (empty_like_contiguous if Nk == N else function)(k)
-        dW = zeros_like_contiguous(W, dtype=torch.float32)
-        dh0 = empty_like_contiguous(h0) if h0 is not None and h0.requires_grad else None
-
-        if K > _MAX_BLOCK_SIZE_K:
-            dv = function(v)
-            dxf = function(xf)
-        else:
-            dv = (empty_like_contiguous if Nv == N else function)(v)
-            dxf = (empty_like_contiguous if Nxf == N else function)(xf)
-
-        _m2rnn_backward_triton(
-            q=q,
-            k=k,
-            v=v,
-            W=W,
-            xf=xf,
-            h0=h0,
-            dy=dy,
-            dht=dht,
-            h=h,
-            dq=dq,
-            dk=dk,
-            dv=dv,
-            dW=dW,
-            dxf=dxf,
-            dh0=dh0,
-            cu_seqlens=cu_seqlens,
-            gradient_clipping=ctx.gradient_clipping,
-        )
-
-        dq = dq.type_as(q)
-        dk = dk.type_as(k)
-        dv = dv.type_as(v)
-        dW = dW.type_as(W)
-        dxf = dxf.type_as(xf)
-
-        return dq, dk, dv, dW, dxf, dh0, *[None] * 4
+    _M2RNN[KernelBackend.cuda] = _M2RNNTriton
+    _M2RNN[KernelBackend.triton] = _M2RNNTriton
 
 
 def m2rnn(

@@ -6,7 +6,7 @@ import torch
 import triton
 import triton.language as tl
 
-from ...custom_op import xma_op
+from ...custom_op import ctx_needs_gradients, ctx_save_for_backward, xma_op
 from ...math import ceil_divide, get_next_power_of_2, get_powers_of_2
 
 
@@ -143,3 +143,27 @@ def _cross_entropy_forward_backward_triton(
         reduction=reduction,
         BLOCK_SIZE_V=BLOCK_SIZE_V,
     )
+
+
+class _CrossEntropyTriton(torch.autograd.Function):
+    @staticmethod
+    def forward(
+        ctx, x: torch.Tensor, labels: torch.Tensor, reduction: str, logits_multiplier: float | None
+    ) -> torch.Tensor:
+        loss = torch.zeros((), device=x.device, dtype=torch.float32)
+        x_grad = torch.empty_like(x, memory_format=torch.contiguous_format) if ctx_needs_gradients(ctx) else None
+
+        _cross_entropy_forward_backward_triton(
+            x=x, labels=labels, loss=loss, x_grad=x_grad, logits_multiplier=logits_multiplier, reduction=reduction
+        )
+
+        ctx_save_for_backward(ctx, x_grad)
+
+        return loss
+
+    @staticmethod
+    def backward(ctx, output_grad: torch.Tensor) -> tuple[torch.Tensor, None, None, None]:
+        x_grad = ctx.saved_tensors[0]
+        x_grad *= output_grad
+
+        return x_grad, None, None, None

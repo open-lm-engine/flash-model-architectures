@@ -8,95 +8,99 @@ import torch.nn.functional as F
 from ..accelerator import KernelBackend
 from ..custom_op import CustomOp, ctx_needs_gradients, ctx_save_for_backward
 from ..math import ceil_divide, get_next_power_of_2
-from ..utils import empty_like_contiguous, is_triton_available, zeros_like_contiguous
+from ..utils import is_triton_available, zeros_like_contiguous
 from .cross_entropy import cross_entropy
 
 
+def _torch(
+    x: torch.Tensor,
+    W: torch.Tensor,
+    y: torch.Tensor,
+    reduction: str,
+    logits_multiplier: float | None,
+) -> torch.Tensor:
+    x = F.linear(x, W)
+    l = cross_entropy(
+        x=x, labels=y, reduction=reduction, logits_multiplier=logits_multiplier, kernel_backend=KernelBackend.torch
+    )
+
+    return l
+
+
+class _FusedLinearCrossEntropy(CustomOp): ...
+
+
+_FusedLinearCrossEntropy[KernelBackend.torch] = _torch
+
+
 if is_triton_available():
-    from .cross_entropy import _cross_entropy_forward_backward_triton
+    from .cross_entropy.triton_implementation import _cross_entropy_forward_backward_triton
 
+    class _FusedLinearCrossEntropyTriton(torch.autograd.Function):
+        @staticmethod
+        def forward(
+            ctx,
+            x: torch.Tensor,
+            W: torch.Tensor,
+            y: torch.Tensor,
+            reduction: str,
+            logits_multiplier: float | None,
+        ) -> torch.Tensor:
+            B, H = x.size()
+            V = W.size(0)
 
-class _FusedLinearCrossEntropy(CustomOp):
-    def forward_backward_torch(
-        x: torch.Tensor,
-        W: torch.Tensor,
-        y: torch.Tensor,
-        reduction: str,
-        logits_multiplier: float | None,
-    ) -> torch.Tensor:
-        x = F.linear(x, W)
-        l = cross_entropy(
-            x=x, labels=y, reduction=reduction, logits_multiplier=logits_multiplier, kernel_backend=KernelBackend.torch
-        )
+            # NOTE chunking is copied from liger kernel
+            memory_increase_factor = ceil_divide(V, H)
+            # chunk_size needed to reduce memory increase back to 1
+            chunk_size = get_next_power_of_2(ceil_divide(B, memory_increase_factor))
+            num_chunks = ceil_divide(B, chunk_size)
 
-        return l
+            l = torch.zeros((), device=x.device, dtype=torch.float32)
 
-    @staticmethod
-    def forward(
-        ctx,
-        x: torch.Tensor,
-        W: torch.Tensor,
-        y: torch.Tensor,
-        reduction: str,
-        logits_multiplier: float | None,
-        kernel_backend: KernelBackend,
-    ) -> torch.Tensor:
-        ctx.kernel_backend = kernel_backend
+            needs_grad = ctx_needs_gradients(ctx)
+            dx = torch.empty_like(x, memory_format=torch.contiguous_format) if needs_grad else None
+            dW = zeros_like_contiguous(W) if needs_grad else None
 
-        if kernel_backend not in [KernelBackend.cuda, KernelBackend.rocm, KernelBackend.triton]:
-            raise NotImplementedError
+            for i in range(num_chunks):
+                start = i * chunk_size
+                end = (i + 1) * chunk_size
+                end = min(end, B)
 
-        B, H = x.size()
-        V = W.size(0)
+                _x = x[start:end]
+                _h = _x @ W.T
 
-        # NOTE chunking is copied from liger kernel
-        memory_increase_factor = ceil_divide(V, H)
-        # chunk_size needed to reduce memory increase back to 1
-        chunk_size = get_next_power_of_2(ceil_divide(B, memory_increase_factor))
-        num_chunks = ceil_divide(B, chunk_size)
+                _dh = torch.empty_like(_h, memory_format=torch.contiguous_format)
+                _y = y[start:end]
 
-        l = torch.zeros((), device=x.device, dtype=torch.float32)
+                _cross_entropy_forward_backward_triton(
+                    x=_h, labels=_y, loss=l, x_grad=_dh, logits_multiplier=logits_multiplier, reduction="sum"
+                )
 
-        needs_grad = ctx_needs_gradients(ctx)
-        dx = empty_like_contiguous(x) if needs_grad else None
-        dW = zeros_like_contiguous(W) if needs_grad else None
+                if needs_grad:
+                    dx[start:end] = _dh @ W
+                    torch.addmm(dW, _dh.T, _x, alpha=1, beta=1, out=dW)
 
-        for i in range(num_chunks):
-            start = i * chunk_size
-            end = (i + 1) * chunk_size
-            end = min(end, B)
+            if reduction == "mean":
+                l /= B
+                dx /= B
+                dW /= B
 
-            _x = x[start:end]
-            _h = _x @ W.T
+            ctx_save_for_backward(ctx, dx, dW)
 
-            _dh = empty_like_contiguous(_h)
-            _y = y[start:end]
+            return l
 
-            _cross_entropy_forward_backward_triton(
-                x=_h, labels=_y, loss=l, x_grad=_dh, logits_multiplier=logits_multiplier, reduction="sum"
-            )
+        @staticmethod
+        def backward(ctx, dl: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor | None, None, None, None]:
+            dx, dW = ctx.saved_tensors
 
-            if needs_grad:
-                dx[start:end] = _dh @ W
-                torch.addmm(dW, _dh.T, _x, alpha=1, beta=1, out=dW)
+            dx *= dl
+            dW *= dl
 
-        if reduction == "mean":
-            l /= B
-            dx /= B
-            dW /= B
+            return dx, dW, None, None, None
 
-        ctx_save_for_backward(ctx, dx, dW)
-
-        return l
-
-    @staticmethod
-    def backward(ctx, dl: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor | None, None, None, None, None]:
-        dx, dW = ctx.saved_tensors
-
-        dx *= dl
-        dW *= dl
-
-        return dx, dW, None, None, None, None
+    _FusedLinearCrossEntropy[KernelBackend.cuda] = _FusedLinearCrossEntropyTriton
+    _FusedLinearCrossEntropy[KernelBackend.rocm] = _FusedLinearCrossEntropyTriton
+    _FusedLinearCrossEntropy[KernelBackend.triton] = _FusedLinearCrossEntropyTriton
 
 
 def fused_linear_cross_entropy(

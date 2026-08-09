@@ -3,52 +3,24 @@
 # **************************************************
 
 import torch
-import torch.nn.functional as F
 
 from ...accelerator import KernelBackend
-from ...custom_op import CustomOp, ctx_save_for_backward
-from ...utils import empty_like_contiguous, is_triton_available
+from ...custom_op import CustomOp
+from ...utils import is_triton_available
+from .torch_implementation import _torch
+
+
+class _Softmax(CustomOp): ...
+
+
+_Softmax[KernelBackend.torch] = _torch
 
 
 if is_triton_available():
-    from .triton_implementation import _softmax_backward_triton, _softmax_forward_triton
+    from .triton_implementation import _SoftmaxTriton
 
-
-class _Softmax(CustomOp):
-    @staticmethod
-    def forward_backward_torch(x: torch.Tensor, logits_multiplier: float | None) -> torch.Tensor:
-        dtype = x.dtype
-        x = x.float()
-
-        if logits_multiplier is not None:
-            x = x * logits_multiplier
-
-        x = F.softmax(x, dim=-1)
-        x = x.to(dtype)
-
-        return x
-
-    @staticmethod
-    def forward(ctx, x: torch.Tensor, logits_multiplier: float | None, kernel_backend: KernelBackend) -> torch.Tensor:
-        assert kernel_backend in [KernelBackend.cuda, KernelBackend.triton]
-
-        y = empty_like_contiguous(x)
-
-        _softmax_forward_triton(x=x, y=y, logits_multiplier=logits_multiplier)
-
-        ctx_save_for_backward(ctx, y)
-        ctx.logits_multiplier = logits_multiplier
-
-        return y
-
-    @staticmethod
-    def backward(ctx, dy: torch.Tensor) -> tuple[torch.Tensor | None]:
-        y = ctx.saved_tensors[0]
-        dx = empty_like_contiguous(y)
-
-        _softmax_backward_triton(y=y, dy=dy, dx=dx, logits_multiplier=ctx.logits_multiplier)
-
-        return dx, None, None
+    _Softmax[KernelBackend.cuda] = _SoftmaxTriton
+    _Softmax[KernelBackend.triton] = _SoftmaxTriton
 
 
 def softmax(
