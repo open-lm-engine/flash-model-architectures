@@ -60,7 +60,7 @@ class CustomOp(torch.autograd.Function, metaclass=_CustomOpMeta):
         if kernel_backend in cls.functions:
             function = cls.functions[kernel_backend]
 
-            if isinstance(function, type) and issubclass(function, torch.autograd.Function):
+            if hasattr(function, "apply"):
                 # a real, self-contained `torch.autograd.Function` with its own literal forward/backward -
                 # `.apply()` here only ever sees real tensor/data args, never a callable, so there's
                 # nothing generic/inherited or dynamo-unfriendly in the traced call.
