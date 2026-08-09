@@ -78,13 +78,6 @@ Functional
      - NKI
      - ROCm
      - Triton
-   * - bmm
-     - ❌
-     - ❌
-     - ❌
-     - ❌
-     - ❌
-     - ✅
    * - continuous_count
      - ✅
      - ❌

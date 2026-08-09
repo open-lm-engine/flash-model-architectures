@@ -12,7 +12,7 @@ from ....triton_utils import elementwise_2d_kernel, sigmoid
 
 
 @triton.jit
-def _swiglu_bwd_compute(g, u, dy):
+def _compute(g, u, dy):
     g = g.to(tl.float32)
     g_sigmoid = sigmoid(g)
     g_silu = g * g_sigmoid
@@ -43,5 +43,5 @@ def _swiglu_backward_triton(
         y1_stride=du.stride(),
         B=B,
         H=H,
-        COMPUTE_FN=_swiglu_bwd_compute,
+        COMPUTE_FN=_compute,
     )

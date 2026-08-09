@@ -5,7 +5,6 @@
 from typing import Callable
 
 import torch
-import torch.nn.functional as F
 
 from ....layers_jax.depthwise_causal_convolution.pallas_implementation import (
     _state_passing_core as _state_passing_core_jax,
@@ -26,17 +25,17 @@ def _metadata(BLOCK_SIZE_S: int, K: int) -> Callable:
     return _output_shape_dtype_fn
 
 
-_STATE_PASSING_CACHE = {}
-
-
 def _state_passing_core(x: torch.Tensor, h0: torch.Tensor | None, BLOCK_SIZE_S: int, K: int) -> torch.Tensor:
-    cache_key = (h0 is None, BLOCK_SIZE_S, K)
+    if not hasattr(_state_passing_core, "cache"):
+        _state_passing_core.cache = {}
 
-    if cache_key not in _STATE_PASSING_CACHE:
+    cache_key = (h0 is None, BLOCK_SIZE_S, K)
+    kernel = _state_passing_core.cache.get(cache_key)
+
+    if kernel is None:
         from torch_xla.experimental.custom_kernel import make_kernel_from_pallas
 
-        _STATE_PASSING_CACHE[cache_key] = make_kernel_from_pallas(_state_passing_core_jax, _metadata(BLOCK_SIZE_S, K))
+        kernel = make_kernel_from_pallas(_state_passing_core_jax, _metadata(BLOCK_SIZE_S, K))
+        _state_passing_core.cache[cache_key] = kernel
 
-    return _STATE_PASSING_CACHE[cache_key](
-        x, h0, static_argnames=("BLOCK_SIZE_S", "K"), BLOCK_SIZE_S=BLOCK_SIZE_S, K=K
-    )
+    return kernel(x, h0, static_argnames=("BLOCK_SIZE_S", "K"), BLOCK_SIZE_S=BLOCK_SIZE_S, K=K)

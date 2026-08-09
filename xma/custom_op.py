@@ -2,8 +2,6 @@
 # Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
-from __future__ import annotations
-
 import functools
 import inspect
 from typing import Any, Callable, Iterable, Sequence
@@ -25,7 +23,28 @@ def ctx_save_for_backward(ctx, *args) -> None:
         ctx.save_for_backward(*args)
 
 
-class CustomOp(torch.autograd.Function):
+class _CustomOpMeta(type(torch.autograd.Function)):
+    """lets `_Op[kernel_backend] = ...` register an op's implementation for that backend directly on
+    the class - either a real `torch.autograd.Function` subclass (for a compiled kernel, `.apply()`'d),
+    or a plain callable (for `KernelBackend.torch`, which needs no custom backward since it's built from
+    already-differentiable torch ops). Assignment via `[]` requires a metaclass in Python, there's no
+    per-class `__setitem__` equivalent."""
+
+    def __setitem__(cls, kernel_backend: KernelBackend, function: type[torch.autograd.Function] | Callable) -> None:
+        cls.functions[kernel_backend] = function
+
+    def __getitem__(cls, kernel_backend: KernelBackend) -> type[torch.autograd.Function] | Callable:
+        if kernel_backend not in cls.functions:
+            raise NotImplementedError(f"{cls.__name__} has nothing registered for kernel_backend ({kernel_backend})")
+
+        return cls.functions[kernel_backend]
+
+
+class CustomOp(torch.autograd.Function, metaclass=_CustomOpMeta):
+    def __init_subclass__(cls, **kwargs) -> None:
+        super().__init_subclass__(**kwargs)
+        cls.functions: dict[KernelBackend, type[torch.autograd.Function] | Callable] = {}
+
     @classmethod
     def run(cls, kernel_backend: KernelBackend | None = None, **kwargs) -> Any:
         if kernel_backend is None:
@@ -37,26 +56,13 @@ class CustomOp(torch.autograd.Function):
             raise ValueError("code is not supposed to reach here! kernel_backend was not inferrable")
 
         increment_counter(cls._get_key(kernel_backend))
+        function = cls.functions[kernel_backend]
 
-        output = (
-            cls.forward_backward_torch(**kwargs)
-            if kernel_backend == KernelBackend.torch
-            else cls.apply(*tuple(kwargs.values()), kernel_backend)
-        )
+        if kernel_backend == KernelBackend.torch:
+            return function(**kwargs)
 
-        return output
-
-    @staticmethod
-    def forward(ctx, *args, kernel_backend: KernelBackend) -> Any:
-        raise NotImplementedError
-
-    @staticmethod
-    def backward(ctx, *grad_outputs) -> Any:
-        raise NotImplementedError
-
-    @staticmethod
-    def forward_backward_torch(*args, **kwargs) -> Any:
-        raise NotImplementedError
+        if kernel_backend in cls.functions:
+            return function.apply(*tuple(kwargs.values()))
 
     @classmethod
     def _get_key(cls, kernel_backend: KernelBackend) -> str:

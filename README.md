@@ -23,7 +23,6 @@ Documentation: https://open-lm-engine.github.io/accelerated-model-architectures/
 
 | functional | CUDA | MPS | Pallas | NKI | ROCm | Triton |
 |-| - | - | - | - | - | - |
-| bmm | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
 | continuous_count | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | cross_entropy | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
 | fused_linear_cross_entropy | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |

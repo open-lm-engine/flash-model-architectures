@@ -6,8 +6,6 @@ from dataclasses import dataclass, field
 
 import torch
 
-from ...utils import zeros_like_contiguous
-
 
 @dataclass
 class SGDParamsGroup:
@@ -29,7 +27,9 @@ class SGDParamsGroup:
             return
 
         for name, W in self.params.items():
-            self.momentum_buffers[name] = zeros_like_contiguous(W, dtype=torch.float32)
+            self.momentum_buffers[name] = torch.zeros_like(
+                W, dtype=torch.float32, memory_format=torch.contiguous_format
+            )
 
     def get_params_for_optimization(self) -> tuple[list[torch.Tensor], list[torch.Tensor], list[torch.Tensor | None]]:
         params = []
@@ -44,7 +44,9 @@ class SGDParamsGroup:
 
             # lazy initialization for momentum buffers
             if self._lazy_init and self.momentum != 0 and self.momentum_buffers.get(name) is None:
-                self.momentum_buffers[name] = zeros_like_contiguous(W, dtype=torch.float32)
+                self.momentum_buffers[name] = torch.zeros_like(
+                    W, dtype=torch.float32, memory_format=torch.contiguous_format
+                )
 
             momentum_buffer_list.append(self.momentum_buffers.get(name))
 

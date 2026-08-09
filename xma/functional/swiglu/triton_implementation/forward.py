@@ -12,7 +12,7 @@ from ....triton_utils import elementwise_2d_kernel, sigmoid
 
 
 @triton.jit
-def _swiglu_fwd_compute(g, u):
+def _compute(g, u):
     g = g.to(tl.float32)
     return u * g * sigmoid(g)
 
@@ -35,5 +35,5 @@ def _swiglu_forward_triton(g: torch.Tensor, u: torch.Tensor, y: torch.Tensor) ->
         y1_stride=None,
         B=B,
         H=H,
-        COMPUTE_FN=_swiglu_fwd_compute,
+        COMPUTE_FN=_compute,
     )

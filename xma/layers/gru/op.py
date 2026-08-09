@@ -5,209 +5,23 @@
 import torch
 
 from ...accelerator import KernelBackend
-from ...custom_op import CustomOp, ctx_needs_gradients, ctx_save_for_backward
-from ...torch_utils import clip_gradients, sigmoid, tanh
-from ...utils import empty_like_contiguous, is_triton_available, zeros_like_contiguous
+from ...custom_op import CustomOp
+from ...utils import is_triton_available
+from .torch_implementation import _gru_torch
 from .utils import _get_num_heads
 
 
+class _GRU(CustomOp): ...
+
+
+_GRU[KernelBackend.torch] = _gru_torch
+
+
 if is_triton_available():
-    from .triton_implementation import _gru_backward_triton, _gru_forward_triton
+    from .triton_implementation import _GRUTriton
 
-
-def _get_backward_tensor(y: torch.Tensor, Nx: int, N: int) -> torch.Tensor:
-    if Nx == N:
-        dx = empty_like_contiguous(y)
-    else:
-        x_shape = list(y.size())
-        x_shape[-2] = Nx
-        dx = torch.zeros(x_shape, device=y.device, dtype=torch.float32)
-
-    return dx
-
-
-class _GRU(CustomOp):
-    @staticmethod
-    def forward_backward_torch(
-        x: torch.Tensor,
-        W: torch.Tensor,
-        xf: torch.Tensor,
-        Wf: torch.Tensor,
-        xr: torch.Tensor,
-        Wr: torch.Tensor,
-        h0: torch.Tensor | None,
-        gradient_clipping: float | None,
-        cu_seqlens: torch.Tensor | None,
-        max_seqlen: int | None,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
-        Nx, Nxf, Nxr, Nw, Nwf, Nwr, N = _get_num_heads(x=x, W=W, xf=xf, Wf=Wf, xr=xr, Wr=Wr, run_check=False)
-
-        y_shape = list(x.size())
-        y_shape[-2] = N
-        y = torch.empty(y_shape, device=x.device, dtype=x.dtype)
-
-        if cu_seqlens is None:
-            B, S, _, H = x.size()
-        else:
-            raise NotImplementedError
-
-        Gx = N // Nx
-        Gxf = N // Nxf
-        Gxr = N // Nxr
-
-        Gw = N // Nw
-        Gwf = N // Nwf
-        Gwr = N // Nwr
-
-        x = x.repeat_interleave(Gx, dim=-2)
-        xf = xf.repeat_interleave(Gxf, dim=-2)
-        xr = xr.repeat_interleave(Gxr, dim=-2)
-
-        W = W.repeat_interleave(Gw, dim=0)[None, ...]
-        Wf = Wf.repeat_interleave(Gwf, dim=0)[None, ...]
-        Wr = Wr.repeat_interleave(Gwr, dim=0)[None, ...]
-
-        if h0 is None:
-            h0 = torch.zeros(B, N, H, device=x.device, dtype=x.dtype)
-
-        for s in range(S):
-            f = h0[..., None, :] @ Wf + xf[:, s, :, None, :]
-            r = h0[..., None, :] @ Wr + xr[:, s, :, None, :]
-
-            f = sigmoid(f)
-            r = sigmoid(r)
-
-            z = (h0[..., None, :] * r) @ W + x[:, s, :, None, :]
-            z = tanh(z)
-            h = f * h0[..., None, :] + (1 - f) * z
-
-            h = h.squeeze(-2)
-            h = clip_gradients(h, gradient_clipping)
-
-            y[:, s] = h
-            h0 = h
-
-        return y, h0
-
-    @staticmethod
-    def forward(
-        ctx,
-        x: torch.Tensor,
-        W: torch.Tensor,
-        xf: torch.Tensor,
-        Wf: torch.Tensor,
-        xr: torch.Tensor,
-        Wr: torch.Tensor,
-        h0: torch.Tensor | None,
-        gradient_clipping: float | None,
-        cu_seqlens: torch.Tensor | None,
-        max_seqlen: int | None,
-        kernel_backend: KernelBackend,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
-        assert kernel_backend in [KernelBackend.cuda, KernelBackend.triton]
-
-        Nx, Nxf, Nxr, _, _, _, N = _get_num_heads(x=x, W=W, xf=xf, Wf=Wf, xr=xr, Wr=Wr, run_check=False)
-        y_shape = list(x.size())
-        y_shape[-2] = N
-
-        needs_grad = ctx_needs_gradients(ctx)
-
-        y = torch.empty(y_shape, device=x.device, dtype=x.dtype)
-        f = torch.empty(y_shape, device=x.device, dtype=x.dtype) if needs_grad and Nxf == N else None
-        r = torch.empty(y_shape, device=x.device, dtype=x.dtype) if needs_grad and Nxr == N else None
-        z = torch.empty(y_shape, device=x.device, dtype=x.dtype) if needs_grad and Nx == N else None
-
-        _gru_forward_triton(
-            x=x,
-            W=W,
-            xf=xf,
-            Wf=Wf,
-            f=f,
-            xr=xr,
-            Wr=Wr,
-            r=r,
-            z=z,
-            h0=h0,
-            y=y,
-            cu_seqlens=cu_seqlens,
-            max_seqlen=max_seqlen,
-        )
-
-        ctx_save_for_backward(
-            ctx,
-            W,
-            Wf,
-            f,
-            Wr,
-            r,
-            z,
-            y,
-            h0,
-            cu_seqlens,
-            x if z is None else None,
-            xf if f is None else None,
-            xr if r is None else None,
-        )
-
-        ctx.max_seqlen = max_seqlen
-        ctx.gradient_clipping = gradient_clipping
-        ctx.num_heads = Nx, Nxf, Nxr
-
-        ht = y[:, -1] if cu_seqlens is None else y[cu_seqlens[1:] - 1]
-        ht = ht.detach()
-
-        return y, ht
-
-    @staticmethod
-    def backward(ctx, dy: torch.Tensor, dht: torch.Tensor | None) -> tuple[torch.Tensor | None]:
-        W, Wf, f, Wr, r, z, y, h0, cu_seqlens, x, xf, xr = ctx.saved_tensors
-        Nx, Nxf, Nxr = ctx.num_heads
-
-        dx = _get_backward_tensor(y=y, Nx=Nx, N=y.size(-2))
-        dxf = _get_backward_tensor(y=y, Nx=Nxf, N=y.size(-2))
-        dxr = _get_backward_tensor(y=y, Nx=Nxr, N=y.size(-2))
-
-        dW = zeros_like_contiguous(W, dtype=torch.float32)
-        dWf = zeros_like_contiguous(Wf, dtype=torch.float32)
-        dWr = zeros_like_contiguous(Wr, dtype=torch.float32)
-
-        dh0 = empty_like_contiguous(h0) if h0 is not None and h0.requires_grad else None
-
-        _gru_backward_triton(
-            x=x,
-            W=W,
-            y=y,
-            xf=xf,
-            Wf=Wf,
-            f=f,
-            dxf=dxf,
-            dWf=dWf,
-            xr=xr,
-            Wr=Wr,
-            r=r,
-            dxr=dxr,
-            dWr=dWr,
-            z=z,
-            h0=h0,
-            dy=dy,
-            dht=dht,
-            dx=dx,
-            dW=dW,
-            dh0=dh0,
-            cu_seqlens=cu_seqlens,
-            max_seqlen=ctx.max_seqlen,
-            gradient_clipping=ctx.gradient_clipping,
-        )
-
-        dx = dx.type_as(y)
-        dxf = dxf.type_as(y)
-        dxr = dxr.type_as(y)
-
-        dW = dW.type_as(W)
-        dWf = dWf.type_as(Wf)
-        dWr = dWr.type_as(Wr)
-
-        return dx, dW, dxf, dWf, dxr, dWr, dh0, *[None] * 4
+    _GRU[KernelBackend.cuda] = _GRUTriton
+    _GRU[KernelBackend.triton] = _GRUTriton
 
 
 def gru(

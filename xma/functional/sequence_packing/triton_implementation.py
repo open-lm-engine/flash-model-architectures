@@ -6,7 +6,7 @@ import torch
 import triton
 import triton.language as tl
 
-from ...custom_op import xma_op
+from ...custom_op import ctx_save_for_backward, xma_op
 
 
 @triton.jit
@@ -84,3 +84,51 @@ def _pack_unpack_sequence_triton(
         BLOCK_SIZE=BLOCK_SIZE,
         num_warps=NUM_WARPS,
     )
+
+
+class _PackSequenceTriton(torch.autograd.Function):
+    @staticmethod
+    def forward(
+        ctx, x: torch.Tensor, cu_seqlens: torch.Tensor, output_shape: tuple[int], padding_side: str
+    ) -> torch.Tensor:
+        ctx_save_for_backward(ctx, cu_seqlens)
+        ctx.padding_side = padding_side
+        ctx.x_shape = x.size()
+
+        y = torch.empty(output_shape, device=x.device, dtype=x.dtype)
+        _pack_unpack_sequence_triton(x=x, y=y, cu_seqlens=cu_seqlens, padding_side=padding_side, pack=True)
+
+        return y
+
+    @staticmethod
+    def backward(ctx, dy: torch.Tensor) -> tuple[torch.Tensor, None, None, None]:
+        cu_seqlens = ctx.saved_tensors[0]
+
+        dx = torch.zeros(*ctx.x_shape, device=dy.device, dtype=dy.dtype)
+        _pack_unpack_sequence_triton(x=dy, y=dx, cu_seqlens=cu_seqlens, padding_side=ctx.padding_side, pack=False)
+
+        return dx, None, None, None
+
+
+class _UnpackSequenceTriton(torch.autograd.Function):
+    @staticmethod
+    def forward(
+        ctx, x: torch.Tensor, cu_seqlens: torch.Tensor, output_shape: tuple[int], padding_side: str
+    ) -> torch.Tensor:
+        ctx_save_for_backward(ctx, cu_seqlens)
+        ctx.padding_side = padding_side
+        ctx.x_shape = x.size()
+
+        y = torch.zeros(*output_shape, device=x.device, dtype=x.dtype)
+        _pack_unpack_sequence_triton(x=x, y=y, cu_seqlens=cu_seqlens, padding_side=padding_side, pack=False)
+
+        return y
+
+    @staticmethod
+    def backward(ctx, dy: torch.Tensor) -> tuple[torch.Tensor, None, None, None]:
+        cu_seqlens = ctx.saved_tensors[0]
+
+        dx = torch.empty(ctx.x_shape, device=dy.device, dtype=dy.dtype)
+        _pack_unpack_sequence_triton(x=dy, y=dx, cu_seqlens=cu_seqlens, padding_side=ctx.padding_side, pack=True)
+
+        return dx, None, None, None
