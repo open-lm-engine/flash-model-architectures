@@ -6,7 +6,7 @@ import torch
 
 from ...accelerator import KernelBackend
 from ...math import divide_if_divisible
-from ...utils import is_cute_dsl_available, is_torch_neuronx_available, is_triton_available
+from ...utils import is_cute_dsl_available, is_triton_available
 from . import mps_implementation, torch_implementation
 from .op import _Swiglu, _SwigluPacked
 

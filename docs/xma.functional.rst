@@ -4,7 +4,6 @@ xma.functional
 .. toctree::
    :maxdepth: 4
 
-   xma.functional.bmm
    xma.functional.continuous_count
    xma.functional.cross_entropy
    xma.functional.fused_linear_cross_entropy
