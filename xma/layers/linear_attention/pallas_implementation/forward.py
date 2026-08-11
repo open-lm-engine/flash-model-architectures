@@ -4,9 +4,7 @@
 
 import torch
 
-from ....layers_jax.linear_attention.pallas_implementation.forward import (
-    _linear_attention_forward_core as _forward_core_jax,
-)
+from ....layers_jax.linear_attention.pallas_implementation import _linear_attention_forward_core as _forward_core_jax
 
 
 def _output_shape_dtype_fn(

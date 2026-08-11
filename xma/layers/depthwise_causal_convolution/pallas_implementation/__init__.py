@@ -16,24 +16,24 @@ class _DepthwiseCausalConvolutionPallas(torch.autograd.Function):
     def forward(
         ctx,
         x: torch.Tensor,
-        weight: torch.Tensor,
-        bias: torch.Tensor | None,
-        input_state: torch.Tensor | None,
+        W: torch.Tensor,
+        b: torch.Tensor | None,
+        h0: torch.Tensor | None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        y, ht = _depthwise_causal_convolution_forward_pallas(
-            x=x, W=weight, b=bias, h0=input_state, BLOCK_SIZE_S=_BLOCK_SIZE_S
-        )
-        ctx.save_for_backward(x, weight, bias, input_state)
+        y, ht = _depthwise_causal_convolution_forward_pallas(x=x, W=W, b=b, h0=h0, BLOCK_SIZE_S=_BLOCK_SIZE_S)
+
+        ctx.save_for_backward(x, W, b, h0)
+
         return y, ht
 
     @staticmethod
     def backward(
         ctx, dy: torch.Tensor, dht: torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor | None, torch.Tensor | None]:
-        x, weight, bias, input_state = ctx.saved_tensors
+        x, W, b, h0 = ctx.saved_tensors
 
         dx, dW, db, dh0 = _depthwise_causal_convolution_backward_pallas(
-            x=x, W=weight, b=bias, h0=input_state, dy=dy, dht=dht, BLOCK_SIZE_S=_BLOCK_SIZE_S
+            x=x, W=W, b=b, h0=h0, dy=dy, dht=dht, BLOCK_SIZE_S=_BLOCK_SIZE_S
         )
 
         return dx, dW, db, dh0

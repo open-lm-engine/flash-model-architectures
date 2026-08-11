@@ -76,6 +76,7 @@ def _depthwise_causal_convolution_backward_pallas(
         h0 = F.pad(h0, (0, 0, pad - state_size, 0))
 
     h = _state_passing_core(x=x, h0=h0, BLOCK_SIZE_S=BLOCK_SIZE_S, K=K)
+
     dx, dW, db, dh0 = _backward_core(
         x=x,
         W=W,
