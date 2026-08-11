@@ -9,7 +9,7 @@ from .forward import _linear_attention_forward_pallas
 from .state_passing import _state_passing_pallas
 
 
-_BLOCK_SIZE_S = 512
+_BLOCK_SIZE_S = 256
 _BLOCK_SIZE_V = 256
 
 

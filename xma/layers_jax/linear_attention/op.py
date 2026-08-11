@@ -32,8 +32,8 @@ def linear_attention_jax(
     input_state: jax.Array | None = None,
     attention_multiplier: float | None = None,
     *,
-    BLOCK_SIZE_S: int = 128,
-    BLOCK_SIZE_V: int = 128,
+    BLOCK_SIZE_S: int = 256,
+    BLOCK_SIZE_V: int = 256,
     kernel_backend: KernelBackend | None = None,
 ) -> tuple[jax.Array, jax.Array]:
     """computes linear attention: `y[s] = q[s] @ h[s]`, `h[s] = h[s - 1] + k[s].T @ v[s]`
