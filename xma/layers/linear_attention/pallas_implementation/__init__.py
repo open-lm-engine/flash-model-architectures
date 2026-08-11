@@ -22,12 +22,15 @@ class _LinearAttentionPallas(torch.autograd.Function):
         v: torch.Tensor,
         h0: torch.Tensor | None,
         attention_multiplier: float,
+        output_state: bool,
         cu_seqlens: torch.Tensor | None,
         max_seqlen: int | None,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor | None]:
         assert cu_seqlens is None
 
-        y, ht = _linear_attention_forward_pallas(q=q, k=k, v=v, h0=h0, attention_multiplier=attention_multiplier)
+        y, ht = _linear_attention_forward_pallas(
+            q=q, k=k, v=v, h0=h0, attention_multiplier=attention_multiplier, output_state=output_state
+        )
 
         ctx.h0_is_none = h0 is None
         ctx.attention_multiplier = attention_multiplier
@@ -39,7 +42,7 @@ class _LinearAttentionPallas(torch.autograd.Function):
     @staticmethod
     def backward(
         ctx, dy: torch.Tensor, dht: torch.Tensor
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor | None, None, None, None]:
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor | None, None, None, None, None]:
         if ctx.h0_is_none:
             q, k, v = ctx.saved_tensors
             h0 = None
@@ -81,4 +84,4 @@ class _LinearAttentionPallas(torch.autograd.Function):
         if h0 is None:
             dh0 = None
 
-        return dq, dk, dv, dh0, None, None, None
+        return dq, dk, dv, dh0, None, None, None, None

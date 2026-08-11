@@ -96,9 +96,6 @@ class M2RNN(nn.Module):
         k = k.view(*k.size()[:-1], -1, self.key_head_dim)
         v = v.view(*v.size()[:-1], -1, self.value_head_dim)
 
-        if input_state is not None:
-            input_state = input_state.view(-1, self.num_heads, self.key_head_dim, self.value_head_dim)
-
         input, input_state = m2rnn(
             query=q,
             key=k,
@@ -113,8 +110,6 @@ class M2RNN(nn.Module):
         )
 
         input = input.flatten(-2, -1)
-        input_state = input_state.flatten(-2, -1)
-
         input = self.output_projection(input)
 
         return input, input_state, conv_state
