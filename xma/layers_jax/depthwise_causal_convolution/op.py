@@ -18,7 +18,7 @@ def depthwise_causal_convolution_jax(
     output_state: bool = False,
     activation_function: str | None = None,
     *,
-    BLOCK_SIZE_S: int = 128,
+    BLOCK_SIZE_S: int = 256,
     kernel_backend: KernelBackend | None = None,
 ) -> tuple[jax.Array, jax.Array | None]:
     """

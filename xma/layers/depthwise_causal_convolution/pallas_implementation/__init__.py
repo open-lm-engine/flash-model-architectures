@@ -8,6 +8,9 @@ from .backward import _depthwise_causal_convolution_backward_pallas
 from .forward import _depthwise_causal_convolution_forward_pallas
 
 
+_BLOCK_SIZE_S = 256
+
+
 class _DepthwiseCausalConvolutionPallas(torch.autograd.Function):
     @staticmethod
     def forward(
@@ -17,7 +20,9 @@ class _DepthwiseCausalConvolutionPallas(torch.autograd.Function):
         bias: torch.Tensor | None,
         input_state: torch.Tensor | None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        y, ht = _depthwise_causal_convolution_forward_pallas(x=x, W=weight, b=bias, h0=input_state)
+        y, ht = _depthwise_causal_convolution_forward_pallas(
+            x=x, W=weight, b=bias, h0=input_state, BLOCK_SIZE_S=_BLOCK_SIZE_S
+        )
         ctx.save_for_backward(x, weight, bias, input_state)
         return y, ht
 
@@ -28,7 +33,7 @@ class _DepthwiseCausalConvolutionPallas(torch.autograd.Function):
         x, weight, bias, input_state = ctx.saved_tensors
 
         dx, dW, db, dh0 = _depthwise_causal_convolution_backward_pallas(
-            x=x, W=weight, b=bias, h0=input_state, dy=dy, dht=dht
+            x=x, W=weight, b=bias, h0=input_state, dy=dy, dht=dht, BLOCK_SIZE_S=_BLOCK_SIZE_S
         )
 
         return dx, dW, db, dh0

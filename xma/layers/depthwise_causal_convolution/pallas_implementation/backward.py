@@ -62,7 +62,7 @@ def _depthwise_causal_convolution_backward_pallas(
     h0: torch.Tensor | None,
     dy: torch.Tensor,
     dht: torch.Tensor | None,
-    BLOCK_SIZE_S: int = 128,
+    BLOCK_SIZE_S: int,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor | None, torch.Tensor | None]:
     K = W.shape[-1]
 

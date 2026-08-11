@@ -66,9 +66,6 @@ def depthwise_causal_convolution(
     if input_state is not None:
         assert input_state.shape == (B, H, K - 1)
 
-    if kernel_backend is None:
-        kernel_backend = KernelBackend.pallas
-
     output, ht = _DepthwiseCausalConvolution.run(
         x=input, weight=weight, bias=bias, input_state=input_state, kernel_backend=kernel_backend
     )

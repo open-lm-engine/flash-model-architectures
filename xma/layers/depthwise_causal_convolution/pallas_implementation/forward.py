@@ -34,7 +34,7 @@ def _forward_core(
 
 
 def _depthwise_causal_convolution_forward_pallas(
-    x: torch.Tensor, W: torch.Tensor, b: torch.Tensor | None, h0: torch.Tensor | None, BLOCK_SIZE_S: int = 128
+    x: torch.Tensor, W: torch.Tensor, b: torch.Tensor | None, h0: torch.Tensor | None, BLOCK_SIZE_S: int
 ) -> tuple[torch.Tensor, torch.Tensor]:
     W = W.transpose(1, 0)
     b = None if b is None else b[None, :]
