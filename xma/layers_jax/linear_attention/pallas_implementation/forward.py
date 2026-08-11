@@ -13,27 +13,27 @@ from ....math import ceil_divide
 
 
 def _linear_attention_forward_kernel(
-    q_ref, k_ref, v_ref, h0_ref, y_ref, ht_ref, *, attention_multiplier: float, BLOCK_SIZE_S: int, S: int
+    q_ref, k_ref, v_ref, h0_ref, y_ref, ht_ref, h_scratch, *, attention_multiplier: float, BLOCK_SIZE_S: int, S: int
 ) -> None:
+    state_ref = h_scratch if ht_ref is None else ht_ref
     BLOCK_ID_S = pl.program_id(3)
 
     @pl.when(BLOCK_ID_S == 0)
     def _():
         if h0_ref is None:
-            ht_ref[...] = jnp.zeros_like(ht_ref)
+            state_ref[...] = jnp.zeros_like(state_ref)
         else:
-            ht_ref[...] = h0_ref[...].astype(jnp.float32)
+            state_ref[...] = h0_ref[...].astype(jnp.float32)
 
     dtype = q_ref.dtype
 
-    BLOCK_ID_S = pl.program_id(3)
     BLOCK_S = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, 1), 0)
     MASK_S = (BLOCK_ID_S * BLOCK_SIZE_S + BLOCK_S) < S
 
     q = jnp.where(MASK_S, q_ref[...], 0).astype(dtype)
     k = jnp.where(MASK_S, k_ref[...], 0).astype(dtype)
     v = jnp.where(MASK_S, v_ref[...], 0).astype(dtype)
-    h = ht_ref[...]
+    h = state_ref[...]
 
     row = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, BLOCK_SIZE_S), 0)
     col = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, BLOCK_SIZE_S), 1)
@@ -48,19 +48,20 @@ def _linear_attention_forward_kernel(
     y_ref[...] = y.astype(dtype)
 
     h += jax.lax.dot_general(k, v, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32)
-    ht_ref[...] = h
+    state_ref[...] = h
 
 
-@partial(jax.jit, static_argnames=("attention_multiplier", "BLOCK_SIZE_S", "BLOCK_SIZE_V"))
+@partial(jax.jit, static_argnames=("attention_multiplier", "BLOCK_SIZE_S", "BLOCK_SIZE_V", "output_state"))
 def _linear_attention_forward_core(
     q: jax.Array,
     k: jax.Array,
     v: jax.Array,
     h0: jax.Array | None,
     attention_multiplier: float,
+    output_state: bool,
     BLOCK_SIZE_S: int,
     BLOCK_SIZE_V: int,
-) -> tuple[jax.Array, jax.Array]:
+) -> tuple[jax.Array, jax.Array | None]:
     B, Nq, S, K = q.shape
     Nk = k.shape[1]
     Nv = v.shape[1]
@@ -82,7 +83,7 @@ def _linear_attention_forward_core(
         ),
         out_shape=(
             jax.ShapeDtypeStruct(shape=(B, N, S, V), dtype=q.dtype),
-            jax.ShapeDtypeStruct(shape=(B, N, K, V), dtype=jnp.float32),
+            jax.ShapeDtypeStruct(shape=(B, N, K, V), dtype=jnp.float32) if output_state else None,
         ),
         grid=(B, N, ceil_divide(V, BLOCK_SIZE_V), ceil_divide(S, BLOCK_SIZE_S)),
         in_specs=(
@@ -125,8 +126,9 @@ def _linear_attention_forward_core(
                     BLOCK_ID_V,
                 ),
             ),
-            h_spec,
+            h_spec if output_state else None,
         ),
+        scratch_shapes=[pltpu.VMEM((K, BLOCK_SIZE_V), jnp.float32)],
         compiler_params=pltpu.CompilerParams(dimension_semantics=("parallel", "parallel", "parallel", "arbitrary")),
     )
 

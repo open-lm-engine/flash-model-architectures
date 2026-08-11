@@ -116,9 +116,10 @@ class LinearAttentionJAX(eqx.Module):
         input_state: NamedArray | None = None,
         conv_state: NamedArray | None = None,
         output_conv_state: bool = False,
+        output_state: bool = True,
         *,
         kernel_backend: KernelBackend | None = None,
-    ) -> tuple[NamedArray, NamedArray, NamedArray | None]:
+    ) -> tuple[NamedArray, NamedArray | None, NamedArray | None]:
         Batch, Pos = [axis for axis in input.axes if axis != self.Embed]
 
         QuerySize = Axis("query_size", self.QHeads.size * self.KeyHeadDim.size)
@@ -144,12 +145,13 @@ class LinearAttentionJAX(eqx.Module):
             input_state = input_state.unflatten_axis(self.StateSize, (self.KeyHeadDim, self.ValueHeadDim))
             input_state = input_state.array
 
-        output, output_state = linear_attention_jax(
+        output, final_state = linear_attention_jax(
             query=query.array,
             key=key.array,
             value=value.array,
             input_state=input_state,
             attention_multiplier=self.attention_multiplier,
+            output_state=output_state,
             BLOCK_SIZE_S=self.BLOCK_SIZE_S,
             BLOCK_SIZE_V=self.BLOCK_SIZE_V,
             kernel_backend=kernel_backend,
@@ -161,7 +163,8 @@ class LinearAttentionJAX(eqx.Module):
         output = output.flatten_axes((self.Heads, self.ValueHeadDim), HeadsValueSize)
         output = self.output_projection(output)
 
-        output_state = hax.named(output_state, (Batch, self.Heads, self.KeyHeadDim, self.ValueHeadDim))
-        output_state = output_state.flatten_axes((self.KeyHeadDim, self.ValueHeadDim), self.StateSize)
+        if final_state is not None:
+            final_state = hax.named(final_state, (Batch, self.Heads, self.KeyHeadDim, self.ValueHeadDim))
+            final_state = final_state.flatten_axes((self.KeyHeadDim, self.ValueHeadDim), self.StateSize)
 
-        return output, output_state, conv_state
+        return output, final_state, conv_state
