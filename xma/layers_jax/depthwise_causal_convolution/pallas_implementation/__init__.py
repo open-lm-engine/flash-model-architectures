@@ -13,6 +13,9 @@ from .forward import _forward_core
 from .state_passing import _state_passing_core
 
 
+_BLOCK_SIZE_S = 256
+
+
 def _pad_h0(h0: jax.Array, K: int) -> jax.Array:
     state_size = K - 1
     pad = ceil_divide(state_size, 8) * 8
@@ -26,7 +29,6 @@ def _depthwise_causal_convolution_pallas(
     b: jax.Array | None,
     h0: jax.Array | None,
     output_state: bool,
-    BLOCK_SIZE_S: int,
     ACTIVATION: str | None,
 ) -> tuple[jax.Array, jax.Array | None]:
     W = jnp.transpose(W, (1, 0))
@@ -36,7 +38,7 @@ def _depthwise_causal_convolution_pallas(
         h0 = jnp.transpose(h0, (0, 2, 1)).astype(x.dtype)
         h0 = _pad_h0(h0, K=W.shape[0])
 
-    y = _forward_core(x=x, W=W, b=b, h0=h0, BLOCK_SIZE_S=BLOCK_SIZE_S, ACTIVATION=ACTIVATION)
+    y = _forward_core(x=x, W=W, b=b, h0=h0, BLOCK_SIZE_S=_BLOCK_SIZE_S, ACTIVATION=ACTIVATION)
 
     if not output_state:
         return y, None
@@ -60,18 +62,17 @@ def _depthwise_causal_convolution_forward(
     b: jax.Array | None,
     h0: jax.Array | None,
     output_state: bool,
-    BLOCK_SIZE_S: int,
     ACTIVATION: str | None,
 ) -> tuple[tuple[jax.Array, jax.Array | None], tuple]:
     y, ht = _depthwise_causal_convolution_pallas(
-        x=x, W=W, b=b, h0=h0, output_state=output_state, BLOCK_SIZE_S=BLOCK_SIZE_S, ACTIVATION=ACTIVATION
+        x=x, W=W, b=b, h0=h0, output_state=output_state, ACTIVATION=ACTIVATION
     )
 
     return (y, ht), (x, W, b, h0)
 
 
 def _depthwise_causal_convolution_backward(
-    output_state: bool, BLOCK_SIZE_S: int, ACTIVATION: str | None, residuals: tuple, cotangents: tuple
+    output_state: bool, ACTIVATION: str | None, residuals: tuple, cotangents: tuple
 ) -> tuple:
     x, W, b, h0 = residuals
     dy, dht = cotangents
@@ -85,7 +86,7 @@ def _depthwise_causal_convolution_backward(
 
     dht = None if dht is None or not output_state else jnp.transpose(dht, (0, 2, 1))
 
-    h = _state_passing_core(x=x, h0=h0, BLOCK_SIZE_S=BLOCK_SIZE_S, K=K)
+    h = _state_passing_core(x=x, h0=h0, BLOCK_SIZE_S=_BLOCK_SIZE_S, K=K)
     dx, dW, db, dh0 = _backward_core(
         x=x,
         W=W,
@@ -93,7 +94,7 @@ def _depthwise_causal_convolution_backward(
         h=h,
         dy=dy,
         dht=dht,
-        BLOCK_SIZE_S=BLOCK_SIZE_S,
+        BLOCK_SIZE_S=_BLOCK_SIZE_S,
         K=K,
         ACTIVATION=ACTIVATION,
     )
