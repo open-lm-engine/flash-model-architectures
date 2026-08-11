@@ -22,7 +22,7 @@ def _pad_h0(h0: jax.Array, K: int) -> jax.Array:
     return jnp.pad(h0, ((0, 0), (pad - state_size, 0), (0, 0)))
 
 
-@partial(jax.custom_vjp, nondiff_argnums=(4, 5, 6))
+@partial(jax.custom_vjp, nondiff_argnums=(4, 5))
 def _depthwise_causal_convolution_pallas(
     x: jax.Array,
     W: jax.Array,
