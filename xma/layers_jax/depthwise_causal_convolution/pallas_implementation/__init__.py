@@ -13,7 +13,13 @@ from .forward import _forward_core
 from .state_passing import _state_passing_core
 
 
-_BLOCK_SIZE_S = 256
+def _get_block_size_s(H: int) -> int:
+    # the kernel stack holds several (BLOCK_SIZE_S, H) fp32 tiles and vmem overflows once
+    # BLOCK_SIZE_S * H exceeds 2**19 (measured), so shrink the block for wide H. Narrow H
+    # wants the block as big as possible instead: more rows per program means fewer HBM
+    # round-trips, which is what sets the kernel's bandwidth at small hidden sizes
+    block_size = 1 << ((1 << 19) // H).bit_length() - 1
+    return min(1024, max(8, block_size))
 
 
 def _pad_h0(h0: jax.Array, K: int) -> jax.Array:
@@ -38,7 +44,7 @@ def _depthwise_causal_convolution_pallas(
         h0 = jnp.transpose(h0, (0, 2, 1)).astype(x.dtype)
         h0 = _pad_h0(h0, K=W.shape[0])
 
-    y = _forward_core(x=x, W=W, b=b, h0=h0, BLOCK_SIZE_S=_BLOCK_SIZE_S, ACTIVATION=ACTIVATION)
+    y = _forward_core(x=x, W=W, b=b, h0=h0, BLOCK_SIZE_S=_get_block_size_s(x.shape[-1]), ACTIVATION=ACTIVATION)
 
     if not output_state:
         return y, None
@@ -86,7 +92,7 @@ def _depthwise_causal_convolution_backward(
 
     dht = None if dht is None or not output_state else jnp.transpose(dht, (0, 2, 1))
 
-    h = _state_passing_core(x=x, h0=h0, BLOCK_SIZE_S=_BLOCK_SIZE_S, K=K)
+    h = _state_passing_core(x=x, h0=h0, BLOCK_SIZE_S=_get_block_size_s(x.shape[-1]), K=K)
     dx, dW, db, dh0 = _backward_core(
         x=x,
         W=W,
@@ -94,7 +100,7 @@ def _depthwise_causal_convolution_backward(
         h=h,
         dy=dy,
         dht=dht,
-        BLOCK_SIZE_S=_BLOCK_SIZE_S,
+        BLOCK_SIZE_S=_get_block_size_s(x.shape[-1]),
         K=K,
         ACTIVATION=ACTIVATION,
     )
