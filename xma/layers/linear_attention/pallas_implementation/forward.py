@@ -9,12 +9,16 @@ from ....layers_jax.linear_attention.pallas_implementation import _linear_attent
 
 def _output_shape_dtype_fn(
     q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, h0: torch.Tensor | None, output_state: bool
-) -> list[tuple[tuple[int, ...], torch.dtype] | None]:
+) -> list[tuple[tuple[int, ...], torch.dtype]]:
     B, _, S, K = q.shape
     V = v.size(-1)
     N = max(q.size(1), k.size(1), v.size(1))
 
-    return [((B, N, S, V), q.dtype), ((B, N, K, V), torch.float32) if output_state else None]
+    output_shape_dtype = [((B, N, S, V), q.dtype)]
+    if output_state:
+        output_shape_dtype.append(((B, N, K, V), torch.float32))
+
+    return output_shape_dtype
 
 
 _CACHE = {}
@@ -43,7 +47,7 @@ def _linear_attention_forward_pallas(
             _forward_core_jax, lambda q, k, v, h0: _output_shape_dtype_fn(q, k, v, h0, output_state)
         )
 
-    y, ht = _CACHE[cache_key](
+    y = _CACHE[cache_key](
         q,
         k,
         v,
@@ -54,6 +58,11 @@ def _linear_attention_forward_pallas(
         BLOCK_SIZE_S=BLOCK_SIZE_S,
         BLOCK_SIZE_V=BLOCK_SIZE_V,
     )
+
+    if output_state:
+        y, ht = y
+    else:
+        ht = None
 
     y = y.transpose(1, 2)
 

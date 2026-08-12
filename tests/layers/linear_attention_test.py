@@ -122,11 +122,11 @@ def test_linear_attention(
         linear_attention_kernel = torch.compile(linear_attention_kernel, fullgraph=True)
 
     y_kernel, output_state_kernel, _ = linear_attention_kernel(
-        input=x_kernel, input_state=input_state_kernel, kernel_backend=kernel_backend
+        input=x_kernel, input_state=input_state_kernel, output_state=True, kernel_backend=kernel_backend
     )
 
     y_torch, output_state_torch, _ = linear_attention_torch(
-        input=x_torch, input_state=input_state_torch, kernel_backend=KernelBackend.torch
+        input=x_torch, input_state=input_state_torch, output_state=True, kernel_backend=KernelBackend.torch
     )
 
     assert_equal_tensors(y_kernel, y_torch, False)
