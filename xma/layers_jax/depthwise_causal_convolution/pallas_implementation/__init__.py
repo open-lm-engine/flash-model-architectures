@@ -27,19 +27,6 @@ def _pad_h0(h0: jax.Array, K: int) -> jax.Array:
     return jnp.pad(h0, ((0, 0), (pad - state_size, 0), (0, 0)))
 
 
-@partial(jax.custom_vjp, nondiff_argnums=(4, 5))
-def _depthwise_causal_convolution_pallas(
-    x: jax.Array,
-    W: jax.Array,
-    b: jax.Array | None,
-    h0: jax.Array | None,
-    output_state: bool,
-    ACTIVATION: str | None,
-) -> tuple[jax.Array, jax.Array | None]:
-    y, ht, _ = _forward_run(x=x, W=W, b=b, h0=h0, output_state=output_state, ACTIVATION=ACTIVATION)
-    return y, ht
-
-
 def _forward_run(
     x: jax.Array,
     W: jax.Array,
@@ -58,24 +45,37 @@ def _forward_run(
     # the per-block input states are saved from the forward as vjp residuals (a small
     # (B, ceil(S / BLOCK_SIZE_S), PAD, H) tensor) so the backward can consume them directly
     # instead of re-deriving them with an extra pass over the input
-    y, h_states = _forward_core(
-        x=x, W=W, b=b, h0=h0, BLOCK_SIZE_S=_get_block_size_s(x.shape[-1]), ACTIVATION=ACTIVATION
-    )
+    y, h = _forward_core(x=x, W=W, b=b, h0=h0, BLOCK_SIZE_S=_get_block_size_s(x.shape[-1]), ACTIVATION=ACTIVATION)
 
-    if not output_state:
-        return y, None, h_states
+    if output_state:
+        state_size = W.shape[0] - 1
+        if h0 is None:
+            ht = (
+                jnp.pad(x, ((0, 0), (state_size - x.shape[1], 0), (0, 0)))
+                if x.shape[1] < state_size
+                else x[:, -state_size:, :]
+            )
+        else:
+            ht = jnp.concatenate([h0.astype(x.dtype), x], axis=1)[:, -state_size:, :]
 
-    state_size = W.shape[0] - 1
-    if h0 is None:
-        ht = (
-            jnp.pad(x, ((0, 0), (state_size - x.shape[1], 0), (0, 0)))
-            if x.shape[1] < state_size
-            else x[:, -state_size:, :]
-        )
+        ht = jnp.transpose(ht, (0, 2, 1))
     else:
-        ht = jnp.concatenate([h0.astype(x.dtype), x], axis=1)[:, -state_size:, :]
+        ht = None
 
-    return y, jnp.transpose(ht, (0, 2, 1)), h_states
+    return y, ht, h
+
+
+@partial(jax.custom_vjp, nondiff_argnums=(4, 5))
+def _depthwise_causal_convolution_pallas(
+    x: jax.Array,
+    W: jax.Array,
+    b: jax.Array | None,
+    h0: jax.Array | None,
+    output_state: bool,
+    ACTIVATION: str | None,
+) -> tuple[jax.Array, jax.Array | None]:
+    y, ht, _ = _forward_run(x=x, W=W, b=b, h0=h0, output_state=output_state, ACTIVATION=ACTIVATION)
+    return y, ht
 
 
 def _depthwise_causal_convolution_forward(
@@ -86,9 +86,8 @@ def _depthwise_causal_convolution_forward(
     output_state: bool,
     ACTIVATION: str | None,
 ) -> tuple[tuple[jax.Array, jax.Array | None], tuple]:
-    y, ht, h_states = _forward_run(x=x, W=W, b=b, h0=h0, output_state=output_state, ACTIVATION=ACTIVATION)
-
-    return (y, ht), (x, W, b, h0, h_states)
+    y, ht, h = _forward_run(x=x, W=W, b=b, h0=h0, output_state=output_state, ACTIVATION=ACTIVATION)
+    return (y, ht), (x, W, b, h0, h)
 
 
 def _depthwise_causal_convolution_backward(
