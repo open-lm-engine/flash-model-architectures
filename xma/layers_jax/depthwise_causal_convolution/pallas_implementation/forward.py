@@ -65,7 +65,7 @@ def _forward_kernel(
     h_scratch[...] = x_f32[BLOCK_SIZE_S - PAD :, :].astype(dtype)
 
 
-@partial(jax.jit, static_argnames=("BLOCK_SIZE_S", "ACTIVATION", "output_states"))
+@partial(jax.jit, static_argnames=("BLOCK_SIZE_S", "ACTIVATION"))
 def _forward_core(
     x: jax.Array,
     W: jax.Array,
