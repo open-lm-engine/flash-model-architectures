@@ -86,7 +86,7 @@ def depthwise_causal_convolution_jax(
     input = _apply_mask_to_padding_states(input, attention_mask)
 
     if kernel_backend == KernelBackend.pallas:
-        output, final_state = _depthwise_causal_convolution_pallas(
+        input, input_state = _depthwise_causal_convolution_pallas(
             x=input,
             W=weight,
             b=bias,
@@ -95,7 +95,7 @@ def depthwise_causal_convolution_jax(
             ACTIVATION=activation_function,
         )
     elif kernel_backend == KernelBackend.jax:
-        output, final_state = _depthwise_causal_convolution_reference(
+        input, input_state = _depthwise_causal_convolution_reference(
             x=input,
             W=weight,
             b=bias,
@@ -106,6 +106,4 @@ def depthwise_causal_convolution_jax(
     else:
         raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
-    output = _apply_mask_to_padding_states(output, attention_mask)
-
-    return output, final_state
+    return input, input_state
