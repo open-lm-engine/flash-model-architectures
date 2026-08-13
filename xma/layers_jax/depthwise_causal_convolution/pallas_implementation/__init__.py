@@ -10,6 +10,9 @@ import jax.numpy as jnp
 from ....math import ceil_divide
 from .backward import _backward_core
 from .forward import _forward_core
+
+# re-exported for the torch_xla wrapper (xma/layers/depthwise_causal_convolution), which generates
+# these states in its backward; the jax path saves them from the forward instead (see _forward_run)
 from .state_passing import _state_passing_core
 
 
@@ -37,6 +40,18 @@ def _depthwise_causal_convolution_pallas(
     output_state: bool,
     ACTIVATION: str | None,
 ) -> tuple[jax.Array, jax.Array | None]:
+    y, ht, _ = _forward_run(x=x, W=W, b=b, h0=h0, output_state=output_state, ACTIVATION=ACTIVATION)
+    return y, ht
+
+
+def _forward_run(
+    x: jax.Array,
+    W: jax.Array,
+    b: jax.Array | None,
+    h0: jax.Array | None,
+    output_state: bool,
+    ACTIVATION: str | None,
+) -> tuple[jax.Array, jax.Array | None, jax.Array]:
     W = jnp.transpose(W, (1, 0))
     b = None if b is None else b[None, :]
 
@@ -44,10 +59,21 @@ def _depthwise_causal_convolution_pallas(
         h0 = jnp.transpose(h0, (0, 2, 1)).astype(x.dtype)
         h0 = _pad_h0(h0, K=W.shape[0])
 
-    y = _forward_core(x=x, W=W, b=b, h0=h0, BLOCK_SIZE_S=_get_block_size_s(x.shape[-1]), ACTIVATION=ACTIVATION)
+    # the per-block input states are saved from the forward as vjp residuals (a small
+    # (B, ceil(S / BLOCK_SIZE_S), PAD, H) tensor) so the backward can consume them directly
+    # instead of re-deriving them with an extra pass over the input
+    y, h_states = _forward_core(
+        x=x,
+        W=W,
+        b=b,
+        h0=h0,
+        BLOCK_SIZE_S=_get_block_size_s(x.shape[-1]),
+        ACTIVATION=ACTIVATION,
+        output_states=True,
+    )
 
     if not output_state:
-        return y, None
+        return y, None, h_states
 
     state_size = W.shape[0] - 1
     if h0 is None:
@@ -59,7 +85,7 @@ def _depthwise_causal_convolution_pallas(
     else:
         ht = jnp.concatenate([h0.astype(x.dtype), x], axis=1)[:, -state_size:, :]
 
-    return y, jnp.transpose(ht, (0, 2, 1))
+    return y, jnp.transpose(ht, (0, 2, 1)), h_states
 
 
 def _depthwise_causal_convolution_forward(
@@ -70,34 +96,27 @@ def _depthwise_causal_convolution_forward(
     output_state: bool,
     ACTIVATION: str | None,
 ) -> tuple[tuple[jax.Array, jax.Array | None], tuple]:
-    y, ht = _depthwise_causal_convolution_pallas(
-        x=x, W=W, b=b, h0=h0, output_state=output_state, ACTIVATION=ACTIVATION
-    )
+    y, ht, h_states = _forward_run(x=x, W=W, b=b, h0=h0, output_state=output_state, ACTIVATION=ACTIVATION)
 
-    return (y, ht), (x, W, b, h0)
+    return (y, ht), (x, W, b, h0, h_states)
 
 
 def _depthwise_causal_convolution_backward(
     output_state: bool, ACTIVATION: str | None, residuals: tuple, cotangents: tuple
 ) -> tuple:
-    x, W, b, h0 = residuals
+    x, W, b, h0, h_states = residuals
     dy, dht = cotangents
 
     K = W.shape[-1]
     W = jnp.transpose(W, (1, 0))
 
-    if h0 is not None:
-        h0 = jnp.transpose(h0, (0, 2, 1)).astype(x.dtype)
-        h0 = _pad_h0(h0, K=K)
-
     dht = None if dht is None or not output_state else jnp.transpose(dht, (0, 2, 1))
 
-    h = _state_passing_core(x=x, h0=h0, BLOCK_SIZE_S=_get_block_size_s(x.shape[-1]), K=K)
     dx, dW, db, dh0 = _backward_core(
         x=x,
         W=W,
         b=None if b is None else b[None, :],
-        h=h,
+        h=h_states,
         dy=dy,
         dht=dht,
         BLOCK_SIZE_S=_get_block_size_s(x.shape[-1]),
