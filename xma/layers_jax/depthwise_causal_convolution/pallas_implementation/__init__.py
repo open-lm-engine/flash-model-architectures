@@ -123,13 +123,3 @@ def _depthwise_causal_convolution_backward(
 _depthwise_causal_convolution_pallas.defvjp(
     _depthwise_causal_convolution_forward, _depthwise_causal_convolution_backward
 )
-
-
-def _apply_mask_to_padding_states(x: jax.Array, attention_mask: jax.Array | None) -> jax.Array:
-    """
-    Tunes out the hidden states for padding tokens, see https://github.com/state-spaces/mamba/issues/66
-    """
-    if attention_mask is not None and attention_mask.shape[1] > 1 and attention_mask.shape[0] > 1:
-        x = (x * attention_mask[:, :, None]).astype(x.dtype)
-
-    return x
