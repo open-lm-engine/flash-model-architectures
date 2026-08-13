@@ -11,10 +11,6 @@ from ....math import ceil_divide
 from .backward import _backward_core
 from .forward import _forward_core
 
-# re-exported for the torch_xla wrapper (xma/layers/depthwise_causal_convolution), which generates
-# these states in its backward; the jax path saves them from the forward instead (see _forward_run)
-from .state_passing import _state_passing_core
-
 
 def _get_block_size_s(H: int) -> int:
     # the kernel stack holds several (BLOCK_SIZE_S, H) fp32 tiles and vmem overflows once
