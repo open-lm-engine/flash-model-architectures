@@ -83,17 +83,6 @@ def _forward_core(
         block_shape=(None, BLOCK_SIZE_S, H), index_map=lambda BLOCK_ID_B, BLOCK_ID_S: (BLOCK_ID_B, BLOCK_ID_S, 0)
     )
 
-    in_specs = (
-        x_spec,
-        pl.BlockSpec(block_shape=(K, H), index_map=lambda BLOCK_ID_B, BLOCK_ID_S: (0, 0)),
-        None if b is None else pl.BlockSpec(block_shape=(1, H), index_map=lambda BLOCK_ID_B, BLOCK_ID_S: (0, 0)),
-        (
-            None
-            if h0 is None
-            else pl.BlockSpec(block_shape=(None, PAD, H), index_map=lambda BLOCK_ID_B, BLOCK_ID_S: (BLOCK_ID_B, 0, 0))
-        ),
-    )
-
     kernel = pl.pallas_call(
         partial(_forward_kernel, BLOCK_SIZE_S=BLOCK_SIZE_S, S=S, K=K, PAD=PAD, ACTIVATION=ACTIVATION),
         out_shape=(
@@ -101,7 +90,18 @@ def _forward_core(
             jax.ShapeDtypeStruct((B, NUM_BLOCKS_S, PAD, H), x.dtype),
         ),
         grid=(B, NUM_BLOCKS_S),
-        in_specs=in_specs,
+        in_specs=(
+            x_spec,
+            pl.BlockSpec(block_shape=(K, H), index_map=lambda BLOCK_ID_B, BLOCK_ID_S: (0, 0)),
+            None if b is None else pl.BlockSpec(block_shape=(1, H), index_map=lambda BLOCK_ID_B, BLOCK_ID_S: (0, 0)),
+            (
+                None
+                if h0 is None
+                else pl.BlockSpec(
+                    block_shape=(None, PAD, H), index_map=lambda BLOCK_ID_B, BLOCK_ID_S: (BLOCK_ID_B, 0, 0)
+                )
+            ),
+        ),
         out_specs=(
             x_spec,
             pl.BlockSpec(
