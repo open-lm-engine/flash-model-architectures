@@ -18,66 +18,7 @@ def _forward_kernel(
     b_ref,
     h0_ref,
     y_ref,
-    h_scratch,
-    BLOCK_SIZE_S: int,
-    S: int,
-    K: int,
-    PAD: int,
-    ACTIVATION: str | None,
-) -> None:
-    _forward_kernel_impl(
-        x_ref,
-        W_ref,
-        b_ref,
-        h0_ref,
-        y_ref,
-        None,
-        h_scratch,
-        BLOCK_SIZE_S=BLOCK_SIZE_S,
-        S=S,
-        K=K,
-        PAD=PAD,
-        ACTIVATION=ACTIVATION,
-    )
-
-
-def _forward_states_kernel(
-    x_ref,
-    W_ref,
-    b_ref,
-    h0_ref,
-    y_ref,
-    h_out_ref,
-    h_scratch,
-    BLOCK_SIZE_S: int,
-    S: int,
-    K: int,
-    PAD: int,
-    ACTIVATION: str | None,
-) -> None:
-    _forward_kernel_impl(
-        x_ref,
-        W_ref,
-        b_ref,
-        h0_ref,
-        y_ref,
-        h_out_ref,
-        h_scratch,
-        BLOCK_SIZE_S=BLOCK_SIZE_S,
-        S=S,
-        K=K,
-        PAD=PAD,
-        ACTIVATION=ACTIVATION,
-    )
-
-
-def _forward_kernel_impl(
-    x_ref,
-    W_ref,
-    b_ref,
-    h0_ref,
-    y_ref,
-    h_out_ref,
+    h_ref,
     h_scratch,
     BLOCK_SIZE_S: int,
     S: int,
@@ -94,10 +35,8 @@ def _forward_kernel_impl(
         else:
             h_scratch[...] = h0_ref[...]
 
-    # expose the block's input history (identical values to what the state passing kernel would emit)
-    # when the caller wants to keep it for the backward instead of re-deriving it later
-    if h_out_ref is not None:
-        h_out_ref[...] = h_scratch[...][None]
+    if h_ref is not None:
+        h_ref[...] = h_scratch[...][None]
 
     dtype = x_ref.dtype
     H = x_ref.shape[-1]
@@ -134,7 +73,6 @@ def _forward_core(
     h0: jax.Array | None,
     BLOCK_SIZE_S: int,
     ACTIVATION: str | None = None,
-    output_states: bool = False,
 ) -> jax.Array | tuple[jax.Array, jax.Array]:
     B, S, H = x.shape
     K = W.shape[0]
@@ -156,34 +94,21 @@ def _forward_core(
         ),
     )
 
-    if output_states:
-        kernel = pl.pallas_call(
-            partial(_forward_states_kernel, BLOCK_SIZE_S=BLOCK_SIZE_S, S=S, K=K, PAD=PAD, ACTIVATION=ACTIVATION),
-            out_shape=(
-                jax.ShapeDtypeStruct((B, S, H), x.dtype),
-                jax.ShapeDtypeStruct((B, NUM_BLOCKS_S, PAD, H), x.dtype),
-            ),
-            grid=(B, NUM_BLOCKS_S),
-            in_specs=in_specs,
-            out_specs=(
-                x_spec,
-                pl.BlockSpec(
-                    block_shape=(None, 1, PAD, H),
-                    index_map=lambda BLOCK_ID_B, BLOCK_ID_S: (BLOCK_ID_B, BLOCK_ID_S, 0, 0),
-                ),
-            ),
-            scratch_shapes=[pltpu.VMEM((PAD, H), x.dtype)],
-            compiler_params=pltpu.CompilerParams(dimension_semantics=("parallel", "arbitrary")),
-        )
-
-        return kernel(x, W, b, h0)
-
     kernel = pl.pallas_call(
         partial(_forward_kernel, BLOCK_SIZE_S=BLOCK_SIZE_S, S=S, K=K, PAD=PAD, ACTIVATION=ACTIVATION),
-        out_shape=jax.ShapeDtypeStruct((B, S, H), x.dtype),
+        out_shape=(
+            jax.ShapeDtypeStruct((B, S, H), x.dtype),
+            jax.ShapeDtypeStruct((B, NUM_BLOCKS_S, PAD, H), x.dtype),
+        ),
         grid=(B, NUM_BLOCKS_S),
         in_specs=in_specs,
-        out_specs=x_spec,
+        out_specs=(
+            x_spec,
+            pl.BlockSpec(
+                block_shape=(None, 1, PAD, H),
+                index_map=lambda BLOCK_ID_B, BLOCK_ID_S: (BLOCK_ID_B, BLOCK_ID_S, 0, 0),
+            ),
+        ),
         scratch_shapes=[pltpu.VMEM((PAD, H), x.dtype)],
         compiler_params=pltpu.CompilerParams(dimension_semantics=("parallel", "arbitrary")),
     )

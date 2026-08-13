@@ -63,13 +63,7 @@ def _forward_run(
     # (B, ceil(S / BLOCK_SIZE_S), PAD, H) tensor) so the backward can consume them directly
     # instead of re-deriving them with an extra pass over the input
     y, h_states = _forward_core(
-        x=x,
-        W=W,
-        b=b,
-        h0=h0,
-        BLOCK_SIZE_S=_get_block_size_s(x.shape[-1]),
-        ACTIVATION=ACTIVATION,
-        output_states=True,
+        x=x, W=W, b=b, h0=h0, BLOCK_SIZE_S=_get_block_size_s(x.shape[-1]), ACTIVATION=ACTIVATION
     )
 
     if not output_state:
