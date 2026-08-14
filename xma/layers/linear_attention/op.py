@@ -8,7 +8,7 @@ import torch
 
 from ...accelerator import KernelBackend
 from ...custom_op import CustomOp
-from ...utils import is_torch_xla_available, is_triton_available
+from ...utils import is_triton_available
 from .torch_implementation import _linear_attention_torch
 from .utils import _get_num_heads
 
@@ -25,10 +25,11 @@ if is_triton_available():
     _LinearAttention[KernelBackend.cuda] = _LinearAttentionTriton
     _LinearAttention[KernelBackend.triton] = _LinearAttentionTriton
 
-if is_torch_xla_available():
-    from .pallas_implementation import _LinearAttentionPallas
-
-    _LinearAttention[KernelBackend.pallas] = _LinearAttentionPallas
+# NOTE: the experimental torch-xla pallas backend was removed: it wrapped the
+# layers_jax pallas cores directly, which were rewritten for real performance;
+# the wrapper had no host-side padding path, violated the new support envelope,
+# and was never advertised in tools/kernels.yml. Use KernelBackend.triton on
+# torch, or the KernelBackend.pallas backend of xma.layers_jax.linear_attention.
 
 
 def linear_attention(

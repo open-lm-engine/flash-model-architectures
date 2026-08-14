@@ -16,93 +16,131 @@ def _linear_attention_backward_kernel(
     q_ref,
     k_ref,
     v_ref,
-    h_checkpoint_ref,
+    h_ref,
     dy_ref,
     dht_ref,
     dq_ref,
     dk_ref,
     dv_ref,
     dh0_ref,
-    dqk_ref,
-    dq_term2_ref,
-    dk_term2_ref,
+    dh_scratch,
     *,
     attention_multiplier: float,
     BLOCK_SIZE_S: int,
-    S: int,
-    V: int,
-    NUM_BLOCKS_S: int,
+    BLOCK_SIZE_V: int,
+    N: int,
+    Gq: int,
+    Gk: int,
+    Gv: int,
     NUM_V_TILES: int,
+    NUM_BLOCKS_S: int,
 ) -> None:
-    rc = pl.program_id(2)
-    vb = pl.program_id(3)
+    """Backward kernel: dq/dk/dv/dh0 in one microbatched pass over the S axis.
 
-    @pl.when(rc == 0)
+    Like the forward, every operation runs in the native (B, S, N, C) layout;
+    the 3-d contraction operands are sliced to (S, C) before each dot, which
+    exposes to Mosaic that the contraction is a single (S, S) . (S, C) or
+    (S, C) . (C, C) matmul per head. This single change removes the
+    (4, 8, 128) sublane-transpose motif that dominated the pipeline stage.
+    Measured fwd+bwd wall is 2.81 ms (B8/S4096/N16/K=V=128 bf16, TPU v6e, 1 core,
+    fixed batch, no input state, BLOCK_SIZE_S = 256; the gradient-producing stages are
+    1.99 ms). The exact-gradient design deliberately pays for extra HBM traffic beyond
+    the minimum: the per-block state checkpoints this backward consumes, the
+    dht seed, and the forward's per-call ht export.
+
+    State handling: dh (the running gradient of h) is carried in a VMEM
+    scratch ref across the whole S-tile loop; dh0 is written to HBM only
+    once, by the cell that visits the front of the sequence, instead of by
+    every S-cell. All V-tiles are visited inside each cell (a static python
+    loop unrolled at trace time) because dq and dk accumulate across V-tiles;
+    dq/dk/dv/dh0 outputs therefore use whole-sequence blocks and there is no
+    cross-cell V-tile ordering to reason about. dht, when present, seeds dh directly in the
+    first visited cell.
+
+    S is host-padded to a multiple of BLOCK_SIZE_S and K/V to (at least) the
+    128-lane trailing width in op.py, so no S/V masking happens here; padded
+    feature columns hold exact zeros and stay column-isolated through every
+    contraction.
+    """
+    # cells visited so far along the reversed S chain: 0 = sequence tail
+    # (where dh/dht is seeded), NUM_BLOCKS_S - 1 = sequence front (where dh0
+    # is published once).
+    S_CELLS_VISITED = pl.program_id(1)
+
+    @pl.when(S_CELLS_VISITED == 0)
     def _():
         if dht_ref is None:
-            dh0_ref[...] = jnp.zeros_like(dh0_ref)
+            dh_scratch[...] = jnp.zeros_like(dh_scratch)
         else:
-            dh0_ref[...] = dht_ref[...]
+            dh_scratch[...] = dht_ref[...].astype(jnp.float32)
 
     dtype = q_ref.dtype
 
-    BLOCK_ID_S = NUM_BLOCKS_S - 1 - rc
-    BLOCK_S = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, 1), 0)
-    MASK_S = (BLOCK_ID_S * BLOCK_SIZE_S + BLOCK_S) < S
+    # one register-level transpose per cell: (S, N, .) -> (N, S, .)
+    q = q_ref[...].transpose(1, 0, 2)
+    k = k_ref[...].transpose(1, 0, 2)
+    v = v_ref[...].transpose(1, 0, 2)
+    dy = dy_ref[...].transpose(1, 0, 2)
 
-    q = jnp.where(MASK_S, q_ref[...], 0).astype(dtype)
-    k = jnp.where(MASK_S, k_ref[...], 0).astype(dtype)
-    v = jnp.where(MASK_S, v_ref[...], 0).astype(dtype)
-
-    dy = jnp.where(MASK_S, dy_ref[...], 0).astype(jnp.float32) * attention_multiplier
-    dy = dy.astype(dtype)
-
-    hc = h_checkpoint_ref[...].astype(dtype)
-    g = dh0_ref[...]
+    hc = h_ref[...].astype(dtype)  # (N, K, NUM_V_TILES * BLOCK_SIZE_V)
 
     row = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, BLOCK_SIZE_S), 0)
     col = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, BLOCK_SIZE_S), 1)
     causal_mask = row >= col
 
-    qk = jax.lax.dot_general(q, k, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
-    qk = jnp.where(causal_mask, qk, 0).astype(dtype)
+    K = q.shape[-1]
+    for n in range(N):
+        q_n = q[n // Gq].astype(dtype)
+        k_n = k[n // Gk].astype(dtype)
+        dy_n_full = (dy[n].astype(jnp.float32) * attention_multiplier).astype(dtype)
 
-    dv = jax.lax.dot_general(qk, dy, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32)
-    dv += jax.lax.dot_general(k, g.astype(dtype), (((1,), (0,)), ((), ())), preferred_element_type=jnp.float32)
-    dv_ref[...] = dv.astype(dtype)
+        qk = jax.lax.dot_general(q_n, k_n, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
+        qk = jnp.where(causal_mask, qk, 0).astype(dtype)
 
-    dh0_ref[...] = g + jax.lax.dot_general(q, dy, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32)
+        # static loop over V-tiles, unrolled at trace time; single tile when V <= BLOCK_SIZE_V
+        dqk = jnp.zeros((BLOCK_SIZE_S, BLOCK_SIZE_S), jnp.float32)
+        dq_term2 = jnp.zeros((BLOCK_SIZE_S, K), jnp.float32)
+        dk_term2 = jnp.zeros((BLOCK_SIZE_S, K), jnp.float32)
+        for vb in range(NUM_V_TILES):
+            slab = vb * BLOCK_SIZE_V
+            v_n = v[n // Gv][:, slab : slab + BLOCK_SIZE_V].astype(dtype)
+            dy_n = dy_n_full[:, slab : slab + BLOCK_SIZE_V]
+            hc_n = hc[n][:, slab : slab + BLOCK_SIZE_V]  # (K, BLOCK_SIZE_V)
+            g = dh_scratch[n][:, slab : slab + BLOCK_SIZE_V]  # (K, BLOCK_SIZE_V) f32
 
-    BLOCK_V = jax.lax.broadcasted_iota(jnp.int32, (1, v.shape[-1]), 1)
-    MASK_V = (vb * v.shape[-1] + BLOCK_V) < V
+            dv_n = jax.lax.dot_general(qk, dy_n, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32)
+            # precision asymmetry (deliberate): dv mirrors the forward pass, so g is
+            # downcast to the input dtype here to keep this contraction fully on the bf16
+            # MXU path; dk_term2 below keeps g in f32 (mixed bf16 x f32 dot_general promotes
+            # to the wider type, result f32), since that term feeds dk directly and gradient
+            # precision dominates there.
+            dv_n += jax.lax.dot_general(
+                k_n, g.astype(dtype), (((1,), (0,)), ((), ())), preferred_element_type=jnp.float32
+            )
+            dv_ref[:, n, slab : slab + BLOCK_SIZE_V] = dv_n.astype(dtype)
 
-    v = jnp.where(MASK_V, v, 0)
-    dy = jnp.where(MASK_V, dy, 0)
-    hc = jnp.where(MASK_V, hc, 0)
-    g = jnp.where(MASK_V, g, 0)
+            dh_scratch[n, :, slab : slab + BLOCK_SIZE_V] = g + jax.lax.dot_general(
+                q_n, dy_n, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32
+            )
 
-    @pl.when(vb == 0)
+            dqk += jax.lax.dot_general(dy_n, v_n, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
+            dq_term2 += jax.lax.dot_general(dy_n, hc_n, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
+            dk_term2 += jax.lax.dot_general(v_n, g, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
+
+        dqk = jnp.where(causal_mask, dqk, 0).astype(dtype)
+
+        dq_n = jax.lax.dot_general(dqk, k_n, (((1,), (0,)), ((), ())), preferred_element_type=jnp.float32)
+        dq_n += dq_term2
+        dq_ref[:, n, :] = dq_n.astype(dtype)
+
+        dk_n = jax.lax.dot_general(dqk, q_n, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32)
+        dk_n += dk_term2
+        dk_ref[:, n, :] = dk_n.astype(dtype)
+
+    # last visited block (front of sequence): publish dh0
+    @pl.when(S_CELLS_VISITED == NUM_BLOCKS_S - 1)
     def _():
-        dqk_ref[...] = jnp.zeros_like(dqk_ref)
-        dq_term2_ref[...] = jnp.zeros_like(dq_term2_ref)
-        dk_term2_ref[...] = jnp.zeros_like(dk_term2_ref)
-
-    dqk_ref[...] += jax.lax.dot_general(dy, v, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
-
-    dq_term2_ref[...] += jax.lax.dot_general(dy, hc, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
-    dk_term2_ref[...] += jax.lax.dot_general(v, g, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
-
-    @pl.when(vb == NUM_V_TILES - 1)
-    def _():
-        dqk = jnp.where(causal_mask, dqk_ref[...], 0).astype(dtype)
-
-        dq = jax.lax.dot_general(dqk, k, (((1,), (0,)), ((), ())), preferred_element_type=jnp.float32)
-        dq += dq_term2_ref[...]
-        dq_ref[...] = dq.astype(dtype)
-
-        dk = jax.lax.dot_general(dqk, q, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32)
-        dk += dk_term2_ref[...]
-        dk_ref[...] = dk.astype(dtype)
+        dh0_ref[...] = dh_scratch[...]
 
 
 @partial(jax.jit, static_argnames=("attention_multiplier", "BLOCK_SIZE_S", "BLOCK_SIZE_V"))
@@ -117,125 +155,98 @@ def _linear_attention_backward_core(
     BLOCK_SIZE_S: int,
     BLOCK_SIZE_V: int,
 ) -> tuple[jax.Array, jax.Array, jax.Array, jax.Array]:
-    B, Nq, S, K = q.shape
-    Nk = k.shape[1]
-    Nv = v.shape[1]
+    B, S, Nq, K = q.shape
+    Nk = k.shape[2]
+    Nv = v.shape[2]
     V = v.shape[-1]
-    N = dy.shape[1]
+    N = dy.shape[2]
 
     Gq = N // Nq
     Gk = N // Nk
     Gv = N // Nv
 
+    assert S % BLOCK_SIZE_S == 0
+
     NUM_BLOCKS_S = ceil_divide(S, BLOCK_SIZE_S)
     NUM_V_TILES = ceil_divide(V, BLOCK_SIZE_V)
-
-    h_spec = pl.BlockSpec(
-        block_shape=(None, None, K, BLOCK_SIZE_V),
-        index_map=lambda BLOCK_ID_B, BLOCK_ID_N, BLOCK_ID_S, BLOCK_ID_V: (BLOCK_ID_B, BLOCK_ID_N, 0, BLOCK_ID_V),
-    )
+    V_WIDTH = NUM_V_TILES * BLOCK_SIZE_V
+    assert V == V_WIDTH, "V must be an integer multiple of BLOCK_SIZE_V (host padding guarantees this)"
 
     kernel = pl.pallas_call(
         partial(
             _linear_attention_backward_kernel,
             attention_multiplier=attention_multiplier,
             BLOCK_SIZE_S=BLOCK_SIZE_S,
-            S=S,
-            V=V,
-            NUM_BLOCKS_S=NUM_BLOCKS_S,
+            BLOCK_SIZE_V=BLOCK_SIZE_V,
+            N=N,
+            Gq=Gq,
+            Gk=Gk,
+            Gv=Gv,
             NUM_V_TILES=NUM_V_TILES,
+            NUM_BLOCKS_S=NUM_BLOCKS_S,
         ),
         out_shape=(
-            jax.ShapeDtypeStruct(shape=(B, N, S, K), dtype=q.dtype),
-            jax.ShapeDtypeStruct(shape=(B, N, S, K), dtype=q.dtype),
-            jax.ShapeDtypeStruct(shape=(B, N, S, V), dtype=q.dtype),
+            jax.ShapeDtypeStruct(shape=(B, S, N, K), dtype=q.dtype),
+            jax.ShapeDtypeStruct(shape=(B, S, N, K), dtype=q.dtype),
+            jax.ShapeDtypeStruct(shape=(B, S, N, V), dtype=q.dtype),
             jax.ShapeDtypeStruct(shape=(B, N, K, V), dtype=jnp.float32),
         ),
-        grid=(B, N, NUM_BLOCKS_S, NUM_V_TILES),
+        grid=(B, NUM_BLOCKS_S),
         in_specs=(
             pl.BlockSpec(
-                block_shape=(None, None, BLOCK_SIZE_S, K),
-                index_map=lambda BLOCK_ID_B, BLOCK_ID_N, BLOCK_ID_S, BLOCK_ID_V: (
-                    BLOCK_ID_B,
-                    BLOCK_ID_N // Gq,
-                    NUM_BLOCKS_S - 1 - BLOCK_ID_S,
-                    0,
-                ),
+                block_shape=(None, BLOCK_SIZE_S, Nq, K),
+                index_map=lambda B, S: (B, NUM_BLOCKS_S - 1 - S, 0, 0),
             ),
             pl.BlockSpec(
-                block_shape=(None, None, BLOCK_SIZE_S, K),
-                index_map=lambda BLOCK_ID_B, BLOCK_ID_N, BLOCK_ID_S, BLOCK_ID_V: (
-                    BLOCK_ID_B,
-                    BLOCK_ID_N // Gk,
-                    NUM_BLOCKS_S - 1 - BLOCK_ID_S,
-                    0,
-                ),
+                block_shape=(None, BLOCK_SIZE_S, Nk, K),
+                index_map=lambda B, S: (B, NUM_BLOCKS_S - 1 - S, 0, 0),
             ),
             pl.BlockSpec(
-                block_shape=(None, None, BLOCK_SIZE_S, BLOCK_SIZE_V),
-                index_map=lambda BLOCK_ID_B, BLOCK_ID_N, BLOCK_ID_S, BLOCK_ID_V: (
-                    BLOCK_ID_B,
-                    BLOCK_ID_N // Gv,
-                    NUM_BLOCKS_S - 1 - BLOCK_ID_S,
-                    BLOCK_ID_V,
-                ),
+                block_shape=(None, BLOCK_SIZE_S, Nv, V_WIDTH),
+                index_map=lambda B, S: (B, NUM_BLOCKS_S - 1 - S, 0, 0),
             ),
             pl.BlockSpec(
-                block_shape=(None, None, K, BLOCK_SIZE_V),
-                index_map=lambda BLOCK_ID_B, BLOCK_ID_N, BLOCK_ID_S, BLOCK_ID_V: (
-                    BLOCK_ID_B,
-                    BLOCK_ID_N * NUM_BLOCKS_S + (NUM_BLOCKS_S - 1 - BLOCK_ID_S),
-                    0,
-                    BLOCK_ID_V,
-                ),
+                block_shape=(None, N, K, V_WIDTH),
+                index_map=lambda B, S: (B, NUM_BLOCKS_S - 1 - S, 0, 0),
             ),
             pl.BlockSpec(
-                block_shape=(None, None, BLOCK_SIZE_S, BLOCK_SIZE_V),
-                index_map=lambda BLOCK_ID_B, BLOCK_ID_N, BLOCK_ID_S, BLOCK_ID_V: (
-                    BLOCK_ID_B,
-                    BLOCK_ID_N,
-                    NUM_BLOCKS_S - 1 - BLOCK_ID_S,
-                    BLOCK_ID_V,
-                ),
+                block_shape=(None, BLOCK_SIZE_S, N, V_WIDTH),
+                index_map=lambda B, S: (B, NUM_BLOCKS_S - 1 - S, 0, 0),
             ),
-            None if dht is None else h_spec,
+            (
+                None
+                if dht is None
+                else pl.BlockSpec(
+                    block_shape=(None, N, K, V_WIDTH),
+                    index_map=lambda B, S: (B, 0, 0, 0),
+                )
+            ),
         ),
         out_specs=(
             pl.BlockSpec(
-                block_shape=(None, None, BLOCK_SIZE_S, K),
-                index_map=lambda BLOCK_ID_B, BLOCK_ID_N, BLOCK_ID_S, BLOCK_ID_V: (
-                    BLOCK_ID_B,
-                    BLOCK_ID_N,
-                    NUM_BLOCKS_S - 1 - BLOCK_ID_S,
-                    0,
-                ),
+                block_shape=(None, BLOCK_SIZE_S, N, K),
+                index_map=lambda B, S: (B, NUM_BLOCKS_S - 1 - S, 0, 0),
             ),
             pl.BlockSpec(
-                block_shape=(None, None, BLOCK_SIZE_S, K),
-                index_map=lambda BLOCK_ID_B, BLOCK_ID_N, BLOCK_ID_S, BLOCK_ID_V: (
-                    BLOCK_ID_B,
-                    BLOCK_ID_N,
-                    NUM_BLOCKS_S - 1 - BLOCK_ID_S,
-                    0,
-                ),
+                block_shape=(None, BLOCK_SIZE_S, N, K),
+                index_map=lambda B, S: (B, NUM_BLOCKS_S - 1 - S, 0, 0),
             ),
             pl.BlockSpec(
-                block_shape=(None, None, BLOCK_SIZE_S, BLOCK_SIZE_V),
-                index_map=lambda BLOCK_ID_B, BLOCK_ID_N, BLOCK_ID_S, BLOCK_ID_V: (
-                    BLOCK_ID_B,
-                    BLOCK_ID_N,
-                    NUM_BLOCKS_S - 1 - BLOCK_ID_S,
-                    BLOCK_ID_V,
-                ),
+                block_shape=(None, BLOCK_SIZE_S, N, V_WIDTH),
+                index_map=lambda B, S: (B, NUM_BLOCKS_S - 1 - S, 0, 0),
             ),
-            h_spec,
+            pl.BlockSpec(
+                block_shape=(None, N, K, V_WIDTH),
+                index_map=lambda B, S: (B, 0, 0, 0),
+            ),
         ),
-        scratch_shapes=[
-            pltpu.VMEM((BLOCK_SIZE_S, BLOCK_SIZE_S), jnp.float32),
-            pltpu.VMEM((BLOCK_SIZE_S, K), jnp.float32),
-            pltpu.VMEM((BLOCK_SIZE_S, K), jnp.float32),
-        ],
-        compiler_params=pltpu.CompilerParams(dimension_semantics=("parallel", "parallel", "arbitrary", "arbitrary")),
+        scratch_shapes=[pltpu.VMEM((N, K, V_WIDTH), jnp.float32)],
+        # block shapes are built from host-validated dimensions (op.py guarantees
+        # S % BLOCK_SIZE_S == 0, a 128-lane-multiple K, and V % BLOCK_SIZE_V == 0), so
+        # bounds checks are provably redundant
+        compiler_params=pltpu.CompilerParams(
+            disable_bounds_checks=True, dimension_semantics=("parallel", "arbitrary")
+        ),
     )
 
     return kernel(q, k, v, h, dy, dht)

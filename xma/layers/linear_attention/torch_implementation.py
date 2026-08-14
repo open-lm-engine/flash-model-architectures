@@ -39,9 +39,13 @@ def _linear_attention_torch(
 
     h0 = torch.zeros(B, N, K, V, dtype=torch.float32, device=q.device) if h0 is None else h0.float()
 
+    # inclusive recurrence: y[s] = q[s] @ h[s] with h[s] = h[s-1] + k[s]^T v[s];
+    # the state update for step s is applied BEFORE reading out y[s] so the
+    # diagonal of the causal interaction is included (matching every pallas /
+    # triton kernel and the documented operator semantics).
     for s in range(S):
-        y[:, s] = (q[:, s, :, None, :] @ h0.type_as(q)).squeeze(-2)
         h0 = h0 + k[:, s, ..., None] * v[:, s, :, None, :]
+        y[:, s] = (q[:, s, :, None, :] @ h0.type_as(q)).squeeze(-2)
 
     y = y * attention_multiplier
 
