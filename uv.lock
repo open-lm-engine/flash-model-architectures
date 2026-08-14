@@ -68,8 +68,7 @@ torch-xla = [
     { name = "torch-xla", extra = ["pallas", "tpu"], marker = "extra == 'extra-31-accelerated-model-architectures-torch-xla' or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-cuda') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra != 'extra-31-accelerated-model-architectures-torch-xla' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra != 'extra-31-accelerated-model-architectures-torch-xla' and extra == 'extra-31-accelerated-model-architectures-tpu')" },
 ]
 tpu = [
-    { name = "haliax" },
-    { name = "jax", extra = ["tpu"], marker = "(extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-cuda') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-torch-xla') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-torch-xla') or (extra == 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-torch-xla') or (extra != 'extra-31-accelerated-model-architectures-torch-xla' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra != 'extra-31-accelerated-model-architectures-cpu' and extra != 'extra-31-accelerated-model-architectures-cuda' and extra != 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-tpu')" },
+    { name = "jax", version = "0.11.0", source = { registry = "https://pypi.org/simple" } },
 ]
 
 [package.metadata]
@@ -77,8 +76,7 @@ requires-dist = [
     { name = "apache-tvm-ffi", marker = "extra == 'cuda'", specifier = "==0.1.12" },
     { name = "furo", marker = "extra == 'dev'", specifier = "==2025.12.19" },
     { name = "haliax", marker = "extra == 'torch-xla'", specifier = "==1.4.dev452" },
-    { name = "haliax", marker = "extra == 'tpu'", specifier = "==1.4.dev452" },
-    { name = "jax", extras = ["tpu"], marker = "extra == 'tpu'", specifier = "==0.6.2" },
+    { name = "jax", marker = "extra == 'tpu'", specifier = "==0.11.0" },
     { name = "ninja", specifier = "==1.13.0" },
     { name = "numpy", specifier = "==2.5.1" },
     { name = "nvidia-cutlass-dsl", marker = "extra == 'cuda'", specifier = "==4.6.0" },
@@ -171,8 +169,8 @@ source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "absl-py" },
     { name = "flax" },
-    { name = "jax" },
-    { name = "jaxlib" },
+    { name = "jax", version = "0.6.2", source = { registry = "https://pypi.org/simple" } },
+    { name = "jaxlib", version = "0.6.2", source = { registry = "https://pypi.org/simple" } },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/85/b2/028d15474268205dc2a7382759a51eb8903bd3a218a9d261874e2ec772a4/aqtp-0.9.0.tar.gz", hash = "sha256:a42f03f0de5ed54d0d0d9437741a44f6408eaed48103a3434f0ad405ff86874a", size = 885899, upload-time = "2025-08-01T17:54:59.738Z" }
 wheels = [
@@ -438,7 +436,7 @@ name = "equinox"
 version = "0.13.8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "jax" },
+    { name = "jax", version = "0.6.2", source = { registry = "https://pypi.org/simple" } },
     { name = "jaxtyping" },
     { name = "typing-extensions" },
     { name = "wadler-lindig" },
@@ -490,7 +488,7 @@ name = "flax"
 version = "0.11.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "jax" },
+    { name = "jax", version = "0.6.2", source = { registry = "https://pypi.org/simple" } },
     { name = "msgpack" },
     { name = "numpy" },
     { name = "optax" },
@@ -588,7 +586,7 @@ source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aqtp" },
     { name = "equinox" },
-    { name = "jax" },
+    { name = "jax", version = "0.6.2", source = { registry = "https://pypi.org/simple" } },
     { name = "jaxtyping" },
     { name = "jmp" },
     { name = "safetensors" },
@@ -656,8 +654,13 @@ wheels = [
 name = "jax"
 version = "0.6.2"
 source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version >= '3.14'",
+    "python_full_version == '3.13.*'",
+    "python_full_version < '3.13'",
+]
 dependencies = [
-    { name = "jaxlib" },
+    { name = "jaxlib", version = "0.6.2", source = { registry = "https://pypi.org/simple" } },
     { name = "ml-dtypes" },
     { name = "numpy" },
     { name = "opt-einsum" },
@@ -668,17 +671,36 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/31/a8/97ef0cbb7a17143ace2643d600a7b80d6705b2266fc31078229e406bdef2/jax-0.6.2-py3-none-any.whl", hash = "sha256:bb24a82dc60ccf704dcaf6dbd07d04957f68a6c686db19630dd75260d1fb788c", size = 2722396, upload-time = "2025-06-17T23:10:25.293Z" },
 ]
 
-[package.optional-dependencies]
-tpu = [
-    { name = "jaxlib" },
-    { name = "libtpu", version = "0.0.17.1", source = { registry = "https://pypi.org/simple" } },
-    { name = "requests" },
+[[package]]
+name = "jax"
+version = "0.11.0"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version >= '3.14'",
+    "python_full_version == '3.13.*'",
+    "python_full_version < '3.13'",
+]
+dependencies = [
+    { name = "jaxlib", version = "0.11.0", source = { registry = "https://pypi.org/simple" } },
+    { name = "ml-dtypes" },
+    { name = "numpy" },
+    { name = "opt-einsum" },
+    { name = "scipy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/81/20/90a137c178de8f2b9170bd4dfb934e261213fdaac67e5c5183b132be85e7/jax-0.11.0.tar.gz", hash = "sha256:a2feb7cfa48bb35d36b8ecec16a4ec24044dec01935f779b28b017213697b195", size = 2813185, upload-time = "2026-07-16T19:00:14.519Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d4/5a/26a1305f8978bc41f889a4172198c7d8976e8e394fc4d03597d9edfd6b7e/jax-0.11.0-py3-none-any.whl", hash = "sha256:b31ed66c4321d5c9e48b861f51a72ed5f7960c93514296202d2041cbb9ac45bf", size = 3255281, upload-time = "2026-07-16T18:58:25.02Z" },
 ]
 
 [[package]]
 name = "jaxlib"
 version = "0.6.2"
 source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version >= '3.14'",
+    "python_full_version == '3.13.*'",
+    "python_full_version < '3.13'",
+]
 dependencies = [
     { name = "ml-dtypes" },
     { name = "numpy" },
@@ -695,6 +717,38 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/06/b9/ea50792ee0333dba764e06c305fe098bce1cb938dcb66fbe2fc47ef5dd02/jaxlib-0.6.2-cp313-cp313-win_amd64.whl", hash = "sha256:b977604cd36c74b174d25ed685017379468138eb747d865f75e466cb273c801d", size = 57919073, upload-time = "2025-06-17T23:11:39.344Z" },
     { url = "https://files.pythonhosted.org/packages/09/ce/9596391c104a0547fcaf6a8c72078bbae79dbc8e7f0843dc8318f6606328/jaxlib-0.6.2-cp313-cp313t-manylinux2014_aarch64.whl", hash = "sha256:39cf9555f85ae1ce2e2c1a59fc71f2eca4f9867a7cb934fef881ba56b11371d1", size = 79579638, upload-time = "2025-06-17T23:11:43.054Z" },
     { url = "https://files.pythonhosted.org/packages/10/79/f6e80f7f4cacfc9f03e64ac57ecb856b140de7c2f939b25f8dcf1aff63f9/jaxlib-0.6.2-cp313-cp313t-manylinux2014_x86_64.whl", hash = "sha256:3abd536e44b05fb1657507e3ff1fc3691f99613bae3921ecab9e82f27255f784", size = 90066675, upload-time = "2025-06-17T23:11:47.454Z" },
+]
+
+[[package]]
+name = "jaxlib"
+version = "0.11.0"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version >= '3.14'",
+    "python_full_version == '3.13.*'",
+    "python_full_version < '3.13'",
+]
+dependencies = [
+    { name = "ml-dtypes" },
+    { name = "numpy" },
+    { name = "scipy" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/04/13/629fd9f50e15424358b7c53b6ec729e2d7163d64942817bee9adeee04ed1/jaxlib-0.11.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:f5bf0b3bfc2ef4778580047389dacb51ae000e50c6b3b6f98d10788927066c97", size = 62546563, upload-time = "2026-07-16T18:59:16.788Z" },
+    { url = "https://files.pythonhosted.org/packages/8e/1d/a85feebcfc6fa702bcaadd74f3c13283e1613f7598de5ca69bdbaf4c2671/jaxlib-0.11.0-cp312-cp312-manylinux_2_27_aarch64.whl", hash = "sha256:1b767c4d7ad4dfc6358313b63ae6d83c3571d3ce966de04d8aaf29eb44633786", size = 82155667, upload-time = "2026-07-16T18:59:20.477Z" },
+    { url = "https://files.pythonhosted.org/packages/86/f0/89c34a4877628edea6585699e42f7d3ed4c1e50140ade9c6efce85a0ab84/jaxlib-0.11.0-cp312-cp312-manylinux_2_27_x86_64.whl", hash = "sha256:7ea9dc06d94f536deabcf304513143bc89f51173ddfd786d44f8ac303efdf643", size = 87263507, upload-time = "2026-07-16T18:59:24.258Z" },
+    { url = "https://files.pythonhosted.org/packages/59/6b/e6caeaff6bd1537becbbcde8985fd65a71374e33f9e8c1aa3371bd16c349/jaxlib-0.11.0-cp312-cp312-win_amd64.whl", hash = "sha256:166ca16586a8aeb23f9c5e322845f3789037ed294f0a1539404a50f7c5fb13cf", size = 67743601, upload-time = "2026-07-16T18:59:27.981Z" },
+    { url = "https://files.pythonhosted.org/packages/81/3b/cc587eaa7d66aad1cddc77f5e10bca086a7d252891d359e64795521f5a2b/jaxlib-0.11.0-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:88b349aa95e452caa30a6723320e93ec7bd1ab249e9f0bf29000da1b5efae733", size = 62547263, upload-time = "2026-07-16T18:59:31.414Z" },
+    { url = "https://files.pythonhosted.org/packages/eb/d2/8c71ff16e019554a07dfcc206034b0182fba00bca1d7aaada7bcdb32b595/jaxlib-0.11.0-cp313-cp313-manylinux_2_27_aarch64.whl", hash = "sha256:112a01c584707a7d0e8634fd55dd7efffe812966e60c2d3ac84e8c24e4571336", size = 82152577, upload-time = "2026-07-16T18:59:35.392Z" },
+    { url = "https://files.pythonhosted.org/packages/0f/85/82e456879df00e8bed7074028b0e1ddf2ce4e58dd83b699b9e9ef8306542/jaxlib-0.11.0-cp313-cp313-manylinux_2_27_x86_64.whl", hash = "sha256:33dd9405cab05ee4f3ecc3a91289323e9bd2f08d25990e5d45ffb8524f519506", size = 87263717, upload-time = "2026-07-16T18:59:39.194Z" },
+    { url = "https://files.pythonhosted.org/packages/e9/87/96670370fd97cb79ad84d8becc8878e6b4aa52fd052cf5f3c063add9e7af/jaxlib-0.11.0-cp313-cp313-win_amd64.whl", hash = "sha256:aced7b1ca4e338b5248821a397d2d53008894672be6fee762f391cfdd7272e1e", size = 67744784, upload-time = "2026-07-16T18:59:43.711Z" },
+    { url = "https://files.pythonhosted.org/packages/50/6e/8fa567a498ce9e1966d035efd6a4be92e4a8b788b321549ec06fbb7ff25c/jaxlib-0.11.0-cp314-cp314-macosx_11_0_arm64.whl", hash = "sha256:7e6c0e2374943ba7191fe196e22067b789894c58cf6ddd24c9971ae642de58ee", size = 62546481, upload-time = "2026-07-16T18:59:48.212Z" },
+    { url = "https://files.pythonhosted.org/packages/75/a3/159e82715919b8945107c35051ac4fa6e2578640c484e17ea6590914b1a5/jaxlib-0.11.0-cp314-cp314-manylinux_2_27_aarch64.whl", hash = "sha256:483429cc7fa7fd6a20cb50f666c8d2d499efb7e9ba3163811c01f051ad6057c4", size = 82171230, upload-time = "2026-07-16T18:59:51.677Z" },
+    { url = "https://files.pythonhosted.org/packages/4e/e6/b6e4154b24d5a6bdcae715ad32030e7954bd793c590afa91b693d70e2719/jaxlib-0.11.0-cp314-cp314-manylinux_2_27_x86_64.whl", hash = "sha256:6125da8532610641b7d3ea7926217cdab52dccb294ef6615455e2b6ecb9e2ee6", size = 87271644, upload-time = "2026-07-16T18:59:55.428Z" },
+    { url = "https://files.pythonhosted.org/packages/be/79/949b0e7860787c0996af475a57b8a060fbd6b9c91b009005d91d12b4aecd/jaxlib-0.11.0-cp314-cp314-win_amd64.whl", hash = "sha256:19888d25c2bba4240ccffe39ee4e5490a544a0bbcdcc1c171e558d3efed57d84", size = 70245063, upload-time = "2026-07-16T18:59:59.016Z" },
+    { url = "https://files.pythonhosted.org/packages/09/18/04d82793d804a6766ca73e4ed30ef928aea252db7c86f73b2faf11fe9e90/jaxlib-0.11.0-cp314-cp314t-macosx_11_0_arm64.whl", hash = "sha256:5c38a393d37b4a70569224dc8273d8ae6ccea837e45410ed53ca03e15d6fad58", size = 62642149, upload-time = "2026-07-16T19:00:02.597Z" },
+    { url = "https://files.pythonhosted.org/packages/91/2e/418dae82175154f6b5f53aec8909bda800dcbc9c65d94373de146b06e3b1/jaxlib-0.11.0-cp314-cp314t-manylinux_2_27_aarch64.whl", hash = "sha256:5ed7c54a6ef02eea19c0a02e3f603e4f9ad77248098bb9fc3feffca7f4814b83", size = 82261560, upload-time = "2026-07-16T19:00:06.22Z" },
+    { url = "https://files.pythonhosted.org/packages/ac/ff/2edc74b4de40ac4222ee48b3805a6ea5e40f34abe4cd10b65bc0fa0864db/jaxlib-0.11.0-cp314-cp314t-manylinux_2_27_x86_64.whl", hash = "sha256:005ae3a663193d3a89eafadc073880c67d6b829e0ad989690275d02b5adc810a", size = 87367515, upload-time = "2026-07-16T19:00:10.661Z" },
 ]
 
 [[package]]
@@ -737,30 +791,8 @@ wheels = [
 name = "libtpu"
 version = "0.0.17"
 source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.14'",
-    "python_full_version == '3.13.*'",
-    "python_full_version < '3.13'",
-]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/1e/17/3fe7239155d65be6872ed55bf0516c8de85610df36b009bf708536037b91/libtpu-0.0.17-py3-none-manylinux_2_31_x86_64.whl", hash = "sha256:4963214199e151613874c2b3f45b983bb09a6e4ba43bb028c917323b8caf418b", size = 135216139, upload-time = "2025-06-13T00:23:49.407Z" },
-]
-
-[[package]]
-name = "libtpu"
-version = "0.0.17.1"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.14'",
-    "python_full_version == '3.13.*'",
-    "python_full_version < '3.13'",
-]
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/a1/68/c166d57b18faba84a0e8c8faec0c7e5e6f832d8e37c2278508783dbd5de1/libtpu-0.0.17.1-cp312-cp312-manylinux_2_31_x86_64.whl", hash = "sha256:6b28b00b94a894568e35fb149f6e9e3451edfb671c6fbfa1ead116e6e7ce30cb", size = 135378901, upload-time = "2025-11-08T03:29:18.449Z" },
-    { url = "https://files.pythonhosted.org/packages/93/28/823f209ced508c0583e9cc1e5ac6cc3d17258e677ec1b8cff231f8d6e253/libtpu-0.0.17.1-cp313-cp313-manylinux_2_31_x86_64.whl", hash = "sha256:e43e6ad0760427af1b88fe22ad4c7ad30c5913e041d7a0a090716242192f9b15", size = 135379106, upload-time = "2025-11-08T03:29:24.182Z" },
-    { url = "https://files.pythonhosted.org/packages/a9/d0/8901834486b9cc9d900cf51d548a4826bb9611f68dd5c21245e5dda13474/libtpu-0.0.17.1-cp313-cp313t-manylinux_2_31_x86_64.whl", hash = "sha256:eed58fc28d40b8447ef4456706a4f5c0231831b14eced58dfa65c9f6d86b42f7", size = 135379731, upload-time = "2025-11-08T03:29:44.032Z" },
-    { url = "https://files.pythonhosted.org/packages/49/e4/db4df1d83fd1b45d2136410e4cb79ccd507583c6942d2b56b6ef065ccc14/libtpu-0.0.17.1-cp314-cp314-manylinux_2_31_x86_64.whl", hash = "sha256:1b141e4ddfdb61ed1ae963c9526f20a5b9a36731b2d36b6ff603795bbce00461", size = 135379052, upload-time = "2025-11-08T03:29:36.992Z" },
-    { url = "https://files.pythonhosted.org/packages/37/02/be40cbcd125b5635a45a07d64ca1e8320150fa3efed4f32601752d6388c9/libtpu-0.0.17.1-cp314-cp314t-manylinux_2_31_x86_64.whl", hash = "sha256:36185e88eb0da21717e06a3220036c93ce87c7e3706e3904226ed55d9441adb5", size = 135379653, upload-time = "2025-11-08T03:29:31.46Z" },
 ]
 
 [[package]]
@@ -1326,8 +1358,8 @@ version = "0.2.8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "absl-py" },
-    { name = "jax" },
-    { name = "jaxlib" },
+    { name = "jax", version = "0.6.2", source = { registry = "https://pypi.org/simple" } },
+    { name = "jaxlib", version = "0.6.2", source = { registry = "https://pypi.org/simple" } },
     { name = "numpy" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/8c/f9/e3d11ae6f298ee941a0690e353a323d158ba5dedc436e75621c310845c5c/optax-0.2.8.tar.gz", hash = "sha256:5b225b35066fc3eebaa4d798f1b4173b4d57d1a480610908981f8343b50af0b0", size = 301193, upload-time = "2026-03-20T23:30:05.465Z" }
@@ -1342,9 +1374,9 @@ source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "absl-py" },
     { name = "aiofiles" },
-    { name = "etils", extra = ["epath", "epy"], marker = "(extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-cuda') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra != 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-torch-xla') or (extra != 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra != 'extra-31-accelerated-model-architectures-cpu' and extra != 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-torch-xla') or (extra != 'extra-31-accelerated-model-architectures-cpu' and extra != 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-tpu')" },
+    { name = "etils", extra = ["epath", "epy"], marker = "extra == 'extra-31-accelerated-model-architectures-torch-xla' or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-cuda') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra != 'extra-31-accelerated-model-architectures-torch-xla' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra != 'extra-31-accelerated-model-architectures-torch-xla' and extra == 'extra-31-accelerated-model-architectures-tpu')" },
     { name = "humanize" },
-    { name = "jax" },
+    { name = "jax", version = "0.6.2", source = { registry = "https://pypi.org/simple" } },
     { name = "msgpack" },
     { name = "nest-asyncio", marker = "sys_platform == 'win32'" },
     { name = "numpy" },
@@ -2066,11 +2098,11 @@ wheels = [
 
 [package.optional-dependencies]
 pallas = [
-    { name = "jax" },
-    { name = "jaxlib" },
+    { name = "jax", version = "0.6.2", source = { registry = "https://pypi.org/simple" } },
+    { name = "jaxlib", version = "0.6.2", source = { registry = "https://pypi.org/simple" } },
 ]
 tpu = [
-    { name = "libtpu", version = "0.0.17", source = { registry = "https://pypi.org/simple" } },
+    { name = "libtpu" },
     { name = "tpu-info" },
 ]
 
