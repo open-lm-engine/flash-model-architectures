@@ -76,9 +76,9 @@ def _linear_attention_backward_kernel(
     MASK_VS = (vb * v.shape[-1] + jax.lax.broadcasted_iota(jnp.int32, v.shape, 1)) < V
     MASK_VK = (vb * hc.shape[-1] + jax.lax.broadcasted_iota(jnp.int32, hc.shape, 1)) < V
 
-    v = jnp.where(MASK_VS, v, 0)
-    dy = jnp.where(MASK_VS, dy, 0)
-    hc = jnp.where(MASK_VK, hc, 0)
+    v = jnp.where(MASK_VS, v.astype(jnp.float32), 0).astype(dtype)
+    dy = jnp.where(MASK_VS, dy.astype(jnp.float32), 0).astype(dtype)
+    hc = jnp.where(MASK_VK, hc.astype(jnp.float32), 0).astype(dtype)
     g = jnp.where(MASK_VK, g, 0)
 
     @pl.when(vb == 0)
