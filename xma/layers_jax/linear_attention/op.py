@@ -54,11 +54,11 @@ def linear_attention_jax(
     :param output_state: whether to also return the final state (of shape (B, N, K, V)) for use as
         `input_state` in a subsequent call. When False, the second return value is None. Defaults to True.
     :type output_state: bool
-    :param BLOCK_SIZE_S: sequence-length block size used by the pallas kernel. Defaults to 128.
+    :param BLOCK_SIZE_S: sequence-length block size used by the pallas kernel. Defaults to 256.
     :type BLOCK_SIZE_S: int
     :param BLOCK_SIZE_V: value-head-dimension block size used by the pallas kernel; `V <= BLOCK_SIZE_V`
-        (the default) means V is effectively untiled. Mosaic requires this to be a multiple of 128 or
-        exactly equal to `V` - other values raise at trace time. Defaults to 128.
+        (the default) means V is effectively untiled. Mosaic requires this to be a multiple of 256 or
+        exactly equal to `V` - other values raise at trace time. Defaults to 256.
     :type BLOCK_SIZE_V: int
     :param kernel_backend: KernelBackend
     :type kernel_backend: KernelBackend | None
