@@ -60,6 +60,7 @@ conflicts = [
         { extra = "mps" },
         { extra = "cuda" },
         { extra = "torch-xla" },
+        { extra = "tpu" },
     ],
 ]
 
