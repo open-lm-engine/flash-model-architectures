@@ -40,7 +40,6 @@ autodoc_mock_imports = [
     "cuda",
     "cutlass",
     "equinox",
-    "haliax",
     "jax",
     "jaxtyping",
     "neuronxcc",
