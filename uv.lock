@@ -70,7 +70,7 @@ torch-xla = [
 ]
 tpu = [
     { name = "equinox" },
-    { name = "jax", version = "0.11.0", source = { registry = "https://pypi.org/simple" } },
+    { name = "jax", version = "0.11.0", source = { registry = "https://pypi.org/simple" }, extra = ["tpu"], marker = "(extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-cuda') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-torch-xla') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-torch-xla') or (extra == 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-torch-xla') or (extra != 'extra-31-accelerated-model-architectures-torch-xla' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra != 'extra-31-accelerated-model-architectures-cpu' and extra != 'extra-31-accelerated-model-architectures-cuda' and extra != 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-tpu')" },
     { name = "jaxtyping" },
 ]
 
@@ -80,7 +80,7 @@ requires-dist = [
     { name = "equinox", marker = "extra == 'torch-xla'", specifier = "==0.13.8" },
     { name = "equinox", marker = "extra == 'tpu'", specifier = "==0.13.8" },
     { name = "furo", marker = "extra == 'dev'", specifier = "==2025.12.19" },
-    { name = "jax", marker = "extra == 'tpu'", specifier = "==0.11.0" },
+    { name = "jax", extras = ["tpu"], marker = "extra == 'tpu'", specifier = "==0.11.0" },
     { name = "jaxtyping", marker = "extra == 'torch-xla'", specifier = "==0.3.11" },
     { name = "jaxtyping", marker = "extra == 'tpu'", specifier = "==0.3.11" },
     { name = "ninja", specifier = "==1.13.0" },
@@ -609,6 +609,13 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/d4/5a/26a1305f8978bc41f889a4172198c7d8976e8e394fc4d03597d9edfd6b7e/jax-0.11.0-py3-none-any.whl", hash = "sha256:b31ed66c4321d5c9e48b861f51a72ed5f7960c93514296202d2041cbb9ac45bf", size = 3255281, upload-time = "2026-07-16T18:58:25.02Z" },
 ]
 
+[package.optional-dependencies]
+tpu = [
+    { name = "jaxlib", version = "0.11.0", source = { registry = "https://pypi.org/simple" } },
+    { name = "libtpu", version = "0.0.44.1", source = { registry = "https://pypi.org/simple" } },
+    { name = "requests" },
+]
+
 [[package]]
 name = "jaxlib"
 version = "0.6.2"
@@ -696,8 +703,29 @@ wheels = [
 name = "libtpu"
 version = "0.0.17"
 source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version >= '3.14'",
+    "python_full_version == '3.13.*'",
+    "python_full_version < '3.13'",
+]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/1e/17/3fe7239155d65be6872ed55bf0516c8de85610df36b009bf708536037b91/libtpu-0.0.17-py3-none-manylinux_2_31_x86_64.whl", hash = "sha256:4963214199e151613874c2b3f45b983bb09a6e4ba43bb028c917323b8caf418b", size = 135216139, upload-time = "2025-06-13T00:23:49.407Z" },
+]
+
+[[package]]
+name = "libtpu"
+version = "0.0.44.1"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version >= '3.14'",
+    "python_full_version == '3.13.*'",
+    "python_full_version < '3.13'",
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/6f/66/e57cdbcfaeb1c232b685ee78c15e37a5a7cb3889e3f604db6ca80c0717a5/libtpu-0.0.44.1-cp312-cp312-manylinux_2_31_x86_64.whl", hash = "sha256:4a96b7c320f63267e6ce82f323c2d8fca68395170ac98db4eb29d8e3cca2edf9", size = 215596766, upload-time = "2026-07-27T23:48:43.042Z" },
+    { url = "https://files.pythonhosted.org/packages/1b/27/42e544ac8d4a072f03b8335395060559d70db6b6cc995fa0fe5df66ce0cb/libtpu-0.0.44.1-cp313-cp313-manylinux_2_31_x86_64.whl", hash = "sha256:a9ddf82730f44e9a61b6a2e3ebbfc7a9881583f6d74f7805e84fa9610c9a0ac0", size = 215596867, upload-time = "2026-07-27T23:48:52.844Z" },
+    { url = "https://files.pythonhosted.org/packages/db/8d/d5eeeafc33d073b748c54c2c7c2e5a9dabe2176bf2c6d76839d3ed0672cc/libtpu-0.0.44.1-cp314-cp314-manylinux_2_31_x86_64.whl", hash = "sha256:a42e6ab09b9e736d94a0a8501662de8a3180feecb3ce17bbb96935a85b4daa58", size = 215596621, upload-time = "2026-07-27T23:49:02.932Z" },
+    { url = "https://files.pythonhosted.org/packages/7d/5f/e651523459466fe7ea5423dfdc1372eab1a4a7775adba53bad366867fe20/libtpu-0.0.44.1-cp314-cp314t-manylinux_2_31_x86_64.whl", hash = "sha256:1a03f48c6e3fdbebaf3d685bfa226d0796db4c6a97a0b7cc4922438603ccef59", size = 215597584, upload-time = "2026-07-27T23:48:32.528Z" },
 ]
 
 [[package]]
@@ -1768,7 +1796,7 @@ pallas = [
     { name = "jaxlib", version = "0.6.2", source = { registry = "https://pypi.org/simple" } },
 ]
 tpu = [
-    { name = "libtpu" },
+    { name = "libtpu", version = "0.0.17", source = { registry = "https://pypi.org/simple" } },
     { name = "tpu-info" },
 ]
 
