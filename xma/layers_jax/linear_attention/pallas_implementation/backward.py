@@ -73,13 +73,13 @@ def _linear_attention_backward_kernel(
 
     dh0_ref[...] = g + jax.lax.dot_general(q, dy, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32)
 
-    BLOCK_V = jax.lax.broadcasted_iota(jnp.int32, (1, v.shape[-1]), 1)
-    MASK_V = (vb * v.shape[-1] + BLOCK_V) < V
+    MASK_VS = (vb * v.shape[-1] + jax.lax.broadcasted_iota(jnp.int32, v.shape, 1)) < V
+    MASK_VK = (vb * hc.shape[-1] + jax.lax.broadcasted_iota(jnp.int32, hc.shape, 1)) < V
 
-    v = jnp.where(MASK_V, v, 0)
-    dy = jnp.where(MASK_V, dy, 0)
-    hc = jnp.where(MASK_V, hc, 0)
-    g = jnp.where(MASK_V, g, 0)
+    v = jnp.where(MASK_VS, v, 0)
+    dy = jnp.where(MASK_VS, dy, 0)
+    hc = jnp.where(MASK_VK, hc, 0)
+    g = jnp.where(MASK_VK, g, 0)
 
     @pl.when(vb == 0)
     def _():
