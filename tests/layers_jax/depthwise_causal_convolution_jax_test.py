@@ -145,12 +145,12 @@ def test_depthwise_causal_convolution_module_works(has_input_state: bool) -> Non
     )
 
     input = jax.random.normal(key_input, (B, S, embed_size))
-    input_state = jax.random.normal(key_state, (B, module.embed_size, module.state_size)) if has_input_state else None
+    input_state = jax.random.normal(key_state, (B, module.hidden_size, module.state_size)) if has_input_state else None
 
     output, output_state = module(input, input_state, output_state=True, kernel_backend=KernelBackend.jax)
 
     assert output.shape == (B, S, embed_size)
-    assert output_state.shape == (B, module.embed_size, module.state_size)
+    assert output_state.shape == (B, module.hidden_size, module.state_size)
 
 
 def _generate_pallas_args() -> list:
