@@ -153,10 +153,7 @@ class LinearAttentionJAX(eqx.Module):
         key = key.reshape(B, S, self.num_key_heads, self.key_head_dim)
         value = value.reshape(B, S, self.num_value_heads, self.value_head_dim)
 
-        if input_state is not None:
-            input_state = input_state.reshape(*input_state.shape[:-1], self.key_head_dim, self.value_head_dim)
-
-        output, final_state = linear_attention_jax(
+        input, input_state = linear_attention_jax(
             query=query,
             key=key,
             value=value,
@@ -168,10 +165,7 @@ class LinearAttentionJAX(eqx.Module):
             kernel_backend=kernel_backend,
         )
 
-        output = output.reshape(B, S, self.num_heads * self.value_head_dim)
-        output = self.output_projection(output)
+        input = input.reshape(B, S, self.num_heads * self.value_head_dim)
+        input = self.output_projection(input)
 
-        if final_state is not None:
-            final_state = final_state.reshape(*final_state.shape[:-2], self.state_size)
-
-        return output, final_state, conv_state
+        return input, input_state, conv_state
