@@ -154,5 +154,5 @@ def test_linear_attention_module_works(has_input_state: bool) -> None:
     output, output_state, conv_state = module(input, input_state, kernel_backend=KernelBackend.jax)
 
     assert output.shape == (B, S, output_size)
-    assert output_state.shape == (B, module.num_heads, module.state_size)
+    assert output_state.shape == (B, module.num_heads, module.key_head_dim, module.value_head_dim)
     assert conv_state is None
