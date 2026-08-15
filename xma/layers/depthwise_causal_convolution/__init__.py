@@ -3,4 +3,3 @@
 # **************************************************
 
 from .module import DepthwiseCausalConvolution
-from .op import depthwise_causal_convolution

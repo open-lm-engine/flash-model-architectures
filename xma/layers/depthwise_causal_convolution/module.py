@@ -9,8 +9,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from ...accelerator import Accelerator, KernelBackend
-from ...utils import is_causal_conv1d_available, is_torch_xla_available
-from .op import depthwise_causal_convolution
+from ...utils import is_causal_conv1d_available
 
 
 if is_causal_conv1d_available():
@@ -95,22 +94,6 @@ class DepthwiseCausalConvolution(nn.Conv1d):
             kernel_backend = Accelerator.get_kernel_backend()
         else:
             assert kernel_backend.verify_accelerator()
-
-        if kernel_backend == KernelBackend.pallas:
-            x = _apply_mask_to_padding_states(x, attention_mask)
-            x, final_state = depthwise_causal_convolution(
-                input=x,
-                weight=self.weight.squeeze(1),
-                bias=self.bias,
-                input_state=input_state,
-                output_state=output_state,
-                kernel_backend=kernel_backend,
-            )
-
-            x = self.activation_function(x)
-            x = _apply_mask_to_padding_states(x, attention_mask)
-
-            return x, final_state
 
         BLOCK_SIZE_S = x.size(1)
         S = BLOCK_SIZE_S

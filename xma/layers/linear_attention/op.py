@@ -8,7 +8,7 @@ import torch
 
 from ...accelerator import KernelBackend
 from ...custom_op import CustomOp
-from ...utils import is_torch_xla_available, is_triton_available
+from ...utils import is_triton_available
 from .torch_implementation import _linear_attention_torch
 from .utils import _get_num_heads
 
@@ -24,11 +24,6 @@ if is_triton_available():
 
     _LinearAttention[KernelBackend.cuda] = _LinearAttentionTriton
     _LinearAttention[KernelBackend.triton] = _LinearAttentionTriton
-
-if is_torch_xla_available():
-    from .pallas_implementation import _LinearAttentionPallas
-
-    _LinearAttention[KernelBackend.pallas] = _LinearAttentionPallas
 
 
 def linear_attention(

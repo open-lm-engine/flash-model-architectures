@@ -18,11 +18,6 @@ test-mps:
 test-cuda:
 	NUM_ACCELERATORS=$(num_accelerators) uv run --extra dev --extra cuda pytest -n $(num_accelerators) tests
 
-# torch-xla and jax share a single TPU runtime per host, so unlike CUDA they aren't split across xdist workers
-# here - multiple workers would race each other for the TPU chip instead of getting a device each.
-test-torch-xla:
-	uv run --extra dev --extra torch-xla pytest tests
-
 test-jax:
 	uv run --extra dev --extra tpu pytest tests
 
