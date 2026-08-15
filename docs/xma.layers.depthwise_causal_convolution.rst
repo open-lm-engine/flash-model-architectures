@@ -6,11 +6,6 @@ xma.layers.depthwise\_causal\_convolution
    :members:
    :undoc-members:
    :show-inheritance:
-
-.. automodule:: xma.layers.depthwise_causal_convolution.op
-   :members:
-   :undoc-members:
-   :show-inheritance:
 .. automodule:: xma.layers.depthwise_causal_convolution
    :members:
    :show-inheritance:

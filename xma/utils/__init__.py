@@ -9,7 +9,6 @@ from .packages import (
     is_jax_available,
     is_torch_available,
     is_torch_neuronx_available,
-    is_torch_xla_available,
     is_triton_available,
 )
 from .ptx import get_ptx_from_triton_kernel

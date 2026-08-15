@@ -48,7 +48,6 @@ autodoc_mock_imports = [
     "torch.compiler",
     "triton",
     "torch_neuronx",
-    "torch_xla",
 ]
 
 templates_path = ["_templates"]

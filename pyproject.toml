@@ -42,13 +42,6 @@ cuda = [
     "nvidia-cutlass-dsl==4.6.0",
     "tabulate==0.10.0",
 ]
-torch-xla = [
-    "equinox==0.13.8",
-    "jaxtyping==0.3.11",
-    "torch==2.8.0",
-    "torch-xla[pallas,tpu]==2.8.0",
-    "tabulate==0.10.0",
-]
 tpu = [
     "equinox==0.13.8",
     "jax[tpu]==0.11.0",
@@ -61,7 +54,6 @@ conflicts = [
         { extra = "cpu" },
         { extra = "mps" },
         { extra = "cuda" },
-        { extra = "torch-xla" },
         { extra = "tpu" },
     ],
 ]

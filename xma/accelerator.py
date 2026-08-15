@@ -7,16 +7,11 @@ from __future__ import annotations
 from enum import Enum
 from functools import lru_cache
 
-from .utils import is_jax_available, is_torch_available, is_torch_neuronx_available, is_torch_xla_available
+from .utils import is_jax_available, is_torch_available, is_torch_neuronx_available
 
 
 if is_torch_available():
     import torch
-
-if is_torch_xla_available():
-    from torch_xla.core.xla_model import wait_device_ops as xla_wait_device_ops
-    from torch_xla.core.xla_model import xla_device
-    from torch_xla.runtime import world_size as xla_device_count
 
 
 _IS_ROCM_AVAILABLE = is_torch_available() and torch.version.hip is not None
@@ -69,9 +64,9 @@ class Accelerator(Enum):
     @staticmethod
     @lru_cache
     def get_accelerator() -> Accelerator:
-        is_tpu = is_torch_xla_available()
+        is_tpu = False
 
-        if not is_tpu and is_jax_available():
+        if is_jax_available():
             import jax
 
             is_tpu = jax.default_backend() == "tpu"
@@ -98,7 +93,7 @@ class Accelerator(Enum):
         elif accelerator == Accelerator.mps:
             device = "mps"
         elif accelerator == Accelerator.tpu:
-            device = xla_device()
+            raise ValueError("torch does not manage TPU devices; use the JAX API (xma.layers_jax) for TPUs")
         elif accelerator == Accelerator.trainium:
             device = torch.neuron.current_device()
         elif accelerator == Accelerator.cpu:
@@ -115,12 +110,9 @@ class Accelerator(Enum):
         elif accelerator == Accelerator.mps:
             count = 1
         elif accelerator == Accelerator.tpu:
-            if is_torch_xla_available():
-                count = xla_device_count()
-            else:
-                import jax
+            import jax
 
-                count = jax.device_count()
+            count = jax.device_count()
         elif accelerator == Accelerator.trainium:
             count = torch.neuron.device_count()
         elif accelerator == Accelerator.cpu:
@@ -154,8 +146,6 @@ class Accelerator(Enum):
             torch.cuda.synchronize()
         elif accelerator == Accelerator.mps:
             torch.mps.synchronize()
-        elif accelerator == Accelerator.tpu:
-            xla_wait_device_ops()
 
     @staticmethod
     def get_core_count() -> int:

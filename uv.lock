@@ -2,33 +2,20 @@ version = 1
 revision = 3
 requires-python = ">=3.12"
 resolution-markers = [
-    "python_full_version >= '3.14' and extra != 'extra-31-accelerated-model-architectures-cpu' and extra != 'extra-31-accelerated-model-architectures-cuda' and extra != 'extra-31-accelerated-model-architectures-mps' and extra != 'extra-31-accelerated-model-architectures-torch-xla' and extra == 'extra-31-accelerated-model-architectures-tpu'",
-    "python_full_version == '3.13.*' and extra != 'extra-31-accelerated-model-architectures-cpu' and extra != 'extra-31-accelerated-model-architectures-cuda' and extra != 'extra-31-accelerated-model-architectures-mps' and extra != 'extra-31-accelerated-model-architectures-torch-xla' and extra == 'extra-31-accelerated-model-architectures-tpu'",
-    "python_full_version < '3.13' and extra != 'extra-31-accelerated-model-architectures-cpu' and extra != 'extra-31-accelerated-model-architectures-cuda' and extra != 'extra-31-accelerated-model-architectures-mps' and extra != 'extra-31-accelerated-model-architectures-torch-xla' and extra == 'extra-31-accelerated-model-architectures-tpu'",
-    "python_full_version >= '3.14' and extra != 'extra-31-accelerated-model-architectures-cpu' and extra != 'extra-31-accelerated-model-architectures-cuda' and extra != 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-torch-xla' and extra != 'extra-31-accelerated-model-architectures-tpu'",
-    "python_full_version == '3.13.*' and extra != 'extra-31-accelerated-model-architectures-cpu' and extra != 'extra-31-accelerated-model-architectures-cuda' and extra != 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-torch-xla' and extra != 'extra-31-accelerated-model-architectures-tpu'",
-    "python_full_version < '3.13' and extra != 'extra-31-accelerated-model-architectures-cpu' and extra != 'extra-31-accelerated-model-architectures-cuda' and extra != 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-torch-xla' and extra != 'extra-31-accelerated-model-architectures-tpu'",
-    "extra != 'extra-31-accelerated-model-architectures-cpu' and extra != 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-mps' and extra != 'extra-31-accelerated-model-architectures-torch-xla' and extra != 'extra-31-accelerated-model-architectures-tpu'",
-    "extra != 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-cuda' and extra != 'extra-31-accelerated-model-architectures-mps' and extra != 'extra-31-accelerated-model-architectures-torch-xla' and extra != 'extra-31-accelerated-model-architectures-tpu'",
-    "extra == 'extra-31-accelerated-model-architectures-cpu' and extra != 'extra-31-accelerated-model-architectures-cuda' and extra != 'extra-31-accelerated-model-architectures-mps' and extra != 'extra-31-accelerated-model-architectures-torch-xla' and extra != 'extra-31-accelerated-model-architectures-tpu'",
-    "extra != 'extra-31-accelerated-model-architectures-cpu' and extra != 'extra-31-accelerated-model-architectures-cuda' and extra != 'extra-31-accelerated-model-architectures-mps' and extra != 'extra-31-accelerated-model-architectures-torch-xla' and extra != 'extra-31-accelerated-model-architectures-tpu'",
+    "python_full_version >= '3.14' and extra != 'extra-31-accelerated-model-architectures-cpu' and extra != 'extra-31-accelerated-model-architectures-cuda' and extra != 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-tpu'",
+    "python_full_version == '3.13.*' and extra != 'extra-31-accelerated-model-architectures-cpu' and extra != 'extra-31-accelerated-model-architectures-cuda' and extra != 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-tpu'",
+    "python_full_version < '3.13' and extra != 'extra-31-accelerated-model-architectures-cpu' and extra != 'extra-31-accelerated-model-architectures-cuda' and extra != 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-tpu'",
+    "extra != 'extra-31-accelerated-model-architectures-cpu' and extra != 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-mps' and extra != 'extra-31-accelerated-model-architectures-tpu'",
+    "extra != 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-cuda' and extra != 'extra-31-accelerated-model-architectures-mps' and extra != 'extra-31-accelerated-model-architectures-tpu'",
+    "extra == 'extra-31-accelerated-model-architectures-cpu' and extra != 'extra-31-accelerated-model-architectures-cuda' and extra != 'extra-31-accelerated-model-architectures-mps' and extra != 'extra-31-accelerated-model-architectures-tpu'",
+    "extra != 'extra-31-accelerated-model-architectures-cpu' and extra != 'extra-31-accelerated-model-architectures-cuda' and extra != 'extra-31-accelerated-model-architectures-mps' and extra != 'extra-31-accelerated-model-architectures-tpu'",
 ]
 conflicts = [[
     { package = "accelerated-model-architectures", extra = "cpu" },
     { package = "accelerated-model-architectures", extra = "cuda" },
     { package = "accelerated-model-architectures", extra = "mps" },
-    { package = "accelerated-model-architectures", extra = "torch-xla" },
     { package = "accelerated-model-architectures", extra = "tpu" },
 ]]
-
-[[package]]
-name = "absl-py"
-version = "2.5.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/d0/4f/d79676ab82f2e42fc3611618139f13a9c4c31d0cff4b486982047679a802/absl_py-2.5.0.tar.gz", hash = "sha256:0c996f25c0490700fadabe6351630f6111534fa0ae252cc6d2014ea3b141135f", size = 118119, upload-time = "2026-07-03T10:57:48.157Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/58/0a/a10b45aab35b175aded078a462dc8d0c698f5b13946e7cb0869097b78bb6/absl_py-2.5.0-py3-none-any.whl", hash = "sha256:0f17b89f2a4eaaedc4f28c622998aa690564b3012a396a4ffad0821007fe03ba", size = 137410, upload-time = "2026-07-03T10:57:46.735Z" },
-]
 
 [[package]]
 name = "accelerated-model-architectures"
@@ -42,13 +29,13 @@ dependencies = [
 
 [package.optional-dependencies]
 cpu = [
-    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" } },
+    { name = "torch" },
 ]
 cuda = [
     { name = "apache-tvm-ffi" },
     { name = "nvidia-cutlass-dsl" },
     { name = "tabulate" },
-    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" } },
+    { name = "torch" },
 ]
 dev = [
     { name = "furo" },
@@ -59,29 +46,20 @@ dev = [
     { name = "sphinx-autobuild" },
 ]
 mps = [
-    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" } },
-]
-torch-xla = [
-    { name = "equinox" },
-    { name = "jaxtyping" },
-    { name = "tabulate" },
-    { name = "torch", version = "2.8.0", source = { registry = "https://pypi.org/simple" } },
-    { name = "torch-xla", extra = ["pallas", "tpu"], marker = "extra == 'extra-31-accelerated-model-architectures-torch-xla' or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-cuda') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra != 'extra-31-accelerated-model-architectures-torch-xla' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra != 'extra-31-accelerated-model-architectures-torch-xla' and extra == 'extra-31-accelerated-model-architectures-tpu')" },
+    { name = "torch" },
 ]
 tpu = [
     { name = "equinox" },
-    { name = "jax", version = "0.11.0", source = { registry = "https://pypi.org/simple" }, extra = ["tpu"], marker = "(extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-cuda') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-torch-xla') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-torch-xla') or (extra == 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-torch-xla') or (extra != 'extra-31-accelerated-model-architectures-torch-xla' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra != 'extra-31-accelerated-model-architectures-cpu' and extra != 'extra-31-accelerated-model-architectures-cuda' and extra != 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-tpu')" },
+    { name = "jax", extra = ["tpu"], marker = "(extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-cuda') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra != 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra != 'extra-31-accelerated-model-architectures-cpu' and extra != 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-tpu')" },
     { name = "jaxtyping" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "apache-tvm-ffi", marker = "extra == 'cuda'", specifier = "==0.1.12" },
-    { name = "equinox", marker = "extra == 'torch-xla'", specifier = "==0.13.8" },
     { name = "equinox", marker = "extra == 'tpu'", specifier = "==0.13.8" },
     { name = "furo", marker = "extra == 'dev'", specifier = "==2025.12.19" },
     { name = "jax", extras = ["tpu"], marker = "extra == 'tpu'", specifier = "==0.11.0" },
-    { name = "jaxtyping", marker = "extra == 'torch-xla'", specifier = "==0.3.11" },
     { name = "jaxtyping", marker = "extra == 'tpu'", specifier = "==0.3.11" },
     { name = "ninja", specifier = "==1.13.0" },
     { name = "numpy", specifier = "==2.5.1" },
@@ -93,14 +71,11 @@ requires-dist = [
     { name = "sphinx", marker = "extra == 'dev'", specifier = "==9.1.0" },
     { name = "sphinx-autobuild", marker = "extra == 'dev'", specifier = "==2025.8.25" },
     { name = "tabulate", marker = "extra == 'cuda'", specifier = "==0.10.0" },
-    { name = "tabulate", marker = "extra == 'torch-xla'", specifier = "==0.10.0" },
     { name = "torch", marker = "extra == 'cpu'", specifier = "==2.10.0" },
     { name = "torch", marker = "extra == 'cuda'", specifier = "==2.10.0" },
     { name = "torch", marker = "extra == 'mps'", specifier = "==2.10.0" },
-    { name = "torch", marker = "extra == 'torch-xla'", specifier = "==2.8.0" },
-    { name = "torch-xla", extras = ["pallas", "tpu"], marker = "extra == 'torch-xla'", specifier = "==2.8.0" },
 ]
-provides-extras = ["dev", "cpu", "mps", "cuda", "torch-xla", "tpu"]
+provides-extras = ["dev", "cpu", "mps", "cuda", "tpu"]
 
 [[package]]
 name = "accessible-pygments"
@@ -129,7 +104,7 @@ version = "4.14.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "idna" },
-    { name = "typing-extensions", marker = "python_full_version < '3.13' or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-cuda') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-torch-xla') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-torch-xla') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra == 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-torch-xla') or (extra == 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra == 'extra-31-accelerated-model-architectures-torch-xla' and extra == 'extra-31-accelerated-model-architectures-tpu')" },
+    { name = "typing-extensions", marker = "python_full_version < '3.13' or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-cuda') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra == 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-tpu')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/61/cc/a381afa6efea9f496eff839d4a6a1aed3bfafc7b3ab4b0d1b243a12573dd/anyio-4.14.2.tar.gz", hash = "sha256:cfa139f3ed1a23ee8f88a145ddb5ac7605b8bbfd8592baacd7ce3d8bb4313c7f", size = 260176, upload-time = "2026-07-12T20:29:07.082Z" }
 wheels = [
@@ -335,7 +310,7 @@ name = "click"
 version = "8.4.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "sys_platform == 'win32' or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-cuda') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-torch-xla') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-torch-xla') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra == 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-torch-xla') or (extra == 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra == 'extra-31-accelerated-model-architectures-torch-xla' and extra == 'extra-31-accelerated-model-architectures-tpu')" },
+    { name = "colorama", marker = "sys_platform == 'win32' or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-cuda') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra == 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-tpu')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/76/d4/81420972a676e8ffea40450d8c8c92943e7218a78fe9b64359836cc9876b/click-8.4.2.tar.gz", hash = "sha256:9a6cea6e60b17ebe0a44c5cc636d94f09bd66142c1cd7d8b4cd731c4917a15f6", size = 338000, upload-time = "2026-06-24T17:45:15.148Z" }
 wheels = [
@@ -418,8 +393,7 @@ name = "equinox"
 version = "0.13.8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "jax", version = "0.6.2", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-31-accelerated-model-architectures-torch-xla' or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-cuda') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra != 'extra-31-accelerated-model-architectures-torch-xla' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra != 'extra-31-accelerated-model-architectures-torch-xla' and extra == 'extra-31-accelerated-model-architectures-tpu')" },
-    { name = "jax", version = "0.11.0", source = { registry = "https://pypi.org/simple" }, marker = "(extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-cuda') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-torch-xla') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-torch-xla') or (extra == 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-torch-xla') or (extra != 'extra-31-accelerated-model-architectures-torch-xla' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra != 'extra-31-accelerated-model-architectures-cpu' and extra != 'extra-31-accelerated-model-architectures-cuda' and extra != 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-tpu')" },
+    { name = "jax" },
     { name = "jaxtyping" },
     { name = "typing-extensions" },
     { name = "wadler-lindig" },
@@ -473,47 +447,6 @@ wheels = [
 ]
 
 [[package]]
-name = "grpcio"
-version = "1.83.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "typing-extensions" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/0c/98/304898ac4e04e2d5e4e4c2eadc178b1f2a16d5f4bc2f91306c87d64680b9/grpcio-1.83.0.tar.gz", hash = "sha256:7674587248fbbb2ac6e4eecf83a8a0f3d91a928f941de571acfd3a2f007fbc24", size = 13428824, upload-time = "2026-07-23T15:20:37.759Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/15/2b/51e32514a4e9b715375c99721aadff0f24164cc2049b8269eda4de82a814/grpcio-1.83.0-cp312-cp312-linux_armv7l.whl", hash = "sha256:28f6c35ac8fcf10e4594f138e468f194360089dde40d126a7033e863fc479930", size = 6303167, upload-time = "2026-07-23T15:19:33.78Z" },
-    { url = "https://files.pythonhosted.org/packages/39/33/b5b50fc2c6fbe350e04814047bb2d409feec7b36ef8b170254c050e06bc0/grpcio-1.83.0-cp312-cp312-macosx_11_0_universal2.whl", hash = "sha256:33898e6a28e4ae598f1577cb1c4fec2a15c033d0ec52b9b45a09610dd045b9da", size = 12160538, upload-time = "2026-07-23T15:19:35.958Z" },
-    { url = "https://files.pythonhosted.org/packages/7b/5f/734e72e7b9f79bcf0b2c270b8d3bca0e4ebb97a27a50d06240b145f6d41e/grpcio-1.83.0-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:6fb8a1dd0c6f0f931e69e9d0dc6d1c406ed2a44fa963414eafba07b7fb685d16", size = 6869310, upload-time = "2026-07-23T15:19:38.607Z" },
-    { url = "https://files.pythonhosted.org/packages/a4/17/a1735f215b2a5cd43c38b79eac072ad197e61be9829905b6b29550abd0db/grpcio-1.83.0-cp312-cp312-manylinux2014_i686.manylinux_2_17_i686.whl", hash = "sha256:2b5e75c34842cd9c1b95285ca395c6a569664b81e3ffa6b714125922942abaaf", size = 7613472, upload-time = "2026-07-23T15:19:40.645Z" },
-    { url = "https://files.pythonhosted.org/packages/b2/78/c9e81f806ac704b6b145cb01628db398985b1f8dfdc10e23b55fb0902b3d/grpcio-1.83.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:aeb339838db07600481ef869507279b75326c75eac6d10f7afa62a0da1d2bcdd", size = 7040616, upload-time = "2026-07-23T15:19:42.349Z" },
-    { url = "https://files.pythonhosted.org/packages/9a/ba/94cd5af859876049d340480acbb61a959096c84b567f215534faa78d0424/grpcio-1.83.0-cp312-cp312-musllinux_1_2_aarch64.whl", hash = "sha256:f47d62808b4c0a97b78bff88a6d4ca283a2a492b9a04a87d814af95ca3b9c19c", size = 7570491, upload-time = "2026-07-23T15:19:44.357Z" },
-    { url = "https://files.pythonhosted.org/packages/3e/15/108d30d5a5c964312ae8b9cb0e8cc5b3c1cc68d8f757cca52b3565534d26/grpcio-1.83.0-cp312-cp312-musllinux_1_2_i686.whl", hash = "sha256:62003babc444a606dcd1f009cd16391ce23669ae4ad6ec267a873da7937a69f5", size = 8605036, upload-time = "2026-07-23T15:19:46.454Z" },
-    { url = "https://files.pythonhosted.org/packages/ea/23/3828ae13c3db8233d123ad612747665817b952d8a954f32390230b582336/grpcio-1.83.0-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:1aa567f8c3f19850ffd5d2858c9a8ea7c80f0db6c01186b71eb31e923ec984f5", size = 7981587, upload-time = "2026-07-23T15:19:48.913Z" },
-    { url = "https://files.pythonhosted.org/packages/17/5b/77af31228f55f55a2a5112bb0077ad0a1c4d23dbb0c2853a62475bbdcc14/grpcio-1.83.0-cp312-cp312-win32.whl", hash = "sha256:cb2906c61db4f9c64cc360054b5df70eeb81846228e9e56a4944bd415a63dadc", size = 4394004, upload-time = "2026-07-23T15:19:50.618Z" },
-    { url = "https://files.pythonhosted.org/packages/c0/da/f706e39550e7a3732ce2b9c5926107a93d74a802775b19b642a6df27dc96/grpcio-1.83.0-cp312-cp312-win_amd64.whl", hash = "sha256:1c699bbb20f143c8f2bff219de578aa2dc1f919399d67dc702b038b986ee62df", size = 5158525, upload-time = "2026-07-23T15:19:52.246Z" },
-    { url = "https://files.pythonhosted.org/packages/56/eb/135daaa713f32d33b8f99b4153b3f8dc3b2a124996ac15581bf9ebdad3c3/grpcio-1.83.0-cp313-cp313-linux_armv7l.whl", hash = "sha256:6662f3b1e07cc7493d437351860dc867bddc6a93c83ecf33bbfdaf0c217ab2d0", size = 6304480, upload-time = "2026-07-23T15:19:53.962Z" },
-    { url = "https://files.pythonhosted.org/packages/8f/a1/121806ce69f23138dabe06aa595b0e5f1ae051a37e4c1954eed7d692c800/grpcio-1.83.0-cp313-cp313-macosx_11_0_universal2.whl", hash = "sha256:74fe6f9e8a35c7dbf32255ee154d15e3e5338a81ed39173d079d594d2e544cd1", size = 12154419, upload-time = "2026-07-23T15:19:56.3Z" },
-    { url = "https://files.pythonhosted.org/packages/b0/e8/d0389e09cd6b4c4d3089b92967ae4e3ffd64795bd349bf2f85cd6656d3da/grpcio-1.83.0-cp313-cp313-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:10b3fa0475eb572c9a81a6fe37fa16a9c500c0c91cfc148cac15692b7e3c2867", size = 6873200, upload-time = "2026-07-23T15:19:58.701Z" },
-    { url = "https://files.pythonhosted.org/packages/f8/51/f464c1d211fa50d5adbabe1b2e519948d99c13757052bfc9ea7afa28e284/grpcio-1.83.0-cp313-cp313-manylinux2014_i686.manylinux_2_17_i686.whl", hash = "sha256:5f20a988480b0f28207f057f7f7ae1313393c3cef0adcfeae8248f9947eaf881", size = 7618811, upload-time = "2026-07-23T15:20:00.733Z" },
-    { url = "https://files.pythonhosted.org/packages/e8/c0/539fe0832f2dd6500a28f5263071623fb34e8d4867aec632ccf81bd21156/grpcio-1.83.0-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:7bd82671b39065ba18cd536e9cd45b27ff649053f81ddd2c6a966d595067080f", size = 7042310, upload-time = "2026-07-23T15:20:02.675Z" },
-    { url = "https://files.pythonhosted.org/packages/8c/ca/ccf617d37ffa72567fa8e005ec7090c99da922799be2fb9847c8b21ca18c/grpcio-1.83.0-cp313-cp313-musllinux_1_2_aarch64.whl", hash = "sha256:bc60215b5cb9fc8ca72942c498b551ac2305bd08f6ef8d4e3f0d21b64fbecd61", size = 7575412, upload-time = "2026-07-23T15:20:04.712Z" },
-    { url = "https://files.pythonhosted.org/packages/eb/b9/fd8d5245f823a8e0fd35d90e20ea3aa4acd47f8d5318fa8df307df52dec6/grpcio-1.83.0-cp313-cp313-musllinux_1_2_i686.whl", hash = "sha256:f1c3e5689d4b90987b1d72022bcfe866a9a3dc66197484cf856d96b6150e7f45", size = 8604248, upload-time = "2026-07-23T15:20:06.77Z" },
-    { url = "https://files.pythonhosted.org/packages/14/1e/f37632fc11db72dfa4bba86c3a43e54358e53030df111ecae5e91a733ad6/grpcio-1.83.0-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:a21cb4eeeba124443f399be2e8b624943cde864dcbe588cb42e5c483a52a906c", size = 7977458, upload-time = "2026-07-23T15:20:09.109Z" },
-    { url = "https://files.pythonhosted.org/packages/93/b6/d70b69ae5c0cfc341b9ba474980e4ed99cbf05c0e4a14e9eee8cb73db0a5/grpcio-1.83.0-cp313-cp313-win32.whl", hash = "sha256:8fe04f1050a59f875601eb55d42b4f66946fe89817f967e34db1462ccd07dadf", size = 4393993, upload-time = "2026-07-23T15:20:11.017Z" },
-    { url = "https://files.pythonhosted.org/packages/0f/13/45d4cccb555cf4c476226979bf3d2fd0b0254216f7564c3a053e35117efc/grpcio-1.83.0-cp313-cp313-win_amd64.whl", hash = "sha256:6e01ecd9d8ef280abe1365138a4dc318f9a5287f4cb1b41d07816f796653f735", size = 5159650, upload-time = "2026-07-23T15:20:12.979Z" },
-    { url = "https://files.pythonhosted.org/packages/9c/60/f2cca8147ea213d3e43ae9158d03ad04e020fdf32ff027253e1fe93f921d/grpcio-1.83.0-cp314-cp314-linux_armv7l.whl", hash = "sha256:3f351629f6ae16ecc0ec3553e586a6763ffd9f6114044286d0cbec3e09241bfa", size = 6305607, upload-time = "2026-07-23T15:20:15.353Z" },
-    { url = "https://files.pythonhosted.org/packages/d0/ab/d3874931d123a95e83a3ebf8aa04537988fb62425cedb8bf3cefc5ad41b2/grpcio-1.83.0-cp314-cp314-macosx_11_0_universal2.whl", hash = "sha256:d05ff664100d429335b93c91b8b34ddf9e94a112205e7fa06dede309e44a4e4c", size = 12166617, upload-time = "2026-07-23T15:20:17.435Z" },
-    { url = "https://files.pythonhosted.org/packages/92/ff/6f18f9426b69306f4e00a9add3b0ee2748da8aad53836ef80cab0d62d04f/grpcio-1.83.0-cp314-cp314-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:7936f2a56cf04f6514705c0fedf400971de01b6aa1719327e4718f410a765e2b", size = 6880213, upload-time = "2026-07-23T15:20:19.98Z" },
-    { url = "https://files.pythonhosted.org/packages/70/21/706d1147c6b93b98f179240c13991fbcc56880eba0c868abb1ad40d8a0a6/grpcio-1.83.0-cp314-cp314-manylinux2014_i686.manylinux_2_17_i686.whl", hash = "sha256:b0a0be840e51b6b7ee9df9269770faf77bdf4b771053c257c21d12bad607714c", size = 7618335, upload-time = "2026-07-23T15:20:22.161Z" },
-    { url = "https://files.pythonhosted.org/packages/74/04/1a8443c889115ec9e213a213e86bc93a71ee9088027e5befa09aaa0edd9d/grpcio-1.83.0-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:009667eaf3dcd5224c713589cdc98e7ca4ed0ff0b61132c6b276e930eb83a2df", size = 7043416, upload-time = "2026-07-23T15:20:24.209Z" },
-    { url = "https://files.pythonhosted.org/packages/86/c6/94e0fee5b12bc1da1370185b680988db6f739d19b42d9959db01a7ea50bf/grpcio-1.83.0-cp314-cp314-musllinux_1_2_aarch64.whl", hash = "sha256:bb669918fd88936b15599caff4160a77ab74bdeb25f2231f6e45b61282d6107b", size = 7583253, upload-time = "2026-07-23T15:20:26.313Z" },
-    { url = "https://files.pythonhosted.org/packages/a0/97/de1ccb671fb85575bc5192faedf9ecdbdf5b390d2e6584dcf552bcbd370e/grpcio-1.83.0-cp314-cp314-musllinux_1_2_i686.whl", hash = "sha256:c19b454d3d3f28db81f2c7c4dbaee96e7f6fd149721733ffe79d6bc530f17404", size = 8605102, upload-time = "2026-07-23T15:20:28.437Z" },
-    { url = "https://files.pythonhosted.org/packages/17/0f/0e0ec749a7034ffcbaa050e39779872950ead90c22e7e0116be3f28b2b46/grpcio-1.83.0-cp314-cp314-musllinux_1_2_x86_64.whl", hash = "sha256:61007cd08640abc5c54547ee32505474c482cd733a53cb87551ea81faa6350af", size = 7979826, upload-time = "2026-07-23T15:20:31.182Z" },
-    { url = "https://files.pythonhosted.org/packages/83/fa/c3fda157287f64bc65acee6c5aa90c41acf9e0d3a8e69a265eecff6d00a1/grpcio-1.83.0-cp314-cp314-win32.whl", hash = "sha256:32e11c37f5285b0c6fa3042c05fe06903696689749833fc64e67dec71b9bbe33", size = 4471765, upload-time = "2026-07-23T15:20:33.195Z" },
-    { url = "https://files.pythonhosted.org/packages/a1/00/b1b26431c9d54eee11724fd6e5585473a2ed47fbc1fb95e5204906a642ce/grpcio-1.83.0-cp314-cp314-win_amd64.whl", hash = "sha256:2bb48cb5e6dd005ca12b89ce4b6ac0b48ff3112c747542ee7986ef611a8ca6d9", size = 5298932, upload-time = "2026-07-23T15:20:35.48Z" },
-]
-
-[[package]]
 name = "h11"
 version = "0.16.0"
 source = { registry = "https://pypi.org/simple" }
@@ -550,15 +483,6 @@ wheels = [
 ]
 
 [[package]]
-name = "immutabledict"
-version = "4.3.1"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/1d/e6/718471048fea0366c3e3d1df3acfd914ca66d571cdffcf6d37bbcd725708/immutabledict-4.3.1.tar.gz", hash = "sha256:f844a669106cfdc73f47b1a9da003782fb17dc955a54c80972e0d93d1c63c514", size = 7806, upload-time = "2026-02-15T10:32:34.668Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/a3/ce/f9018bf69ae91b273b6391a095e7c93fa5e1617f25b6ba81ad4b20c9df10/immutabledict-4.3.1-py3-none-any.whl", hash = "sha256:c9facdc0ff30fdb8e35bd16532026cac472a549e182c94fa201b51b25e4bf7bf", size = 5000, upload-time = "2026-02-15T10:32:33.672Z" },
-]
-
-[[package]]
 name = "iniconfig"
 version = "2.3.0"
 source = { registry = "https://pypi.org/simple" }
@@ -569,40 +493,14 @@ wheels = [
 
 [[package]]
 name = "jax"
-version = "0.6.2"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.14'",
-    "python_full_version == '3.13.*'",
-    "python_full_version < '3.13'",
-]
-dependencies = [
-    { name = "jaxlib", version = "0.6.2", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-31-accelerated-model-architectures-torch-xla' or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-cuda') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra != 'extra-31-accelerated-model-architectures-torch-xla' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra != 'extra-31-accelerated-model-architectures-torch-xla' and extra == 'extra-31-accelerated-model-architectures-tpu')" },
-    { name = "ml-dtypes", marker = "extra == 'extra-31-accelerated-model-architectures-torch-xla' or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-cuda') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra != 'extra-31-accelerated-model-architectures-torch-xla' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra != 'extra-31-accelerated-model-architectures-torch-xla' and extra == 'extra-31-accelerated-model-architectures-tpu')" },
-    { name = "numpy", marker = "extra == 'extra-31-accelerated-model-architectures-torch-xla' or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-cuda') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra != 'extra-31-accelerated-model-architectures-torch-xla' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra != 'extra-31-accelerated-model-architectures-torch-xla' and extra == 'extra-31-accelerated-model-architectures-tpu')" },
-    { name = "opt-einsum", marker = "extra == 'extra-31-accelerated-model-architectures-torch-xla' or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-cuda') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra != 'extra-31-accelerated-model-architectures-torch-xla' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra != 'extra-31-accelerated-model-architectures-torch-xla' and extra == 'extra-31-accelerated-model-architectures-tpu')" },
-    { name = "scipy", marker = "extra == 'extra-31-accelerated-model-architectures-torch-xla' or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-cuda') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra != 'extra-31-accelerated-model-architectures-torch-xla' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra != 'extra-31-accelerated-model-architectures-torch-xla' and extra == 'extra-31-accelerated-model-architectures-tpu')" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/cf/1e/267f59c8fb7f143c3f778c76cb7ef1389db3fd7e4540f04b9f42ca90764d/jax-0.6.2.tar.gz", hash = "sha256:a437d29038cbc8300334119692744704ca7941490867b9665406b7f90665cd96", size = 2334091, upload-time = "2025-06-17T23:10:27.186Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/31/a8/97ef0cbb7a17143ace2643d600a7b80d6705b2266fc31078229e406bdef2/jax-0.6.2-py3-none-any.whl", hash = "sha256:bb24a82dc60ccf704dcaf6dbd07d04957f68a6c686db19630dd75260d1fb788c", size = 2722396, upload-time = "2025-06-17T23:10:25.293Z" },
-]
-
-[[package]]
-name = "jax"
 version = "0.11.0"
 source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.14'",
-    "python_full_version == '3.13.*'",
-    "python_full_version < '3.13'",
-]
 dependencies = [
-    { name = "jaxlib", version = "0.11.0", source = { registry = "https://pypi.org/simple" }, marker = "(extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-cuda') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-torch-xla') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-torch-xla') or (extra == 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-torch-xla') or (extra != 'extra-31-accelerated-model-architectures-torch-xla' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra != 'extra-31-accelerated-model-architectures-cpu' and extra != 'extra-31-accelerated-model-architectures-cuda' and extra != 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-tpu')" },
-    { name = "ml-dtypes", marker = "(extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-cuda') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-torch-xla') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-torch-xla') or (extra == 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-torch-xla') or (extra != 'extra-31-accelerated-model-architectures-torch-xla' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra != 'extra-31-accelerated-model-architectures-cpu' and extra != 'extra-31-accelerated-model-architectures-cuda' and extra != 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-tpu')" },
-    { name = "numpy", marker = "(extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-cuda') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-torch-xla') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-torch-xla') or (extra == 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-torch-xla') or (extra != 'extra-31-accelerated-model-architectures-torch-xla' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra != 'extra-31-accelerated-model-architectures-cpu' and extra != 'extra-31-accelerated-model-architectures-cuda' and extra != 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-tpu')" },
-    { name = "opt-einsum", marker = "(extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-cuda') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-torch-xla') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-torch-xla') or (extra == 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-torch-xla') or (extra != 'extra-31-accelerated-model-architectures-torch-xla' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra != 'extra-31-accelerated-model-architectures-cpu' and extra != 'extra-31-accelerated-model-architectures-cuda' and extra != 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-tpu')" },
-    { name = "scipy", marker = "(extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-cuda') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-torch-xla') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-torch-xla') or (extra == 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-torch-xla') or (extra != 'extra-31-accelerated-model-architectures-torch-xla' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra != 'extra-31-accelerated-model-architectures-cpu' and extra != 'extra-31-accelerated-model-architectures-cuda' and extra != 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-tpu')" },
+    { name = "jaxlib" },
+    { name = "ml-dtypes" },
+    { name = "numpy" },
+    { name = "opt-einsum" },
+    { name = "scipy" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/81/20/90a137c178de8f2b9170bd4dfb934e261213fdaac67e5c5183b132be85e7/jax-0.11.0.tar.gz", hash = "sha256:a2feb7cfa48bb35d36b8ecec16a4ec24044dec01935f779b28b017213697b195", size = 2813185, upload-time = "2026-07-16T19:00:14.519Z" }
 wheels = [
@@ -611,51 +509,19 @@ wheels = [
 
 [package.optional-dependencies]
 tpu = [
-    { name = "jaxlib", version = "0.11.0", source = { registry = "https://pypi.org/simple" } },
-    { name = "libtpu", version = "0.0.44.1", source = { registry = "https://pypi.org/simple" } },
+    { name = "jaxlib" },
+    { name = "libtpu" },
     { name = "requests" },
-]
-
-[[package]]
-name = "jaxlib"
-version = "0.6.2"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.14'",
-    "python_full_version == '3.13.*'",
-    "python_full_version < '3.13'",
-]
-dependencies = [
-    { name = "ml-dtypes", marker = "extra == 'extra-31-accelerated-model-architectures-torch-xla' or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-cuda') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra != 'extra-31-accelerated-model-architectures-torch-xla' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra != 'extra-31-accelerated-model-architectures-torch-xla' and extra == 'extra-31-accelerated-model-architectures-tpu')" },
-    { name = "numpy", marker = "extra == 'extra-31-accelerated-model-architectures-torch-xla' or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-cuda') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra != 'extra-31-accelerated-model-architectures-torch-xla' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra != 'extra-31-accelerated-model-architectures-torch-xla' and extra == 'extra-31-accelerated-model-architectures-tpu')" },
-    { name = "scipy", marker = "extra == 'extra-31-accelerated-model-architectures-torch-xla' or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-cuda') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra != 'extra-31-accelerated-model-architectures-torch-xla' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra != 'extra-31-accelerated-model-architectures-torch-xla' and extra == 'extra-31-accelerated-model-architectures-tpu')" },
-]
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/ac/db/05e702d2534e87abf606b1067b46a273b120e6adc7d459696e3ce7399317/jaxlib-0.6.2-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:34d8a684a8be949dd87dd4acc97101b4106a0dc9ad151ec891da072319a57b99", size = 54301644, upload-time = "2025-06-17T23:11:10.977Z" },
-    { url = "https://files.pythonhosted.org/packages/0d/8a/b0a96887b97a25d45ae2c30e4acecd2f95acd074c18ec737dda8c5cc7016/jaxlib-0.6.2-cp312-cp312-manylinux2014_aarch64.whl", hash = "sha256:87ec2dc9c3ed9ab936eec8535160c5fbd2c849948559f1c5daa75f63fabe5942", size = 79439161, upload-time = "2025-06-17T23:11:14.822Z" },
-    { url = "https://files.pythonhosted.org/packages/ba/e8/71c2555431edb5dd115cf86a7b599aa7e1be26728d89ae59aa11251d299c/jaxlib-0.6.2-cp312-cp312-manylinux2014_x86_64.whl", hash = "sha256:f1dd09b481a93c1d4c750013f467f74194493ba7bd29fcd4d1cec16e3a214f65", size = 89942952, upload-time = "2025-06-17T23:11:19.181Z" },
-    { url = "https://files.pythonhosted.org/packages/de/3a/06849113c844b86d20174df54735c84202ccf82cbd36d805f478c834418b/jaxlib-0.6.2-cp312-cp312-win_amd64.whl", hash = "sha256:921dbd4db214eba19a29ba9f2450d880e08b2b2c7b968f28cc89da3e62366af4", size = 57919603, upload-time = "2025-06-17T23:11:23.207Z" },
-    { url = "https://files.pythonhosted.org/packages/af/38/bed4279c2a3407820ed8bcd72dbad43c330ada35f88fafe9952b35abf785/jaxlib-0.6.2-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:bff67b188133ce1f0111c7b163ac321fd646b59ed221ea489063e2e0f85cb967", size = 54300638, upload-time = "2025-06-17T23:11:26.372Z" },
-    { url = "https://files.pythonhosted.org/packages/52/dc/9e35a1dc089ddf3d6be53ef2e6ba4718c5b6c0f90bccc535a20edac0c895/jaxlib-0.6.2-cp313-cp313-manylinux2014_aarch64.whl", hash = "sha256:70498837caf538bd458ff6858c8bfd404db82015aba8f663670197fa9900ff02", size = 79439983, upload-time = "2025-06-17T23:11:30.016Z" },
-    { url = "https://files.pythonhosted.org/packages/34/16/e93f0184b80a4e1ad38c6998aa3a2f7569c0b0152cbae39f7572393eda04/jaxlib-0.6.2-cp313-cp313-manylinux2014_x86_64.whl", hash = "sha256:f94163f14c8fd3ba93ae14b631abacf14cb031bba0b59138869984b4d10375f8", size = 89941720, upload-time = "2025-06-17T23:11:34.62Z" },
-    { url = "https://files.pythonhosted.org/packages/06/b9/ea50792ee0333dba764e06c305fe098bce1cb938dcb66fbe2fc47ef5dd02/jaxlib-0.6.2-cp313-cp313-win_amd64.whl", hash = "sha256:b977604cd36c74b174d25ed685017379468138eb747d865f75e466cb273c801d", size = 57919073, upload-time = "2025-06-17T23:11:39.344Z" },
-    { url = "https://files.pythonhosted.org/packages/09/ce/9596391c104a0547fcaf6a8c72078bbae79dbc8e7f0843dc8318f6606328/jaxlib-0.6.2-cp313-cp313t-manylinux2014_aarch64.whl", hash = "sha256:39cf9555f85ae1ce2e2c1a59fc71f2eca4f9867a7cb934fef881ba56b11371d1", size = 79579638, upload-time = "2025-06-17T23:11:43.054Z" },
-    { url = "https://files.pythonhosted.org/packages/10/79/f6e80f7f4cacfc9f03e64ac57ecb856b140de7c2f939b25f8dcf1aff63f9/jaxlib-0.6.2-cp313-cp313t-manylinux2014_x86_64.whl", hash = "sha256:3abd536e44b05fb1657507e3ff1fc3691f99613bae3921ecab9e82f27255f784", size = 90066675, upload-time = "2025-06-17T23:11:47.454Z" },
 ]
 
 [[package]]
 name = "jaxlib"
 version = "0.11.0"
 source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.14'",
-    "python_full_version == '3.13.*'",
-    "python_full_version < '3.13'",
-]
 dependencies = [
-    { name = "ml-dtypes", marker = "(extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-cuda') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-torch-xla') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-torch-xla') or (extra == 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-torch-xla') or (extra != 'extra-31-accelerated-model-architectures-torch-xla' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra != 'extra-31-accelerated-model-architectures-cpu' and extra != 'extra-31-accelerated-model-architectures-cuda' and extra != 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-tpu')" },
-    { name = "numpy", marker = "(extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-cuda') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-torch-xla') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-torch-xla') or (extra == 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-torch-xla') or (extra != 'extra-31-accelerated-model-architectures-torch-xla' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra != 'extra-31-accelerated-model-architectures-cpu' and extra != 'extra-31-accelerated-model-architectures-cuda' and extra != 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-tpu')" },
-    { name = "scipy", marker = "(extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-cuda') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-torch-xla') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-torch-xla') or (extra == 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-torch-xla') or (extra != 'extra-31-accelerated-model-architectures-torch-xla' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra != 'extra-31-accelerated-model-architectures-cpu' and extra != 'extra-31-accelerated-model-architectures-cuda' and extra != 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-tpu')" },
+    { name = "ml-dtypes" },
+    { name = "numpy" },
+    { name = "scipy" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/04/13/629fd9f50e15424358b7c53b6ec729e2d7163d64942817bee9adeee04ed1/jaxlib-0.11.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:f5bf0b3bfc2ef4778580047389dacb51ae000e50c6b3b6f98d10788927066c97", size = 62546563, upload-time = "2026-07-16T18:59:16.788Z" },
@@ -701,43 +567,13 @@ wheels = [
 
 [[package]]
 name = "libtpu"
-version = "0.0.17"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.14'",
-    "python_full_version == '3.13.*'",
-    "python_full_version < '3.13'",
-]
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/1e/17/3fe7239155d65be6872ed55bf0516c8de85610df36b009bf708536037b91/libtpu-0.0.17-py3-none-manylinux_2_31_x86_64.whl", hash = "sha256:4963214199e151613874c2b3f45b983bb09a6e4ba43bb028c917323b8caf418b", size = 135216139, upload-time = "2025-06-13T00:23:49.407Z" },
-]
-
-[[package]]
-name = "libtpu"
 version = "0.0.44.1"
 source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.14'",
-    "python_full_version == '3.13.*'",
-    "python_full_version < '3.13'",
-]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/6f/66/e57cdbcfaeb1c232b685ee78c15e37a5a7cb3889e3f604db6ca80c0717a5/libtpu-0.0.44.1-cp312-cp312-manylinux_2_31_x86_64.whl", hash = "sha256:4a96b7c320f63267e6ce82f323c2d8fca68395170ac98db4eb29d8e3cca2edf9", size = 215596766, upload-time = "2026-07-27T23:48:43.042Z" },
     { url = "https://files.pythonhosted.org/packages/1b/27/42e544ac8d4a072f03b8335395060559d70db6b6cc995fa0fe5df66ce0cb/libtpu-0.0.44.1-cp313-cp313-manylinux_2_31_x86_64.whl", hash = "sha256:a9ddf82730f44e9a61b6a2e3ebbfc7a9881583f6d74f7805e84fa9610c9a0ac0", size = 215596867, upload-time = "2026-07-27T23:48:52.844Z" },
     { url = "https://files.pythonhosted.org/packages/db/8d/d5eeeafc33d073b748c54c2c7c2e5a9dabe2176bf2c6d76839d3ed0672cc/libtpu-0.0.44.1-cp314-cp314-manylinux_2_31_x86_64.whl", hash = "sha256:a42e6ab09b9e736d94a0a8501662de8a3180feecb3ce17bbb96935a85b4daa58", size = 215596621, upload-time = "2026-07-27T23:49:02.932Z" },
     { url = "https://files.pythonhosted.org/packages/7d/5f/e651523459466fe7ea5423dfdc1372eab1a4a7775adba53bad366867fe20/libtpu-0.0.44.1-cp314-cp314t-manylinux_2_31_x86_64.whl", hash = "sha256:1a03f48c6e3fdbebaf3d685bfa226d0796db4c6a97a0b7cc4922438603ccef59", size = 215597584, upload-time = "2026-07-27T23:48:32.528Z" },
-]
-
-[[package]]
-name = "markdown-it-py"
-version = "4.2.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "mdurl" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/06/ff/7841249c247aa650a76b9ee4bbaeae59370dc8bfd2f6c01f3630c35eb134/markdown_it_py-4.2.0.tar.gz", hash = "sha256:04a21681d6fbb623de53f6f364d352309d4094dd4194040a10fd51833e418d49", size = 82454, upload-time = "2026-05-07T12:08:28.36Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/b3/81/4da04ced5a082363ecfa159c010d200ecbd959ae410c10c0264a38cac0f5/markdown_it_py-4.2.0-py3-none-any.whl", hash = "sha256:9f7ebbcd14fe59494226453aed97c1070d83f8d24b6fc3a3bcf9a38092641c4a", size = 91687, upload-time = "2026-05-07T12:08:27.182Z" },
 ]
 
 [[package]]
@@ -801,15 +637,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/fb/df/5bd7a48c256faecd1d36edc13133e51397e41b73bb77e1a69deab746ebac/markupsafe-3.0.3-cp314-cp314t-win32.whl", hash = "sha256:915c04ba3851909ce68ccc2b8e2cd691618c4dc4c4232fb7982bca3f41fd8c3d", size = 14819, upload-time = "2025-09-27T18:37:26.285Z" },
     { url = "https://files.pythonhosted.org/packages/1a/8a/0402ba61a2f16038b48b39bccca271134be00c5c9f0f623208399333c448/markupsafe-3.0.3-cp314-cp314t-win_amd64.whl", hash = "sha256:4faffd047e07c38848ce017e8725090413cd80cbc23d86e55c587bf979e579c9", size = 15426, upload-time = "2025-09-27T18:37:27.316Z" },
     { url = "https://files.pythonhosted.org/packages/70/bc/6f1c2f612465f5fa89b95bead1f44dcb607670fd42891d8fdcd5d039f4f4/markupsafe-3.0.3-cp314-cp314t-win_arm64.whl", hash = "sha256:32001d6a8fc98c8cb5c947787c5d08b0a50663d139f1305bac5885d98d9b40fa", size = 14146, upload-time = "2025-09-27T18:37:28.327Z" },
-]
-
-[[package]]
-name = "mdurl"
-version = "0.1.2"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/d6/54/cfe61301667036ec958cb99bd3efefba235e65cdeb9c84d24a8293ba1d90/mdurl-0.1.2.tar.gz", hash = "sha256:bb413d29f5eea38f31dd4754dd7377d4465116fb207585f97bf925588687c1ba", size = 8729, upload-time = "2022-08-14T12:40:10.846Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/b3/38/89ba8ad64ae25be8de66a6d463314cf1eb366222074cfda9ee839c56a4b4/mdurl-0.1.2-py3-none-any.whl", hash = "sha256:84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8", size = 9979, upload-time = "2022-08-14T12:40:09.779Z" },
 ]
 
 [[package]]
@@ -1111,7 +938,7 @@ dependencies = [
     { name = "numpy" },
     { name = "nvidia-cuda-nvdisasm" },
     { name = "nvidia-cutlass-dsl-libs-core" },
-    { name = "protobuf", version = "6.33.6", source = { registry = "https://pypi.org/simple" } },
+    { name = "protobuf" },
     { name = "typing-extensions" },
 ]
 wheels = [
@@ -1133,7 +960,7 @@ dependencies = [
     { name = "cuda-python" },
     { name = "numpy" },
     { name = "nvidia-cuda-nvdisasm" },
-    { name = "protobuf", version = "6.33.6", source = { registry = "https://pypi.org/simple" } },
+    { name = "protobuf" },
     { name = "typing-extensions" },
 ]
 wheels = [
@@ -1149,7 +976,7 @@ dependencies = [
     { name = "numpy" },
     { name = "nvidia-cuda-nvdisasm" },
     { name = "nvidia-cutlass-dsl-libs-base" },
-    { name = "protobuf", version = "6.33.6", source = { registry = "https://pypi.org/simple" } },
+    { name = "protobuf" },
     { name = "typing-extensions" },
 ]
 wheels = [
@@ -1161,20 +988,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/68/e1/aef0960124c15d7b615e6b0fbd382a6b9650cd4bfb0a1a9eaf2c112fb511/nvidia_cutlass_dsl_libs_cu12-4.6.0-cp314-cp314-manylinux_2_28_x86_64.whl", hash = "sha256:18f2aa81d5eeeadcde520b07ce369dc947abf3e29d6655ace9bdedcafb57ac8b", size = 88437698, upload-time = "2026-07-02T03:31:54.343Z" },
     { url = "https://files.pythonhosted.org/packages/68/91/9dc39b2f65715ca47d8c084364650be8fbeeac63affba01d5e1d16ff5a77/nvidia_cutlass_dsl_libs_cu12-4.6.0-cp314-cp314t-manylinux_2_28_aarch64.whl", hash = "sha256:f1dfb31449fe0a24131c53b9d4f957ff6bf3e52ea8709473b0972bf030929e6b", size = 87007515, upload-time = "2026-07-02T03:32:15.241Z" },
     { url = "https://files.pythonhosted.org/packages/17/c3/425b2d64c1da0a1a6017e98d3d2aa69145bf77cf3a095aaa45e065abb4ba/nvidia_cutlass_dsl_libs_cu12-4.6.0-cp314-cp314t-manylinux_2_28_x86_64.whl", hash = "sha256:e8dabef7651ce49aa9659f4500a8b43c73325ac08ca1d88d75f383ae8711664d", size = 88455596, upload-time = "2026-07-02T03:32:38.656Z" },
-]
-
-[[package]]
-name = "nvidia-nccl-cu12"
-version = "2.27.3"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.14'",
-    "python_full_version == '3.13.*'",
-    "python_full_version < '3.13'",
-]
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/4b/7b/8354b784cf73b0ba51e566b4baba3ddd44fe8288a3d39ef1e06cd5417226/nvidia_nccl_cu12-2.27.3-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:9ddf1a245abc36c550870f26d537a9b6087fb2e2e3d6e0ef03374c6fd19d984f", size = 322397768, upload-time = "2025-06-03T21:57:30.234Z" },
-    { url = "https://files.pythonhosted.org/packages/5c/5b/4e4fff7bad39adf89f735f2bc87248c81db71205b62bcc0d5ca5b606b3c3/nvidia_nccl_cu12-2.27.3-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:adf27ccf4238253e0b826bce3ff5fa532d65fc42322c8bfdfaf28024c0fbe039", size = 322364134, upload-time = "2025-06-03T21:58:04.013Z" },
 ]
 
 [[package]]
@@ -1268,15 +1081,6 @@ wheels = [
 ]
 
 [[package]]
-name = "prometheus-client"
-version = "0.26.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/52/73/f1334c29c2af4cd9dba6c7817e61b611bd0215e2eb5565c6064a4de18802/prometheus_client-0.26.0.tar.gz", hash = "sha256:04a91bcf94e2cf74a44a1a874d651a2e853ed354b6e822f3b7487751465d5c2b", size = 92910, upload-time = "2026-07-24T19:36:41.893Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/eb/a3/b69efbf4143b5b9859b977770bbbabcc2796b702fa69dc40271e45cd5a56/prometheus_client-0.26.0-py3-none-any.whl", hash = "sha256:fa93d06737aa02bacd05794768508bb97d2fbee28cb3bca04eaae92f0ca953d6", size = 64494, upload-time = "2026-07-24T19:36:40.854Z" },
-]
-
-[[package]]
 name = "protobuf"
 version = "6.33.6"
 source = { registry = "https://pypi.org/simple" }
@@ -1289,26 +1093,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/9b/ca/25afc144934014700c52e05103c2421997482d561f3101ff352e1292fb81/protobuf-6.33.6-cp39-abi3-manylinux2014_s390x.whl", hash = "sha256:c96c37eec15086b79762ed265d59ab204dabc53056e3443e702d2681f4b39ce3", size = 339381, upload-time = "2026-03-18T19:04:54.616Z" },
     { url = "https://files.pythonhosted.org/packages/16/92/d1e32e3e0d894fe00b15ce28ad4944ab692713f2e7f0a99787405e43533a/protobuf-6.33.6-cp39-abi3-manylinux2014_x86_64.whl", hash = "sha256:e9db7e292e0ab79dd108d7f1a94fe31601ce1ee3f7b79e0692043423020b0593", size = 323436, upload-time = "2026-03-18T19:04:55.768Z" },
     { url = "https://files.pythonhosted.org/packages/c4/72/02445137af02769918a93807b2b7890047c32bfb9f90371cbc12688819eb/protobuf-6.33.6-py3-none-any.whl", hash = "sha256:77179e006c476e69bf8e8ce866640091ec42e1beb80b213c3900006ecfba6901", size = 170656, upload-time = "2026-03-18T19:04:59.826Z" },
-]
-
-[[package]]
-name = "protobuf"
-version = "7.35.1"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.14'",
-    "python_full_version == '3.13.*'",
-    "python_full_version < '3.13'",
-]
-sdist = { url = "https://files.pythonhosted.org/packages/da/01/9ef0afd7999eb9badb3a768b4aedd78c86d4c65cfaf1958ab276199e76b4/protobuf-7.35.1.tar.gz", hash = "sha256:ce115a26fe0c39a2c29973d914d327e516a6455464489fe3cd1e51a1b354f81a", size = 458717, upload-time = "2026-06-11T21:55:40.257Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/10/03/8aeeb7458d22546bf64b5250ca1daeb5ff757d900e8e4a7476c6f0db843e/protobuf-7.35.1-cp310-abi3-macosx_10_9_universal2.whl", hash = "sha256:24f857477359a85c0c235261b8ba905fd51b2562f4a64ca1df5473f29850cbf6", size = 433226, upload-time = "2026-06-11T21:55:31.719Z" },
-    { url = "https://files.pythonhosted.org/packages/37/4b/dfb89eb0e652a1ff073c39a59fb5e3a83cfe9b57a2c83fa6d78270101767/protobuf-7.35.1-cp310-abi3-manylinux2014_aarch64.whl", hash = "sha256:11d6b0ec246892d85215b0a13ca6e0233cf5284b68f0ac02646427f4ff88a799", size = 328847, upload-time = "2026-06-11T21:55:34.035Z" },
-    { url = "https://files.pythonhosted.org/packages/0f/58/dc12f2cd484951524af6e3382c785869b9b3fb5e52ee95ae23add53ee8f9/protobuf-7.35.1-cp310-abi3-manylinux2014_s390x.whl", hash = "sha256:b73f9489a4b8b1c9cb1f8ed951c736392592edb24b9d6819f36d2e10b171d5b4", size = 344030, upload-time = "2026-06-11T21:55:34.941Z" },
-    { url = "https://files.pythonhosted.org/packages/e4/be/5b3cfe508bfab6761414ff944e3366eb13be4fd71efcd69450f89ba39f43/protobuf-7.35.1-cp310-abi3-manylinux2014_x86_64.whl", hash = "sha256:74758715c53d7158fb76caf4f0cfdacc5329a4b1bb994f865d6cf302d413a1c4", size = 327130, upload-time = "2026-06-11T21:55:35.921Z" },
-    { url = "https://files.pythonhosted.org/packages/d8/bc/6d6c7ba8709c85f8f2c390b2b118d6fb08a783676a572271851bf45a7d22/protobuf-7.35.1-cp310-abi3-win32.whl", hash = "sha256:353652e4efd0bca5b5fc2656abf8307ef351f0cf938c9eba09f0e09c20a25c30", size = 428945, upload-time = "2026-06-11T21:55:37.034Z" },
-    { url = "https://files.pythonhosted.org/packages/0a/19/8d0cb6f20a1ef7b18f1c8986ad5783f22f84cce39c6ce9a6e645ea55192e/protobuf-7.35.1-cp310-abi3-win_amd64.whl", hash = "sha256:230a75ddfc2de4806e56696ce9640c1cdfdb6543b7cfce98d42a4c0a0e7bdb87", size = 439996, upload-time = "2026-06-11T21:55:38.123Z" },
-    { url = "https://files.pythonhosted.org/packages/19/c7/5f7c636ec43e0c545e28d1f1db71990108306f7bdcb89f069ba97e428e7f/protobuf-7.35.1-py3-none-any.whl", hash = "sha256:4bc97768d8fe4ad6743c8a19403e314511ed9f6d13205b687e52421c023ac1b9", size = 171659, upload-time = "2026-06-11T21:55:39.155Z" },
 ]
 
 [[package]]
@@ -1325,7 +1109,7 @@ name = "pytest"
 version = "9.1.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "sys_platform == 'win32' or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-cuda') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-torch-xla') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-torch-xla') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra == 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-torch-xla') or (extra == 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra == 'extra-31-accelerated-model-architectures-torch-xla' and extra == 'extra-31-accelerated-model-architectures-tpu')" },
+    { name = "colorama", marker = "sys_platform == 'win32' or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-cuda') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra == 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-tpu')" },
     { name = "iniconfig" },
     { name = "packaging" },
     { name = "pluggy" },
@@ -1423,19 +1207,6 @@ wheels = [
 ]
 
 [[package]]
-name = "rich"
-version = "15.0.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "markdown-it-py" },
-    { name = "pygments" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/c0/8f/0722ca900cc807c13a6a0c696dacf35430f72e0ec571c4275d2371fca3e9/rich-15.0.0.tar.gz", hash = "sha256:edd07a4824c6b40189fb7ac9bc4c52536e9780fbbfbddf6f1e2502c31b068c36", size = 230680, upload-time = "2026-04-12T08:24:00.75Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/82/3b/64d4899d73f91ba49a8c18a8ff3f0ea8f1c1d75481760df8c68ef5235bf5/rich-15.0.0-py3-none-any.whl", hash = "sha256:33bd4ef74232fb73fe9279a257718407f169c09b78a87ad3d296f548e27de0bb", size = 310654, upload-time = "2026-04-12T08:24:02.83Z" },
-]
-
-[[package]]
 name = "roman-numerals"
 version = "4.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1529,7 +1300,7 @@ source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "alabaster" },
     { name = "babel" },
-    { name = "colorama", marker = "sys_platform == 'win32' or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-cuda') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-torch-xla') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-torch-xla') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra == 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-torch-xla') or (extra == 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra == 'extra-31-accelerated-model-architectures-torch-xla' and extra == 'extra-31-accelerated-model-architectures-tpu')" },
+    { name = "colorama", marker = "sys_platform == 'win32' or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-cuda') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra == 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-tpu')" },
     { name = "docutils" },
     { name = "imagesize" },
     { name = "jinja2" },
@@ -1639,7 +1410,7 @@ version = "1.6.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
-    { name = "typing-extensions", marker = "python_full_version < '3.13' or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-cuda') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-torch-xla') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-torch-xla') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra == 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-torch-xla') or (extra == 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra == 'extra-31-accelerated-model-architectures-torch-xla' and extra == 'extra-31-accelerated-model-architectures-tpu')" },
+    { name = "typing-extensions", marker = "python_full_version < '3.13' or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-cuda') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cpu' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-mps') or (extra == 'extra-31-accelerated-model-architectures-cuda' and extra == 'extra-31-accelerated-model-architectures-tpu') or (extra == 'extra-31-accelerated-model-architectures-mps' and extra == 'extra-31-accelerated-model-architectures-tpu')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/b5/b4/205b0d5241d934e8add0c38aa924c4f9fb7330834ff11e5444db964ec3f9/starlette-1.6.0.tar.gz", hash = "sha256:d4e3ac5e546444960c710297a3c9fc3f7ebae1b7e963f3d36173b49da535be9b", size = 2716969, upload-time = "2026-08-08T18:27:57.512Z" }
 wheels = [
@@ -1669,54 +1440,6 @@ wheels = [
 
 [[package]]
 name = "torch"
-version = "2.8.0"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.14'",
-    "python_full_version == '3.13.*'",
-    "python_full_version < '3.13'",
-]
-dependencies = [
-    { name = "filelock" },
-    { name = "fsspec" },
-    { name = "jinja2" },
-    { name = "networkx" },
-    { name = "nvidia-cublas-cu12", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
-    { name = "nvidia-cuda-cupti-cu12", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
-    { name = "nvidia-cuda-nvrtc-cu12", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
-    { name = "nvidia-cuda-runtime-cu12", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
-    { name = "nvidia-cudnn-cu12", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
-    { name = "nvidia-cufft-cu12", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
-    { name = "nvidia-cufile-cu12", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
-    { name = "nvidia-curand-cu12", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
-    { name = "nvidia-cusolver-cu12", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
-    { name = "nvidia-cusparse-cu12", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
-    { name = "nvidia-cusparselt-cu12", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
-    { name = "nvidia-nccl-cu12", version = "2.27.3", source = { registry = "https://pypi.org/simple" }, marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
-    { name = "nvidia-nvjitlink-cu12", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
-    { name = "nvidia-nvtx-cu12", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
-    { name = "setuptools" },
-    { name = "sympy" },
-    { name = "triton", version = "3.4.0", source = { registry = "https://pypi.org/simple" }, marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
-    { name = "typing-extensions" },
-]
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/49/0c/2fd4df0d83a495bb5e54dca4474c4ec5f9c62db185421563deeb5dabf609/torch-2.8.0-cp312-cp312-manylinux_2_28_aarch64.whl", hash = "sha256:e2fab4153768d433f8ed9279c8133a114a034a61e77a3a104dcdf54388838705", size = 101906089, upload-time = "2025-08-06T14:53:52.631Z" },
-    { url = "https://files.pythonhosted.org/packages/99/a8/6acf48d48838fb8fe480597d98a0668c2beb02ee4755cc136de92a0a956f/torch-2.8.0-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:b2aca0939fb7e4d842561febbd4ffda67a8e958ff725c1c27e244e85e982173c", size = 887913624, upload-time = "2025-08-06T14:56:44.33Z" },
-    { url = "https://files.pythonhosted.org/packages/af/8a/5c87f08e3abd825c7dfecef5a0f1d9aa5df5dd0e3fd1fa2f490a8e512402/torch-2.8.0-cp312-cp312-win_amd64.whl", hash = "sha256:2f4ac52f0130275d7517b03a33d2493bab3693c83dcfadf4f81688ea82147d2e", size = 241326087, upload-time = "2025-08-06T14:53:46.503Z" },
-    { url = "https://files.pythonhosted.org/packages/be/66/5c9a321b325aaecb92d4d1855421e3a055abd77903b7dab6575ca07796db/torch-2.8.0-cp312-none-macosx_11_0_arm64.whl", hash = "sha256:619c2869db3ada2c0105487ba21b5008defcc472d23f8b80ed91ac4a380283b0", size = 73630478, upload-time = "2025-08-06T14:53:57.144Z" },
-    { url = "https://files.pythonhosted.org/packages/10/4e/469ced5a0603245d6a19a556e9053300033f9c5baccf43a3d25ba73e189e/torch-2.8.0-cp313-cp313-manylinux_2_28_aarch64.whl", hash = "sha256:2b2f96814e0345f5a5aed9bf9734efa913678ed19caf6dc2cddb7930672d6128", size = 101936856, upload-time = "2025-08-06T14:54:01.526Z" },
-    { url = "https://files.pythonhosted.org/packages/16/82/3948e54c01b2109238357c6f86242e6ecbf0c63a1af46906772902f82057/torch-2.8.0-cp313-cp313-manylinux_2_28_x86_64.whl", hash = "sha256:65616ca8ec6f43245e1f5f296603e33923f4c30f93d65e103d9e50c25b35150b", size = 887922844, upload-time = "2025-08-06T14:55:50.78Z" },
-    { url = "https://files.pythonhosted.org/packages/e3/54/941ea0a860f2717d86a811adf0c2cd01b3983bdd460d0803053c4e0b8649/torch-2.8.0-cp313-cp313-win_amd64.whl", hash = "sha256:659df54119ae03e83a800addc125856effda88b016dfc54d9f65215c3975be16", size = 241330968, upload-time = "2025-08-06T14:54:45.293Z" },
-    { url = "https://files.pythonhosted.org/packages/de/69/8b7b13bba430f5e21d77708b616f767683629fc4f8037564a177d20f90ed/torch-2.8.0-cp313-cp313t-macosx_14_0_arm64.whl", hash = "sha256:1a62a1ec4b0498930e2543535cf70b1bef8c777713de7ceb84cd79115f553767", size = 73915128, upload-time = "2025-08-06T14:54:34.769Z" },
-    { url = "https://files.pythonhosted.org/packages/15/0e/8a800e093b7f7430dbaefa80075aee9158ec22e4c4fc3c1a66e4fb96cb4f/torch-2.8.0-cp313-cp313t-manylinux_2_28_aarch64.whl", hash = "sha256:83c13411a26fac3d101fe8035a6b0476ae606deb8688e904e796a3534c197def", size = 102020139, upload-time = "2025-08-06T14:54:39.047Z" },
-    { url = "https://files.pythonhosted.org/packages/4a/15/5e488ca0bc6162c86a33b58642bc577c84ded17c7b72d97e49b5833e2d73/torch-2.8.0-cp313-cp313t-manylinux_2_28_x86_64.whl", hash = "sha256:8f0a9d617a66509ded240add3754e462430a6c1fc5589f86c17b433dd808f97a", size = 887990692, upload-time = "2025-08-06T14:56:18.286Z" },
-    { url = "https://files.pythonhosted.org/packages/b4/a8/6a04e4b54472fc5dba7ca2341ab219e529f3c07b6941059fbf18dccac31f/torch-2.8.0-cp313-cp313t-win_amd64.whl", hash = "sha256:a7242b86f42be98ac674b88a4988643b9bc6145437ec8f048fea23f72feb5eca", size = 241603453, upload-time = "2025-08-06T14:55:22.945Z" },
-    { url = "https://files.pythonhosted.org/packages/04/6e/650bb7f28f771af0cb791b02348db8b7f5f64f40f6829ee82aa6ce99aabe/torch-2.8.0-cp313-none-macosx_11_0_arm64.whl", hash = "sha256:7b677e17f5a3e69fdef7eb3b9da72622f8d322692930297e4ccb52fefc6c8211", size = 73632395, upload-time = "2025-08-06T14:55:28.645Z" },
-]
-
-[[package]]
-name = "torch"
 version = "2.10.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
@@ -1736,13 +1459,13 @@ dependencies = [
     { name = "nvidia-cusolver-cu12", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "nvidia-cusparse-cu12", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "nvidia-cusparselt-cu12", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
-    { name = "nvidia-nccl-cu12", version = "2.27.5", source = { registry = "https://pypi.org/simple" }, marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
+    { name = "nvidia-nccl-cu12", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "nvidia-nvjitlink-cu12", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "nvidia-nvshmem-cu12", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "nvidia-nvtx-cu12", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "setuptools" },
     { name = "sympy" },
-    { name = "triton", version = "3.6.0", source = { registry = "https://pypi.org/simple" }, marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
+    { name = "triton", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "typing-extensions" },
 ]
 wheels = [
@@ -1773,65 +1496,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/e2/65/1a05346b418ea8ccd10360eef4b3e0ce688fba544e76edec26913a8d0ee0/torch-2.10.0-cp314-cp314t-manylinux_2_28_aarch64.whl", hash = "sha256:716b01a176c2a5659c98f6b01bf868244abdd896526f1c692712ab36dbaf9b63", size = 146006482, upload-time = "2026-01-21T16:22:18.42Z" },
     { url = "https://files.pythonhosted.org/packages/1d/b9/5f6f9d9e859fc3235f60578fa64f52c9c6e9b4327f0fe0defb6de5c0de31/torch-2.10.0-cp314-cp314t-manylinux_2_28_x86_64.whl", hash = "sha256:d8f5912ba938233f86361e891789595ff35ca4b4e2ac8fe3670895e5976731d6", size = 915613050, upload-time = "2026-01-21T16:20:49.035Z" },
     { url = "https://files.pythonhosted.org/packages/66/4d/35352043ee0eaffdeff154fad67cd4a31dbed7ff8e3be1cc4549717d6d51/torch-2.10.0-cp314-cp314t-win_amd64.whl", hash = "sha256:71283a373f0ee2c89e0f0d5f446039bdabe8dbc3c9ccf35f0f784908b0acd185", size = 113995816, upload-time = "2026-01-21T16:22:05.312Z" },
-]
-
-[[package]]
-name = "torch-xla"
-version = "2.8.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "absl-py" },
-    { name = "numpy" },
-    { name = "pyyaml" },
-    { name = "requests" },
-]
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/ef/ce/fbca5a6c0b8eab3169e640a0e4d25be89c27d413aa2badd1e2c0e757c4bf/torch_xla-2.8.0-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:08dd1cbd227ef712d8af4879cdf1560b82a153475f6a97d5b749b710b3ad7e9d", size = 88887401, upload-time = "2025-08-08T19:59:24.318Z" },
-    { url = "https://files.pythonhosted.org/packages/ec/84/3adfb9cb0edcd79a79c72211a300c91c3a670d248af6452e0acb61b112aa/torch_xla-2.8.0-cp313-cp313-manylinux_2_28_x86_64.whl", hash = "sha256:be2388ba3fa875892eb02d8a3e80ed2cd3878f99806639caebdf2b522f9fdb6c", size = 88885881, upload-time = "2025-08-08T19:59:29.036Z" },
-]
-
-[package.optional-dependencies]
-pallas = [
-    { name = "jax", version = "0.6.2", source = { registry = "https://pypi.org/simple" } },
-    { name = "jaxlib", version = "0.6.2", source = { registry = "https://pypi.org/simple" } },
-]
-tpu = [
-    { name = "libtpu", version = "0.0.17", source = { registry = "https://pypi.org/simple" } },
-    { name = "tpu-info" },
-]
-
-[[package]]
-name = "tpu-info"
-version = "0.14.2"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "grpcio" },
-    { name = "immutabledict" },
-    { name = "packaging" },
-    { name = "prometheus-client" },
-    { name = "protobuf", version = "7.35.1", source = { registry = "https://pypi.org/simple" } },
-    { name = "rich" },
-]
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/da/dc/9e8fc37cfa42e8cb8a9225e57d4c50be668c7ff0a07560ba27c6357f7cce/tpu_info-0.14.2-py3-none-any.whl", hash = "sha256:9e11ccdb4a64b9c6858311a560c992546224a1fa09da660b7b63983af17c4196", size = 44263, upload-time = "2026-07-06T19:21:06.744Z" },
-]
-
-[[package]]
-name = "triton"
-version = "3.4.0"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.14'",
-    "python_full_version == '3.13.*'",
-    "python_full_version < '3.13'",
-]
-dependencies = [
-    { name = "setuptools" },
-]
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/d0/66/b1eb52839f563623d185f0927eb3530ee4d5ffe9d377cdaf5346b306689e/triton-3.4.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:31c1d84a5c0ec2c0f8e8a072d7fd150cab84a9c239eaddc6706c081bfae4eb04", size = 155560068, upload-time = "2025-07-30T19:58:37.081Z" },
-    { url = "https://files.pythonhosted.org/packages/30/7b/0a685684ed5322d2af0bddefed7906674f67974aa88b0fae6e82e3b766f6/triton-3.4.0-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:00be2964616f4c619193cb0d1b29a99bd4b001d7dc333816073f92cf2a8ccdeb", size = 155569223, upload-time = "2025-07-30T19:58:44.017Z" },
-    { url = "https://files.pythonhosted.org/packages/20/63/8cb444ad5cdb25d999b7d647abac25af0ee37d292afc009940c05b82dda0/triton-3.4.0-cp313-cp313t-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:7936b18a3499ed62059414d7df563e6c163c5e16c3773678a3ee3d417865035d", size = 155659780, upload-time = "2025-07-30T19:58:51.171Z" },
 ]
 
 [[package]]
