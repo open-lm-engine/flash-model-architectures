@@ -65,9 +65,10 @@ class LinearAttention(nn.Module):
         cu_seqlens: torch.Tensor | None = None,
         max_seqlen: int | None = None,
         output_conv_state: bool = False,
+        output_state: bool = False,
         *,
         kernel_backend: KernelBackend | None = None,
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor | None]:
+    ) -> tuple[torch.Tensor, torch.Tensor | None, torch.Tensor | None]:
         input = self.input_projection(input)
 
         if self.kernel_size is None:
@@ -82,9 +83,6 @@ class LinearAttention(nn.Module):
         key = key.view(*key.size()[:-1], self.num_key_heads, self.key_head_dim)
         value = value.view(*value.size()[:-1], self.num_value_heads, self.value_head_dim)
 
-        if input_state is not None:
-            input_state = input_state.view(-1, self.num_heads, self.key_head_dim, self.value_head_dim)
-
         input, input_state = linear_attention(
             query=query,
             key=key,
@@ -92,12 +90,11 @@ class LinearAttention(nn.Module):
             input_state=input_state,
             cu_seqlens=cu_seqlens,
             max_seqlen=max_seqlen,
+            output_state=output_state,
             kernel_backend=kernel_backend,
         )
 
         input = input.flatten(-2, -1)
-        input_state = input_state.flatten(-2, -1)
-
         input = self.output_projection(input)
 
         return input, input_state, conv_state

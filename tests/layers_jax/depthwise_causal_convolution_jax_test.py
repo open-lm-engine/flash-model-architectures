@@ -11,7 +11,6 @@ from numpy.testing import assert_allclose
 
 jax = pytest.importorskip("jax")
 
-import haliax
 import jax.numpy as jnp
 
 from xma import KernelBackend
@@ -134,24 +133,24 @@ def test_depthwise_causal_convolution_jax_grad_runs(kernel_size: int) -> None:
 
 @pytest.mark.parametrize("has_input_state", [False, True])
 def test_depthwise_causal_convolution_module_works(has_input_state: bool) -> None:
-    Embed = haliax.Axis("embed", 8)
-    Batch = haliax.Axis("batch", 2)
-    Pos = haliax.Axis("position", 6)
+    embed_size = 8
+    B = 2
+    S = 6
     kernel_size = 4
 
     key_init, key_input, key_state = jax.random.split(jax.random.PRNGKey(2), 3)
 
     module = DepthwiseCausalConvolutionJAX.init(
-        Embed, kernel_size=kernel_size, activation_function="silu", add_bias=True, key=key_init
+        embed_size, kernel_size=kernel_size, activation_function="silu", add_bias=True, key=key_init
     )
 
-    input = haliax.random.normal(key_input, (Batch, Pos, Embed))
-    input_state = haliax.random.normal(key_state, (Batch, module.Embed, module.StateSize)) if has_input_state else None
+    input = jax.random.normal(key_input, (B, S, embed_size))
+    input_state = jax.random.normal(key_state, (B, module.hidden_size, module.state_size)) if has_input_state else None
 
     output, output_state = module(input, input_state, output_state=True, kernel_backend=KernelBackend.jax)
 
-    assert output.axes == (Batch, Pos, Embed)
-    assert output_state.axes == (Batch, module.Embed, module.StateSize)
+    assert output.shape == (B, S, embed_size)
+    assert output_state.shape == (B, module.hidden_size, module.state_size)
 
 
 def _generate_pallas_args() -> list:

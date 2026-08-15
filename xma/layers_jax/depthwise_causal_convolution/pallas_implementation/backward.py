@@ -53,28 +53,24 @@ def _backward_kernel(
         db_ref[...] = jnp.zeros(db_ref.shape, dtype=db_ref.dtype)
 
     BLOCK_S = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, 1), 0)
+    PATCH_R = jax.lax.broadcasted_iota(jnp.int32, (PAD, 1), 0)
     MASK_S = (BLOCK_ID_S * BLOCK_SIZE_S + BLOCK_S) < S
 
-    dy = jnp.where(MASK_S, dy_ref[...], 0).astype(jnp.float32)
-    x = jnp.where(MASK_S, x_ref[...], 0).astype(jnp.float32)
+    MASKED = S % BLOCK_SIZE_S != 0
+    if MASKED:
+        dy = jnp.where(MASK_S, dy_ref[...], 0).astype(jnp.float32)
+        x = jnp.where(MASK_S, x_ref[...], 0).astype(jnp.float32)
+    else:
+        dy = dy_ref[...].astype(jnp.float32)
+        x = x_ref[...].astype(jnp.float32)
 
-    # same windowing trick as the forward, in both directions: dx reads dy forward in time so its tail
-    # rows come from the next block's leading rows, while dW correlates dy against the input so its
-    # leading rows come from the previous block's trailing rows. Both are a whole-block roll plus a
-    # select, replacing the K * (K - 1) single-row reads the boundary rows used to need (a row is 1/8
-    # of a vreg, and dynamic row indexing lowers to vector.extract, which is slow and 32-bit only).
-    dy_next = jnp.pad(dy_scratch[...], ((0, BLOCK_SIZE_S - PAD), (0, 0)))
-    hist = jnp.pad(h_ref[0].astype(jnp.float32), ((BLOCK_SIZE_S - PAD, 0), (0, 0)))
+    hist = h_ref[0].astype(jnp.float32)  # hist[PAD + j] == x[j] for j < 0
 
     def x_tap(k: int):
-        # x[j - shift], falling off the front of the block into hist once j < shift
         shift = K - 1 - k
-        return jnp.where(BLOCK_S < shift, pltpu.roll(hist, shift, axis=0), pltpu.roll(x, shift, axis=0))
+        return pltpu.roll(x, shift, axis=0) if shift > 0 else x
 
     if ACTIVATION in ["silu", "swish"]:
-        # recompute the pre-activation output rather than keeping a second (B, S, H) tensor live across
-        # the backward, then pull dy back through silu' before it reaches dx, dW, db and dh0. The taps
-        # are the same ones dW needs below, so CSE folds the two sets of rolls together.
         y = jnp.zeros((BLOCK_SIZE_S, H), dtype=jnp.float32)
         if b_ref is not None:
             y += b_ref[...].astype(jnp.float32)
@@ -82,36 +78,77 @@ def _backward_kernel(
         for k in range(K):
             y += W_ref[k, :].astype(jnp.float32)[None, :] * x_tap(k)
 
-        # d/dz (z * sigmoid(z)) == sigmoid(z) * (1 + z * (1 - sigmoid(z)))
+        x_head = x[:PAD, :]
+        y_head = jnp.zeros((PAD, H), dtype=jnp.float32)
+        if b_ref is not None:
+            y_head += b_ref[...].astype(jnp.float32)
+
+        for k in range(K):
+            shift = K - 1 - k
+            if shift == 0:
+                y_head += W_ref[k, :].astype(jnp.float32)[None, :] * x_head
+            else:
+                W = W_ref[k, :].astype(jnp.float32)[None, :]
+                y_head += W * jnp.where(PATCH_R >= shift, pltpu.roll(x_head, shift, axis=0), 0)
+                y_head += W * jnp.where(PATCH_R < shift, pltpu.roll(hist, shift, axis=0), 0)
+
+        y = jnp.where(BLOCK_S < K - 1, jnp.pad(y_head, ((0, BLOCK_SIZE_S - PAD), (0, 0))), y)
+
         sigmoid = jax.nn.sigmoid(y)
         dy = dy * sigmoid * (1 + y * (1 - sigmoid))
 
-    dx = jnp.zeros((BLOCK_SIZE_S, H), dtype=jnp.float32)
+    dy_bf = dy.astype(dtype)
+    dx = jnp.zeros((BLOCK_SIZE_S, H), dtype=dtype)
+    for k in range(K):
+        W = W_ref[k, :]
+
+        shift = K - 1 - k
+        if shift == 0:
+            dx += W[None, :] * dy_bf
+        else:
+            dx += W[None, :] * pltpu.roll(dy_bf, (BLOCK_SIZE_S - shift) % BLOCK_SIZE_S, axis=0)
+
+    dy_tail = dy[BLOCK_SIZE_S - PAD :, :]
+    carry = dy_scratch[...]
+    dx_tail = jnp.zeros((PAD, H), dtype=jnp.float32)
+    for k in range(K):
+        W = W_ref[k, :].astype(jnp.float32)[None, :]
+
+        shift = K - 1 - k
+        if shift == 0:
+            dx_tail += W * dy_tail
+        else:
+            up = PAD - shift
+            dx_tail += W * jnp.where(
+                PATCH_R < PAD - shift, pltpu.roll(dy_tail, up, axis=0), pltpu.roll(carry, up, axis=0)
+            )
+
+    dx = jnp.where(
+        BLOCK_S >= BLOCK_SIZE_S - (K - 1),
+        jnp.pad(dx_tail, ((BLOCK_SIZE_S - PAD, 0), (0, 0))).astype(dtype),
+        dx,
+    )
+
+    ones_row = jnp.ones((1, BLOCK_SIZE_S), dtype=dtype)
+    db_ref[...] += jax.lax.dot(ones_row, dy_bf, preferred_element_type=jnp.float32)
+
+    d_head = dy[:PAD, :]
     for k in range(K):
         shift = K - 1 - k
-        W = W_ref[k, :].astype(jnp.float32)
+        tap = x_tap(k)
+        acc = jax.lax.dot(ones_row, (dy * tap).astype(dtype), preferred_element_type=jnp.float32)[0]
+        if shift > 0:
+            acc += jnp.sum(
+                jnp.where(PATCH_R < shift, d_head * (pltpu.roll(hist, shift, axis=0) - tap[:PAD, :]), 0),
+                axis=0,
+            )
+        dW_ref[k, :] += acc
 
-        # dy[j + shift], falling off the end of the block into dy_next once j + shift >= BLOCK_SIZE_S
-        # (rolling up by shift is rolling down by BLOCK_SIZE_S - shift, which pltpu.roll can express)
-        forward_shift = (BLOCK_SIZE_S - shift) % BLOCK_SIZE_S
-        dy_tap = jnp.where(
-            BLOCK_S < BLOCK_SIZE_S - shift,
-            pltpu.roll(dy, forward_shift, axis=0),
-            pltpu.roll(dy_next, forward_shift, axis=0),
-        )
-        dx += W[None, :] * dy_tap
-
-        dW_ref[k, :] += jnp.sum(dy * x_tap(k), axis=0)
-
-    db_ref[...] += jnp.sum(dy, axis=0, keepdims=True)
-    dx_ref[...] = jnp.where(MASK_S, dx, 0).astype(dtype)
+    dx_ref[...] = (jnp.where(MASK_S, dx, 0) if MASKED else dx).astype(dtype)
 
     state_prefix = max(K - 1 - S, 0)
     x_state_start = max(S - (K - 1), 0)
 
-    # ht is a plain slice of the input, so dht lands on dx at fixed positions. Which block owns each
-    # position is known at trace time, so every other block now skips these selects entirely instead
-    # of running K - 1 of them per block.
     if dht_ref is not None:
         dht_rows = {}
         for p in range(state_prefix, K - 1):
@@ -130,23 +167,16 @@ def _backward_kernel(
 
     @pl.when(BLOCK_ID_S == 0)
     def _():
-        # dh0[offset + p] = sum_{k <= p} W[k] * dy[p - k]; masking instead of wrapping the roll drops
-        # the taps that would read before the start of the sequence
         dh0 = jnp.zeros((BLOCK_SIZE_S, H), dtype=jnp.float32)
         for k in range(K):
             W = W_ref[k, :].astype(jnp.float32)
             dh0 += W[None, :] * jnp.where(BLOCK_S < k, 0, pltpu.roll(dy, k, axis=0))
 
-        # only the last K - 1 rows of dh0_ref are kept by the caller, so rotate row p into row
-        # offset + p and let the rows the rotation wraps into the head be garbage
         dh0_ref[...] = pltpu.roll(dh0[:PAD, :], offset, axis=0)
 
-        # when S < K - 1, x is too short to fill ht, so ht keeps the tail of h0: ht[p] == h0[S + p]
-        # for p < state_prefix, and dht flows straight back to that row
         for p in range(state_prefix):
             dh0_ref[offset + S + p, :] += dht_scratch[offset + p, :]
 
-    # hand this block's leading rows to the block before it (the grid walks S in reverse)
     dy_scratch[...] = dy[:PAD, :]
 
 

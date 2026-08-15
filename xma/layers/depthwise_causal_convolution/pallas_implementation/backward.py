@@ -7,7 +7,6 @@ import torch.nn.functional as F
 
 from ....layers_jax.depthwise_causal_convolution.pallas_implementation import _backward_core as _backward_core_jax
 from ....math import ceil_divide
-from .state_passing import _state_passing_core
 
 
 def _backward_output_shape_dtype_fn(
@@ -62,7 +61,7 @@ def _depthwise_causal_convolution_backward_pallas(
     h0: torch.Tensor | None,
     dy: torch.Tensor,
     dht: torch.Tensor | None,
-    BLOCK_SIZE_S: int = 128,
+    BLOCK_SIZE_S: int,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor | None, torch.Tensor | None]:
     K = W.shape[-1]
 
@@ -76,6 +75,7 @@ def _depthwise_causal_convolution_backward_pallas(
         h0 = F.pad(h0, (0, 0, pad - state_size, 0))
 
     h = _state_passing_core(x=x, h0=h0, BLOCK_SIZE_S=BLOCK_SIZE_S, K=K)
+
     dx, dW, db, dh0 = _backward_core(
         x=x,
         W=W,

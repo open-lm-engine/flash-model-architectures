@@ -6,7 +6,7 @@ import jax
 
 from ...accelerator import Accelerator, KernelBackend
 from .jax_implementation import _depthwise_causal_convolution_reference
-from .pallas_implementation import _apply_mask_to_padding_states, _depthwise_causal_convolution_pallas
+from .pallas_implementation import _depthwise_causal_convolution_pallas
 
 
 def depthwise_causal_convolution_jax(
@@ -18,7 +18,6 @@ def depthwise_causal_convolution_jax(
     output_state: bool = False,
     activation_function: str | None = None,
     *,
-    BLOCK_SIZE_S: int = 128,
     kernel_backend: KernelBackend | None = None,
 ) -> tuple[jax.Array, jax.Array | None]:
     """
@@ -74,20 +73,20 @@ def depthwise_causal_convolution_jax(
     if kernel_backend is None:
         kernel_backend = Accelerator.get_kernel_backend()
 
-    input = _apply_mask_to_padding_states(input, attention_mask)
+    if attention_mask is not None and attention_mask.shape[1] > 1 and attention_mask.shape[0] > 1:
+        input = (input * attention_mask[:, :, None]).astype(input.dtype)
 
     if kernel_backend == KernelBackend.pallas:
-        output, final_state = _depthwise_causal_convolution_pallas(
+        input, input_state = _depthwise_causal_convolution_pallas(
             x=input,
             W=weight,
             b=bias,
             h0=input_state,
             output_state=output_state,
-            BLOCK_SIZE_S=BLOCK_SIZE_S,
             ACTIVATION=activation_function,
         )
     elif kernel_backend == KernelBackend.jax:
-        output, final_state = _depthwise_causal_convolution_reference(
+        input, input_state = _depthwise_causal_convolution_reference(
             x=input,
             W=weight,
             b=bias,
@@ -98,6 +97,4 @@ def depthwise_causal_convolution_jax(
     else:
         raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
-    output = _apply_mask_to_padding_states(output, attention_mask)
-
-    return output, final_state
+    return input, input_state

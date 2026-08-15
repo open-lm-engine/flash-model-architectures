@@ -7,8 +7,8 @@ import jax.numpy as jnp
 
 
 def _linear_attention_reference(
-    q: jax.Array, k: jax.Array, v: jax.Array, h0: jax.Array | None, attention_multiplier: float
-) -> tuple[jax.Array, jax.Array]:
+    q: jax.Array, k: jax.Array, v: jax.Array, h0: jax.Array | None, attention_multiplier: float, output_state: bool
+) -> tuple[jax.Array, jax.Array | None]:
     B, S, Nq, K = q.shape
     Nk = k.shape[-2]
     Nv, V = v.shape[-2:]
@@ -27,5 +27,8 @@ def _linear_attention_reference(
         h = h + k[:, s][..., :, None] * v[:, s][..., None, :]
 
     y = jnp.stack(y, axis=1) * attention_multiplier
+
+    if not output_state:
+        h = None
 
     return y.astype(dtype), h
