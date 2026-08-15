@@ -14,7 +14,7 @@ from jaxtyping import PRNGKeyArray
 from ...accelerator import KernelBackend
 from ...math import divide_if_divisible
 from ..depthwise_causal_convolution import DepthwiseCausalConvolutionJAX
-from .op import _MAX_HEADS_PER_PALLAS_CELL, _MIN_BLOCK_SIZE_S, _TPU_LANE_COUNT, linear_attention_jax
+from .op import _TPU_LANE_COUNT, linear_attention_jax
 
 
 class _Linear(eqx.Module):
@@ -82,12 +82,6 @@ class LinearAttentionJAX(eqx.Module):
         divide_if_divisible(num_heads, num_key_heads)
         divide_if_divisible(num_heads, num_value_heads)
 
-        # fail at construction time instead of inside the first kernel call; see linear_attention_jax
-        if BLOCK_SIZE_S < _MIN_BLOCK_SIZE_S:
-            raise ValueError(
-                f"BLOCK_SIZE_S ({BLOCK_SIZE_S}) must be >= {_MIN_BLOCK_SIZE_S} (pallas-kernel envelope; "
-                "enforced at init so a later kernel_backend='pallas' call cannot fail mid-run)"
-            )
         if BLOCK_SIZE_V <= 0 or BLOCK_SIZE_V % _TPU_LANE_COUNT != 0:
             raise ValueError(
                 f"BLOCK_SIZE_V ({BLOCK_SIZE_V}) must be a positive multiple of {_TPU_LANE_COUNT} "
