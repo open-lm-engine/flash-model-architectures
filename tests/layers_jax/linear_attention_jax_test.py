@@ -145,7 +145,11 @@ def test_linear_attention_module_works(has_input_state: bool) -> None:
     )
 
     input = jax.random.normal(key_input, (B, S, embed_size))
-    input_state = jax.random.normal(key_state, (B, module.num_heads, module.state_size)) if has_input_state else None
+    input_state = (
+        jax.random.normal(key_state, (B, module.num_heads, module.key_head_dim, module.value_head_dim))
+        if has_input_state
+        else None
+    )
 
     output, output_state, conv_state = module(input, input_state, kernel_backend=KernelBackend.jax)
 
