@@ -32,7 +32,7 @@ def _linear_attention_backward_kernel(
     Gq: int,
     Gk: int,
     Gv: int,
-    NUM_V_TILES: int,
+    NUM_BLOCKS_V: int,
     NUM_BLOCKS_S: int,
 ) -> None:
     """Backward kernel: dq/dk/dv/dh0 in one microbatched pass over the S axis.
@@ -82,7 +82,7 @@ def _linear_attention_backward_kernel(
     v = v_ref[...].transpose(1, 0, 2)
     dy = dy_ref[...].transpose(1, 0, 2)
 
-    hc = h_ref[...].astype(dtype)  # (N, K, NUM_V_TILES * BLOCK_SIZE_V)
+    hc = h_ref[...].astype(dtype)  # (N, K, NUM_BLOCKS_V * BLOCK_SIZE_V)
 
     row = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, BLOCK_SIZE_S), 0)
     col = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, BLOCK_SIZE_S), 1)
@@ -101,7 +101,7 @@ def _linear_attention_backward_kernel(
         dqk = jnp.zeros((BLOCK_SIZE_S, BLOCK_SIZE_S), jnp.float32)
         dq_term2 = jnp.zeros((BLOCK_SIZE_S, K), jnp.float32)
         dk_term2 = jnp.zeros((BLOCK_SIZE_S, K), jnp.float32)
-        for vb in range(NUM_V_TILES):
+        for vb in range(NUM_BLOCKS_V):
             slab = vb * BLOCK_SIZE_V
             v_n = v[n // Gv][:, slab : slab + BLOCK_SIZE_V].astype(dtype)
             dy_n = dy_n_full[:, slab : slab + BLOCK_SIZE_V]
@@ -168,8 +168,8 @@ def _linear_attention_backward_core(
     assert S % BLOCK_SIZE_S == 0
 
     NUM_BLOCKS_S = ceil_divide(S, BLOCK_SIZE_S)
-    NUM_V_TILES = ceil_divide(V, BLOCK_SIZE_V)
-    V_WIDTH = NUM_V_TILES * BLOCK_SIZE_V
+    NUM_BLOCKS_V = ceil_divide(V, BLOCK_SIZE_V)
+    V_WIDTH = NUM_BLOCKS_V * BLOCK_SIZE_V
     assert V == V_WIDTH, "V must be an integer multiple of BLOCK_SIZE_V (host padding guarantees this)"
 
     kernel = pl.pallas_call(
@@ -182,7 +182,7 @@ def _linear_attention_backward_core(
             Gq=Gq,
             Gk=Gk,
             Gv=Gv,
-            NUM_V_TILES=NUM_V_TILES,
+            NUM_BLOCKS_V=NUM_BLOCKS_V,
             NUM_BLOCKS_S=NUM_BLOCKS_S,
         ),
         out_shape=(
@@ -241,9 +241,6 @@ def _linear_attention_backward_core(
             ),
         ),
         scratch_shapes=[pltpu.VMEM((N, K, V_WIDTH), jnp.float32)],
-        # block shapes are built from host-validated dimensions (op.py guarantees
-        # S % BLOCK_SIZE_S == 0, a 128-lane-multiple K, and V % BLOCK_SIZE_V == 0), so
-        # bounds checks are provably redundant
         compiler_params=pltpu.CompilerParams(
             disable_bounds_checks=True, dimension_semantics=("parallel", "arbitrary")
         ),

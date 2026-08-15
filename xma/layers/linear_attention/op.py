@@ -25,12 +25,6 @@ if is_triton_available():
     _LinearAttention[KernelBackend.cuda] = _LinearAttentionTriton
     _LinearAttention[KernelBackend.triton] = _LinearAttentionTriton
 
-# NOTE: the experimental torch-xla pallas backend was removed: it wrapped the
-# layers_jax pallas cores directly, which were rewritten for real performance;
-# the wrapper had no host-side padding path, violated the new support envelope,
-# and was never advertised in tools/kernels.yml. Use KernelBackend.triton on
-# torch, or the KernelBackend.pallas backend of xma.layers_jax.linear_attention.
-
 
 def linear_attention(
     query: torch.Tensor,
@@ -40,9 +34,10 @@ def linear_attention(
     attention_multiplier: float | None = None,
     cu_seqlens: torch.Tensor | None = None,
     max_seqlen: int | None = None,
+    output_state: bool = False,
     *,
     kernel_backend: KernelBackend | None = None,
-) -> tuple[torch.Tensor, torch.Tensor]:
+) -> tuple[torch.Tensor, torch.Tensor | None]:
     """computes linear attention: `y[s] = q[s] @ h[s]`, `h[s] = h[s - 1] + k[s].T @ v[s]`
 
     :param query: query tensor of shape (B, S, Nq, K). Should have shape (T, Nq, K) and `cu_seqlens` should be
@@ -64,11 +59,14 @@ def linear_attention(
     :type cu_seqlens: torch.Tensor | None
     :param max_seqlen: max sequence length in the batch. Defaults to None.
     :type max_seqlen: int | None
+    :param output_state: whether to also return the final state (of shape (B, N, K, V)) for use as
+        `input_state` in a subsequent call. Defaults to False.
+    :type output_state: bool
     :param kernel_backend: KernelBackend
     :type kernel_backend: KernelBackend | None
-    :return: output tensor of shape (B, S, N, V) if `cu_seqlens` is None else (T, N, V) and output state of
-        shape (B, N, K, V)
-    :rtype: tuple[torch.Tensor, torch.Tensor]
+    :return: output tensor of shape (B, S, N, V) if `cu_seqlens` is None else (T, N, V), and output state of
+        shape (B, N, K, V) if `output_state` is True else None.
+    :rtype: tuple[torch.Tensor, torch.Tensor | None]
     """
 
     if cu_seqlens is None:
@@ -105,6 +103,7 @@ def linear_attention(
         v=value,
         h0=input_state,
         attention_multiplier=attention_multiplier,
+        output_state=output_state,
         cu_seqlens=cu_seqlens,
         max_seqlen=max_seqlen,
         kernel_backend=kernel_backend,

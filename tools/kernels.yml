@@ -43,13 +43,11 @@ functional:
     - triton
   swiglu:
     - cuda
-    - pallas
     - mps
     - nki
     - triton
   swiglu_packed:
     - cuda
-    - pallas
     - nki
     - triton
   unpack_sequence:

@@ -19,16 +19,17 @@ class _LinearAttentionTriton(torch.autograd.Function):
         v: torch.Tensor,
         h0: torch.Tensor | None,
         attention_multiplier: float,
+        output_state: bool,
         cu_seqlens: torch.Tensor | None,
         max_seqlen: int | None,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor | None]:
         Nq, Nk, Nv, N = _get_num_heads(q=q, k=k, v=v, run_check=False)
 
         B, S, _, K = k.size()
         V = v.size(-1)
 
         y = torch.empty(B, S, N, V, dtype=k.dtype, device=k.device)
-        ht = torch.empty(B, N, K, V, dtype=torch.float32, device=k.device)
+        ht = torch.empty(B, N, K, V, dtype=torch.float32, device=k.device) if output_state else None
 
         BLOCK_SIZE_S = 128
         NUM_BLOCKS_S = ceil_divide(S, BLOCK_SIZE_S)

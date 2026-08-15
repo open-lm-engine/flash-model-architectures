@@ -13,9 +13,10 @@ def _linear_attention_torch(
     v: torch.Tensor,
     h0: torch.Tensor | None,
     attention_multiplier: float,
+    output_state: bool,
     cu_seqlens: torch.Tensor | None,
     max_seqlen: int | None,
-) -> tuple[torch.Tensor, torch.Tensor]:
+) -> tuple[torch.Tensor, torch.Tensor | None]:
     Nq, Nk, Nv, N = _get_num_heads(q=q, k=k, v=v, run_check=False)
 
     y_shape = list(v.size())
@@ -48,5 +49,8 @@ def _linear_attention_torch(
         y[:, s] = (q[:, s, :, None, :] @ h0.type_as(q)).squeeze(-2)
 
     y = y * attention_multiplier
+
+    if not output_state:
+        h0 = None
 
     return y, h0

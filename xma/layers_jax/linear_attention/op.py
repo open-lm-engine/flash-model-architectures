@@ -44,17 +44,6 @@ def _linear_attention_pallas_chunked(
     BLOCK_SIZE_S: int,
     BLOCK_SIZE_V: int,
 ) -> tuple[jax.Array, jax.Array]:
-    """exact head-space split for head counts above `_MAX_HEADS_PER_PALLAS_CELL`.
-
-    Linear-attention heads do not interact (the state h is per head), so slicing q/k/v/h0 along
-    their grouped head axes, running the kernel on each chunk and concatenating reproduces the
-    un-split computation bit for bit. The split is exact iff every chunk boundary lands on a
-    group boundary: a head spanning a chunk boundary would have to be included (duplicated) in
-    every chunk it overlaps, and the kernel's chunk-local group mapping `n // (chunk_N // chunk_Nx)`
-    would then diverge from the global `(lo + n) // Gx` — the guard below rejects every group
-    size that does not divide the chunk size, so this never happens.
-    """
-
     Nq, Nk, Nv, N = _get_num_heads(q, k, v)
     Gq = N // Nq
     Gk = N // Nk
@@ -74,14 +63,14 @@ def _linear_attention_pallas_chunked(
     ys = []
     hts = []
     for i in range(NUM_CHUNKS):
-        lo = i * _MAX_HEADS_PER_PALLAS_CELL
-        hi = min(N, lo + _MAX_HEADS_PER_PALLAS_CELL)
+        start = i * _MAX_HEADS_PER_PALLAS_CELL
+        end = min(N, start + _MAX_HEADS_PER_PALLAS_CELL)
 
         y_chunk, ht_chunk = _linear_attention_pallas(
-            q=q[:, :, lo // Gq : hi // Gq],
-            k=k[:, :, lo // Gk : hi // Gk],
-            v=v[:, :, lo // Gv : hi // Gv],
-            h0=None if h0 is None else h0[:, lo:hi],
+            q=q[:, :, start // Gq : end // Gq],
+            k=k[:, :, start // Gk : end // Gk],
+            v=v[:, :, start // Gv : end // Gv],
+            h0=None if h0 is None else h0[:, start:end],
             attention_multiplier=attention_multiplier,
             BLOCK_SIZE_S=BLOCK_SIZE_S,
             BLOCK_SIZE_V=BLOCK_SIZE_V,
@@ -98,11 +87,12 @@ def linear_attention_jax(
     value: jax.Array,
     input_state: jax.Array | None = None,
     attention_multiplier: float | None = None,
+    output_state: bool = True,
     *,
     BLOCK_SIZE_S: int = 256,
     BLOCK_SIZE_V: int = 128,
     kernel_backend: KernelBackend | None = None,
-) -> tuple[jax.Array, jax.Array]:
+) -> tuple[jax.Array, jax.Array | None]:
     """computes linear attention: `y[s] = q[s] @ h[s]`, `h[s] = h[s - 1] + k[s].T @ v[s]`
 
     :param query: query tensor of shape (B, S, Nq, K)
@@ -131,8 +121,9 @@ def linear_attention_jax(
     :type BLOCK_SIZE_V: int
     :param kernel_backend: KernelBackend
     :type kernel_backend: KernelBackend | None
-    :return: output tensor of shape (B, S, N, V) and output state of shape (B, N, K, V)
-    :rtype: tuple[jax.Array, jax.Array]
+    :return: output tensor of shape (B, S, N, V), and output state of shape (B, N, K, V) if `output_state`
+        is True else None.
+    :rtype: tuple[jax.Array, jax.Array | None]
     """
 
     B, S, _, K = query.shape
@@ -154,27 +145,18 @@ def linear_attention_jax(
         kernel_backend = Accelerator.get_kernel_backend()
 
     if kernel_backend == KernelBackend.pallas:
-        # support envelope (see the parameter docs above); raising host-side keeps every silent-
-        # miscompile class out of the kernels, which run with bounds checks disabled
-        if S == 0 or K == 0 or V == 0:
-            raise ValueError(
-                "linear_attention_jax with KernelBackend.pallas requires S >= 1, K >= 1, and V >= 1; "
-                "degenerate zero-length dimensions are not supported by the TPU kernels"
-            )
         if BLOCK_SIZE_S < _MIN_BLOCK_SIZE_S:
             raise ValueError(
                 f"BLOCK_SIZE_S ({BLOCK_SIZE_S}) must be >= {_MIN_BLOCK_SIZE_S} for KernelBackend.pallas "
                 "(validated support envelope of the shipped kernels; there is no in-kernel handling below it)"
             )
+
         if BLOCK_SIZE_V <= 0 or BLOCK_SIZE_V % _TPU_LANE_COUNT != 0:
             raise ValueError(
                 f"BLOCK_SIZE_V ({BLOCK_SIZE_V}) must be a positive multiple of {_TPU_LANE_COUNT} "
                 "(the TPU lane count) for KernelBackend.pallas"
             )
 
-        # ragged S: zero-pad to a multiple of BLOCK_SIZE_S at the host. Padded rows are causally
-        # isolated (they sit after all real rows), contribute zeros to the final state, and are
-        # sliced off below; gradients through jnp.pad/slicing reduce to slicing automatically.
         S_pad = ceil_divide(S, BLOCK_SIZE_S) * BLOCK_SIZE_S - S
         if S_pad != 0:
             pad = ((0, 0), (0, S_pad), (0, 0), (0, 0))
@@ -182,57 +164,41 @@ def linear_attention_jax(
             key = jnp.pad(key, pad)
             value = jnp.pad(value, pad)
 
-        # feature dims shorter than the 128 TPU lanes, or not a multiple of the lane count /
-        # BLOCK_SIZE_V: zero-pad at the host. Every contraction in the kernels is column-local in
-        # K/V, so padded columns hold exact zeros, cannot contaminate real entries (unlike a
-        # zero-multiplied OOB read), and are sliced off below. This keeps the kernels mask-free —
-        # Mosaic does not implement the corresponding small-shape broadcasts.
-        K_width = ceil_divide(K, _TPU_LANE_COUNT) * _TPU_LANE_COUNT
-        K_pad = K_width - K
-        # V is padded to a multiple of BLOCK_SIZE_V unconditionally: the kernels require
-        # V % BLOCK_SIZE_V == 0, and BLOCK_SIZE_V can exceed 128 while V sits between the
-        # 128-lane round-up and BLOCK_SIZE_V (e.g. V = 100 with BLOCK_SIZE_V = 256).
-        V_width = ceil_divide(V, BLOCK_SIZE_V) * BLOCK_SIZE_V  # >= BLOCK_SIZE_V, a 128 multiple
-        V_pad = V_width - V
+        K_pad = ceil_divide(K, _TPU_LANE_COUNT) * _TPU_LANE_COUNT - K
+        V_pad = ceil_divide(V, BLOCK_SIZE_V) * BLOCK_SIZE_V - V
+
         if K_pad != 0:
             pad_K = ((0, 0), (0, 0), (0, 0), (0, K_pad))
             query = jnp.pad(query, pad_K)
             key = jnp.pad(key, pad_K)
+
         if V_pad != 0:
             value = jnp.pad(value, ((0, 0), (0, 0), (0, 0), (0, V_pad)))
-        if (K_pad != 0 or V_pad != 0) and input_state is not None:
+
+        if input_state is not None and (K_pad != 0 or V_pad != 0):
             input_state = jnp.pad(input_state, ((0, 0), (0, 0), (0, K_pad), (0, V_pad)))
 
-        if N <= _MAX_HEADS_PER_PALLAS_CELL:
-            y, ht = _linear_attention_pallas(
-                q=query,
-                k=key,
-                v=value,
-                h0=input_state,
-                attention_multiplier=attention_multiplier,
-                BLOCK_SIZE_S=BLOCK_SIZE_S,
-                BLOCK_SIZE_V=BLOCK_SIZE_V,
-            )
-        else:
-            y, ht = _linear_attention_pallas_chunked(
-                q=query,
-                k=key,
-                v=value,
-                h0=input_state,
-                attention_multiplier=attention_multiplier,
-                BLOCK_SIZE_S=BLOCK_SIZE_S,
-                BLOCK_SIZE_V=BLOCK_SIZE_V,
-            )
+        y, ht = (_linear_attention_pallas if N <= _MAX_HEADS_PER_PALLAS_CELL else _linear_attention_pallas_chunked)(
+            q=query,
+            k=key,
+            v=value,
+            h0=input_state,
+            attention_multiplier=attention_multiplier,
+            BLOCK_SIZE_S=BLOCK_SIZE_S,
+            BLOCK_SIZE_V=BLOCK_SIZE_V,
+        )
 
-        if S_pad != 0:
-            y = y[:, :S]
-        if V_pad != 0:
-            y = y[:, :, :, :V]
-        if K_pad != 0 or V_pad != 0:
-            ht = ht[:, :, :K, :V]
+        y = y[:, :S]
+        y = y[:, :, :, :V]
+        ht = ht[:, :, :K, :V]
     elif kernel_backend == KernelBackend.jax:
         y, ht = _linear_attention_reference(
-            q=query, k=key, v=value, h0=input_state, attention_multiplier=attention_multiplier
+            q=query,
+            k=key,
+            v=value,
+            h0=input_state,
+            attention_multiplier=attention_multiplier,
+            output_state=output_state,
         )
     else:
         raise ValueError(f"unexpected kernel_backend ({kernel_backend})")

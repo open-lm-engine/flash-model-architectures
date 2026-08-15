@@ -11,7 +11,6 @@ from numpy.testing import assert_allclose
 
 jax = pytest.importorskip("jax")
 
-import haliax
 import jax.numpy as jnp
 
 from xma import KernelBackend
@@ -263,16 +262,16 @@ def test_linear_attention_pallas_chunked_grouped_head_guard() -> None:
 
 @pytest.mark.parametrize("has_input_state", [False, True])
 def test_linear_attention_module_works(has_input_state: bool) -> None:
-    Embed = haliax.Axis("embed", 32)
-    Output = haliax.Axis("output", 24)
-    Batch = haliax.Axis("batch", 2)
-    Pos = haliax.Axis("position", 16)
+    embed_size = 32
+    output_size = 24
+    B = 2
+    S = 16
 
     key_init, key_input, key_state = jax.random.split(jax.random.PRNGKey(0), 3)
 
     module = LinearAttentionJAX.init(
-        Embed,
-        Output,
+        embed_size,
+        output_size,
         key_head_dim=8,
         value_head_dim=8,
         num_query_heads=4,
@@ -282,11 +281,15 @@ def test_linear_attention_module_works(has_input_state: bool) -> None:
         key=key_init,
     )
 
-    input = haliax.random.normal(key_input, (Batch, Pos, Embed))
-    input_state = haliax.random.normal(key_state, (Batch, module.Heads, module.StateSize)) if has_input_state else None
+    input = jax.random.normal(key_input, (B, S, embed_size))
+    input_state = (
+        jax.random.normal(key_state, (B, module.num_heads, module.key_head_dim, module.value_head_dim))
+        if has_input_state
+        else None
+    )
 
     output, output_state, conv_state = module(input, input_state, kernel_backend=KernelBackend.jax)
 
-    assert output.axes == (Batch, Pos, Output)
-    assert output_state.axes == (Batch, module.Heads, module.StateSize)
+    assert output.shape == (B, S, output_size)
+    assert output_state.shape == (B, module.num_heads, module.key_head_dim, module.value_head_dim)
     assert conv_state is None

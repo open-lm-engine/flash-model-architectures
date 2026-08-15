@@ -35,8 +35,8 @@ Documentation: https://open-lm-engine.github.io/accelerated-model-architectures/
 | rmsnorm | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
 | rnn | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
 | softmax | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| swiglu | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ |
-| swiglu_packed | ✅ | ❌ | ✅ | ✅ | ❌ | ✅ |
+| swiglu | ✅ | ✅ | ❌ | ✅ | ❌ | ✅ |
+| swiglu_packed | ✅ | ❌ | ❌ | ✅ | ❌ | ✅ |
 | unpack_sequence | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ |
 
 # Discord Server

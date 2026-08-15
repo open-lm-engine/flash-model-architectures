@@ -20,13 +20,14 @@ from .forward import _linear_attention_forward_core
 from .state_passing import _state_passing_core
 
 
-@partial(jax.custom_vjp, nondiff_argnums=(4, 5, 6))
+@partial(jax.custom_vjp, nondiff_argnums=(4, 5, 6, 7))
 def _linear_attention_pallas(
     q: jax.Array,
     k: jax.Array,
     v: jax.Array,
     h0: jax.Array | None,
     attention_multiplier: float,
+    output_state: bool,
     BLOCK_SIZE_S: int,
     BLOCK_SIZE_V: int,
 ) -> tuple[jax.Array, jax.Array]:
@@ -36,6 +37,7 @@ def _linear_attention_pallas(
         v=v,
         h0=h0,
         attention_multiplier=attention_multiplier,
+        output_state=output_state,
         BLOCK_SIZE_S=BLOCK_SIZE_S,
         BLOCK_SIZE_V=BLOCK_SIZE_V,
     )
@@ -47,15 +49,17 @@ def _linear_attention_forward(
     v: jax.Array,
     h0: jax.Array | None,
     attention_multiplier: float,
+    output_state: bool,
     BLOCK_SIZE_S: int,
     BLOCK_SIZE_V: int,
-) -> tuple[tuple[jax.Array, jax.Array], tuple]:
+) -> tuple[tuple[jax.Array, jax.Array | None], tuple]:
     y, h = _linear_attention_pallas(
         q=q,
         k=k,
         v=v,
         h0=h0,
         attention_multiplier=attention_multiplier,
+        output_state=output_state,
         BLOCK_SIZE_S=BLOCK_SIZE_S,
         BLOCK_SIZE_V=BLOCK_SIZE_V,
     )
@@ -63,12 +67,18 @@ def _linear_attention_forward(
     return (y, h), (q, k, v, h0)
 
 
-@partial(jax.jit, static_argnames=("attention_multiplier", "BLOCK_SIZE_S", "BLOCK_SIZE_V"))
+@partial(jax.jit, static_argnames=("attention_multiplier", "output_state", "BLOCK_SIZE_S", "BLOCK_SIZE_V"))
 def _linear_attention_backward(
-    attention_multiplier: float, BLOCK_SIZE_S: int, BLOCK_SIZE_V: int, residuals: tuple, cotangents: tuple
+    attention_multiplier: float,
+    output_state: bool,
+    BLOCK_SIZE_S: int,
+    BLOCK_SIZE_V: int,
+    residuals: tuple,
+    cotangents: tuple,
 ) -> tuple:
     q, k, v, h0 = residuals
     dy, dht = cotangents
+    dht = dht if output_state else None
 
     B, S, Nq, K = q.shape
     Nk = k.shape[2]

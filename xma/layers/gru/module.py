@@ -111,9 +111,6 @@ class GRU(nn.Module):
             i.view(*i.size()[:-1], -1, self.state_head_dim) for i in (input, forget_gate, reset_gate)
         ]
 
-        if input_state is not None:
-            input_state = input_state.view(-1, self.num_heads, self.state_head_dim)
-
         input, input_state = gru(
             input=input,
             weight=self.state_weight,
@@ -129,8 +126,6 @@ class GRU(nn.Module):
         )
 
         input = input.flatten(-2, -1)
-        input_state = input_state.flatten(-2, -1)
-
         input = self.output_projection(input)
 
         return input, input_state, conv_state

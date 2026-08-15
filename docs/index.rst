@@ -165,14 +165,14 @@ Functional
    * - swiglu
      - ✅
      - ✅
-     - ✅
+     - ❌
      - ✅
      - ❌
      - ✅
    * - swiglu_packed
      - ✅
      - ❌
-     - ✅
+     - ❌
      - ✅
      - ❌
      - ✅

@@ -18,6 +18,7 @@ def _forward_kernel(
     b_ref,
     h0_ref,
     y_ref,
+    h_ref,
     h_scratch,
     BLOCK_SIZE_S: int,
     S: int,
@@ -33,6 +34,9 @@ def _forward_kernel(
             h_scratch[...] = jnp.zeros_like(h_scratch)
         else:
             h_scratch[...] = h0_ref[...]
+
+    if h_ref is not None:
+        h_ref[...] = h_scratch[...][None]
 
     dtype = x_ref.dtype
     H = x_ref.shape[-1]
@@ -69,10 +73,11 @@ def _forward_core(
     h0: jax.Array | None,
     BLOCK_SIZE_S: int,
     ACTIVATION: str | None = None,
-) -> jax.Array:
+) -> jax.Array | tuple[jax.Array, jax.Array]:
     B, S, H = x.shape
     K = W.shape[0]
     PAD = ceil_divide(K - 1, 8) * 8
+    NUM_BLOCKS_S = ceil_divide(S, BLOCK_SIZE_S)
 
     x_spec = pl.BlockSpec(
         block_shape=(None, BLOCK_SIZE_S, H), index_map=lambda BLOCK_ID_B, BLOCK_ID_S: (BLOCK_ID_B, BLOCK_ID_S, 0)
@@ -80,8 +85,11 @@ def _forward_core(
 
     kernel = pl.pallas_call(
         partial(_forward_kernel, BLOCK_SIZE_S=BLOCK_SIZE_S, S=S, K=K, PAD=PAD, ACTIVATION=ACTIVATION),
-        out_shape=jax.ShapeDtypeStruct((B, S, H), x.dtype),
-        grid=(B, ceil_divide(S, BLOCK_SIZE_S)),
+        out_shape=(
+            jax.ShapeDtypeStruct((B, S, H), x.dtype),
+            jax.ShapeDtypeStruct((B, NUM_BLOCKS_S, PAD, H), x.dtype),
+        ),
+        grid=(B, NUM_BLOCKS_S),
         in_specs=(
             x_spec,
             pl.BlockSpec(block_shape=(K, H), index_map=lambda BLOCK_ID_B, BLOCK_ID_S: (0, 0)),
@@ -94,7 +102,13 @@ def _forward_core(
                 )
             ),
         ),
-        out_specs=x_spec,
+        out_specs=(
+            x_spec,
+            pl.BlockSpec(
+                block_shape=(None, 1, PAD, H),
+                index_map=lambda BLOCK_ID_B, BLOCK_ID_S: (BLOCK_ID_B, BLOCK_ID_S, 0, 0),
+            ),
+        ),
         scratch_shapes=[pltpu.VMEM((PAD, H), x.dtype)],
         compiler_params=pltpu.CompilerParams(dimension_semantics=("parallel", "arbitrary")),
     )

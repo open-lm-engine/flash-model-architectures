@@ -91,6 +91,10 @@ def test_linear_attention(
         device=device,
     )
 
+    state_shape = (batch_size, num_heads, key_head_dim, value_head_dim)
+    input_state_kernel_reshaped = None if input_state_kernel is None else input_state_kernel.view(*state_shape)
+    input_state_torch_reshaped = None if input_state_torch is None else input_state_torch.view(*state_shape)
+
     with torch.device(device):
         linear_attention = LinearAttention(
             input_size=state_size,
@@ -110,11 +114,11 @@ def test_linear_attention(
         linear_attention_kernel = torch.compile(linear_attention_kernel, fullgraph=True)
 
     y_kernel, output_state_kernel, _ = linear_attention_kernel(
-        input=x_kernel, input_state=input_state_kernel, kernel_backend=kernel_backend
+        input=x_kernel, input_state=input_state_kernel_reshaped, output_state=True, kernel_backend=kernel_backend
     )
 
     y_torch, output_state_torch, _ = linear_attention_torch(
-        input=x_torch, input_state=input_state_torch, kernel_backend=KernelBackend.torch
+        input=x_torch, input_state=input_state_torch_reshaped, output_state=True, kernel_backend=KernelBackend.torch
     )
 
     assert_equal_tensors(y_kernel, y_torch, False)
