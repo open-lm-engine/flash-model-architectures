@@ -32,7 +32,6 @@ def _get_num_heads(q: jax.Array, k: jax.Array, v: jax.Array) -> tuple[int, int, 
 # register pressure, and scratch VMEM bounded at the validated production tile sizes.
 _MAX_HEADS_PER_PALLAS_CELL = 16
 _TPU_LANE_COUNT = 128  # Pallas kernel trailing dims are padded to the TPU lane count
-_MIN_BLOCK_SIZE_S = 256  # lowest S tile the shipped kernels are validated at
 
 
 def _linear_attention_pallas_chunked(
@@ -41,6 +40,7 @@ def _linear_attention_pallas_chunked(
     v: jax.Array,
     h0: jax.Array | None,
     attention_multiplier: float,
+    output_state: bool,
     BLOCK_SIZE_S: int,
     BLOCK_SIZE_V: int,
 ) -> tuple[jax.Array, jax.Array]:
@@ -60,13 +60,14 @@ def _linear_attention_pallas_chunked(
 
     NUM_CHUNKS = ceil_divide(N, _MAX_HEADS_PER_PALLAS_CELL)
 
-    ys = []
-    hts = []
+    y = []
+    ht = []
+
     for i in range(NUM_CHUNKS):
         start = i * _MAX_HEADS_PER_PALLAS_CELL
         end = min(N, start + _MAX_HEADS_PER_PALLAS_CELL)
 
-        y_chunk, ht_chunk = _linear_attention_pallas(
+        _y, _ht = _linear_attention_pallas(
             q=q[:, :, start // Gq : end // Gq],
             k=k[:, :, start // Gk : end // Gk],
             v=v[:, :, start // Gv : end // Gv],
@@ -75,10 +76,14 @@ def _linear_attention_pallas_chunked(
             BLOCK_SIZE_S=BLOCK_SIZE_S,
             BLOCK_SIZE_V=BLOCK_SIZE_V,
         )
-        ys.append(y_chunk)
-        hts.append(ht_chunk)
 
-    return jnp.concatenate(ys, axis=2), jnp.concatenate(hts, axis=1)
+        y.append(_y)
+        ht.append(_ht)
+
+    y = jnp.concatenate(y, axis=2)
+    ht = jnp.concatenate(ht, axis=1) if output_state else None
+
+    return y, ht
 
 
 def linear_attention_jax(
@@ -145,12 +150,6 @@ def linear_attention_jax(
         kernel_backend = Accelerator.get_kernel_backend()
 
     if kernel_backend == KernelBackend.pallas:
-        if BLOCK_SIZE_S < _MIN_BLOCK_SIZE_S:
-            raise ValueError(
-                f"BLOCK_SIZE_S ({BLOCK_SIZE_S}) must be >= {_MIN_BLOCK_SIZE_S} for KernelBackend.pallas "
-                "(validated support envelope of the shipped kernels; there is no in-kernel handling below it)"
-            )
-
         if BLOCK_SIZE_V <= 0 or BLOCK_SIZE_V % _TPU_LANE_COUNT != 0:
             raise ValueError(
                 f"BLOCK_SIZE_V ({BLOCK_SIZE_V}) must be a positive multiple of {_TPU_LANE_COUNT} "
@@ -184,6 +183,7 @@ def linear_attention_jax(
             v=value,
             h0=input_state,
             attention_multiplier=attention_multiplier,
+            output_state=output_state,
             BLOCK_SIZE_S=BLOCK_SIZE_S,
             BLOCK_SIZE_V=BLOCK_SIZE_V,
         )
