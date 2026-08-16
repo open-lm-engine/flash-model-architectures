@@ -19,7 +19,6 @@ def _linear_attention_forward_kernel(
     h0_ref,
     y_ref,
     ht_ref,
-    *,
     attention_multiplier: float,
     BLOCK_SIZE_S: int,
     N: int,

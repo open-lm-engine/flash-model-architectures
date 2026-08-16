@@ -13,7 +13,7 @@ from ....math import ceil_divide
 
 
 def _state_passing_kernel(
-    k_ref, v_ref, h0_ref, h_ref, h_scratch, *, N: int, Gk: int, Gv: int, NUM_BLOCKS_V: int, BLOCK_SIZE_V: int
+    k_ref, v_ref, h0_ref, h_ref, h_scratch, N: int, Gk: int, Gv: int, NUM_BLOCKS_V: int, BLOCK_SIZE_V: int
 ) -> None:
     @pl.when(pl.program_id(1) == 0)
     def _():

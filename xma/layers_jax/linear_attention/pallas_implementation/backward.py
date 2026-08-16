@@ -24,7 +24,6 @@ def _linear_attention_backward_kernel(
     dv_ref,
     dh0_ref,
     dh_scratch,
-    *,
     attention_multiplier: float,
     BLOCK_SIZE_S: int,
     BLOCK_SIZE_V: int,
@@ -35,36 +34,6 @@ def _linear_attention_backward_kernel(
     NUM_BLOCKS_V: int,
     NUM_BLOCKS_S: int,
 ) -> None:
-    """Backward kernel: dq/dk/dv/dh0 in one microbatched pass over the S axis.
-
-    Like the forward, every operation runs in the native (B, S, N, C) layout;
-    the 3-d contraction operands are sliced to (S, C) before each dot, which
-    exposes to Mosaic that the contraction is a single (S, S) . (S, C) or
-    (S, C) . (C, C) matmul per head. This single change removes the
-    (4, 8, 128) sublane-transpose motif that dominated the pipeline stage.
-    Measured fwd+bwd wall is 2.81 ms (B8/S4096/N16/K=V=128 bf16, TPU v6e, 1 core,
-    fixed batch, no input state, BLOCK_SIZE_S = 256; the gradient-producing stages are
-    1.99 ms). The exact-gradient design deliberately pays for extra HBM traffic beyond
-    the minimum: the per-block state checkpoints this backward consumes, the
-    dht seed, and the forward's per-call ht export.
-
-    State handling: dh (the running gradient of h) is carried in a VMEM
-    scratch ref across the whole S-tile loop; dh0 is written to HBM only
-    once, by the cell that visits the front of the sequence, instead of by
-    every S-cell. All V-tiles are visited inside each cell (a static python
-    loop unrolled at trace time) because dq and dk accumulate across V-tiles;
-    dq/dk/dv/dh0 outputs therefore use whole-sequence blocks and there is no
-    cross-cell V-tile ordering to reason about. dht, when present, seeds dh directly in the
-    first visited cell.
-
-    S is host-padded to a multiple of BLOCK_SIZE_S and K/V to (at least) the
-    128-lane trailing width in op.py, so no S/V masking happens here; padded
-    feature columns hold exact zeros and stay column-isolated through every
-    contraction.
-    """
-    # cells visited so far along the reversed S chain: 0 = sequence tail
-    # (where dh/dht is seeded), NUM_BLOCKS_S - 1 = sequence front (where dh0
-    # is published once).
     S_CELLS_VISITED = pl.program_id(1)
 
     @pl.when(S_CELLS_VISITED == 0)
