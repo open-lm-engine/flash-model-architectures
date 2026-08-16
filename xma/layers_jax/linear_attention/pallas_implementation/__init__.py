@@ -11,6 +11,7 @@ from ....accelerator import Accelerator
 from ....math import ceil_divide
 from .backward import _linear_attention_backward_core
 from .forward import _linear_attention_forward_core
+from .output_forward import _linear_attention_output_forward_core
 from .state_passing import _linear_attention_state_passing_core
 
 
@@ -22,8 +23,8 @@ _VMEM_SAFETY_FRACTION = 0.9
 
 
 def _estimate_forward_vmem_bytes(
-    dtype: jax.dtype,
-    h0_dtype: jax.dtype | None,
+    dtype: jnp.dtype,
+    h0_dtype: jnp.dtype | None,
     Nq: int,
     Nk: int,
     Nv: int,
@@ -37,15 +38,15 @@ def _estimate_forward_vmem_bytes(
     # DMA can overlap compute on the current one. h0/ht's index_map ignores the (arbitrary) S grid
     # dimension, but still varies across the two parallel (B, V-block) dimensions, so it is
     # double-buffered too; h_scratch is a single persistent VMEM allocation, not pipelined.
-    q_bytes = 2 * BLOCK_SIZE_S * Nq * K * dtype.itemsize
-    k_bytes = 2 * BLOCK_SIZE_S * Nk * K * dtype.itemsize
-    v_bytes = 2 * BLOCK_SIZE_S * Nv * BLOCK_SIZE_V * dtype.itemsize
-    y_bytes = 2 * BLOCK_SIZE_S * N * BLOCK_SIZE_V * dtype.itemsize
-    h0_bytes = 0 if h0_dtype is None else 2 * N * K * BLOCK_SIZE_V * h0_dtype.itemsize
-    ht_bytes = 2 * N * K * BLOCK_SIZE_V * jnp.dtype(jnp.float32).itemsize if output_state else 0
+    q_bytes = BLOCK_SIZE_S * Nq * K * dtype.itemsize
+    k_bytes = BLOCK_SIZE_S * Nk * K * dtype.itemsize
+    v_bytes = BLOCK_SIZE_S * Nv * BLOCK_SIZE_V * dtype.itemsize
+    y_bytes = BLOCK_SIZE_S * N * BLOCK_SIZE_V * dtype.itemsize
+    h0_bytes = 0 if h0_dtype is None else N * K * BLOCK_SIZE_V * h0_dtype.itemsize
+    ht_bytes = N * K * BLOCK_SIZE_V * jnp.dtype(jnp.float32).itemsize if output_state else 0
     scratch_bytes = N * K * BLOCK_SIZE_V * jnp.dtype(jnp.float32).itemsize
 
-    return q_bytes + k_bytes + v_bytes + y_bytes + h0_bytes + ht_bytes + scratch_bytes
+    return 2 * (q_bytes + k_bytes + v_bytes + y_bytes + h0_bytes + ht_bytes) + scratch_bytes
 
 
 @partial(jax.custom_vjp, nondiff_argnums=(4, 5, 6, 7))
@@ -79,18 +80,7 @@ def _linear_attention_pallas(
 
     vmem_capacity_bytes = Accelerator.get_vmem_bytes()
 
-    if vmem_bytes > _VMEM_SAFETY_FRACTION * vmem_capacity_bytes:
-        h = _linear_attention_state_passing_core(
-            k=k, v=v, h0=h0, N=N, BLOCK_SIZE_S=BLOCK_SIZE_S, BLOCK_SIZE_V=BLOCK_SIZE_V
-        )
-
-        raise ValueError(
-            f"estimated VMEM usage ({vmem_bytes} B) for the fused linear-attention pallas kernel exceeds "
-            f"{_VMEM_SAFETY_FRACTION:.0%} of the {vmem_capacity_bytes} B VMEM capacity on this TPU "
-            f"(BLOCK_SIZE_S={BLOCK_SIZE_S}, BLOCK_SIZE_V={BLOCK_SIZE_V}); reduce BLOCK_SIZE_S/BLOCK_SIZE_V, "
-            "use more (smaller) head chunks, or use KernelBackend.jax"
-        )
-    else:
+    if vmem_bytes <= _VMEM_SAFETY_FRACTION * vmem_capacity_bytes:
         y, ht = _linear_attention_forward_core(
             q=q,
             k=k,
@@ -98,6 +88,25 @@ def _linear_attention_pallas(
             h0=h0,
             attention_multiplier=attention_multiplier,
             output_state=output_state,
+            BLOCK_SIZE_S=BLOCK_SIZE_S,
+            BLOCK_SIZE_V=BLOCK_SIZE_V,
+        )
+    else:
+        # the fused kernel would not fit in VMEM: fall back to the state-passing kernel (cheap,
+        # sequential over sequence-blocks) followed by an output-only kernel that consumes the
+        # precomputed per-block states, so every sequence-block can be computed independently
+        # ("parallel" dimension semantics, no running scratch state) -- mirrors the triton
+        # implementation's state-passing + output-only kernel split
+        h, ht = _linear_attention_state_passing_core(
+            k=k, v=v, h0=h0, N=N, output_state=output_state, BLOCK_SIZE_S=BLOCK_SIZE_S, BLOCK_SIZE_V=BLOCK_SIZE_V
+        )
+
+        y = _linear_attention_output_forward_core(
+            q=q,
+            k=k,
+            v=v,
+            h=h,
+            attention_multiplier=attention_multiplier,
             BLOCK_SIZE_S=BLOCK_SIZE_S,
             BLOCK_SIZE_V=BLOCK_SIZE_V,
         )
@@ -152,8 +161,8 @@ def _linear_attention_backward(
     Gk = N // Nk
     Gv = N // Nv
 
-    h = _linear_attention_state_passing_core(
-        k=k, v=v, h0=h0, N=N, BLOCK_SIZE_S=BLOCK_SIZE_S, BLOCK_SIZE_V=BLOCK_SIZE_V
+    h, _ = _linear_attention_state_passing_core(
+        k=k, v=v, h0=h0, N=N, output_state=False, BLOCK_SIZE_S=BLOCK_SIZE_S, BLOCK_SIZE_V=BLOCK_SIZE_V
     )
 
     dq, dk, dv, dh0 = _linear_attention_backward_core(
