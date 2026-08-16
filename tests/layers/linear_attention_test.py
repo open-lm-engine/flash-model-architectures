@@ -56,18 +56,6 @@ def _generate_args() -> list:
         )
     )
 
-    args += list(
-        product(
-            [KernelBackend.pallas],  # kernel_backend
-            [torch.float32, torch.bfloat16],
-            [4],  # batch_size
-            [977],  # sequence_length
-            [(7, 9, 3, 3, 3)],  # problem_shape
-            [False, True],  # has_input_state
-            [False],  # is_compiling
-        )
-    )
-
     return args
 
 
@@ -135,12 +123,3 @@ def test_linear_attention(
 
     assert_equal_tensors(y_kernel, y_torch, False)
     assert_equal_tensors(output_state_kernel, output_state_torch, False)
-
-    if kernel_backend == KernelBackend.pallas:
-        (y_kernel.mean() + output_state_kernel.float().mean()).backward()
-        (y_torch.mean() + output_state_torch.float().mean()).backward()
-
-        assert_equal_tensors(x_kernel.grad, x_torch.grad, False)
-
-        if has_input_state:
-            assert_equal_tensors(input_state_kernel.grad, input_state_torch.grad, False)

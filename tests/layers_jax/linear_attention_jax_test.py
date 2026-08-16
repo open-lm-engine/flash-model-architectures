@@ -29,14 +29,18 @@ def _get_problem_shapes() -> list[tuple[int, int, int, int, int]]:
         (16, 16, 4, 2, 1),
         (4, 16, 1, 1, 1),  # K smaller than the minimum Pallas tile size (8)
         (10, 24, 4, 2, 1),  # K not a power of 2
+        (128, 128, 2, 2, 2),  # the unpadded / no-host-pad path at the production tile width
     ]
 
 
 def _generate_args() -> list:
+    # the pallas kernels require BLOCK_SIZE_S >= 256 (op.py raises below that); sequence lengths cover
+    # shorter than, equal to, and not a multiple of BLOCK_SIZE_S (ragged host-side padding path), and
+    # NUM_BLOCKS_S = 1 and 2
     args = list(
         product(
-            [3, 16, 37, 64, 130],  # sequence length: shorter than, equal to, or not a multiple of BLOCK_SIZE_S
-            [16, 32],  # BLOCK_SIZE_S
+            [37, 130, 256, 512],  # sequence length
+            [256],  # BLOCK_SIZE_S
             [128],  # BLOCK_SIZE_V
             _get_problem_shapes(),
             [jnp.float32, jnp.bfloat16],
@@ -45,10 +49,47 @@ def _generate_args() -> list:
     )
     args += list(
         product(
-            [37],
-            [16],
-            [128],  # BLOCK_SIZE_V < V below: genuinely exercises multiple V-tiles (256 / 128 = 2)
-            [(16, 256, 2, 2, 2)],  # (K, V, Nq, Nk, Nv)
+            [300, 1024],
+            [512],  # BLOCK_SIZE_S = 512 coverage
+            [128],
+            _get_problem_shapes(),
+            [jnp.float32, jnp.bfloat16],
+            [False, True],
+        )
+    )
+    # NUM_BLOCKS_S = 3 (768 / 256): the reversed dh chain and state checkpoints have a genuinely
+    # different shape at >= 3 cells (middle cells that neither seed nor publish)
+    args += list(
+        product(
+            [768],
+            [256],
+            [128],
+            [(16, 16, 4, 2, 1)],
+            [jnp.float32, jnp.bfloat16],
+            [False, True],
+        )
+    )
+    # BLOCK_SIZE_V < V below: genuinely exercises multiple V-tiles (256 / 128 = 2, 384 / 128 = 3),
+    # across sequence lengths that span both single-cell (S <= BLOCK_SIZE_S) and multi-cell
+    # (S > BLOCK_SIZE_S) cases — the latter pins the state-checkpoint chain against the former
+    args += list(
+        product(
+            [37, 130, 256, 512],
+            [256],
+            [128],
+            [(16, 256, 2, 2, 2), (16, 384, 2, 2, 1)],  # (K, V, Nq, Nk, Nv)
+            [jnp.float32, jnp.bfloat16],
+            [False, True],
+        )
+    )
+    # N = 32 > _MAX_HEADS_PER_PALLAS_CELL (16): host-level head-chunked dispatch in op.py, in both a
+    # plain and a grouped-qk layout (group sizes still divide the chunk size)
+    args += list(
+        product(
+            [128, 300],
+            [256],
+            [128],
+            [(16, 16, 32, 32, 32), (16, 16, 32, 16, 16)],
             [jnp.float32, jnp.bfloat16],
             [False, True],
         )
@@ -121,6 +162,65 @@ def test_linear_attention_pallas(
     else:
         assert dh0_kernel is None
         assert dh0_expected is None
+
+
+def test_linear_attention_pallas_block_size_v_above_pad_floor() -> None:
+    if jax.default_backend() != "tpu":
+        pytest.skip("KernelBackend.pallas is only supported on TPU")
+
+    # V = 100 is below BLOCK_SIZE_V = 256: op.py must round V up to BLOCK_SIZE_V (not just to
+    # the 128-lane floor) so the core's "V % BLOCK_SIZE_V == 0" invariant holds.
+    B, S, K, V = 2, 130, 128, 100
+    N = 2
+    key_q, key_k, key_v = jax.random.split(jax.random.PRNGKey(0), 3)
+    std = 0.01
+    q = jax.random.normal(key_q, (B, S, N, K)) * std
+    k = jax.random.normal(key_k, (B, S, N, K)) * std
+    v = jax.random.normal(key_v, (B, S, N, V)) * std
+
+    def _run(kernel_backend: KernelBackend):
+        return linear_attention_jax(
+            q,
+            k,
+            v,
+            attention_multiplier=_ATTENTION_MULTIPLIER,
+            BLOCK_SIZE_S=256,
+            BLOCK_SIZE_V=256,
+            kernel_backend=kernel_backend,
+        )
+
+    y_kernel, ht_kernel = _run(KernelBackend.pallas)
+    y_expected, ht_expected = _run(KernelBackend.jax)
+
+    assert y_kernel.shape == (B, S, N, V)
+    assert_allclose(np.asarray(y_kernel), np.asarray(y_expected), **_TOLERANCES[jnp.float32])
+    assert_allclose(np.asarray(ht_kernel), np.asarray(ht_expected), **_TOLERANCES[jnp.float32])
+
+
+def test_linear_attention_pallas_block_size_v_guard() -> None:
+    if jax.default_backend() != "tpu":
+        pytest.skip("KernelBackend.pallas is only supported on TPU")
+
+    q = jnp.zeros((1, 256, 1, 16))
+    for BLOCK_SIZE_V in (0, 24):
+        with pytest.raises(ValueError, match="positive multiple of 128"):
+            linear_attention_jax(q, q, q, BLOCK_SIZE_V=BLOCK_SIZE_V, kernel_backend=KernelBackend.pallas)
+
+
+def test_linear_attention_pallas_chunked_grouped_head_guard() -> None:
+    if jax.default_backend() != "tpu":
+        pytest.skip("KernelBackend.pallas is only supported on TPU")
+
+    # N = 32 heads > _MAX_HEADS_PER_PALLAS_CELL (16) forces the host-level head-chunked dispatch,
+    # but the single query/key/value head (group size 32) does not divide the 16-head chunks, so
+    # the chunk-local group mapping cannot reproduce the global one and op.py must refuse
+    B, S, K, V = 1, 256, 16, 16
+    q = jnp.zeros((B, S, 32, K), dtype=jnp.float32)
+    k = jnp.zeros((B, S, 1, K), dtype=jnp.float32)
+    v = jnp.zeros((B, S, 1, V), dtype=jnp.float32)
+
+    with pytest.raises(ValueError, match="group size"):
+        linear_attention_jax(q, k, v, kernel_backend=KernelBackend.pallas)
 
 
 @pytest.mark.parametrize("has_input_state", [False, True])

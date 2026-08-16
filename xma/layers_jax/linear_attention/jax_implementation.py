@@ -23,8 +23,8 @@ def _linear_attention_reference(
 
     y = []
     for s in range(S):
-        y.append(jnp.einsum("bnk,bnkv->bnv", q[:, s], h))
         h = h + k[:, s][..., :, None] * v[:, s][..., None, :]
+        y.append(jnp.einsum("bnk,bnkv->bnv", q[:, s], h))
 
     y = jnp.stack(y, axis=1) * attention_multiplier
 

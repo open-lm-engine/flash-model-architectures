@@ -11,7 +11,7 @@ import jax
 import jax.numpy as jnp
 from jaxtyping import PRNGKeyArray
 
-from ...accelerator import KernelBackend
+from ...accelerator import Accelerator, KernelBackend
 from ...math import divide_if_divisible
 from ..depthwise_causal_convolution import DepthwiseCausalConvolutionJAX
 from .op import linear_attention_jax
@@ -70,7 +70,7 @@ class LinearAttentionJAX(eqx.Module):
         add_bias: bool,
         *,
         attention_multiplier: float | None = None,
-        BLOCK_SIZE_S: int = 128,
+        BLOCK_SIZE_S: int = 256,
         BLOCK_SIZE_V: int = 128,
         kernel_size: int | None = None,
         conv_activation_function: str | Callable[[jax.Array], jax.Array] | None = None,
@@ -81,6 +81,14 @@ class LinearAttentionJAX(eqx.Module):
         divide_if_divisible(num_heads, num_query_heads)
         divide_if_divisible(num_heads, num_key_heads)
         divide_if_divisible(num_heads, num_value_heads)
+
+        lane_count = Accelerator.get_lane_count()
+
+        if BLOCK_SIZE_V <= 0 or BLOCK_SIZE_V % lane_count != 0:
+            raise ValueError(
+                f"BLOCK_SIZE_V ({BLOCK_SIZE_V}) must be a positive multiple of {lane_count} "
+                "(pallas-kernel envelope; enforced at init so a later kernel_backend='pallas' call cannot fail mid-run)"
+            )
 
         query_size = num_query_heads * key_head_dim
         key_size = num_key_heads * key_head_dim

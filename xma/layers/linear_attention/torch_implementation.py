@@ -41,8 +41,8 @@ def _linear_attention_torch(
     h0 = torch.zeros(B, N, K, V, dtype=torch.float32, device=q.device) if h0 is None else h0.float()
 
     for s in range(S):
-        y[:, s] = (q[:, s, :, None, :] @ h0.type_as(q)).squeeze(-2)
         h0 = h0 + k[:, s, ..., None] * v[:, s, :, None, :]
+        y[:, s] = (q[:, s, :, None, :] @ h0.type_as(q)).squeeze(-2)
 
     y = y * attention_multiplier
 
