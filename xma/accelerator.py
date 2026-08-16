@@ -157,3 +157,14 @@ class Accelerator(Enum):
             raise ValueError(f"unexpected accelerator ({accelerator})")
 
         return sm_count
+
+    @staticmethod
+    def get_lane_count() -> int:
+        accelerator = Accelerator.get_accelerator()
+
+        if accelerator == Accelerator.tpu:
+            lane_count = 128
+        else:
+            raise ValueError(f"unexpected accelerator ({accelerator})")
+
+        return lane_count

@@ -27,11 +27,7 @@ def _get_num_heads(q: jax.Array, k: jax.Array, v: jax.Array) -> tuple[int, int, 
     return Nq, Nk, Nv, N
 
 
-# the kernels visit heads via a static python loop unrolled at trace time, and the dh / state
-# scratches are (heads, K, NUM_V_TILES * BLOCK_SIZE_V) f32; 16 heads keeps the unrolled graph,
-# register pressure, and scratch VMEM bounded at the validated production tile sizes.
 _MAX_HEADS_PER_PALLAS_CELL = 16
-_TPU_LANE_COUNT = 128  # Pallas kernel trailing dims are padded to the TPU lane count
 
 
 def _linear_attention_pallas_chunked(
@@ -151,9 +147,11 @@ def linear_attention_jax(
         kernel_backend = Accelerator.get_kernel_backend()
 
     if kernel_backend == KernelBackend.pallas:
-        if BLOCK_SIZE_V <= 0 or BLOCK_SIZE_V % _TPU_LANE_COUNT != 0:
+        lane_count = Accelerator.get_lane_count()
+
+        if BLOCK_SIZE_V <= 0 or BLOCK_SIZE_V % lane_count != 0:
             raise ValueError(
-                f"BLOCK_SIZE_V ({BLOCK_SIZE_V}) must be a positive multiple of {_TPU_LANE_COUNT} "
+                f"BLOCK_SIZE_V ({BLOCK_SIZE_V}) must be a positive multiple of {lane_count} "
                 "(the TPU lane count) for KernelBackend.pallas"
             )
 
@@ -164,7 +162,7 @@ def linear_attention_jax(
             key = jnp.pad(key, pad)
             value = jnp.pad(value, pad)
 
-        K_pad = ceil_divide(K, _TPU_LANE_COUNT) * _TPU_LANE_COUNT - K
+        K_pad = ceil_divide(K, lane_count) * lane_count - K
         V_pad = ceil_divide(V, BLOCK_SIZE_V) * BLOCK_SIZE_V - V
 
         if K_pad != 0:
