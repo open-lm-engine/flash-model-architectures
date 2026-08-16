@@ -71,6 +71,7 @@ def _linear_attention_forward_core(
     q: jax.Array,
     k: jax.Array,
     v: jax.Array,
+    f: jax.Array | None,
     h0: jax.Array | None,
     attention_multiplier: float,
     output_state: bool,
