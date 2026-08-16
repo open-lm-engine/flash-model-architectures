@@ -125,7 +125,9 @@ def linear_attention_jax(
         )
 
         y = y[:, :S, :, :V]
-        ht = ht[..., :K, :V]
+
+        if ht is not None:
+            ht = ht[..., :K, :V]
     elif kernel_backend == KernelBackend.jax:
         y, ht = _linear_attention_reference(
             q=query,
