@@ -10,7 +10,11 @@ import jax.numpy as jnp
 from ...accelerator import Accelerator, KernelBackend
 from ...math import ceil_divide
 from .jax_implementation import _linear_attention_reference
-from .pallas_implementation import _linear_attention_pallas
+from .pallas_implementation import (
+    _MAX_HEADS_PER_PALLAS_CELL,
+    _linear_attention_pallas,
+    _linear_attention_pallas_chunked,
+)
 
 
 def _get_num_heads(q: jax.Array, k: jax.Array, v: jax.Array) -> tuple[int, int, int, int]:
@@ -25,62 +29,6 @@ def _get_num_heads(q: jax.Array, k: jax.Array, v: jax.Array) -> tuple[int, int, 
     assert N % Nv == 0
 
     return Nq, Nk, Nv, N
-
-
-_MAX_HEADS_PER_PALLAS_CELL = 16
-
-
-def _linear_attention_pallas_chunked(
-    q: jax.Array,
-    k: jax.Array,
-    v: jax.Array,
-    h0: jax.Array | None,
-    attention_multiplier: float,
-    output_state: bool,
-    BLOCK_SIZE_S: int,
-    BLOCK_SIZE_V: int,
-) -> tuple[jax.Array, jax.Array]:
-    Nq, Nk, Nv, N = _get_num_heads(q, k, v)
-    Gq = N // Nq
-    Gk = N // Nk
-    Gv = N // Nv
-
-    for G, name in ((Gq, "query"), (Gk, "key"), (Gv, "value")):
-        if _MAX_HEADS_PER_PALLAS_CELL % G != 0:
-            raise ValueError(
-                f"grouped head layout with a {name} group size of {G} cannot be split across "
-                f"{_MAX_HEADS_PER_PALLAS_CELL}-head chunks (N={N}, Nq={Nq}, Nk={Nk}, Nv={Nv}); "
-                "choose q/k/v head counts whose group sizes all divide "
-                f"{_MAX_HEADS_PER_PALLAS_CELL}, or use KernelBackend.jax"
-            )
-
-    NUM_CHUNKS = ceil_divide(N, _MAX_HEADS_PER_PALLAS_CELL)
-
-    y = []
-    ht = []
-
-    for i in range(NUM_CHUNKS):
-        start = i * _MAX_HEADS_PER_PALLAS_CELL
-        end = min(N, start + _MAX_HEADS_PER_PALLAS_CELL)
-
-        _y, _ht = _linear_attention_pallas(
-            q=q[..., start // Gq : end // Gq],
-            k=k[..., start // Gk : end // Gk],
-            v=v[..., start // Gv : end // Gv],
-            h0=None if h0 is None else h0[:, start:end],
-            attention_multiplier=attention_multiplier,
-            output_state=output_state,
-            BLOCK_SIZE_S=BLOCK_SIZE_S,
-            BLOCK_SIZE_V=BLOCK_SIZE_V,
-        )
-
-        y.append(_y)
-        ht.append(_ht)
-
-    y = jnp.concatenate(y, axis=2)
-    ht = jnp.concatenate(ht, axis=1) if output_state else None
-
-    return y, ht
 
 
 def linear_attention_jax(
