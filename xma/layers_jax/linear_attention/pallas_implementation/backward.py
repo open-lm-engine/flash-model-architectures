@@ -129,8 +129,9 @@ def _linear_attention_backward_core(
 
     NUM_BLOCKS_S = ceil_divide(S, BLOCK_SIZE_S)
     NUM_BLOCKS_V = ceil_divide(V, BLOCK_SIZE_V)
-    V_WIDTH = NUM_BLOCKS_V * BLOCK_SIZE_V
-    assert V == V_WIDTH, "V must be an integer multiple of BLOCK_SIZE_V (host padding guarantees this)"
+    assert (
+        V == NUM_BLOCKS_V * BLOCK_SIZE_V
+    ), "V must be an integer multiple of BLOCK_SIZE_V (host padding guarantees this)"
 
     kernel = pl.pallas_call(
         partial(
@@ -162,23 +163,23 @@ def _linear_attention_backward_core(
                 index_map=lambda B, S: (B, NUM_BLOCKS_S - 1 - S, 0, 0),
             ),
             pl.BlockSpec(
-                block_shape=(None, BLOCK_SIZE_S, Nv, V_WIDTH),
+                block_shape=(None, BLOCK_SIZE_S, Nv, V),
                 index_map=lambda B, S: (B, NUM_BLOCKS_S - 1 - S, 0, 0),
             ),
             pl.BlockSpec(
-                block_shape=(None, N, K, V_WIDTH),
+                block_shape=(None, N, K, V),
                 index_map=lambda B, S: (B, NUM_BLOCKS_S - 1 - S, 0, 0),
             ),
             pl.BlockSpec(
-                block_shape=(None, BLOCK_SIZE_S, N, V_WIDTH),
+                block_shape=(None, BLOCK_SIZE_S, N, V),
                 index_map=lambda B, S: (B, NUM_BLOCKS_S - 1 - S, 0, 0),
             ),
             (
                 None
                 if dht is None
                 else pl.BlockSpec(
-                    block_shape=(None, N, K, V_WIDTH),
-                    index_map=lambda B, S: (B, 0, 0, 0),
+                    block_shape=(None, N, K, V),
+                    index_map=lambda B, _: (B, 0, 0, 0),
                 )
             ),
         ),
@@ -192,15 +193,15 @@ def _linear_attention_backward_core(
                 index_map=lambda B, S: (B, NUM_BLOCKS_S - 1 - S, 0, 0),
             ),
             pl.BlockSpec(
-                block_shape=(None, BLOCK_SIZE_S, N, V_WIDTH),
+                block_shape=(None, BLOCK_SIZE_S, N, V),
                 index_map=lambda B, S: (B, NUM_BLOCKS_S - 1 - S, 0, 0),
             ),
             pl.BlockSpec(
-                block_shape=(None, N, K, V_WIDTH),
+                block_shape=(None, N, K, V),
                 index_map=lambda B, S: (B, 0, 0, 0),
             ),
         ),
-        scratch_shapes=[pltpu.VMEM((N, K, V_WIDTH), jnp.float32)],
+        scratch_shapes=[pltpu.VMEM((N, K, V), jnp.float32)],
         compiler_params=pltpu.CompilerParams(
             disable_bounds_checks=True, dimension_semantics=("parallel", "arbitrary")
         ),

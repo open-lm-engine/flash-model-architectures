@@ -12,7 +12,7 @@ import jax.numpy as jnp
 from ....math import ceil_divide
 
 
-def _state_passing_kernel(
+def _linear_attention_state_passing_kernel(
     k_ref, v_ref, h0_ref, h_ref, h_scratch, N: int, Gk: int, Gv: int, NUM_BLOCKS_V: int, BLOCK_SIZE_V: int
 ) -> None:
     @pl.when(pl.program_id(1) == 0)
@@ -35,14 +35,14 @@ def _state_passing_kernel(
 
             v = v_[n // Gv][:, start:end].astype(dtype)
 
-            h_ref[n, :, start:end] = h_scratch[n][:, start:end]
+            h_ref[n, :, start:end] = h_scratch[n][:, start:end].astype(h_ref.dtype)
             h_scratch[n, :, start:end] = h_scratch[n][:, start:end] + jax.lax.dot_general(
                 k, v, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32
             )
 
 
 @partial(jax.jit, static_argnames=("N", "BLOCK_SIZE_S", "BLOCK_SIZE_V"))
-def _state_passing_core(
+def _linear_attention_state_passing_core(
     k: jax.Array, v: jax.Array, h0: jax.Array | None, N: int, BLOCK_SIZE_S: int, BLOCK_SIZE_V: int
 ) -> jax.Array:
     B, S, Nk, K = k.shape
@@ -60,8 +60,15 @@ def _state_passing_core(
     ), "V must be an integer multiple of BLOCK_SIZE_V (host padding guarantees this)"
 
     kernel = pl.pallas_call(
-        partial(_state_passing_kernel, N=N, Gk=Gk, Gv=Gv, NUM_BLOCKS_V=NUM_BLOCKS_V, BLOCK_SIZE_V=BLOCK_SIZE_V),
-        out_shape=jax.ShapeDtypeStruct(shape=(B, NUM_BLOCKS_S * N, K, V), dtype=jnp.float32),
+        partial(
+            _linear_attention_state_passing_kernel,
+            N=N,
+            Gk=Gk,
+            Gv=Gv,
+            NUM_BLOCKS_V=NUM_BLOCKS_V,
+            BLOCK_SIZE_V=BLOCK_SIZE_V,
+        ),
+        out_shape=jax.ShapeDtypeStruct(shape=(B, NUM_BLOCKS_S * N, K, V), dtype=k.dtype),
         grid=(B, NUM_BLOCKS_S),
         in_specs=(
             pl.BlockSpec(

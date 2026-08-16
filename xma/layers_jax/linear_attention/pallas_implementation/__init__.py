@@ -10,7 +10,7 @@ import jax.numpy as jnp
 from ....math import ceil_divide
 from .backward import _linear_attention_backward_core
 from .forward import _linear_attention_forward_core
-from .state_passing import _state_passing_core
+from .state_passing import _linear_attention_state_passing_core
 
 
 _MAX_HEADS_PER_PALLAS_CELL = 16
@@ -86,7 +86,9 @@ def _linear_attention_backward(
     Gk = N // Nk
     Gv = N // Nv
 
-    h = _state_passing_core(k=k, v=v, h0=h0, N=N, BLOCK_SIZE_S=BLOCK_SIZE_S, BLOCK_SIZE_V=BLOCK_SIZE_V)
+    h = _linear_attention_state_passing_core(
+        k=k, v=v, h0=h0, N=N, BLOCK_SIZE_S=BLOCK_SIZE_S, BLOCK_SIZE_V=BLOCK_SIZE_V
+    )
 
     dq, dk, dv, dh0 = _linear_attention_backward_core(
         q=q,

@@ -88,7 +88,16 @@ def linear_attention_jax(
     if kernel_backend is None:
         kernel_backend = Accelerator.get_kernel_backend()
 
-    if kernel_backend == KernelBackend.pallas:
+    if S == 1 or kernel_backend == KernelBackend.jax:
+        y, ht = _linear_attention_reference(
+            q=query,
+            k=key,
+            v=value,
+            h0=input_state,
+            attention_multiplier=attention_multiplier,
+            output_state=output_state,
+        )
+    elif kernel_backend == KernelBackend.pallas:
         lane_count = Accelerator.get_lane_count()
         BLOCK_SIZE_K = lane_count
 
@@ -128,15 +137,6 @@ def linear_attention_jax(
 
         if ht is not None:
             ht = ht[..., :K, :V]
-    elif kernel_backend == KernelBackend.jax:
-        y, ht = _linear_attention_reference(
-            q=query,
-            k=key,
-            v=value,
-            h0=input_state,
-            attention_multiplier=attention_multiplier,
-            output_state=output_state,
-        )
     else:
         raise ValueError(f"unexpected kernel_backend ({kernel_backend})")
 
