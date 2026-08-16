@@ -18,22 +18,6 @@ _IS_ROCM_AVAILABLE = is_torch_available() and torch.version.hip is not None
 _IS_CUDA_AVAILABLE = is_torch_available() and torch.cuda.is_available()
 _IS_MPS_AVAILABLE = is_torch_available() and torch.mps.is_available()
 
-# per-TensorCore VMEM capacity keyed by `jax.devices()[0].device_kind`
-# (https://docs.jax.dev/en/latest/pallas/tpu/hardware.html). Some libtpu/JAX versions report the
-# "e" variants as "TPU v{N} lite" and others as "TPU v{N}e"; both spellings are listed here
-# (see jax._src.mesh_utils._TPU_V5_LITE / _TPU_V5E).
-_TPU_VMEM_BYTES_PER_CORE = {
-    "TPU v2": 16 * 1024**2,
-    "TPU v3": 16 * 1024**2,
-    "TPU v4": 16 * 1024**2,
-    "TPU v4i": 16 * 1024**2,
-    "TPU v5 lite": 128 * 1024**2,
-    "TPU v5e": 128 * 1024**2,
-    "TPU v5p": 64 * 1024**2,
-    "TPU v6 lite": 128 * 1024**2,
-    "TPU v6e": 128 * 1024**2,
-}
-
 
 class KernelBackend(Enum):
     cuda = "cuda"
@@ -184,21 +168,3 @@ class Accelerator(Enum):
             raise ValueError(f"unexpected accelerator ({accelerator})")
 
         return lane_count
-
-    @staticmethod
-    def get_vmem_bytes() -> int:
-        accelerator = Accelerator.get_accelerator()
-
-        if accelerator == Accelerator.tpu:
-            import jax
-
-            device_kind = jax.devices()[0].device_kind
-
-            if device_kind not in _TPU_VMEM_BYTES_PER_CORE:
-                raise ValueError(f"unknown VMEM capacity for TPU device_kind ({device_kind})")
-
-            vmem_bytes = _TPU_VMEM_BYTES_PER_CORE[device_kind]
-        else:
-            raise ValueError(f"unexpected accelerator ({accelerator})")
-
-        return vmem_bytes
