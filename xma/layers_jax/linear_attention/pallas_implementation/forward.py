@@ -57,7 +57,7 @@ def _linear_attention_forward_kernel(
         y += jnp.dot(q, h.astype(dtype), preferred_element_type=jnp.float32)
         y *= attention_multiplier
 
-        y_ref[:, n, :] = y.astype(dtype)
+        y_ref[:, n, :] = y.astype(y_ref.dtype)
         ht_ref[n] = h + jax.lax.dot_general(k, v, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32)
 
 
