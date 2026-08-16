@@ -19,6 +19,7 @@ def _linear_attention_forward_kernel(
     h0_ref,
     y_ref,
     ht_ref,
+    h_scratch,
     attention_multiplier: float,
     BLOCK_SIZE_S: int,
     N: int,
@@ -29,9 +30,9 @@ def _linear_attention_forward_kernel(
     @pl.when(pl.program_id(2) == 0)
     def _():
         if h0_ref is None:
-            ht_ref[...] = jnp.zeros_like(ht_ref)
+            h_scratch[...] = jnp.zeros_like(h_scratch)
         else:
-            ht_ref[...] = h0_ref[...].astype(ht_ref.dtype)
+            h_scratch[...] = h0_ref[...].astype(jnp.float32)
 
     dtype = q_ref.dtype
 
@@ -47,7 +48,7 @@ def _linear_attention_forward_kernel(
         q = q_[n // Gq].astype(dtype)
         k = k_[n // Gk].astype(dtype)
         v = v_[n // Gv].astype(dtype)
-        h = ht_ref[n]
+        h = h_scratch[n]
 
         qk = jax.lax.dot_general(q, k, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
         qk = jnp.where(causal_mask, qk, 0).astype(dtype)
@@ -59,7 +60,10 @@ def _linear_attention_forward_kernel(
         y_ref[:, n, :] = y.astype(y_ref.dtype)
 
         h += jax.lax.dot_general(k, v, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32)
-        ht_ref[n] = h.astype(ht_ref.dtype)
+        h_scratch[n] = h
+
+        if ht_ref is not None:
+            ht_ref[n] = h.astype(ht_ref.dtype)
 
 
 @partial(jax.jit, static_argnames=("attention_multiplier", "BLOCK_SIZE_S", "BLOCK_SIZE_V", "output_state"))
@@ -128,6 +132,7 @@ def _linear_attention_forward_core(
             ),
             h_spec if output_state else None,
         ),
+        scratch_shapes=[pltpu.VMEM((N, K, BLOCK_SIZE_V), jnp.float32)],
         compiler_params=pltpu.CompilerParams(
             disable_bounds_checks=True, dimension_semantics=("parallel", "parallel", "arbitrary")
         ),
