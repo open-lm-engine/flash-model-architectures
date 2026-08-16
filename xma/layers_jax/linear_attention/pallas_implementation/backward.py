@@ -45,68 +45,60 @@ def _linear_attention_backward_kernel(
 
     dtype = q_ref.dtype
 
-    # one register-level transpose per cell: (S, N, .) -> (N, S, .)
-    q = q_ref[...].transpose(1, 0, 2)
-    k = k_ref[...].transpose(1, 0, 2)
-    v = v_ref[...].transpose(1, 0, 2)
-    dy = dy_ref[...].transpose(1, 0, 2)
-
-    hc = h_ref[...].astype(dtype)  # (N, K, NUM_BLOCKS_V * BLOCK_SIZE_V)
+    q_ = q_ref[...].transpose(1, 0, 2)
+    k_ = k_ref[...].transpose(1, 0, 2)
+    v_ = v_ref[...].transpose(1, 0, 2)
+    dy_ = dy_ref[...].transpose(1, 0, 2)
+    hc_ = h_ref[...].astype(dtype)
 
     row = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, BLOCK_SIZE_S), 0)
     col = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, BLOCK_SIZE_S), 1)
     causal_mask = row >= col
 
-    K = q.shape[-1]
+    K = q_.shape[-1]
     for n in range(N):
-        q_n = q[n // Gq].astype(dtype)
-        k_n = k[n // Gk].astype(dtype)
-        dy_n_full = (dy[n].astype(jnp.float32) * attention_multiplier).astype(dtype)
+        q = q_[n // Gq].astype(dtype)
+        k = k_[n // Gk].astype(dtype)
+        dy_full = (dy_[n].astype(jnp.float32) * attention_multiplier).astype(dtype)
 
-        qk = jax.lax.dot_general(q_n, k_n, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
+        qk = jax.lax.dot_general(q, k, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
         qk = jnp.where(causal_mask, qk, 0).astype(dtype)
 
-        # static loop over V-tiles, unrolled at trace time; single tile when V <= BLOCK_SIZE_V
         dqk = jnp.zeros((BLOCK_SIZE_S, BLOCK_SIZE_S), jnp.float32)
-        dq_term2 = jnp.zeros((BLOCK_SIZE_S, K), jnp.float32)
-        dk_term2 = jnp.zeros((BLOCK_SIZE_S, K), jnp.float32)
-        for vb in range(NUM_BLOCKS_V):
-            slab = vb * BLOCK_SIZE_V
-            v_n = v[n // Gv][:, slab : slab + BLOCK_SIZE_V].astype(dtype)
-            dy_n = dy_n_full[:, slab : slab + BLOCK_SIZE_V]
-            hc_n = hc[n][:, slab : slab + BLOCK_SIZE_V]  # (K, BLOCK_SIZE_V)
-            g = dh_scratch[n][:, slab : slab + BLOCK_SIZE_V]  # (K, BLOCK_SIZE_V) f32
+        dq = jnp.zeros((BLOCK_SIZE_S, K), jnp.float32)
+        dk = jnp.zeros((BLOCK_SIZE_S, K), jnp.float32)
 
-            dv_n = jax.lax.dot_general(qk, dy_n, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32)
-            # precision asymmetry (deliberate): dv mirrors the forward pass, so g is
-            # downcast to the input dtype here to keep this contraction fully on the bf16
-            # MXU path; dk_term2 below keeps g in f32 (mixed bf16 x f32 dot_general promotes
-            # to the wider type, result f32), since that term feeds dk directly and gradient
-            # precision dominates there.
-            dv_n += jax.lax.dot_general(
-                k_n, g.astype(dtype), (((1,), (0,)), ((), ())), preferred_element_type=jnp.float32
+        for BLOCK_ID_V in range(NUM_BLOCKS_V):
+            start = BLOCK_ID_V * BLOCK_SIZE_V
+            end = start + BLOCK_SIZE_V
+
+            v = v_[n // Gv][:, start:end].astype(dtype)
+            dy = dy_full[:, start:end]
+            hc = hc_[n][:, start:end]
+            dh = dh_scratch[n][:, start:end]
+
+            dv = jax.lax.dot_general(qk, dy, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32)
+            dv += jax.lax.dot_general(
+                k, dh.astype(dtype), (((1,), (0,)), ((), ())), preferred_element_type=jnp.float32
             )
-            dv_ref[:, n, slab : slab + BLOCK_SIZE_V] = dv_n.astype(dtype)
+            dv_ref[:, n, start:end] = dv.astype(dtype)
 
-            dh_scratch[n, :, slab : slab + BLOCK_SIZE_V] = g + jax.lax.dot_general(
-                q_n, dy_n, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32
+            dh_scratch[n, :, start:end] = dh + jax.lax.dot_general(
+                q, dy, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32
             )
 
-            dqk += jax.lax.dot_general(dy_n, v_n, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
-            dq_term2 += jax.lax.dot_general(dy_n, hc_n, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
-            dk_term2 += jax.lax.dot_general(v_n, g, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
+            dqk += jax.lax.dot_general(dy, v, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
+            dq += jax.lax.dot_general(dy, hc, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
+            dk += jax.lax.dot_general(v, g, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
 
         dqk = jnp.where(causal_mask, dqk, 0).astype(dtype)
 
-        dq_n = jax.lax.dot_general(dqk, k_n, (((1,), (0,)), ((), ())), preferred_element_type=jnp.float32)
-        dq_n += dq_term2
-        dq_ref[:, n, :] = dq_n.astype(dtype)
+        dq += jax.lax.dot_general(dqk, k, (((1,), (0,)), ((), ())), preferred_element_type=jnp.float32)
+        dq_ref[:, n, :] = dq.astype(dtype)
 
-        dk_n = jax.lax.dot_general(dqk, q_n, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32)
-        dk_n += dk_term2
-        dk_ref[:, n, :] = dk_n.astype(dtype)
+        dk += jax.lax.dot_general(dqk, q, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32)
+        dk_ref[:, n, :] = dk.astype(dtype)
 
-    # last visited block (front of sequence): publish dh0
     @pl.when(S_CELLS_VISITED == NUM_BLOCKS_S - 1)
     def _():
         dh0_ref[...] = dh_scratch[...]
