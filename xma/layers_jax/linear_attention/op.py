@@ -73,6 +73,7 @@ def _linear_attention_pallas_chunked(
             v=v[:, :, start // Gv : end // Gv],
             h0=None if h0 is None else h0[:, start:end],
             attention_multiplier=attention_multiplier,
+            output_state=output_state,
             BLOCK_SIZE_S=BLOCK_SIZE_S,
             BLOCK_SIZE_V=BLOCK_SIZE_V,
         )
