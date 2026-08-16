@@ -35,7 +35,7 @@ def _state_passing_kernel(
 
             v = v_[n // Gv][:, start:end].astype(dtype)
 
-            h_ref[n, :, start:end] = h_scratch[n][:, start:end]
+            h_ref[n, :, start:end] = h_scratch[n][:, start:end].astype(h_ref.dtype)
             h_scratch[n, :, start:end] = h_scratch[n][:, start:end] + jax.lax.dot_general(
                 k, v, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32
             )
