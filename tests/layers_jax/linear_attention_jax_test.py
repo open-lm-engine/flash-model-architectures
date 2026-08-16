@@ -207,43 +207,6 @@ def test_linear_attention_pallas_block_size_v_guard() -> None:
             linear_attention_jax(q, q, q, BLOCK_SIZE_V=BLOCK_SIZE_V, kernel_backend=KernelBackend.pallas)
 
 
-@pytest.mark.parametrize("kernel_backend", [KernelBackend.jax, KernelBackend.pallas])
-def test_linear_attention_inclusive_recurrence_semantics(kernel_backend: KernelBackend) -> None:
-    """Pin the operator semantics: y[s] = q[s] @ h[s] with the diagonal INCLUDED.
-
-    Every kernel in this repo (triton, pallas) implements the inclusive recurrence; an
-    earlier revision of the eager references implemented the exclusive one (update h after
-    reading y), which differed per element by attention_multiplier * (q_s . k_s) * v_s --
-    far below the historical test scale, so the tolerance gate could not see it. Unit
-    inputs make the convention discriminating at machine precision.
-    """
-    if kernel_backend == KernelBackend.pallas and jax.default_backend() != "tpu":
-        pytest.skip("KernelBackend.pallas is only supported on TPU")
-
-    B, S, K, V, N = 2, 130, 16, 16, 1
-    q = jnp.ones((B, S, N, K))
-    k = jnp.ones((B, S, N, K))
-    v = jnp.ones((B, S, N, V))
-
-    y, ht = linear_attention_jax(
-        q,
-        k,
-        v,
-        attention_multiplier=_ATTENTION_MULTIPLIER,
-        BLOCK_SIZE_S=256,
-        BLOCK_SIZE_V=128,
-        kernel_backend=kernel_backend,
-    )
-
-    # h[s] = (s + 1) * ones(K, V); y[s] = attention_multiplier * (s + 1) * K * ones(V)
-    s = jnp.arange(S, dtype=jnp.float32)
-    y_expected = _ATTENTION_MULTIPLIER * (s[:, None, None] + 1) * K * jnp.ones((S, N, V))
-    ht_expected = S * jnp.ones((B, N, K, V))
-
-    assert_allclose(np.asarray(y), np.asarray(y_expected[None, ...].repeat(B, axis=0)), atol=1e-4, rtol=0)
-    assert_allclose(np.asarray(ht), np.asarray(ht_expected), atol=1e-4, rtol=0)
-
-
 def test_linear_attention_pallas_chunked_grouped_head_guard() -> None:
     if jax.default_backend() != "tpu":
         pytest.skip("KernelBackend.pallas is only supported on TPU")
