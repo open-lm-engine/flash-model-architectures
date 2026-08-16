@@ -96,6 +96,7 @@ def linear_attention_jax(
 
     if kernel_backend == KernelBackend.pallas:
         lane_count = Accelerator.get_lane_count()
+        BLOCK_SIZE_K = lane_count
 
         if BLOCK_SIZE_V <= 0 or BLOCK_SIZE_V % lane_count != 0:
             raise ValueError(
@@ -104,22 +105,16 @@ def linear_attention_jax(
             )
 
         S_pad = ceil_divide(S, BLOCK_SIZE_S) * BLOCK_SIZE_S - S
-        if S_pad != 0:
-            pad = ((0, 0), (0, S_pad), (0, 0), (0, 0))
-            query = jnp.pad(query, pad)
-            key = jnp.pad(key, pad)
-            value = jnp.pad(value, pad)
-
-        K_pad = ceil_divide(K, lane_count) * lane_count - K
+        K_pad = ceil_divide(K, BLOCK_SIZE_K) * BLOCK_SIZE_K - K
         V_pad = ceil_divide(V, BLOCK_SIZE_V) * BLOCK_SIZE_V - V
 
-        if K_pad != 0:
-            pad_K = ((0, 0), (0, 0), (0, 0), (0, K_pad))
-            query = jnp.pad(query, pad_K)
-            key = jnp.pad(key, pad_K)
+        if S_pad != 0 or K_pad != 0:
+            pad = ((0, 0), (0, S_pad), (0, 0), (0, K_pad))
+            query = jnp.pad(query, pad)
+            key = jnp.pad(key, pad)
 
-        if V_pad != 0:
-            value = jnp.pad(value, ((0, 0), (0, 0), (0, 0), (0, V_pad)))
+        if S_pad != 0 or V_pad != 0:
+            value = jnp.pad(value, ((0, 0), (0, S_pad), (0, 0), (0, V_pad)))
 
         if input_state is not None and (K_pad != 0 or V_pad != 0):
             input_state = jnp.pad(input_state, ((0, 0), (0, 0), (0, K_pad), (0, V_pad)))
