@@ -454,6 +454,20 @@
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;unexpected accelerator (</span><span class="si">{</span><span class="n">accelerator</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">sm_count</span></div>
+
+
+<div class="viewcode-block" id="Accelerator.get_lane_count">
+<a class="viewcode-back" href="../../xma.accelerator.html#xma.accelerator.Accelerator.get_lane_count">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_lane_count</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+        <span class="n">accelerator</span> <span class="o">=</span> <span class="n">Accelerator</span><span class="o">.</span><span class="n">get_accelerator</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">accelerator</span> <span class="o">==</span> <span class="n">Accelerator</span><span class="o">.</span><span class="n">tpu</span><span class="p">:</span>
+            <span class="n">lane_count</span> <span class="o">=</span> <span class="mi">128</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;unexpected accelerator (</span><span class="si">{</span><span class="n">accelerator</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">lane_count</span></div>
 </div>
 
 </pre></div>
