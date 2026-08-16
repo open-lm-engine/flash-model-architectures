@@ -16,7 +16,11 @@ from .state_passing import _linear_attention_state_passing_core
 _MAX_HEADS_PER_PALLAS_CELL = 16
 
 
-@partial(jax.custom_vjp, nondiff_argnums=(4, 5, 6, 7))
+def _cumulative_log_decay(f: jax.Array | None) -> jax.Array | None:
+    return None if f is None else jnp.cumsum(f.astype(jnp.float32), axis=-2)
+
+
+@partial(jax.custom_vjp, nondiff_argnums=(5, 6, 7, 8))
 def _linear_attention_pallas(
     q: jax.Array,
     k: jax.Array,
@@ -32,7 +36,7 @@ def _linear_attention_pallas(
         q=q,
         k=k,
         v=v,
-        f=f,
+        f_cumsum=_cumulative_log_decay(f),
         h0=h0,
         attention_multiplier=attention_multiplier,
         output_state=output_state,
@@ -52,11 +56,13 @@ def _linear_attention_forward(
     BLOCK_SIZE_S: int,
     BLOCK_SIZE_V: int,
 ) -> tuple[tuple[jax.Array, jax.Array | None], tuple]:
-    y, h = _linear_attention_pallas(
+    f_cumsum = _cumulative_log_decay(f)
+
+    y, h = _linear_attention_forward_core(
         q=q,
         k=k,
         v=v,
-        f=f,
+        f_cumsum=f_cumsum,
         h0=h0,
         attention_multiplier=attention_multiplier,
         output_state=output_state,
@@ -64,7 +70,7 @@ def _linear_attention_forward(
         BLOCK_SIZE_V=BLOCK_SIZE_V,
     )
 
-    return (y, h), (q, k, v, h0)
+    return (y, h), (q, k, v, f_cumsum, h0)
 
 
 @partial(jax.jit, static_argnames=("attention_multiplier", "output_state", "BLOCK_SIZE_S", "BLOCK_SIZE_V"))
@@ -76,7 +82,7 @@ def _linear_attention_backward(
     residuals: tuple,
     cotangents: tuple,
 ) -> tuple:
-    q, k, v, h0 = residuals
+    q, k, v, f_cumsum, h0 = residuals
     dy, dht = cotangents
     dht = dht if output_state else None
 
@@ -94,10 +100,11 @@ def _linear_attention_backward(
         k=k, v=v, h0=h0, N=N, BLOCK_SIZE_S=BLOCK_SIZE_S, BLOCK_SIZE_V=BLOCK_SIZE_V
     )
 
-    dq, dk, dv, dh0 = _linear_attention_backward_core(
+    dq, dk, dv, df_cumsum, dh0 = _linear_attention_backward_core(
         q=q,
         k=k,
         v=v,
+        f_cumsum=f_cumsum,
         h=h,
         dy=dy,
         dht=dht,
@@ -110,10 +117,16 @@ def _linear_attention_backward(
     dk = dk.reshape(B, S, Nk, Gk, K).sum(axis=3)
     dv = dv.reshape(B, S, Nv, Gv, V).sum(axis=3)
 
+    df = None
+    if f_cumsum is not None:
+        df = jnp.flip(df_cumsum, axis=-2)
+        df = jnp.cumsum(df, axis=-2)
+        df = jnp.flip(df, axis=-2)
+
     if h0 is None:
         dh0 = None
 
-    return dq, dk, dv, dh0
+    return dq, dk, dv, df, dh0
 
 
 _linear_attention_pallas.defvjp(_linear_attention_forward, _linear_attention_backward)
