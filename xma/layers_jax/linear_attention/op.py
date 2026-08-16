@@ -187,9 +187,8 @@ def linear_attention_jax(
             BLOCK_SIZE_V=BLOCK_SIZE_V,
         )
 
-        y = y[:, :S]
-        y = y[:, :, :, :V]
-        ht = ht[:, :, :K, :V]
+        y = y[:, :S, :, :V]
+        ht = ht[..., :K, :V]
     elif kernel_backend == KernelBackend.jax:
         y, ht = _linear_attention_reference(
             q=query,
