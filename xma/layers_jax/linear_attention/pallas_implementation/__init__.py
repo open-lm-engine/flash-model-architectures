@@ -82,7 +82,7 @@ def _linear_attention_backward(
 
     B, S, Nq, K = q.shape
     Nk = k.shape[2]
-    Nv, V = v.shape[2], v.shape[-1]
+    Nv, V = v.shape[-2:]
 
     N = max(Nq, Nk, Nv)
 
