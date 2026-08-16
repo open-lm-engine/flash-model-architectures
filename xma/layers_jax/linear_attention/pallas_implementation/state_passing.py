@@ -46,8 +46,7 @@ def _state_passing_core(
     k: jax.Array, v: jax.Array, h0: jax.Array | None, N: int, BLOCK_SIZE_S: int, BLOCK_SIZE_V: int
 ) -> jax.Array:
     B, S, Nk, K = k.shape
-    Nv = v.shape[2]
-    V = v.shape[-1]
+    Nv, V = v.shape[-2:]
 
     Gk = N // Nk
     Gv = N // Nv
@@ -56,8 +55,9 @@ def _state_passing_core(
 
     NUM_BLOCKS_S = ceil_divide(S, BLOCK_SIZE_S)
     NUM_BLOCKS_V = ceil_divide(V, BLOCK_SIZE_V)
-    V_WIDTH = NUM_BLOCKS_V * BLOCK_SIZE_V
-    assert V == V_WIDTH, "V must be an integer multiple of BLOCK_SIZE_V (host padding guarantees this)"
+    assert (
+        V == NUM_BLOCKS_V * BLOCK_SIZE_V
+    ), "V must be an integer multiple of BLOCK_SIZE_V (host padding guarantees this)"
 
     kernel = pl.pallas_call(
         partial(_state_passing_kernel, N=N, Gk=Gk, Gv=Gv, NUM_BLOCKS_V=NUM_BLOCKS_V, BLOCK_SIZE_V=BLOCK_SIZE_V),
@@ -69,23 +69,23 @@ def _state_passing_core(
                 index_map=lambda BLOCK_ID_B, BLOCK_ID_S: (BLOCK_ID_B, BLOCK_ID_S, 0, 0),
             ),
             pl.BlockSpec(
-                block_shape=(None, BLOCK_SIZE_S, Nv, V_WIDTH),
+                block_shape=(None, BLOCK_SIZE_S, Nv, V),
                 index_map=lambda BLOCK_ID_B, BLOCK_ID_S: (BLOCK_ID_B, BLOCK_ID_S, 0, 0),
             ),
             (
                 None
                 if h0 is None
                 else pl.BlockSpec(
-                    block_shape=(None, N, K, V_WIDTH),
+                    block_shape=(None, N, K, V),
                     index_map=lambda BLOCK_ID_B, BLOCK_ID_S: (BLOCK_ID_B, 0, 0, 0),
                 )
             ),
         ),
         out_specs=pl.BlockSpec(
-            block_shape=(None, N, K, V_WIDTH),
+            block_shape=(None, N, K, V),
             index_map=lambda BLOCK_ID_B, BLOCK_ID_S: (BLOCK_ID_B, BLOCK_ID_S, 0, 0),
         ),
-        scratch_shapes=[pltpu.VMEM((N, K, V_WIDTH), jnp.float32)],
+        scratch_shapes=[pltpu.VMEM((N, K, V), jnp.float32)],
         compiler_params=pltpu.CompilerParams(
             disable_bounds_checks=True, dimension_semantics=("parallel", "arbitrary")
         ),
