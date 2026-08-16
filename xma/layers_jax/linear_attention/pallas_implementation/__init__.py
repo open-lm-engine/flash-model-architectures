@@ -2,15 +2,6 @@
 # Copyright (c) 2026, Mayank Mishra
 # **************************************************
 
-"""Custom-VJP entry point for the pallas linear-attention kernels.
-
-All kernels consume and produce the native (B, S, N, K) host layout —
-by design this module performs NO host-level transposes: materializing
-(B, N, S, K) copies of q/k/v/dy on every call would cost ~0.74 ms per
-forward / ~1.6 ms per fwd+bwd step at B8/S4096/N16/K128/V128 on v6e-1,
-and would delay the DMA of the custom backward's first tile by ~0.5 ms.
-"""
-
 from functools import partial
 
 import jax
