@@ -32,7 +32,7 @@ def _linear_attention_forward_kernel(
         if h0_ref is None:
             ht_ref[...] = jnp.zeros_like(ht_ref)
         else:
-            ht_ref[...] = h0_ref[...].astype(ht_ref)
+            ht_ref[...] = h0_ref[...].astype(ht_ref.dtype)
 
     dtype = q_ref.dtype
 
