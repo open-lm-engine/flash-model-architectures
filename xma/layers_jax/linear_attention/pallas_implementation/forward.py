@@ -36,29 +36,29 @@ def _linear_attention_forward_kernel(
 
     dtype = q_ref.dtype
 
-    q = q_ref[...].transpose(1, 0, 2)
-    k = k_ref[...].transpose(1, 0, 2)
-    v = v_ref[...].transpose(1, 0, 2)
+    q_ = q_ref[...].transpose(1, 0, 2)
+    k_ = k_ref[...].transpose(1, 0, 2)
+    v_ = v_ref[...].transpose(1, 0, 2)
 
     row = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, BLOCK_SIZE_S), 0)
     col = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, BLOCK_SIZE_S), 1)
     causal_mask = row >= col
 
     for n in range(N):
-        q_n = q[n // Gq].astype(dtype)
-        k_n = k[n // Gk].astype(dtype)
-        v_n = v[n // Gv].astype(dtype)
+        q = q_[n // Gq].astype(dtype)
+        k = k_[n // Gk].astype(dtype)
+        v = v_[n // Gv].astype(dtype)
         h = ht_ref[n]
 
-        qk = jax.lax.dot_general(q_n, k_n, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
+        qk = jax.lax.dot_general(q, k, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
         qk = jnp.where(causal_mask, qk, 0).astype(dtype)
 
-        y = jnp.dot(qk, v_n, preferred_element_type=jnp.float32)
-        y += jnp.dot(q_n, h.astype(dtype), preferred_element_type=jnp.float32)
+        y = jnp.dot(qk, v, preferred_element_type=jnp.float32)
+        y += jnp.dot(q, h.astype(dtype), preferred_element_type=jnp.float32)
         y *= attention_multiplier
 
         y_ref[:, n, :] = y.astype(dtype)
-        ht_ref[n] = h + jax.lax.dot_general(k_n, v_n, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32)
+        ht_ref[n] = h + jax.lax.dot_general(k, v, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32)
 
 
 @partial(jax.jit, static_argnames=("attention_multiplier", "BLOCK_SIZE_S", "BLOCK_SIZE_V", "output_state"))
