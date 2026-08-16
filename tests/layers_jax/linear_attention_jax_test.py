@@ -13,7 +13,7 @@ jax = pytest.importorskip("jax")
 
 import jax.numpy as jnp
 
-from xma import Accelerator, KernelBackend
+from xma import KernelBackend
 from xma.layers_jax import LinearAttentionJAX, linear_attention_jax
 
 
