@@ -61,7 +61,7 @@ def _state_passing_core(
 
     kernel = pl.pallas_call(
         partial(_state_passing_kernel, N=N, Gk=Gk, Gv=Gv, NUM_BLOCKS_V=NUM_BLOCKS_V, BLOCK_SIZE_V=BLOCK_SIZE_V),
-        out_shape=jax.ShapeDtypeStruct(shape=(B, NUM_BLOCKS_S * N, K, V), dtype=jnp.float32),
+        out_shape=jax.ShapeDtypeStruct(shape=(B, NUM_BLOCKS_S * N, K, V), dtype=k.dtype),
         grid=(B, NUM_BLOCKS_S),
         in_specs=(
             pl.BlockSpec(
