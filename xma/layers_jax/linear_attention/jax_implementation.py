@@ -22,10 +22,6 @@ def _linear_attention_reference(
     h = jnp.zeros((B, N, K, V), dtype=jnp.float32) if h0 is None else h0.astype(jnp.float32)
 
     y = []
-    # inclusive recurrence: y[s] = q[s] @ h[s] with h[s] = h[s-1] + k[s]^T v[s];
-    # the state update for step s is applied BEFORE reading out y[s] so the
-    # diagonal of the causal interaction is included (matching every pallas /
-    # triton kernel and the documented operator semantics).
     for s in range(S):
         h = h + k[:, s][..., :, None] * v[:, s][..., None, :]
         y.append(jnp.einsum("bnk,bnkv->bnv", q[:, s], h))
