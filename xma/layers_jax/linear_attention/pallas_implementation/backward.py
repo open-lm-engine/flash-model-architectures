@@ -126,8 +126,7 @@ def _linear_attention_backward_core(
 ) -> tuple[jax.Array, jax.Array, jax.Array, jax.Array]:
     B, S, Nq, K = q.shape
     Nk = k.shape[2]
-    Nv = v.shape[2]
-    V = v.shape[-1]
+    Nv, V = v.shape[-2:]
     N = dy.shape[2]
 
     Gq = N // Nq
