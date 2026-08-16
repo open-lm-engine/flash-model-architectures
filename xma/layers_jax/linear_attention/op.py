@@ -17,20 +17,6 @@ from .pallas_implementation import (
 )
 
 
-def _get_num_heads(q: jax.Array, k: jax.Array, v: jax.Array) -> tuple[int, int, int, int]:
-    Nq = q.shape[-2]
-    Nk = k.shape[-2]
-    Nv = v.shape[-2]
-
-    N = max(Nq, Nk, Nv)
-
-    assert N % Nq == 0
-    assert N % Nk == 0
-    assert N % Nv == 0
-
-    return Nq, Nk, Nv, N
-
-
 def linear_attention_jax(
     query: jax.Array,
     key: jax.Array,
@@ -79,7 +65,15 @@ def linear_attention_jax(
     B, S, _, K = query.shape
     V = value.shape[-1]
 
-    Nq, Nk, Nv, N = _get_num_heads(query, key, value)
+    Nq = query.shape[-2]
+    Nk = key.shape[-2]
+    Nv = value.shape[-2]
+
+    N = max(Nq, Nk, Nv)
+
+    assert N % Nq == 0
+    assert N % Nk == 0
+    assert N % Nv == 0
 
     assert query.shape == (B, S, Nq, K)
     assert key.shape == (B, S, Nk, K)
