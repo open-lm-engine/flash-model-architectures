@@ -97,7 +97,7 @@ def linear_attention_jax(
             attention_multiplier=attention_multiplier,
             output_state=output_state,
         )
-    if kernel_backend == KernelBackend.pallas:
+    elif kernel_backend == KernelBackend.pallas:
         lane_count = Accelerator.get_lane_count()
         BLOCK_SIZE_K = lane_count
 
