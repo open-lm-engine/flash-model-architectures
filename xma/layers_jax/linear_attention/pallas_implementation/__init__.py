@@ -25,22 +25,22 @@ def _cumulative_log_decay(log_f: jax.Array | None, BLOCK_SIZE_S: int) -> jax.Arr
 
     log_f = log_f.reshape(B, S // BLOCK_SIZE_S, BLOCK_SIZE_S, *log_f.shape[2:])
     log_f = log_f.astype(jnp.float32)
-    f_cumsum = jnp.cumsum(log_f, axis=2)
-    f_cumsum = f_cumsum.reshape(B, S, *log_f.shape[3:])
+    log_f_cumsum = jnp.cumsum(log_f, axis=2)
+    log_f_cumsum = log_f_cumsum.reshape(B, S, *log_f.shape[3:])
 
-    return f_cumsum
+    return log_f_cumsum
 
 
-def _invert_cumulative_log_decay(df_cumsum: jax.Array, BLOCK_SIZE_S: int) -> jax.Array:
-    B, S = df_cumsum.shape[:2]
-    df = df_cumsum.reshape(B, S // BLOCK_SIZE_S, BLOCK_SIZE_S, *df_cumsum.shape[2:])
+def _invert_cumulative_log_decay(dlog_f_cumsum: jax.Array, BLOCK_SIZE_S: int) -> jax.Array:
+    B, S = dlog_f_cumsum.shape[:2]
+    dlog_f = dlog_f_cumsum.reshape(B, S // BLOCK_SIZE_S, BLOCK_SIZE_S, *dlog_f_cumsum.shape[2:])
 
-    df = jnp.flip(df, axis=2)
-    df = jnp.cumsum(df, axis=2)
-    df = jnp.flip(df, axis=2)
-    df = df.reshape(B, S, *df_cumsum.shape[2:])
+    dlog_f = jnp.flip(dlog_f, axis=2)
+    dlog_f = jnp.cumsum(dlog_f, axis=2)
+    dlog_f = jnp.flip(dlog_f, axis=2)
+    dlog_f = dlog_f.reshape(B, S, *dlog_f_cumsum.shape[2:])
 
-    return df
+    return dlog_f
 
 
 @partial(jax.custom_vjp, nondiff_argnums=(5, 6, 7, 8))
@@ -107,14 +107,14 @@ def _linear_attention_backward(
     residuals: tuple,
     cotangents: tuple,
 ) -> tuple:
-    q, k, v, f_cumsum, h0 = residuals
+    q, k, v, log_f_cumsum, h0 = residuals
     dy, dht = cotangents
     dht = dht if output_state else None
 
     B, S, Nq, K = q.shape
     Nk = k.shape[2]
     Nv, V = v.shape[-2:]
-    Nf = 0 if f_cumsum is None else f_cumsum.shape[2]
+    Nf = 0 if log_f_cumsum is None else log_f_cumsum.shape[2]
 
     N = max(Nq, Nk, Nv, Nf)
 
@@ -123,14 +123,14 @@ def _linear_attention_backward(
     Gv = N // Nv
 
     h = _linear_attention_state_passing_core(
-        k=k, v=v, f_cumsum=f_cumsum, h0=h0, N=N, BLOCK_SIZE_S=BLOCK_SIZE_S, BLOCK_SIZE_V=BLOCK_SIZE_V
+        k=k, v=v, log_f_cumsum=log_f_cumsum, h0=h0, N=N, BLOCK_SIZE_S=BLOCK_SIZE_S, BLOCK_SIZE_V=BLOCK_SIZE_V
     )
 
-    dq, dk, dv, df_cumsum, dh0 = _linear_attention_backward_core(
+    dq, dk, dv, dlog_f_cumsum, dh0 = _linear_attention_backward_core(
         q=q,
         k=k,
         v=v,
-        f_cumsum=f_cumsum,
+        log_f_cumsum=log_f_cumsum,
         h=h,
         dy=dy,
         dht=dht,
@@ -143,16 +143,16 @@ def _linear_attention_backward(
     dk = dk.reshape(B, S, Nk, Gk, K).sum(axis=3)
     dv = dv.reshape(B, S, Nv, Gv, V).sum(axis=3)
 
-    df = None
-    if f_cumsum is not None:
+    dlog_f = None
+    if log_f_cumsum is not None:
         Gf = N // Nf
-        df_cumsum = df_cumsum.reshape(B, S, Nf, Gf, *df_cumsum.shape[3:]).sum(axis=3)
-        df = _invert_cumulative_log_decay(df_cumsum, BLOCK_SIZE_S)
+        dlog_f_cumsum = dlog_f_cumsum.reshape(B, S, Nf, Gf, *dlog_f_cumsum.shape[3:]).sum(axis=3)
+        dlog_f = _invert_cumulative_log_decay(dlog_f_cumsum, BLOCK_SIZE_S)
 
     if h0 is None:
         dh0 = None
 
-    return dq, dk, dv, df, dh0
+    return dq, dk, dv, dlog_f, dh0
 
 
 _linear_attention_pallas.defvjp(_linear_attention_forward, _linear_attention_backward)
