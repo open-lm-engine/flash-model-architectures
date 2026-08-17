@@ -291,7 +291,11 @@ def _linear_attention_backward_core(
             jax.ShapeDtypeStruct(shape=(B, S, N, K), dtype=q.dtype),
             jax.ShapeDtypeStruct(shape=(B, S, N, K), dtype=q.dtype),
             jax.ShapeDtypeStruct(shape=(B, S, N, V), dtype=q.dtype),
-            jax.ShapeDtypeStruct(shape=(B, S, N, K) if f_diagonal else (B, S, N), dtype=jnp.float32),
+            (
+                None
+                if f_cumsum is None
+                else jax.ShapeDtypeStruct(shape=(B, S, N, K) if f_diagonal else (B, S, N), dtype=jnp.float32)
+            ),
             jax.ShapeDtypeStruct(shape=(B, N, K, V), dtype=jnp.float32),
         ),
         grid=(B, NUM_BLOCKS_S),
