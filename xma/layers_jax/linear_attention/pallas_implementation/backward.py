@@ -17,7 +17,7 @@ def _linear_attention_backward_kernel(
     q_ref,
     k_ref,
     v_ref,
-    f_cumsum_ref,
+    log_f_cumsum_ref,
     h_ref,
     dy_ref,
     dht_ref,
@@ -54,16 +54,16 @@ def _linear_attention_backward_kernel(
     k_ = k_ref[...].transpose(1, 0, 2)
     v_ = v_ref[...].transpose(1, 0, 2)
     dy_ = dy_ref[...].transpose(1, 0, 2)
-    hc_ = h_ref[...].astype(dtype)
+    h_ = h_ref[...].astype(dtype)
 
-    f_cumsum_ = None
-    if f_cumsum_ref is not None:
-        f_cumsum_ = f_cumsum_ref[...]
+    log_f_cumsum_ = None
+    if log_f_cumsum_ref is not None:
+        log_f_cumsum_ = log_f_cumsum_ref[...]
 
         if f_diagonal:
-            f_cumsum_ = f_cumsum_.transpose(1, 0, 2)
+            log_f_cumsum_ = log_f_cumsum_.transpose(1, 0, 2)
         else:
-            f_cumsum_ = f_cumsum_.transpose(1, 0)
+            log_f_cumsum_ = log_f_cumsum_.transpose(1, 0)
 
     causal_mask = _get_causal_mask(BLOCK_SIZE_S)
     K = q_.shape[-1]
@@ -73,7 +73,7 @@ def _linear_attention_backward_kernel(
         k = k_[n // Gk].astype(dtype)
         dy_full = (dy_[n].astype(jnp.float32) * attention_multiplier).astype(dtype)
 
-        if f_cumsum_ is None:
+        if log_f_cumsum_ref is None:
             qk = jax.lax.dot_general(q, k, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
             qk = jnp.where(causal_mask, qk, 0).astype(dtype)
 
@@ -119,9 +119,6 @@ def _linear_attention_backward_kernel(
         dk = jnp.zeros((BLOCK_SIZE_S, K), jnp.float32)
 
         if f_cumsum_ is not None:
-            # dc: gradient wrt the chunk-local cumsum c. Every c-dependent path satisfies the
-            # identity dc = q * dq(q-side terms) - k * dk(k-side terms) except the state decay
-            # term exp(c_last) * h, which contributes directly to c[-1] (accumulated in dcL)
             dc = jnp.zeros((BLOCK_SIZE_S, K) if f_diagonal else (BLOCK_SIZE_S,), jnp.float32)
             dcL = jnp.zeros((K,) if f_diagonal else (), jnp.float32)
 
@@ -131,7 +128,7 @@ def _linear_attention_backward_kernel(
 
             v = v_[n // Gv][:, start:end].astype(dtype)
             dy = dy_full[:, start:end]
-            hc = hc_[n][:, start:end]
+            h = h_[n][:, start:end]
             dh = dh_scratch[n][:, start:end]
 
             dv = jax.lax.dot_general(qk, dy, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32)
@@ -214,7 +211,7 @@ def _linear_attention_backward_core(
     q: jax.Array,
     k: jax.Array,
     v: jax.Array,
-    f_cumsum: jax.Array | None,
+    log_f_cumsum: jax.Array | None,
     h: jax.Array,
     dy: jax.Array,
     dht: jax.Array | None,
@@ -225,17 +222,17 @@ def _linear_attention_backward_core(
     B, S, Nq, K = q.shape
     Nk = k.shape[2]
     Nv, V = v.shape[-2:]
-    Nf = 0 if f_cumsum is None else f_cumsum.shape[2]
+    Nf = 0 if log_f_cumsum is None else log_f_cumsum.shape[2]
     N = dy.shape[2]
 
     Gq = N // Nq
     Gk = N // Nk
     Gv = N // Nv
-    Gf = None if f_cumsum is None else N // Nf
+    Gf = None if log_f_cumsum is None else N // Nf
 
-    f_diagonal = f_cumsum is not None and f_cumsum.ndim == 4
-    if f_cumsum is not None:
-        assert f_cumsum.shape == (B, S, Nf, K) if f_diagonal else (B, S, Nf)
+    f_diagonal = log_f_cumsum is not None and log_f_cumsum.ndim == 4
+    if log_f_cumsum is not None:
+        assert log_f_cumsum.shape == (B, S, Nf, K) if f_diagonal else (B, S, Nf)
 
     assert S % BLOCK_SIZE_S == 0
 
@@ -247,7 +244,7 @@ def _linear_attention_backward_core(
 
     f_spec = None
     df_spec = None
-    if f_cumsum is not None:
+    if log_f_cumsum is not None:
         if f_diagonal:
             f_spec = pl.BlockSpec(
                 block_shape=(None, BLOCK_SIZE_S, Nf, K),
@@ -290,7 +287,7 @@ def _linear_attention_backward_core(
             jax.ShapeDtypeStruct(shape=(B, S, N, V), dtype=q.dtype),
             (
                 None
-                if f_cumsum is None
+                if log_f_cumsum is None
                 else jax.ShapeDtypeStruct(shape=(B, S, N, K) if f_diagonal else (B, S, N), dtype=jnp.float32)
             ),
             jax.ShapeDtypeStruct(shape=(B, N, K, V), dtype=jnp.float32),
@@ -352,4 +349,4 @@ def _linear_attention_backward_core(
         ),
     )
 
-    return kernel(q, k, v, f_cumsum, h, dy, dht)
+    return kernel(q, k, v, log_f_cumsum, h, dy, dht)
