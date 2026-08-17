@@ -23,7 +23,7 @@ def _linear_attention_forward_kernel(
     q_ref,
     k_ref,
     v_ref,
-    f_cumsum_ref,
+    log_f_cumsum_ref,
     h0_ref,
     y_ref,
     ht_ref,
@@ -50,14 +50,14 @@ def _linear_attention_forward_kernel(
     k_ = k_ref[...].transpose(1, 0, 2)
     v_ = v_ref[...].transpose(1, 0, 2)
 
-    f_cumsum_ = None
-    if f_cumsum_ref is not None:
-        f_cumsum_ = f_cumsum_ref[...]
+    log_f_cumsum_ = None
+    if log_f_cumsum_ref is not None:
+        log_f_cumsum_ = log_f_cumsum_ref[...]
 
         if f_diagonal:
-            f_cumsum_ = f_cumsum_.transpose(1, 0, 2)
+            log_f_cumsum_ = log_f_cumsum_.transpose(1, 0, 2)
         else:
-            f_cumsum_ = f_cumsum_.transpose(1, 0)
+            log_f_cumsum_ = log_f_cumsum_.transpose(1, 0)
 
     causal_mask = _get_causal_mask(BLOCK_SIZE_S)
 
@@ -67,54 +67,48 @@ def _linear_attention_forward_kernel(
         v = v_[n // Gv].astype(dtype)
         h = h_scratch[n]
 
-        if f_cumsum_ is None:
+        if log_f_cumsum_ref is None:
             qk = jax.lax.dot_general(q, k, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
             qk = jnp.where(causal_mask, qk, 0).astype(dtype)
 
             y = jnp.dot(qk, v, preferred_element_type=jnp.float32)
             y += jnp.dot(q, h.astype(dtype), preferred_element_type=jnp.float32)
         else:
-            f = f_cumsum_[n // Gf].astype(jnp.float32)
-            f_last = f[-1]
+            log_f = log_f_cumsum_[n // Gf].astype(jnp.float32)
+            log_f_last = log_f[-1]
 
             if f_diagonal:
-                q *= jnp.exp(f)
-                q = q.astype(dtype)
+                qf = (q * jnp.exp(log_f)).astype(dtype)
+                kf_inv = (k * jnp.exp(-log_f)).astype(dtype)
 
-                k_scaled = (k * jnp.exp(-f)).astype(dtype)
-
-                qk = jax.lax.dot_general(q, k_scaled, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
-                qk = jnp.where(causal_mask, qk, 0).astype(dtype)
-
-                y = jnp.dot(qk, v, preferred_element_type=jnp.float32)
-                y += jnp.dot(q, h.astype(dtype), preferred_element_type=jnp.float32)
-
-                h *= jnp.exp(f_last[:, None])
-
-                k *= jnp.exp(f_last[None, :] - f)
-                k = k.astype(dtype)
+                qk = jax.lax.dot_general(qf, kf_inv, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
             else:
-                q *= jnp.exp(f[:, None])
-                q = q.astype(dtype)
+                qf = (q * jnp.exp(log_f[:, None])).astype(dtype)
 
                 qk = jax.lax.dot_general(q, k, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
-                qk *= jnp.exp(f[:, None] - f[None, :])
-                qk = jnp.where(causal_mask, qk, 0).astype(dtype)
+                qk *= jnp.exp(log_f[:, None] - log_f[None, :])
 
-                y = jnp.dot(qk, v, preferred_element_type=jnp.float32)
-                y += jnp.dot(q, h.astype(dtype), preferred_element_type=jnp.float32)
+            qk = jnp.where(causal_mask, qk, 0).astype(dtype)
+            y = jnp.dot(qk, v, preferred_element_type=jnp.float32)
+            y += jnp.dot(qf, h.astype(dtype), preferred_element_type=jnp.float32)
 
-                h *= jnp.exp(f_last)
-                k *= jnp.exp(f_last - f)[:, None].astype(dtype)
+            if f_diagonal:
+                h *= jnp.exp(log_f_last[:, None])
+                k *= jnp.exp(log_f_last[None, :] - log_f)
+            else:
+                h *= jnp.exp(log_f_last)
+                k *= jnp.exp(log_f_last - log_f)[:, None]
 
-        y *= attention_multiplier
-        y_ref[:, n, :] = y.astype(y_ref.dtype)
+            k = k.astype(dtype)
 
-        h += jax.lax.dot_general(k, v, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32)
-        h_scratch[n] = h
+            y *= attention_multiplier
+            y_ref[:, n, :] = y.astype(y_ref.dtype)
 
-        if ht_ref is not None:
-            ht_ref[n] = h.astype(ht_ref.dtype)
+            h += jax.lax.dot_general(k, v, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32)
+            h_scratch[n] = h
+
+            if ht_ref is not None:
+                ht_ref[n] = h.astype(ht_ref.dtype)
 
 
 @partial(jax.jit, static_argnames=("attention_multiplier", "BLOCK_SIZE_S", "BLOCK_SIZE_V", "output_state"))
@@ -122,7 +116,7 @@ def _linear_attention_forward_core(
     q: jax.Array,
     k: jax.Array,
     v: jax.Array,
-    f_cumsum: jax.Array | None,
+    log_f_cumsum: jax.Array | None,
     h0: jax.Array | None,
     attention_multiplier: float,
     output_state: bool,
@@ -134,18 +128,14 @@ def _linear_attention_forward_core(
     Nv = v.shape[2]
     V = v.shape[-1]
 
-    # f_cumsum is (B, S, Nf) for a scalar gate or (B, S, Nf, K) for a diagonal (per-key-dim) gate,
-    # with Nf = 1 for a shared gate or a divisor of the head count; its block spec below loads the
-    # full trailing Nf axis, and a block dim equal to the whole array dim is exempt from the TPU rule
-    # that windowed trailing dims be multiples of (8, 128)
-    Nf = 0 if f_cumsum is None else f_cumsum.shape[2]
-    f_diagonal = f_cumsum is not None and f_cumsum.ndim == 4
+    Nf = 0 if log_f_cumsum is None else log_f_cumsum.shape[2]
+    f_diagonal = log_f_cumsum is not None and log_f_cumsum.ndim == 4
 
     N = max(Nq, Nk, Nv, Nf)
     Gq = N // Nq
     Gk = N // Nk
     Gv = N // Nv
-    Gf = None if f_cumsum is None else N // Nf
+    Gf = None if log_f_cumsum is None else N // Nf
 
     assert S % BLOCK_SIZE_S == 0
     assert V % BLOCK_SIZE_V == 0
@@ -156,7 +146,7 @@ def _linear_attention_forward_core(
     )
 
     f_spec = None
-    if f_cumsum is not None:
+    if log_f_cumsum is not None:
         if f_diagonal:
             f_spec = pl.BlockSpec(
                 block_shape=(None, BLOCK_SIZE_S, Nf, K),
@@ -214,6 +204,6 @@ def _linear_attention_forward_core(
         ),
     )
 
-    y, ht = kernel(q, k, v, f_cumsum, h0)
+    y, ht = kernel(q, k, v, log_f_cumsum, h0)
 
     return y, ht

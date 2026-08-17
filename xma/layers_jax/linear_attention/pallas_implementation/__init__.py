@@ -16,17 +16,17 @@ from .state_passing import _linear_attention_state_passing_core
 _MAX_HEADS_PER_PALLAS_CELL = 16
 
 
-def _cumulative_log_decay(f: jax.Array | None, BLOCK_SIZE_S: int) -> jax.Array | None:
-    if f is None:
+def _cumulative_log_decay(log_f: jax.Array | None, BLOCK_SIZE_S: int) -> jax.Array | None:
+    if log_f is None:
         return None
 
-    B, S = f.shape[:2]
+    B, S = log_f.shape[:2]
     assert S % BLOCK_SIZE_S == 0
 
-    f = f.reshape(B, S // BLOCK_SIZE_S, BLOCK_SIZE_S, *f.shape[2:])
-    f = f.astype(jnp.float32)
-    f_cumsum = jnp.cumsum(f, axis=2)
-    f_cumsum = f_cumsum.reshape(B, S, *f.shape[3:])
+    log_f = log_f.reshape(B, S // BLOCK_SIZE_S, BLOCK_SIZE_S, *log_f.shape[2:])
+    log_f = log_f.astype(jnp.float32)
+    f_cumsum = jnp.cumsum(log_f, axis=2)
+    f_cumsum = f_cumsum.reshape(B, S, *log_f.shape[3:])
 
     return f_cumsum
 
@@ -48,18 +48,20 @@ def _linear_attention_pallas(
     q: jax.Array,
     k: jax.Array,
     v: jax.Array,
-    f: jax.Array | None,
+    log_f: jax.Array | None,
     h0: jax.Array | None,
     attention_multiplier: float,
     output_state: bool,
     BLOCK_SIZE_S: int,
     BLOCK_SIZE_V: int,
 ) -> tuple[jax.Array, jax.Array]:
+    log_f_cumsum = _cumulative_log_decay(log_f, BLOCK_SIZE_S)
+
     return _linear_attention_forward_core(
         q=q,
         k=k,
         v=v,
-        f_cumsum=_cumulative_log_decay(f, BLOCK_SIZE_S),
+        log_f_cumsum=log_f_cumsum,
         h0=h0,
         attention_multiplier=attention_multiplier,
         output_state=output_state,
@@ -72,20 +74,20 @@ def _linear_attention_forward(
     q: jax.Array,
     k: jax.Array,
     v: jax.Array,
-    f: jax.Array | None,
+    log_f: jax.Array | None,
     h0: jax.Array | None,
     attention_multiplier: float,
     output_state: bool,
     BLOCK_SIZE_S: int,
     BLOCK_SIZE_V: int,
 ) -> tuple[tuple[jax.Array, jax.Array | None], tuple]:
-    f_cumsum = _cumulative_log_decay(f, BLOCK_SIZE_S)
+    log_f_cumsum = _cumulative_log_decay(log_f, BLOCK_SIZE_S)
 
     y, h = _linear_attention_forward_core(
         q=q,
         k=k,
         v=v,
-        f_cumsum=f_cumsum,
+        log_f_cumsum=log_f_cumsum,
         h0=h0,
         attention_multiplier=attention_multiplier,
         output_state=output_state,
@@ -93,7 +95,7 @@ def _linear_attention_forward(
         BLOCK_SIZE_V=BLOCK_SIZE_V,
     )
 
-    return (y, h), (q, k, v, f_cumsum, h0)
+    return (y, h), (q, k, v, log_f_cumsum, h0)
 
 
 @partial(jax.jit, static_argnames=("attention_multiplier", "output_state", "BLOCK_SIZE_S", "BLOCK_SIZE_V"))
@@ -160,7 +162,7 @@ def _linear_attention_pallas_chunked(
     q: jax.Array,
     k: jax.Array,
     v: jax.Array,
-    f: jax.Array | None,
+    log_f: jax.Array | None,
     h0: jax.Array | None,
     attention_multiplier: float,
     output_state: bool,
@@ -170,18 +172,18 @@ def _linear_attention_pallas_chunked(
     Nq = q.shape[-2]
     Nk = k.shape[-2]
     Nv = v.shape[-2]
-    Nf = 0 if f is None else f.shape[2]
+    Nf = 0 if log_f is None else log_f.shape[2]
 
     N = max(Nq, Nk, Nv, Nf)
 
     Gq = N // Nq
     Gk = N // Nk
     Gv = N // Nv
-    Gf = None if f is None else N // Nf
+    Gf = None if log_f is None else N // Nf
 
     groups = [(Gq, "query"), (Gk, "key"), (Gv, "value")]
-    if f is not None:
-        groups.append((Gf, "forget"))
+    if log_f is not None:
+        groups.append((Gf, "log_forget"))
 
     for G, name in groups:
         if _MAX_HEADS_PER_PALLAS_CELL % G != 0:
@@ -201,16 +203,16 @@ def _linear_attention_pallas_chunked(
         start = i * _MAX_HEADS_PER_PALLAS_CELL
         end = min(N, start + _MAX_HEADS_PER_PALLAS_CELL)
 
-        _f = None
-        if f is not None:
+        _log_f = None
+        if log_f is not None:
             head_slice = slice(start // Gf, end // Gf)
-            _f = f[..., head_slice] if f.ndim == 3 else f[..., head_slice, :]
+            _log_f = log_f[..., head_slice] if log_f.ndim == 3 else log_f[..., head_slice, :]
 
         _y, _ht = _linear_attention_pallas(
             q=q[..., start // Gq : end // Gq, :],
             k=k[..., start // Gk : end // Gk, :],
             v=v[..., start // Gv : end // Gv, :],
-            f=_f,
+            log_f=_log_f,
             h0=None if h0 is None else h0[:, start:end],
             attention_multiplier=attention_multiplier,
             output_state=output_state,

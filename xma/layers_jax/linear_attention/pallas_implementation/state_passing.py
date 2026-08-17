@@ -15,7 +15,7 @@ from ....math import ceil_divide
 def _linear_attention_state_passing_kernel(
     k_ref,
     v_ref,
-    f_cumsum_ref,
+    log_f_cumsum_ref,
     h0_ref,
     h_ref,
     h_scratch,
@@ -41,28 +41,28 @@ def _linear_attention_state_passing_kernel(
     k_ = k_ref[...].transpose(1, 0, 2)
     v_ = v_ref[...].transpose(1, 0, 2)
 
-    f_cumsum_ = None
-    if f_cumsum_ref is not None:
-        f_cumsum_ = f_cumsum_ref[...]
+    log_f_cumsum_ = None
+    if log_f_cumsum_ref is not None:
+        log_f_cumsum_ = log_f_cumsum_ref[...]
 
         if f_diagonal:
-            f_cumsum_ = f_cumsum_.transpose(1, 0, 2)
+            log_f_cumsum_ = log_f_cumsum_.transpose(1, 0, 2)
         else:
-            f_cumsum_ = f_cumsum_.transpose(1, 0)
+            log_f_cumsum_ = log_f_cumsum_.transpose(1, 0)
 
     for n in range(N):
         k = k_[n // Gk].astype(dtype)
 
-        if f_cumsum_ is not None:
-            f = f_cumsum_[n // Gf].astype(jnp.float32)
-            f_last = f[-1]
+        if log_f_cumsum_ is not None:
+            log_f = log_f_cumsum_[n // Gf].astype(jnp.float32)
+            log_f_last = log_f[-1]
 
             if f_diagonal:
-                f_last = jnp.exp(f_last[:, None])
-                k *= jnp.exp(f_last[None, :] - f)
+                f_last = jnp.exp(log_f_last[:, None])
+                k *= jnp.exp(log_f_last[None, :] - log_f)
             else:
-                f_last = jnp.exp(f_last)
-                k *= jnp.exp(f_last - f)[:, None]
+                f_last = jnp.exp(log_f_last)
+                k *= jnp.exp(log_f_last - log_f)[:, None]
 
             k = k.astype(dtype)
 
@@ -74,11 +74,10 @@ def _linear_attention_state_passing_kernel(
             h = h_scratch[n][:, start:end]
             h_ref[n, :, start:end] = h.astype(h_ref.dtype)
 
-            if f_cumsum_ is not None:
+            if log_f_cumsum_ref is not None:
                 h *= f_last
 
             h += jax.lax.dot_general(k, v, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32)
-
             h_scratch[n, :, start:end] = h
 
 
@@ -86,7 +85,7 @@ def _linear_attention_state_passing_kernel(
 def _linear_attention_state_passing_core(
     k: jax.Array,
     v: jax.Array,
-    f_cumsum: jax.Array | None,
+    log_f_cumsum: jax.Array | None,
     h0: jax.Array | None,
     N: int,
     BLOCK_SIZE_S: int,
@@ -94,15 +93,15 @@ def _linear_attention_state_passing_core(
 ) -> jax.Array:
     B, S, Nk, K = k.shape
     Nv, V = v.shape[-2:]
-    Nf = 0 if f_cumsum is None else f_cumsum.shape[2]
+    Nf = 0 if log_f_cumsum is None else log_f_cumsum.shape[2]
 
     Gk = N // Nk
     Gv = N // Nv
-    Gf = None if f_cumsum is None else N // Nf
+    Gf = None if log_f_cumsum is None else N // Nf
 
-    f_diagonal = f_cumsum is not None and f_cumsum.ndim == 4
-    if f_cumsum is not None:
-        assert f_cumsum.shape == (B, S, Nf, K) if f_diagonal else (B, S, Nf)
+    f_diagonal = log_f_cumsum is not None and log_f_cumsum.ndim == 4
+    if log_f_cumsum is not None:
+        assert log_f_cumsum.shape == (B, S, Nf, K) if f_diagonal else (B, S, Nf)
         assert N % Nf == 0
 
     assert S % BLOCK_SIZE_S == 0
@@ -114,7 +113,7 @@ def _linear_attention_state_passing_core(
     ), "V must be an integer multiple of BLOCK_SIZE_V (host padding guarantees this)"
 
     f_spec = None
-    if f_cumsum is not None:
+    if log_f_cumsum is not None:
         if f_diagonal:
             f_spec = pl.BlockSpec(
                 block_shape=(None, BLOCK_SIZE_S, Nf, K),
@@ -168,4 +167,4 @@ def _linear_attention_state_passing_core(
         ),
     )
 
-    return kernel(k, v, f_cumsum, h0)
+    return kernel(k, v, log_f_cumsum, h0)

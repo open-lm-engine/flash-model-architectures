@@ -21,7 +21,7 @@ def linear_attention_jax(
     query: jax.Array,
     key: jax.Array,
     value: jax.Array,
-    forget: jax.Array | None = None,
+    log_forget: jax.Array | None = None,
     input_state: jax.Array | None = None,
     attention_multiplier: float | None = None,
     output_state: bool = True,
@@ -38,13 +38,13 @@ def linear_attention_jax(
     :type key: jax.Array
     :param value: value tensor of shape (B, S, Nv, V)
     :type value: jax.Array
-    :param forget: forget-gate log-decay of shape (B, S, Nf) or (B, S, Nf, K), where Nf = 1 (a
+    :param log_forget: forget-gate log-decay of shape (B, S, Nf) or (B, S, Nf, K), where Nf = 1 (a
         single gate shared across heads) or a divisor of the head count; the rank-4 form is a
         diagonal gate that decays each key head-dim independently. The multiplicative decay per
-        position is exp(forget), so values are expected to be <= 0. None disables the gate. The
-        pallas kernels consume the chunk-local cumsum of these values (see _cumulative_log_decay).
-        Defaults to None.
-    :type forget: jax.Array | None
+        position is exp(log_forget), so values are expected to be <= 0. None disables the gate.
+        The pallas kernels consume the chunk-local cumsum of these values (see
+        _cumulative_log_decay). Defaults to None.
+    :type log_forget: jax.Array | None
     :param input_state: starting state of shape (B, N, K, V), where N = max{Nq, Nk, Nv}. None means starting
         state is 0 tensor. Defaults to None.
     :type input_state: jax.Array | None
@@ -76,12 +76,12 @@ def linear_attention_jax(
     Nq = query.shape[-2]
     Nk = key.shape[-2]
     Nv = value.shape[-2]
-    Nf = 0 if forget is None else forget.shape[2]
+    Nf = 0 if log_forget is None else log_forget.shape[2]
 
-    if forget is not None:
-        assert forget.ndim in (3, 4)
-        assert forget.shape[0] == B
-        assert forget.shape[1] == S
+    if log_forget is not None:
+        assert log_forget.ndim in (3, 4)
+        assert log_forget.shape[0] == B
+        assert log_forget.shape[1] == S
 
     N = max(Nq, Nk, Nv, Nf)
 
@@ -93,10 +93,10 @@ def linear_attention_jax(
     assert key.shape == (B, S, Nk, K)
     assert value.shape == (B, S, Nv, V)
 
-    if forget is not None:
+    if log_forget is not None:
         assert N % Nf == 0
-        if forget.ndim == 4:
-            assert forget.shape[-1] == K
+        if log_forget.ndim == 4:
+            assert log_forget.shape[-1] == K
 
     if input_state is not None:
         assert input_state.shape == (B, N, K, V)
@@ -112,7 +112,7 @@ def linear_attention_jax(
             q=query,
             k=key,
             v=value,
-            f=forget,
+            log_f=log_forget,
             h0=input_state,
             attention_multiplier=attention_multiplier,
             output_state=output_state,
@@ -136,10 +136,10 @@ def linear_attention_jax(
             query = jnp.pad(query, pad)
             key = jnp.pad(key, pad)
 
-            if forget is not None:
-                if forget.ndim == 3:
+            if log_forget is not None:
+                if log_forget.ndim == 3:
                     pad = pad[:-1]
-                forget = jnp.pad(forget, pad)
+                log_forget = jnp.pad(log_forget, pad)
 
         if S_pad != 0 or V_pad != 0:
             value = jnp.pad(value, ((0, 0), (0, S_pad), (0, 0), (0, V_pad)))
@@ -151,7 +151,7 @@ def linear_attention_jax(
             q=query,
             k=key,
             v=value,
-            f=forget,
+            log_f=log_forget,
             h0=input_state,
             attention_multiplier=attention_multiplier,
             output_state=output_state,
