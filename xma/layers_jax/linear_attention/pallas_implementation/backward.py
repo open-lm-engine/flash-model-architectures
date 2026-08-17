@@ -16,12 +16,14 @@ def _linear_attention_backward_kernel(
     q_ref,
     k_ref,
     v_ref,
+    f_cumsum_ref,
     h_ref,
     dy_ref,
     dht_ref,
     dq_ref,
     dk_ref,
     dv_ref,
+    df_ref,
     dh0_ref,
     dh_scratch,
     attention_multiplier: float,
@@ -31,6 +33,8 @@ def _linear_attention_backward_kernel(
     Gq: int,
     Gk: int,
     Gv: int,
+    Gf: int | None,
+    f_diagonal: bool,
     NUM_BLOCKS_V: int,
     NUM_BLOCKS_S: int,
 ) -> None:
@@ -143,6 +147,8 @@ def _linear_attention_backward_core(
             Gq=Gq,
             Gk=Gk,
             Gv=Gv,
+            Gf=Gf,
+            f_diagonal=f_diagonal,
             NUM_BLOCKS_V=NUM_BLOCKS_V,
             NUM_BLOCKS_S=NUM_BLOCKS_S,
         ),
@@ -150,6 +156,7 @@ def _linear_attention_backward_core(
             jax.ShapeDtypeStruct(shape=(B, S, N, K), dtype=q.dtype),
             jax.ShapeDtypeStruct(shape=(B, S, N, K), dtype=q.dtype),
             jax.ShapeDtypeStruct(shape=(B, S, N, V), dtype=q.dtype),
+            jax.ShapeDtypeStruct(shape=df_shape, dtype=jnp.float32),
             jax.ShapeDtypeStruct(shape=(B, N, K, V), dtype=jnp.float32),
         ),
         grid=(B, NUM_BLOCKS_S),
@@ -166,6 +173,7 @@ def _linear_attention_backward_core(
                 block_shape=(None, BLOCK_SIZE_S, Nv, V),
                 index_map=lambda B, S: (B, NUM_BLOCKS_S - 1 - S, 0, 0),
             ),
+            f_spec,
             pl.BlockSpec(
                 block_shape=(None, N, K, V),
                 index_map=lambda B, S: (B, NUM_BLOCKS_S - 1 - S, 0, 0),
@@ -196,6 +204,7 @@ def _linear_attention_backward_core(
                 block_shape=(None, BLOCK_SIZE_S, N, V),
                 index_map=lambda B, S: (B, NUM_BLOCKS_S - 1 - S, 0, 0),
             ),
+            df_spec,
             pl.BlockSpec(
                 block_shape=(None, N, K, V),
                 index_map=lambda B, S: (B, 0, 0, 0),
@@ -207,4 +216,4 @@ def _linear_attention_backward_core(
         ),
     )
 
-    return kernel(q, k, v, h, dy, dht)
+    return kernel(q, k, v, f_cumsum, h, dy, dht)

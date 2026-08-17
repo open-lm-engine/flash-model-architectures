@@ -121,7 +121,7 @@ def _linear_attention_backward(
     Gv = N // Nv
 
     h = _linear_attention_state_passing_core(
-        k=k, v=v, h0=h0, N=N, BLOCK_SIZE_S=BLOCK_SIZE_S, BLOCK_SIZE_V=BLOCK_SIZE_V
+        k=k, v=v, f_cumsum=f_cumsum, h0=h0, N=N, BLOCK_SIZE_S=BLOCK_SIZE_S, BLOCK_SIZE_V=BLOCK_SIZE_V
     )
 
     dq, dk, dv, df_cumsum, dh0 = _linear_attention_backward_core(
