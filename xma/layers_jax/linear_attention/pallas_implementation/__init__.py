@@ -143,6 +143,8 @@ def _linear_attention_backward(
 
     df = None
     if f_cumsum is not None:
+        Gf = N // Nf
+        df_cumsum = df_cumsum.reshape(B, S, Nf, Gf, *df_cumsum.shape[3:]).sum(axis=3)
         df = _invert_cumulative_log_decay(df_cumsum, BLOCK_SIZE_S)
 
     if h0 is None:
