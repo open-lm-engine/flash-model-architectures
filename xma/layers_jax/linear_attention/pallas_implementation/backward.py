@@ -64,7 +64,7 @@ def _linear_attention_backward_kernel(
         qk = jax.lax.dot_general(q, k, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
         qk = jnp.where(causal_mask, qk, 0).astype(dtype)
 
-        dqk = jnp.zeros((BLOCK_SIZE_S, BLOCK_SIZE_S), jnp.float32)
+        dyv = jnp.zeros((BLOCK_SIZE_S, BLOCK_SIZE_S), jnp.float32)
         dq = jnp.zeros((BLOCK_SIZE_S, K), jnp.float32)
         dk = jnp.zeros((BLOCK_SIZE_S, K), jnp.float32)
 
@@ -87,16 +87,16 @@ def _linear_attention_backward_kernel(
                 q, dy, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32
             )
 
-            dqk += jax.lax.dot_general(dy, v, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
+            dyv += jax.lax.dot_general(dy, v, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
             dq += jax.lax.dot_general(dy, hc, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
             dk += jax.lax.dot_general(v, dh, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
 
-        dqk = jnp.where(causal_mask, dqk, 0).astype(dtype)
+        dyv = jnp.where(causal_mask, dyv, 0).astype(dtype)
 
-        dq += jax.lax.dot_general(dqk, k, (((1,), (0,)), ((), ())), preferred_element_type=jnp.float32)
+        dq += jax.lax.dot_general(dyv, k, (((1,), (0,)), ((), ())), preferred_element_type=jnp.float32)
         dq_ref[:, n, :] = dq.astype(dtype)
 
-        dk += jax.lax.dot_general(dqk, q, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32)
+        dk += jax.lax.dot_general(dyv, q, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32)
         dk_ref[:, n, :] = dk.astype(dtype)
 
     @pl.when(S_CELLS_VISITED == NUM_BLOCKS_S - 1)
