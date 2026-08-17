@@ -114,7 +114,7 @@ def _linear_attention_backward_kernel(
             k_state = (k * e_w2[:, None]).astype(dtype)
             k_inter = None
 
-        dqk = jnp.zeros((BLOCK_SIZE_S, BLOCK_SIZE_S), jnp.float32)
+        dyv = jnp.zeros((BLOCK_SIZE_S, BLOCK_SIZE_S), jnp.float32)
         dq = jnp.zeros((BLOCK_SIZE_S, K), jnp.float32)
         dk = jnp.zeros((BLOCK_SIZE_S, K), jnp.float32)
 
@@ -146,7 +146,7 @@ def _linear_attention_backward_kernel(
             dh_next += jax.lax.dot_general(q_inter, dy, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32)
             dh_scratch[n, :, start:end] = dh_next
 
-            dqk += jax.lax.dot_general(dy, v, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
+            dyv += jax.lax.dot_general(dy, v, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
 
             dq_inter = jax.lax.dot_general(dy, hc, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
             if f_cumsum_ is not None:
@@ -171,18 +171,18 @@ def _linear_attention_backward_kernel(
                     dc += dc_q.sum(axis=-1) - dc_k.sum(axis=-1)
                     dcL += dc_k.sum() + e_last * dc_decay.sum()
 
-        dqk = jnp.where(causal_mask, dqk, 0)
+        dyv = jnp.where(causal_mask, dyv, 0)
         if f_cumsum_ is not None and not f_diagonal:
             # scalar gate: the intra-chunk decay exp(c[i] - c[j]) sits on the masked (S, S) matrix
-            dqk = dqk * D
-        dqk = dqk.astype(dtype)
+            dyv = dyv * D
+        dyv = dyv.astype(dtype)
 
         dq_intra = jax.lax.dot_general(
-            dqk, k if k_inter is None else k_inter, (((1,), (0,)), ((), ())), preferred_element_type=jnp.float32
+            dyv, k if k_inter is None else k_inter, (((1,), (0,)), ((), ())), preferred_element_type=jnp.float32
         )
 
         dk_intra = jax.lax.dot_general(
-            dqk, q if k_inter is None else q_inter, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32
+            dyv, q if k_inter is None else q_inter, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32
         )
 
         if f_diagonal:
