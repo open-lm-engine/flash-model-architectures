@@ -64,6 +64,7 @@ def _linear_attention_backward_kernel(
         qk = jax.lax.dot_general(q, k, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
         qk = jnp.where(causal_mask, qk, 0).astype(dtype)
 
+        dyv = jnp.zeros((BLOCK_SIZE_S, BLOCK_SIZE_S), jnp.float32)
         dq = jnp.zeros((BLOCK_SIZE_S, K), jnp.float32)
         dk = jnp.zeros((BLOCK_SIZE_S, K), jnp.float32)
 
