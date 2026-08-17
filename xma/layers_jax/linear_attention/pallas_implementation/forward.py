@@ -12,6 +12,13 @@ import jax.numpy as jnp
 from ....math import ceil_divide
 
 
+def _get_causal_mask(BLOCK_SIZE_S):
+    row = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, BLOCK_SIZE_S), 0)
+    col = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, BLOCK_SIZE_S), 1)
+    causal_mask = row >= col
+    return causal_mask
+
+
 def _linear_attention_forward_kernel(
     q_ref,
     k_ref,
@@ -52,9 +59,7 @@ def _linear_attention_forward_kernel(
         else:
             f_cumsum_ = f_cumsum_.transpose(1, 0)
 
-    row = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, BLOCK_SIZE_S), 0)
-    col = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, BLOCK_SIZE_S), 1)
-    causal_mask = row >= col
+    causal_mask = _get_causal_mask(BLOCK_SIZE_S)
 
     for n in range(N):
         q = q_[n // Gq].astype(dtype)

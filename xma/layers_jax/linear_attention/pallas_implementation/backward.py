@@ -10,6 +10,7 @@ import jax.experimental.pallas.tpu as pltpu
 import jax.numpy as jnp
 
 from ....math import ceil_divide
+from .forward import _get_causal_mask
 
 
 def _linear_attention_backward_kernel(
@@ -64,11 +65,9 @@ def _linear_attention_backward_kernel(
         else:
             f_cumsum_ = f_cumsum_.transpose(1, 0)
 
-    row = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, BLOCK_SIZE_S), 0)
-    col = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, BLOCK_SIZE_S), 1)
-    causal_mask = row >= col
-
+    causal_mask = _get_causal_mask(BLOCK_SIZE_S)
     K = q_.shape[-1]
+
     for n in range(N):
         q = q_[n // Gq].astype(dtype)
         k = k_[n // Gk].astype(dtype)
@@ -144,9 +143,7 @@ def _linear_attention_backward_kernel(
             dh_next = dh
             if f_cumsum_ is not None:
                 dh_next = dh * (e_last[:, None] if f_diagonal else e_last)
-
             dh_next += jax.lax.dot_general(q_inter, dy, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32)
-
             dh_scratch[n, :, start:end] = dh_next
 
             dqk += jax.lax.dot_general(dy, v, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
