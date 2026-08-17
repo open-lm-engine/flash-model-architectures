@@ -27,7 +27,9 @@ def _linear_attention_state_passing_kernel(
     NUM_BLOCKS_V: int,
     BLOCK_SIZE_V: int,
 ) -> None:
-    @pl.when(pl.program_id(1) == 0)
+    BLOCK_ID_S = pl.program_id(1)
+
+    @pl.when(BLOCK_ID_S == 0)
     def _():
         if h0_ref is None:
             h_scratch[...] = jnp.zeros_like(h_scratch)
