@@ -99,16 +99,16 @@ def _linear_attention_forward_kernel(
                 h *= jnp.exp(log_f_last)
                 k *= jnp.exp(log_f_last - log_f)[:, None]
 
-            k = k.astype(dtype)
+        k = k.astype(dtype)
 
-            y *= attention_multiplier
-            y_ref[:, n, :] = y.astype(y_ref.dtype)
+        y *= attention_multiplier
+        y_ref[:, n, :] = y.astype(y_ref.dtype)
 
-            h += jax.lax.dot_general(k, v, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32)
-            h_scratch[n] = h
+        h += jax.lax.dot_general(k, v, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32)
+        h_scratch[n] = h
 
-            if ht_ref is not None:
-                ht_ref[n] = h.astype(ht_ref.dtype)
+        if ht_ref is not None:
+            ht_ref[n] = h.astype(ht_ref.dtype)
 
 
 @partial(jax.jit, static_argnames=("attention_multiplier", "BLOCK_SIZE_S", "BLOCK_SIZE_V", "output_state"))
