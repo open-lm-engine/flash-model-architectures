@@ -18,33 +18,32 @@ def _linear_attention_reference(
     B, S, Nq, K = q.shape
     Nk = k.shape[-2]
     Nv, V = v.shape[-2:]
+    Nf = 0 if f is None else f.shape[2]
 
-    Nf = 0
     if f is not None:
         if f.ndim == 3:
             f = f[..., None]
 
-        Nf = f.shape[-2]
         f = f.astype(jnp.float32)
 
     N = max(Nq, Nk, Nv, Nf)
     dtype = q.dtype
 
-    q = jnp.repeat(q, N // Nq, axis=-2).astype(jnp.float32)
-    k = jnp.repeat(k, N // Nk, axis=-2).astype(jnp.float32)
-    v = jnp.repeat(v, N // Nv, axis=-2).astype(jnp.float32)
+    q = jnp.repeat(q, N // Nq, axis=-2)
+    k = jnp.repeat(k, N // Nk, axis=-2)
+    v = jnp.repeat(v, N // Nv, axis=-2)
     if f is not None:
-        f = jnp.repeat(v, N // Nf, axis=-2).astype(jnp.float32)
+        f = jnp.repeat(f, N // Nf, axis=-2)
 
     h = jnp.zeros((B, N, K, V), dtype=jnp.float32) if h0 is None else h0.astype(jnp.float32)
 
     y = []
     for s in range(S):
         if f is not None:
-            h *= f[:, s, ..., None]
+            h *= jnp.exp(f[:, s, ..., None].astype(jnp.float32))
 
-        h = h + k[:, s, ..., None] * v[:, s, :, None, :]
-        y.append(jnp.einsum("bnk,bnkv->bnv", q[:, s], h))
+        h += k[:, s, ..., None].astype(jnp.float32) * v[:, s, :, None, :].astype(jnp.float32)
+        y.append(jnp.einsum("bnk,bnkv->bnv", q[:, s].astype(jnp.float32), h))
 
     y = jnp.stack(y, axis=1) * attention_multiplier
 

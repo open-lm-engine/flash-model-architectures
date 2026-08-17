@@ -128,7 +128,7 @@ def test_linear_attention_pallas(
             q,
             k,
             v,
-            h0,
+            input_state=h0,
             attention_multiplier=_ATTENTION_MULTIPLIER,
             BLOCK_SIZE_S=BLOCK_SIZE_S,
             BLOCK_SIZE_V=BLOCK_SIZE_V,

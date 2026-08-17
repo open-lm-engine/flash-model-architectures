@@ -38,6 +38,13 @@ def linear_attention_jax(
     :type key: jax.Array
     :param value: value tensor of shape (B, S, Nv, V)
     :type value: jax.Array
+    :param forget: forget-gate log-decay of shape (B, S, Nf) or (B, S, Nf, K), where Nf = 1 (a
+        single gate shared across heads) or a divisor of the head count; the rank-4 form is a
+        diagonal gate that decays each key head-dim independently. The multiplicative decay per
+        position is exp(forget), so values are expected to be <= 0. None disables the gate. The
+        pallas kernels consume the chunk-local cumsum of these values (see _cumulative_log_decay).
+        Defaults to None.
+    :type forget: jax.Array | None
     :param input_state: starting state of shape (B, N, K, V), where N = max{Nq, Nk, Nv}. None means starting
         state is 0 tensor. Defaults to None.
     :type input_state: jax.Array | None
@@ -69,8 +76,14 @@ def linear_attention_jax(
     Nq = query.shape[-2]
     Nk = key.shape[-2]
     Nv = value.shape[-2]
+    Nf = 0 if forget is None else forget.shape[2]
 
-    N = max(Nq, Nk, Nv)
+    if forget is not None:
+        assert forget.ndim in (3, 4)
+        assert forget.shape[0] == B
+        assert forget.shape[1] == S
+
+    N = max(Nq, Nk, Nv, Nf)
 
     assert N % Nq == 0
     assert N % Nk == 0
@@ -79,6 +92,11 @@ def linear_attention_jax(
     assert query.shape == (B, S, Nq, K)
     assert key.shape == (B, S, Nk, K)
     assert value.shape == (B, S, Nv, V)
+
+    if forget is not None:
+        assert N % Nf == 0
+        if forget.ndim == 4:
+            assert forget.shape[-1] == K
 
     if input_state is not None:
         assert input_state.shape == (B, N, K, V)
@@ -114,9 +132,14 @@ def linear_attention_jax(
         V_pad = ceil_divide(V, BLOCK_SIZE_V) * BLOCK_SIZE_V - V
 
         if S_pad != 0 or K_pad != 0:
-            pad = ((0, 0), (0, S_pad), (0, 0), (0, K_pad))
+            pad = [(0, 0), (0, S_pad), (0, 0), (0, K_pad)]
             query = jnp.pad(query, pad)
             key = jnp.pad(key, pad)
+
+            if forget is not None:
+                if forget.ndim == 3:
+                    pad = pad[:-1]
+                forget = jnp.pad(forget, pad)
 
         if S_pad != 0 or V_pad != 0:
             value = jnp.pad(value, ((0, 0), (0, S_pad), (0, 0), (0, V_pad)))
