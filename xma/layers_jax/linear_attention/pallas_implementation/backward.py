@@ -114,8 +114,8 @@ def _linear_attention_backward_kernel(
         dk = jnp.zeros((BLOCK_SIZE_S, K), jnp.float32)
 
         if log_f_cumsum_ is not None:
-            df = jnp.zeros((BLOCK_SIZE_S, K) if f_diagonal else (BLOCK_SIZE_S,), jnp.float32)
-            df_last = jnp.zeros((K,) if f_diagonal else (), jnp.float32)
+            df = jnp.zeros((BLOCK_SIZE_S, K), jnp.float32)
+            df_last = jnp.zeros((K,), jnp.float32)
 
         for BLOCK_ID_V in range(NUM_BLOCKS_V):
             start = BLOCK_ID_V * BLOCK_SIZE_V
@@ -147,12 +147,8 @@ def _linear_attention_backward_kernel(
                 df_k = k.astype(jnp.float32) * _dk
                 df_decay = h.astype(jnp.float32) * dh
 
-                if f_diagonal:
-                    df += df_q - df_k
-                    df_last += df_k.sum(axis=0) + f_last * df_decay.sum(axis=1)
-                else:
-                    df += df_q.sum(axis=-1) - df_k.sum(axis=-1)
-                    df_last += df_k.sum() + f_last * df_decay.sum()
+                df += df_q - df_k
+                df_last += df_k.sum(axis=0) + f_last * df_decay.sum(axis=1)
 
             if log_f_cumsum_ is not None:
                 dh *= f_last[:, None] if f_diagonal else f_last
@@ -187,15 +183,13 @@ def _linear_attention_backward_kernel(
         if log_f_cumsum_ is not None:
             suffix_sum = jnp.where(_get_causal_mask(BLOCK_SIZE_S, transpose=True), 1.0, 0.0)
 
+            df += q.astype(jnp.float32) * dq_intra - k.astype(jnp.float32) * dk_intra
+            dlog_f = jax.lax.dot_general(suffix_sum, df, (((1,), (0,)), ((), ()))) + df_last
+
             if f_diagonal:
-                df += q.astype(jnp.float32) * dq_intra - k.astype(jnp.float32) * dk_intra
-                dlog_f = jax.lax.dot_general(suffix_sum, df, (((1,), (0,)), ((), ()))) + df_last
                 df_ref[:, n, :] = dlog_f.astype(df_ref.dtype)
             else:
-                df += (q.astype(jnp.float32) * dq_intra).sum(axis=-1)
-                df -= (k.astype(jnp.float32) * dk_intra).sum(axis=-1)
-                dlog_f = jax.lax.dot_general(suffix_sum, df, (((1,), (0,)), ((), ()))) + df_last
-                df_ref[:, n] = dlog_f.astype(df_ref.dtype)
+                df_ref[:, n] = dlog_f.sum(axis=-1).astype(df_ref.dtype)
 
     @pl.when(S_CELLS_VISITED == NUM_BLOCKS_S - 1)
     def _():
