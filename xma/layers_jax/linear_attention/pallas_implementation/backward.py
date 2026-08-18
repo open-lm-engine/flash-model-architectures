@@ -77,50 +77,45 @@ def _linear_attention_backward_kernel(
             qk = jax.lax.dot_general(q, k, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
             qk = jnp.where(causal_mask, qk, 0).astype(dtype)
 
-            q_inter = q
-            k_state = k
-        elif f_diagonal:
-            # diagonal (per-key-dimension) gate: as in the forward, the intra-chunk decay is folded
-            # into the matmul operands since it does not factor out of the q@k contraction;
-            # exp(c), exp(c_last) and exp(c_last - c) are bounded in [0, 1], while exp(-c) grows with
-            # the in-chunk decay budget and is finite as long as |c_last| < ~88 (fp32 range)
-            c = f_cumsum_[n // Gf]
-            c_last = c[-1]
-            e_c = jnp.exp(c)
-            e_last = jnp.exp(c_last)
-            e_w2 = jnp.exp(c_last[None, :] - c)
-
-            q_inter = (q * e_c).astype(dtype)
-            k_inter = (k * jnp.exp(-c)).astype(dtype)
-            k_state = (k * e_w2).astype(dtype)
-
-            A = jax.lax.dot_general(q_inter, k_inter, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
-            A = jnp.where(causal_mask, A, 0).astype(dtype)
-            D = None
+            qf = q
+            kf_last = k
+            kf_inv = None
         else:
-            # scalar (per-position) gate: f_cumsum is the chunk-local inclusive cumsum of the
-            # per-position log-decay, so every exponent is non-positive and exp() stays in [0, 1]
-            c = f_cumsum_[n // Gf]
-            c_last = c[-1]
-            e_c = jnp.exp(c)
-            e_last = jnp.exp(c_last)
-            e_w2 = jnp.exp(c_last - c)
-            D = jnp.exp(c[:, None] - c[None, :])
+            log_f = log_f_cumsum_[n // Gf].astype(jnp.float32)
+            log_f_last = log_f[-1]
 
-            A = jax.lax.dot_general(q, k, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
-            A = jnp.where(causal_mask, A * D, 0).astype(dtype)
+            f = jnp.exp(log_f)
+            f_last = jnp.exp(log_f_last)
 
-            q_inter = (q * e_c[:, None]).astype(dtype)
-            k_state = (k * e_w2[:, None]).astype(dtype)
-            k_inter = None
+            if f_diagonal:
+                f_to_last = jnp.exp(log_f_last[None, :] - log_f)
+                f_inv = jnp.exp(-log_f)
+
+                qf = (q * f).astype(dtype)
+                kf_inv = (k * f_inv).astype(dtype)
+                kf_last = (k * f_to_last).astype(dtype)
+
+                qk = jax.lax.dot_general(qf, kf_inv, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
+            else:
+                f_to_last = jnp.exp(log_f_last - log_f)
+                f_ij = jnp.exp(log_f[:, None] - log_f[None, :])
+
+                qf = (q * f[:, None]).astype(dtype)
+                kf_last = (k * f_to_last[:, None]).astype(dtype)
+                kf_inv = None
+
+                qk = jax.lax.dot_general(q, k, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
+                qk *= f_ij
+
+            qk = jnp.where(causal_mask, qk, 0).astype(dtype)
 
         dyv = jnp.zeros((BLOCK_SIZE_S, BLOCK_SIZE_S), jnp.float32)
         dq = jnp.zeros((BLOCK_SIZE_S, K), jnp.float32)
         dk = jnp.zeros((BLOCK_SIZE_S, K), jnp.float32)
 
-        if f_cumsum_ is not None:
-            dc = jnp.zeros((BLOCK_SIZE_S, K) if f_diagonal else (BLOCK_SIZE_S,), jnp.float32)
-            dcL = jnp.zeros((K,) if f_diagonal else (), jnp.float32)
+        if log_f_cumsum_ is not None:
+            df = jnp.zeros((BLOCK_SIZE_S, K) if f_diagonal else (BLOCK_SIZE_S,), jnp.float32)
+            df_last = jnp.zeros((K,) if f_diagonal else (), jnp.float32)
 
         for BLOCK_ID_V in range(NUM_BLOCKS_V):
             start = BLOCK_ID_V * BLOCK_SIZE_V
@@ -133,58 +128,55 @@ def _linear_attention_backward_kernel(
 
             dv = jax.lax.dot_general(qk, dy, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32)
             dv += jax.lax.dot_general(
-                k_state, dh.astype(dtype), (((1,), (0,)), ((), ())), preferred_element_type=jnp.float32
+                kf_last, dh.astype(dtype), (((1,), (0,)), ((), ())), preferred_element_type=jnp.float32
             )
             dv_ref[:, n, start:end] = dv.astype(dtype)
 
-            dh_next = dh
-            if f_cumsum_ is not None:
-                dh_next = dh * (e_last[:, None] if f_diagonal else e_last)
-            dh_next += jax.lax.dot_general(q_inter, dy, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32)
-            dh_scratch[n, :, start:end] = dh_next
+            _dq = jax.lax.dot_general(dy, h, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
+            if log_f_cumsum_ is not None:
+                _dq *= f if f_diagonal else f[:, None]
+            dq += _dq
+
+            _dk = jax.lax.dot_general(v, dh, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
+            if log_f_cumsum_ is not None:
+                _dk *= f_to_last if f_diagonal else f_to_last[:, None]
+            dk += _dk
+
+            if log_f_cumsum_ is not None:
+                df_q = q.astype(jnp.float32) * _dq
+                df_k = k.astype(jnp.float32) * _dk
+                df_decay = h.astype(jnp.float32) * dh
+
+                if f_diagonal:
+                    df += df_q - df_k
+                    df_last += df_k.sum(axis=0) + f_last * df_decay.sum(axis=1)
+                else:
+                    df += df_q.sum(axis=-1) - df_k.sum(axis=-1)
+                    df_last += df_k.sum() + f_last * df_decay.sum()
+
+            if log_f_cumsum_ is not None:
+                dh *= f_last[:, None] if f_diagonal else f_last
+            dh += jax.lax.dot_general(qf, dy, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32)
+            dh_scratch[n, :, start:end] = dh
 
             dyv += jax.lax.dot_general(dy, v, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
 
-            dq_inter = jax.lax.dot_general(dy, hc, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
-            if f_cumsum_ is not None:
-                dq_inter = dq_inter * (e_c if f_diagonal else e_c[:, None])
-            dq += dq_inter
-
-            dk_state = jax.lax.dot_general(v, dh, (((1,), (1,)), ((), ())), preferred_element_type=jnp.float32)
-            if f_cumsum_ is not None:
-                dk_state = dk_state * (e_w2 if f_diagonal else e_w2[:, None])
-            dk += dk_state
-
-            if f_cumsum_ is not None:
-                dc_q = q.astype(jnp.float32) * dq_inter
-                dc_k = k.astype(jnp.float32) * dk_state
-                # state decay term exp(c_last) * h contributes to c[-1]
-                dc_decay = hc.astype(jnp.float32) * dh
-
-                if f_diagonal:
-                    dc += dc_q - dc_k
-                    dcL += dc_k.sum(axis=0) + e_last * dc_decay.sum(axis=1)
-                else:
-                    dc += dc_q.sum(axis=-1) - dc_k.sum(axis=-1)
-                    dcL += dc_k.sum() + e_last * dc_decay.sum()
-
         dyv = jnp.where(causal_mask, dyv, 0)
-        if f_cumsum_ is not None and not f_diagonal:
-            # scalar gate: the intra-chunk decay exp(c[i] - c[j]) sits on the masked (S, S) matrix
-            dyv = dyv * D
+        if log_f_cumsum_ is not None and not f_diagonal:
+            dyv *= f_ij
         dyv = dyv.astype(dtype)
 
         dq_intra = jax.lax.dot_general(
-            dyv, k if k_inter is None else k_inter, (((1,), (0,)), ((), ())), preferred_element_type=jnp.float32
+            dyv, k if kf_inv is None else kf_inv, (((1,), (0,)), ((), ())), preferred_element_type=jnp.float32
         )
 
         dk_intra = jax.lax.dot_general(
-            dyv, q if k_inter is None else q_inter, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32
+            dyv, q if kf_inv is None else qf, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32
         )
 
         if f_diagonal:
-            dq_intra = dq_intra * e_c
-            dk_intra = dk_intra * jnp.exp(-c)
+            dq_intra *= f
+            dk_intra *= f_inv
 
         dq += dq_intra
         dk += dk_intra
@@ -192,14 +184,14 @@ def _linear_attention_backward_kernel(
         dq_ref[:, n, :] = dq.astype(dtype)
         dk_ref[:, n, :] = dk.astype(dtype)
 
-        if f_cumsum_ is not None:
+        if log_f_cumsum_ is not None:
             if f_diagonal:
-                dc += q.astype(jnp.float32) * dq_intra - k.astype(jnp.float32) * dk_intra
-                df_ref[:, n, :] = dc.at[-1, :].add(dcL).astype(df_ref.dtype)
+                df += q.astype(jnp.float32) * dq_intra - k.astype(jnp.float32) * dk_intra
+                df_ref[:, n, :] = df.at[-1, :].add(df_last).astype(df_ref.dtype)
             else:
-                dc += (q.astype(jnp.float32) * dq_intra).sum(axis=-1)
-                dc -= (k.astype(jnp.float32) * dk_intra).sum(axis=-1)
-                df_ref[:, n] = dc.at[-1].add(dcL).astype(df_ref.dtype)
+                df += (q.astype(jnp.float32) * dq_intra).sum(axis=-1)
+                df -= (k.astype(jnp.float32) * dk_intra).sum(axis=-1)
+                df_ref[:, n] = df.at[-1].add(df_last).astype(df_ref.dtype)
 
     @pl.when(S_CELLS_VISITED == NUM_BLOCKS_S - 1)
     def _():
