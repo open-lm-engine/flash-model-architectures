@@ -31,18 +31,6 @@ def _cumulative_log_decay(log_f: jax.Array | None, BLOCK_SIZE_S: int) -> jax.Arr
     return log_f_cumsum
 
 
-def _invert_cumulative_log_decay(dlog_f_cumsum: jax.Array, BLOCK_SIZE_S: int) -> jax.Array:
-    B, S = dlog_f_cumsum.shape[:2]
-    dlog_f = dlog_f_cumsum.reshape(B, S // BLOCK_SIZE_S, BLOCK_SIZE_S, *dlog_f_cumsum.shape[2:])
-
-    dlog_f = jnp.flip(dlog_f, axis=2)
-    dlog_f = jnp.cumsum(dlog_f, axis=2)
-    dlog_f = jnp.flip(dlog_f, axis=2)
-    dlog_f = dlog_f.reshape(B, S, *dlog_f_cumsum.shape[2:])
-
-    return dlog_f
-
-
 @partial(jax.custom_vjp, nondiff_argnums=(5, 6, 7, 8))
 def _linear_attention_pallas(
     q: jax.Array,
@@ -126,7 +114,7 @@ def _linear_attention_backward(
         k=k, v=v, log_f_cumsum=log_f_cumsum, h0=h0, N=N, BLOCK_SIZE_S=BLOCK_SIZE_S, BLOCK_SIZE_V=BLOCK_SIZE_V
     )
 
-    dq, dk, dv, dlog_f_cumsum, dh0 = _linear_attention_backward_core(
+    dq, dk, dv, dlog_f, dh0 = _linear_attention_backward_core(
         q=q,
         k=k,
         v=v,
@@ -143,11 +131,9 @@ def _linear_attention_backward(
     dk = dk.reshape(B, S, Nk, Gk, K).sum(axis=3)
     dv = dv.reshape(B, S, Nv, Gv, V).sum(axis=3)
 
-    dlog_f = None
     if log_f_cumsum is not None:
         Gf = N // Nf
-        dlog_f_cumsum = dlog_f_cumsum.reshape(B, S, Nf, Gf, *dlog_f_cumsum.shape[3:]).sum(axis=3)
-        dlog_f = _invert_cumulative_log_decay(dlog_f_cumsum, BLOCK_SIZE_S)
+        dlog_f = dlog_f.reshape(B, S, Nf, Gf, *dlog_f.shape[3:]).sum(axis=3)
 
     if h0 is None:
         dh0 = None

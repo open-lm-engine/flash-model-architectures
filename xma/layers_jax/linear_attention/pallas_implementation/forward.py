@@ -12,10 +12,16 @@ import jax.numpy as jnp
 from ....math import ceil_divide
 
 
-def _get_causal_mask(BLOCK_SIZE_S):
+def _get_causal_mask(BLOCK_SIZE_S, transpose: bool = False):
     row = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, BLOCK_SIZE_S), 0)
     col = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, BLOCK_SIZE_S), 1)
-    causal_mask = row >= col
+
+    # actual tranpose on last 2 dims is expensive on TPUs
+    if transpose:
+        causal_mask = row >= col
+    else:
+        causal_mask = row <= col
+
     return causal_mask
 
 

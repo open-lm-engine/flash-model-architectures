@@ -185,18 +185,17 @@ def _linear_attention_backward_kernel(
         dk_ref[:, n, :] = dk.astype(dtype)
 
         if log_f_cumsum_ is not None:
+            suffix_sum = _get_causal_mask(BLOCK_SIZE_S, transpose=True)
+
             if f_diagonal:
                 df += q.astype(jnp.float32) * dq_intra - k.astype(jnp.float32) * dk_intra
-                # overlap stores: scatter-add is not implementable on Pallas TPU
-                df_ref[:, n, :] = df.astype(df_ref.dtype)
-                df_ref[BLOCK_SIZE_S - 1 :, n, :] = (df[-1] + df_last).astype(df_ref.dtype)[None, :]
+                dlog_f = jax.lax.dot_general(suffix_sum, df, (((1,), (0,)), ((), ()))) + df_last
+                df_ref[:, n, :] = dlog_f.astype(df_ref.dtype)
             else:
                 df += (q.astype(jnp.float32) * dq_intra).sum(axis=-1)
                 df -= (k.astype(jnp.float32) * dk_intra).sum(axis=-1)
-                # overlap stores: scatter-add is not implementable on Pallas TPU, and stores
-                # into a VMEM ref must be non-scalar, hence the trailing size-1 slice
-                df_ref[:, n] = df.astype(df_ref.dtype)
-                df_ref[BLOCK_SIZE_S - 1 :, n] = (df[-1] + df_last).astype(df_ref.dtype)[None]
+                dlog_f = jax.lax.dot_general(suffix_sum, df, (((1,), (0,)), ((), ()))) + df_last
+                df_ref[:, n] = dlog_f.astype(df_ref.dtype)
 
     @pl.when(S_CELLS_VISITED == NUM_BLOCKS_S - 1)
     def _():
