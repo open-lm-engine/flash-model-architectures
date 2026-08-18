@@ -18,9 +18,9 @@ def _get_causal_mask(BLOCK_SIZE_S, transpose: bool = False):
 
     # actual tranpose on last 2 dims is expensive on TPUs
     if transpose:
-        causal_mask = row >= col
-    else:
         causal_mask = row <= col
+    else:
+        causal_mask = row >= col
 
     return causal_mask
 

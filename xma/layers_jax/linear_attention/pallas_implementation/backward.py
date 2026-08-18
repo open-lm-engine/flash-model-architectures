@@ -185,7 +185,7 @@ def _linear_attention_backward_kernel(
         dk_ref[:, n, :] = dk.astype(dtype)
 
         if log_f_cumsum_ is not None:
-            suffix_sum = _get_causal_mask(BLOCK_SIZE_S, transpose=True)
+            suffix_sum = jnp.where(_get_causal_mask(BLOCK_SIZE_S, transpose=True), 1.0, 0.0)
 
             if f_diagonal:
                 df += q.astype(jnp.float32) * dq_intra - k.astype(jnp.float32) * dk_intra
