@@ -9,7 +9,7 @@ import jax.numpy as jnp
 
 from ....math import ceil_divide
 from .backward import _linear_attention_backward_core
-from .forward import _linear_attention_forward_core
+from .forward import _BATCHED_HEAD_GROUP, _linear_attention_forward_core
 from .state_passing import _linear_attention_state_passing_core
 
 
@@ -43,7 +43,19 @@ def _linear_attention_pallas(
     BLOCK_SIZE_S: int,
     BLOCK_SIZE_V: int,
 ) -> tuple[jax.Array, jax.Array]:
-    log_f_cumsum = _cumulative_log_decay(log_f, BLOCK_SIZE_S)
+    # diagonal gates on the batched fast path skip the host-side chunk-local cumsum
+    # entirely: the batched kernel scans raw log_f inside pallas via a triangular
+    # systolic matmul. The host jnp.cumsum costs 1.8 ms at production (268 MB fp32
+    # scan) -- far more than the whole fused kernel (0.70 ms). This is only safe when
+    # the batched path is guaranteed to trigger (identical eligibility condition to
+    # forward.py's `batched` flag).
+    fused_diag_scan = False
+    if log_f is not None and log_f.ndim == 4:
+        Nq, Nk, Nv = q.shape[2], k.shape[2], v.shape[2]
+        N = max(Nq, Nk, Nv, log_f.shape[2])
+        fused_diag_scan = Nq == N and Nk == N and Nv == N and log_f.shape[2] == N and N % _BATCHED_HEAD_GROUP == 0
+
+    log_f_cumsum = log_f.astype(jnp.float32) if fused_diag_scan else _cumulative_log_decay(log_f, BLOCK_SIZE_S)
 
     return _linear_attention_forward_core(
         q=q,
@@ -55,6 +67,7 @@ def _linear_attention_pallas(
         output_state=output_state,
         BLOCK_SIZE_S=BLOCK_SIZE_S,
         BLOCK_SIZE_V=BLOCK_SIZE_V,
+        fused_diag_scan=fused_diag_scan,
     )
 
 

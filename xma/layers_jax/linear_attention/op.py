@@ -42,8 +42,9 @@ def linear_attention_jax(
         single gate shared across heads) or a divisor of the head count; the rank-4 form is a
         diagonal gate that decays each key head-dim independently. The multiplicative decay per
         position is exp(log_forget), so values are expected to be <= 0. None disables the gate.
-        The pallas kernels consume the chunk-local cumsum of these values (see
-        _cumulative_log_decay). Defaults to None.
+        The scalar-gated pallas kernels consume the chunk-local cumsum of these values (see
+        _cumulative_log_decay); the batched diagonal path consumes raw values and fuses the
+        chunk-local scan into the kernel via a triangular systolic matmul. Defaults to None.
     :type log_forget: jax.Array | None
     :param input_state: starting state of shape (B, N, K, V), where N = max{Nq, Nk, Nv}. None means starting
         state is 0 tensor. Defaults to None.
