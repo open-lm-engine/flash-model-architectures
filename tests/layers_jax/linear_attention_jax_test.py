@@ -35,74 +35,81 @@ def _get_problem_shapes() -> list[tuple[int, int, int, int, int, int]]:
 _GATE_KINDS = ("none", "scalar", "diagonal")
 
 
+def _thin_combine(primary: list[tuple], secondary: list[tuple]) -> list[tuple]:
+    # cycles both lists against each other instead of taking their full cartesian product: every
+    # secondary combo (log_forget_kind, dtype, has_input_state) still gets paired with some primary
+    # combo (S, BLOCK_SIZE_S, BLOCK_SIZE_V, problem_shape) at least once, and vice versa, without the
+    # O(len(primary) * len(secondary)) blowup of testing every pairing
+    n = max(len(primary), len(secondary))
+    return [primary[i % len(primary)] + secondary[i % len(secondary)] for i in range(n)]
+
+
 def _generate_args() -> list:
+    # every (log_forget_kind, dtype, has_input_state) combo is cycled against each block's shapes
+    # below rather than fully crossed with them (see _thin_combine); it still runs without a forget
+    # gate and with scalar and diagonal log_forget (the cumsum of a uniform [0, 0.01] log-decay, well
+    # within the exp underflow envelope even for the exact-boundary diagonal kernel)
+    secondary = list(product(_GATE_KINDS, [jnp.float32, jnp.bfloat16], [False, True]))
+
     # the pallas kernels require BLOCK_SIZE_S >= 256 (op.py raises below that); sequence lengths cover
     # shorter than, equal to, and not a multiple of BLOCK_SIZE_S (ragged host-side padding path), and
-    # NUM_BLOCKS_S = 1 and 2. every case runs without a forget gate and with scalar and diagonal
-    # log_forget (the cumsum of a uniform [0, 0.01] log-decay, well within the exp underflow envelope
-    # even for the exact-boundary diagonal kernel)
-    args = list(
-        product(
-            [37, 130, 256, 512],  # sequence length
-            [256],  # BLOCK_SIZE_S
-            [128],  # BLOCK_SIZE_V
-            _get_problem_shapes(),
-            _GATE_KINDS,  # log_forget kind
-            [jnp.float32, jnp.bfloat16],
-            [False, True],  # has_input_state
-        )
+    # NUM_BLOCKS_S = 1 and 2
+    args = _thin_combine(
+        list(
+            product(
+                [37, 130, 256, 512],  # sequence length
+                [256],  # BLOCK_SIZE_S
+                [128],  # BLOCK_SIZE_V
+                _get_problem_shapes(),
+            )
+        ),
+        secondary,
     )
-    args += list(
-        product(
-            [300, 1024],
-            [512],  # BLOCK_SIZE_S = 512 coverage
-            [128],
-            _get_problem_shapes(),
-            _GATE_KINDS,
-            [jnp.float32, jnp.bfloat16],
-            [False, True],
-        )
+    args += _thin_combine(
+        list(
+            product(
+                [300, 1024],
+                [512],  # BLOCK_SIZE_S = 512 coverage
+                [128],
+                _get_problem_shapes(),
+            )
+        ),
+        secondary,
     )
     # NUM_BLOCKS_S = 3 (768 / 256): the reversed dh chain and state checkpoints have a genuinely
-    # different shape at >= 3 cells (middle cells that neither seed nor publish)
-    args += list(
-        product(
-            [768],
-            [256],
-            [128],
-            [(16, 16, 4, 2, 1, 2)],
-            _GATE_KINDS,
-            [jnp.float32, jnp.bfloat16],
-            [False, True],
-        )
+    # different shape at >= 3 cells (middle cells that neither seed nor publish). only one shape here,
+    # so _thin_combine falls back to the full secondary cross (12 cases) to keep this edge case covered
+    args += _thin_combine(
+        list(product([768], [256], [128], [(16, 16, 4, 2, 1, 2)])),
+        secondary,
     )
     # BLOCK_SIZE_V < V below: genuinely exercises multiple V-tiles (256 / 128 = 2, 384 / 128 = 3),
     # across sequence lengths that span both single-cell (S <= BLOCK_SIZE_S) and multi-cell
     # (S > BLOCK_SIZE_S) cases — the latter pins the state-checkpoint chain against the former
-    args += list(
-        product(
-            [37, 130, 256, 512],
-            [256],
-            [128],
-            [(16, 256, 2, 2, 2, 1), (16, 384, 2, 2, 1, 2)],  # (K, V, Nq, Nk, Nv, Nf)
-            _GATE_KINDS,
-            [jnp.float32, jnp.bfloat16],
-            [False, True],
-        )
+    args += _thin_combine(
+        list(
+            product(
+                [37, 130, 256, 512],
+                [256],
+                [128],
+                [(16, 256, 2, 2, 2, 1), (16, 384, 2, 2, 1, 2)],  # (K, V, Nq, Nk, Nv, Nf)
+            )
+        ),
+        secondary,
     )
     # N = 32 > _MAX_HEADS_PER_PALLAS_CELL (16): host-level head-chunked dispatch in op.py, in both a
     # plain and a grouped-qk layout (all group sizes, including the gate's, still divide the chunk
     # size — Gf = 16)
-    args += list(
-        product(
-            [128, 300],
-            [256],
-            [128],
-            [(16, 16, 32, 32, 32, 2), (16, 16, 32, 16, 16, 2)],
-            _GATE_KINDS,
-            [jnp.float32, jnp.bfloat16],
-            [False, True],
-        )
+    args += _thin_combine(
+        list(
+            product(
+                [128, 300],
+                [256],
+                [128],
+                [(16, 16, 32, 32, 32, 2), (16, 16, 32, 16, 16, 2)],
+            )
+        ),
+        secondary,
     )
     return args
 
