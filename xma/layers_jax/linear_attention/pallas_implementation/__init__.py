@@ -55,7 +55,10 @@ def _linear_attention_pallas(
         N = max(Nq, Nk, Nv, log_f.shape[2])
         fused_diag_scan = Nq == N and Nk == N and Nv == N and log_f.shape[2] == N and N % _BATCHED_HEAD_GROUP == 0
 
-    log_f_cumsum = log_f.astype(jnp.float32) if fused_diag_scan else _cumulative_log_decay(log_f, BLOCK_SIZE_S)
+    # fused diagonal feeds RAW log_f (any dtype) to the kernel: forward_kernel upcasts each
+    # loaded tile to fp32 in-VMEM before the triangular scan matmul, so a host-side astype
+    # would only burn a 268 MB read+write pass (~0.34 ms at production shape).
+    log_f_cumsum = log_f if fused_diag_scan else _cumulative_log_decay(log_f, BLOCK_SIZE_S)
 
     return _linear_attention_forward_core(
         q=q,
