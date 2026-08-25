@@ -85,7 +85,18 @@ def _linear_attention_forward(
     BLOCK_SIZE_S: int,
     BLOCK_SIZE_V: int,
 ) -> tuple[tuple[jax.Array, jax.Array | None], tuple]:
-    log_f_cumsum = _cumulative_log_decay(log_f, BLOCK_SIZE_S)
+    # mirror the primal: fused diagonal feeds RAW log_f (any dtype) as the residual;
+    # the VJP-side state passing and backward kernels re-derive the chunk-local cumsum
+    # in-VMEM (identical eligibility to the fused primal, and to _linear_attention_backward).
+    fused_diag_scan = False
+    if log_f is not None and log_f.ndim == 4:
+        Nq_, Nk_, Nv_ = q.shape[2], k.shape[2], v.shape[2]
+        N_ = max(Nq_, Nk_, Nv_, log_f.shape[2])
+        fused_diag_scan = (
+            Nq_ == N_ and Nk_ == N_ and Nv_ == N_ and log_f.shape[2] == N_ and N_ % _BATCHED_HEAD_GROUP == 0
+        )
+
+    log_f_cumsum = log_f if fused_diag_scan else _cumulative_log_decay(log_f, BLOCK_SIZE_S)
 
     y, h = _linear_attention_forward_core(
         q=q,
@@ -97,6 +108,7 @@ def _linear_attention_forward(
         output_state=output_state,
         BLOCK_SIZE_S=BLOCK_SIZE_S,
         BLOCK_SIZE_V=BLOCK_SIZE_V,
+        fused_diag_scan=fused_diag_scan,
     )
 
     return (y, h), (q, k, v, log_f_cumsum, h0)
@@ -126,8 +138,41 @@ def _linear_attention_backward(
     Gk = N // Nk
     Gv = N // Nv
 
+    # a 4-d log_f_cumsum residual on the same batched-layout hypothesis as the VJP
+    # forward is RAW log_f on the fused path (see _linear_attention_forward).
+    fused_diag_scan = (
+        log_f_cumsum is not None
+        and log_f_cumsum.ndim == 4
+        and Nq == N
+        and Nk == Nv == N
+        and log_f_cumsum.shape[2] == N
+        and N % _BATCHED_HEAD_GROUP == 0
+    )
+
     h = _linear_attention_state_passing_core(
-        k=k, v=v, log_f_cumsum=log_f_cumsum, h0=h0, N=N, BLOCK_SIZE_S=BLOCK_SIZE_S, BLOCK_SIZE_V=BLOCK_SIZE_V
+        k=k,
+        v=v,
+        log_f_cumsum=log_f_cumsum,
+        h0=h0,
+        N=N,
+        BLOCK_SIZE_S=BLOCK_SIZE_S,
+        BLOCK_SIZE_V=BLOCK_SIZE_V,
+        fused_diag_scan=fused_diag_scan,
+    )
+
+    # batched bwd kernel: same eligibility as the forward's batched path (un-gated,
+    # scalar-shared-gate, or diagonal raw/cumsum log_f with full-head layout).
+    batched_bwd = (
+        Nq == N
+        and Nk == Nv == N
+        and N % _BATCHED_HEAD_GROUP == 0
+        and (
+            log_f_cumsum is None
+            or (log_f_cumsum.ndim == 3 and log_f_cumsum.shape[2] == 1)
+            # diagonal: only the fused full-head layout (raw log_f; a chunked cross-head-shared
+            # diagonal gate arrives as ndim==4 with Nf == 1 and must keep the per-head kernel)
+            or (log_f_cumsum.ndim == 4 and log_f_cumsum.shape[2] == N and fused_diag_scan)
+        )
     )
 
     dq, dk, dv, dlog_f, dh0 = _linear_attention_backward_core(
@@ -141,6 +186,8 @@ def _linear_attention_backward(
         attention_multiplier=attention_multiplier,
         BLOCK_SIZE_S=BLOCK_SIZE_S,
         BLOCK_SIZE_V=BLOCK_SIZE_V,
+        fused_diag_scan=fused_diag_scan,
+        batched=batched_bwd,
     )
 
     dq = dq.reshape(B, S, Nq, Gq, K).sum(axis=3)

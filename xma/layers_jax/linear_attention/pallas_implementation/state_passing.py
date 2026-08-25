@@ -26,6 +26,7 @@ def _linear_attention_state_passing_kernel(
     f_diagonal: bool,
     NUM_BLOCKS_V: int,
     BLOCK_SIZE_V: int,
+    fused_diag_scan: bool,
 ) -> None:
     BLOCK_ID_S = pl.program_id(1)
 
@@ -50,11 +51,20 @@ def _linear_attention_state_passing_kernel(
         else:
             log_f_cumsum_ = log_f_cumsum_.transpose(1, 0)
 
+    if fused_diag_scan:
+        # raw log_f in, chunk-local cumsum in-VMEM via a triangular systolic matmul;
+        # every downstream quantity is a chunk-relative difference or the chunk total,
+        # so the local cumsum is mathematically identical (see forward.py fused path).
+        BS = k_.shape[1]
+        TriL = jnp.tril(jnp.ones((BS, BS), jnp.float32))
+
     for n in range(N):
         k = k_[n // Gk].astype(dtype)
 
         if log_f_cumsum_ is not None:
             log_f = log_f_cumsum_[n // Gf].astype(jnp.float32)
+            if fused_diag_scan:
+                log_f = jax.lax.dot_general(TriL, log_f, (((1,), (0,)), ((), ())))
             log_f_last = log_f[-1]
 
             if f_diagonal:
@@ -81,7 +91,7 @@ def _linear_attention_state_passing_kernel(
             h_scratch[n, :, start:end] = h
 
 
-@partial(jax.jit, static_argnames=("N", "BLOCK_SIZE_S", "BLOCK_SIZE_V"))
+@partial(jax.jit, static_argnames=("N", "BLOCK_SIZE_S", "BLOCK_SIZE_V", "fused_diag_scan"))
 def _linear_attention_state_passing_core(
     k: jax.Array,
     v: jax.Array,
@@ -90,6 +100,7 @@ def _linear_attention_state_passing_core(
     N: int,
     BLOCK_SIZE_S: int,
     BLOCK_SIZE_V: int,
+    fused_diag_scan: bool = False,
 ) -> jax.Array:
     B, S, Nk, K = k.shape
     Nv, V = v.shape[-2:]
@@ -135,6 +146,7 @@ def _linear_attention_state_passing_core(
             f_diagonal=f_diagonal,
             NUM_BLOCKS_V=NUM_BLOCKS_V,
             BLOCK_SIZE_V=BLOCK_SIZE_V,
+            fused_diag_scan=fused_diag_scan,
         ),
         out_shape=jax.ShapeDtypeStruct(shape=(B, NUM_BLOCKS_S * N, K, V), dtype=k.dtype),
         grid=(B, NUM_BLOCKS_S),
