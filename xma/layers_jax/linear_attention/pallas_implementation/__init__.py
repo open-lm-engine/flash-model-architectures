@@ -43,24 +43,15 @@ def _linear_attention_pallas(
     BLOCK_SIZE_S: int,
     BLOCK_SIZE_V: int,
 ) -> tuple[jax.Array, jax.Array]:
-    # diagonal gates on the batched fast path skip the host-side chunk-local cumsum
-    # entirely: the batched kernel scans raw log_f inside pallas via a triangular
-    # systolic matmul. The host jnp.cumsum costs 1.8 ms at production (268 MB fp32
-    # scan) -- far more than the whole fused kernel (0.70 ms). This is only safe when
-    # the batched path is guaranteed to trigger (identical eligibility condition to
-    # forward.py's `batched` flag).
-    fused_diag_scan = False
+    fused_scan = False
     if log_f is not None and log_f.ndim == 4:
         Nq, Nk, Nv = q.shape[2], k.shape[2], v.shape[2]
         N = max(Nq, Nk, Nv, log_f.shape[2])
-        fused_diag_scan = Nq == N and Nk == N and Nv == N and log_f.shape[2] == N and N % _BATCHED_HEAD_GROUP == 0
+        fused_scan = Nq == N and Nk == N and Nv == N and log_f.shape[2] == N and N % _BATCHED_HEAD_GROUP == 0
 
-    # fused diagonal feeds RAW log_f (any dtype) to the kernel: forward_kernel upcasts each
-    # loaded tile to fp32 in-VMEM before the triangular scan matmul, so a host-side astype
-    # would only burn a 268 MB read+write pass (~0.34 ms at production shape).
-    log_f_cumsum = log_f if fused_diag_scan else _cumulative_log_decay(log_f, BLOCK_SIZE_S)
+    log_f_cumsum = log_f if fused_scan else _cumulative_log_decay(log_f, BLOCK_SIZE_S)
 
-    return _linear_attention_forward_core(
+    y, ht = _linear_attention_forward_core(
         q=q,
         k=k,
         v=v,
@@ -70,8 +61,10 @@ def _linear_attention_pallas(
         output_state=output_state,
         BLOCK_SIZE_S=BLOCK_SIZE_S,
         BLOCK_SIZE_V=BLOCK_SIZE_V,
-        fused_diag_scan=fused_diag_scan,
+        fused_scan=fused_scan,
     )
+
+    return y, ht
 
 
 def _linear_attention_forward(
@@ -85,9 +78,6 @@ def _linear_attention_forward(
     BLOCK_SIZE_S: int,
     BLOCK_SIZE_V: int,
 ) -> tuple[tuple[jax.Array, jax.Array | None], tuple]:
-    # mirror the primal: fused diagonal feeds RAW log_f (any dtype) as the residual;
-    # the VJP-side state passing and backward kernels re-derive the chunk-local cumsum
-    # in-VMEM (identical eligibility to the fused primal, and to _linear_attention_backward).
     fused_diag_scan = False
     if log_f is not None and log_f.ndim == 4:
         Nq_, Nk_, Nv_ = q.shape[2], k.shape[2], v.shape[2]

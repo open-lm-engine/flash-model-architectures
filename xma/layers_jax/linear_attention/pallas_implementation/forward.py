@@ -12,8 +12,6 @@ import jax.numpy as jnp
 from ....math import ceil_divide
 
 
-# the batched fast kernel groups this many heads into one batched systolic dot; measured sweet
-# spot on TPU v6e (2: 528 µs, 4: 486 µs, 8: 493 µs at B8 S4096 N16 K128 V128 bf16)
 _BATCHED_HEAD_GROUP = 4
 
 
@@ -21,7 +19,6 @@ def _get_causal_mask(BLOCK_SIZE_S, transpose: bool = False):
     row = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, BLOCK_SIZE_S), 0)
     col = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, BLOCK_SIZE_S), 1)
 
-    # actual tranpose on last 2 dims is expensive on TPUs
     if transpose:
         causal_mask = row <= col
     else:
@@ -122,11 +119,6 @@ def _linear_attention_forward_kernel(
             ht_ref[n] = h.astype(ht_ref.dtype)
 
 
-# diagonal batched path: when fused_diag_scan, log_f_cumsum_ref carries RAW per-position
-# log-decay; the chunk-local prefix (jnp.cumsum along S, 1.8 ms on host at production) is
-# fused as a triangular systolic matmul in-kernel (TriL(ones) @ raw), which is latency-free
-# against the streaming pipeline. fp32 matmul precision introduces <= ~1e-5 absolute error
-# vs jnp.cumsum -- far below bf16 rounding in the main line.
 def _linear_attention_forward_batched_kernel(
     q_ref,
     k_ref,
@@ -140,7 +132,7 @@ def _linear_attention_forward_batched_kernel(
     BLOCK_SIZE_S: int,
     N: int,
     f_diagonal: bool,
-    fused_diag_scan: bool,
+    fused_scan: bool,
 ) -> None:
     dtype = q_ref.dtype
 
@@ -157,8 +149,7 @@ def _linear_attention_forward_batched_kernel(
 
     causal_mask = _get_causal_mask(BLOCK_SIZE_S)
 
-    if log_f_cumsum_ref is not None and f_diagonal and fused_diag_scan:
-        # triangular prefix matrix, built once per cell: prefix[s] = sum_{t<=s} raw[t]
+    if log_f_cumsum_ref is not None and f_diagonal and fused_scan:
         TriL_batched = jnp.tril(jnp.ones((_BATCHED_HEAD_GROUP, BLOCK_SIZE_S, BLOCK_SIZE_S), jnp.float32))
 
     if log_f_cumsum_ref is not None and not f_diagonal:
@@ -167,6 +158,7 @@ def _linear_attention_forward_batched_kernel(
         exp_log_f = jnp.exp(log_f)
         h_decay = jnp.exp(log_f[-1])
         k_decay = jnp.exp(log_f[-1] - log_f)
+
     for n in range(0, N, _BATCHED_HEAD_GROUP):
         g = slice(n, n + _BATCHED_HEAD_GROUP)
         q = q_[g]
@@ -179,16 +171,12 @@ def _linear_attention_forward_batched_kernel(
 
         if log_f_cumsum_ref is not None:
             if f_diagonal:
-                # IMPORTANT: slice the fp32 decay block per head-group (and transpose only
-                # that slice) — hoisting a full (N, S, K) transpose per cell costs 2x wall
-                # from extra VMEM traffic (measured on TPU v6e: 2500 us vs 700 us).
                 log_f_g = log_f_cumsum_ref[...][:, g, :].transpose(1, 0, 2).astype(jnp.float32)
-                if fused_diag_scan:
-                    # chunk-local prefix via systolic triangular matmul: prefix[s] =
-                    # sum_{t<=s} raw[t]. Constant built once per cell above.
+                if fused_scan:
                     log_f_g = jax.lax.dot_general(
                         TriL_batched, log_f_g, (((2,), (1,)), ((0,), (0,))), preferred_element_type=jnp.float32
                     )
+
                 log_f_last = log_f_g[:, -1]  # (_BATCHED_HEAD_GROUP, K)
 
                 qf = (q * jnp.exp(log_f_g)).astype(dtype)
@@ -237,10 +225,8 @@ def _linear_attention_forward_core(
     output_state: bool,
     BLOCK_SIZE_S: int,
     BLOCK_SIZE_V: int,
-    fused_diag_scan: bool = False,
+    fused_scan: bool = False,
 ) -> tuple[jax.Array, jax.Array | None]:
-    # kwargs: fused_diag_scan=True means a diagonal log_f was passed RAW (not chunk-pre-
-    # summed); only valid on the batched path, which scans it in-kernel (see kernel doc).
     B, S, Nq, K = q.shape
     Nk = k.shape[2]
     Nv = v.shape[2]
@@ -276,14 +262,6 @@ def _linear_attention_forward_core(
                 index_map=lambda BLOCK_ID_B, _, BLOCK_ID_S: (BLOCK_ID_B, BLOCK_ID_S, 0),
             )
 
-    # batched fast path: equal q/k/v head counts (Gq == Gk == Gv == 1), head count divisible by
-    # _BATCHED_HEAD_GROUP, and either no forget gate, a scalar shared gate (Nf == 1), or a
-    # diagonal per-head gate (f_diagonal and Nf == N). A diagonal-tensor gate with Nf == 1
-    # (broadcast across heads in the K-dim layout) is NOT batched-eligible: the scalar
-    # branch of the batched kernel keys on the rank-3 (B, S, 1) layout. Everything else
-    # (grouped/GQA/MQA layouts, grouped gates, tiny head counts, diagonal gates shared
-    # across heads) keeps the general per-head loop kernel above. All kernels implement identical math (verified bit-exact at
-    # B8 S4096 N16 K128 V128 for the scalar-gate, diagonal-gate and no-gate variants).
     batched = (
         Gq == 1
         and Gk == 1
@@ -299,7 +277,7 @@ def _linear_attention_forward_core(
             BLOCK_SIZE_S=BLOCK_SIZE_S,
             N=N,
             f_diagonal=f_diagonal,
-            fused_diag_scan=fused_diag_scan,
+            fused_scan=fused_scan,
         )
     else:
         kernel_body = partial(
