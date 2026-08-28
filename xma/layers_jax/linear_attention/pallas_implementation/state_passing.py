@@ -27,6 +27,7 @@ def _linear_attention_state_passing_kernel(
     NUM_BLOCKS_V: int,
     BLOCK_SIZE_V: int,
     fused_diag_scan: bool,
+    HEAD_GROUP: int,
 ) -> None:
     BLOCK_ID_S = pl.program_id(1)
 
@@ -51,47 +52,83 @@ def _linear_attention_state_passing_kernel(
         else:
             log_f_cumsum_ = log_f_cumsum_.transpose(1, 0)
 
+    # batched fused diagonal path: mirrors _linear_attention_forward_batched_kernel --
+    # the chunk-local prefix is HEAD_GROUP heads' (BS,BS)@(BS,K) f32 systolic matmuls issued
+    # as ONE batched dot; the unbatched per-head variant idles half the 256-wide systolic
+    # array (output width K=128) and serializes pipeline fill/drain per head (measured:
+    # +414 us on v6e at production, none/diagonal = 239.5/653.9 us).
+    batched_diag = fused_diag_scan and f_diagonal and Gk == 1 and Gv == 1 and Gf == 1 and N % HEAD_GROUP == 0
+
     if fused_diag_scan:
         # raw log_f in, chunk-local cumsum in-VMEM via a triangular systolic matmul;
         # every downstream quantity is a chunk-relative difference or the chunk total,
         # so the local cumsum is mathematically identical (see forward.py fused path).
         BS = k_.shape[1]
-        TriL = jnp.tril(jnp.ones((BS, BS), jnp.float32))
+        if batched_diag:
+            TriL_batched = jnp.tril(jnp.ones((HEAD_GROUP, BS, BS), jnp.float32))
+        else:
+            TriL = jnp.tril(jnp.ones((BS, BS), jnp.float32))
 
-    for n in range(N):
-        k = k_[n // Gk].astype(dtype)
+    if batched_diag:
+        for n0 in range(0, N, HEAD_GROUP):
+            g = slice(n0, n0 + HEAD_GROUP)
+            # slice the head-group FIRST, then transpose (fwd comment: hoisting a full
+            # (N, S, K) transpose per cell costs 2x wall from extra VMEM traffic).
+            log_f_g = log_f_cumsum_ref[...][:, g, :].transpose(1, 0, 2).astype(jnp.float32)
+            log_f_g = jax.lax.dot_general(
+                TriL_batched, log_f_g, (((2,), (1,)), ((0,), (0,))), preferred_element_type=jnp.float32
+            )
+            log_f_last_g = log_f_g[:, -1]  # (HEAD_GROUP, K)
 
-        if log_f_cumsum_ is not None:
-            log_f = log_f_cumsum_[n // Gf].astype(jnp.float32)
-            if fused_diag_scan:
-                log_f = jax.lax.dot_general(TriL, log_f, (((1,), (0,)), ((), ())))
-            log_f_last = log_f[-1]
+            k_g = (k_[g].astype(dtype) * jnp.exp(log_f_last_g[:, None, :] - log_f_g)).astype(dtype)
+            f_last_g = jnp.exp(log_f_last_g)
 
-            if f_diagonal:
-                f_last = jnp.exp(log_f_last[:, None])
-                k *= jnp.exp(log_f_last[None, :] - log_f)
-            else:
-                f_last = jnp.exp(log_f_last)
-                k *= jnp.exp(log_f_last - log_f)[:, None]
+            for BLOCK_ID_V in range(NUM_BLOCKS_V):
+                start = BLOCK_ID_V * BLOCK_SIZE_V
+                end = start + BLOCK_SIZE_V
 
-            k = k.astype(dtype)
+                v_g = v_[g][:, :, start:end].astype(dtype)
+                h_g = h_scratch[g, :, start:end]
+                h_ref[g, :, start:end] = h_g.astype(h_ref.dtype)
 
-        for BLOCK_ID_V in range(NUM_BLOCKS_V):
-            start = BLOCK_ID_V * BLOCK_SIZE_V
-            end = start + BLOCK_SIZE_V
+                h_g *= f_last_g[:, :, None]
+                h_g += jax.lax.dot_general(k_g, v_g, (((1,), (1,)), ((0,), (0,))), preferred_element_type=jnp.float32)
+                h_scratch[g, :, start:end] = h_g
+    else:
+        for n in range(N):
+            k = k_[n // Gk].astype(dtype)
 
-            v = v_[n // Gv][:, start:end].astype(dtype)
-            h = h_scratch[n][:, start:end]
-            h_ref[n, :, start:end] = h.astype(h_ref.dtype)
+            if log_f_cumsum_ is not None:
+                log_f = log_f_cumsum_[n // Gf].astype(jnp.float32)
+                if fused_diag_scan:
+                    log_f = jax.lax.dot_general(TriL, log_f, (((1,), (0,)), ((), ())))
+                log_f_last = log_f[-1]
 
-            if log_f_cumsum_ref is not None:
-                h *= f_last
+                if f_diagonal:
+                    f_last = jnp.exp(log_f_last[:, None])
+                    k *= jnp.exp(log_f_last[None, :] - log_f)
+                else:
+                    f_last = jnp.exp(log_f_last)
+                    k *= jnp.exp(log_f_last - log_f)[:, None]
 
-            h += jax.lax.dot_general(k, v, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32)
-            h_scratch[n, :, start:end] = h
+                k = k.astype(dtype)
+
+            for BLOCK_ID_V in range(NUM_BLOCKS_V):
+                start = BLOCK_ID_V * BLOCK_SIZE_V
+                end = start + BLOCK_SIZE_V
+
+                v = v_[n // Gv][:, start:end].astype(dtype)
+                h = h_scratch[n][:, start:end]
+                h_ref[n, :, start:end] = h.astype(h_ref.dtype)
+
+                if log_f_cumsum_ref is not None:
+                    h *= f_last
+
+                h += jax.lax.dot_general(k, v, (((0,), (0,)), ((), ())), preferred_element_type=jnp.float32)
+                h_scratch[n, :, start:end] = h
 
 
-@partial(jax.jit, static_argnames=("N", "BLOCK_SIZE_S", "BLOCK_SIZE_V", "fused_diag_scan"))
+@partial(jax.jit, static_argnames=("N", "BLOCK_SIZE_S", "BLOCK_SIZE_V", "fused_diag_scan", "HEAD_GROUP"))
 def _linear_attention_state_passing_core(
     k: jax.Array,
     v: jax.Array,
@@ -101,6 +138,7 @@ def _linear_attention_state_passing_core(
     BLOCK_SIZE_S: int,
     BLOCK_SIZE_V: int,
     fused_diag_scan: bool = False,
+    HEAD_GROUP: int = 8,
 ) -> jax.Array:
     B, S, Nk, K = k.shape
     Nv, V = v.shape[-2:]
@@ -147,6 +185,7 @@ def _linear_attention_state_passing_core(
             NUM_BLOCKS_V=NUM_BLOCKS_V,
             BLOCK_SIZE_V=BLOCK_SIZE_V,
             fused_diag_scan=fused_diag_scan,
+            HEAD_GROUP=HEAD_GROUP,
         ),
         out_shape=jax.ShapeDtypeStruct(shape=(B, NUM_BLOCKS_S * N, K, V), dtype=k.dtype),
         grid=(B, NUM_BLOCKS_S),
