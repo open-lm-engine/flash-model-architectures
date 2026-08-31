@@ -148,7 +148,9 @@ def linear_attention_jax(
         if input_state is not None and (K_pad != 0 or V_pad != 0):
             input_state = jnp.pad(input_state, ((0, 0), (0, 0), (0, K_pad), (0, V_pad)))
 
-        y, ht = (_linear_attention_pallas if N <= _MAX_HEADS_PER_PALLAS_CELL else _linear_attention_pallas_chunked)(
+        function = _linear_attention_pallas if N <= _MAX_HEADS_PER_PALLAS_CELL else _linear_attention_pallas_chunked
+
+        y, ht = function(
             q=query,
             k=key,
             v=value,

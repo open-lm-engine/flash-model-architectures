@@ -150,7 +150,7 @@ def _linear_attention_forward_batched_kernel(
     causal_mask = _get_causal_mask(BLOCK_SIZE_S)
 
     if log_f_cumsum_ref is not None and f_diagonal and fused_scan:
-        TriL_batched = jnp.tril(jnp.ones((_BATCHED_HEAD_GROUP, BLOCK_SIZE_S, BLOCK_SIZE_S), jnp.float32))
+        causal_batched = jnp.tril(jnp.ones((_BATCHED_HEAD_GROUP, BLOCK_SIZE_S, BLOCK_SIZE_S), jnp.float32))
 
     if log_f_cumsum_ref is not None and not f_diagonal:
         log_f = log_f_cumsum_ref[...][:, 0].astype(jnp.float32)
@@ -174,7 +174,7 @@ def _linear_attention_forward_batched_kernel(
                 log_f_g = log_f_cumsum_ref[...][:, g, :].transpose(1, 0, 2).astype(jnp.float32)
                 if fused_scan:
                     log_f_g = jax.lax.dot_general(
-                        TriL_batched, log_f_g, (((2,), (1,)), ((0,), (0,))), preferred_element_type=jnp.float32
+                        causal_batched, log_f_g, (((2,), (1,)), ((0,), (0,))), preferred_element_type=jnp.float32
                     )
 
                 log_f_last = log_f_g[:, -1]  # (_BATCHED_HEAD_GROUP, K)
@@ -213,7 +213,7 @@ def _linear_attention_forward_batched_kernel(
 
 @partial(
     jax.jit,
-    static_argnames=("attention_multiplier", "BLOCK_SIZE_S", "BLOCK_SIZE_V", "output_state", "fused_diag_scan"),
+    static_argnames=("attention_multiplier", "BLOCK_SIZE_S", "BLOCK_SIZE_V", "output_state", "fused_scan"),
 )
 def _linear_attention_forward_core(
     q: jax.Array,
@@ -267,7 +267,7 @@ def _linear_attention_forward_core(
         and Gk == 1
         and Gv == 1
         and N % _BATCHED_HEAD_GROUP == 0
-        and (log_f_cumsum is None or (not f_diagonal and Nf == 1) or (f_diagonal and Nf == N))
+        and (log_f_cumsum is None or (not f_diagonal and Nf == 1) or (f_diagonal and Gf == 1))
     )
 
     if batched:
