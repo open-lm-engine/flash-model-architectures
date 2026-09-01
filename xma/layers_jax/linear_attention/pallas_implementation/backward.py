@@ -13,6 +13,15 @@ from ....math import ceil_divide
 from .forward import _BATCHED_HEAD_GROUP, _get_causal_mask
 
 
+# Round-23 negative result (2026-08-31, tune_bwd_vscale.json / bench_bwd_vscale.py): a knob
+# making the decay-to-operand scalings (qf/kf_inv/kf_last, MXU inputs) multiply in bf16 (f
+# pre-cast instead of f32-mul-then-cast) produced BITWISE-IDENTICAL gradients on both gated
+# lanes and identical wall/tune (1489.5 vs 1490.4 scalar, 1877.3 vs 1877.3 diag) — Mosaic
+# already pattern-matches the f32-scaling->bf16-cast to the same narrow multiply. The VALU
+# pressure (LLO: VALU 70%, VPOP 32-35%, VSTORE+spill 38-45%, MXU ~50%) is not in those
+# multiplies. Knob removed; no shipped code changed.
+
+
 # batched backward: same block layout as _linear_attention_backward_kernel, but heads are
 # processed _BATCHED_HEAD_GROUP-at-a-time with a leading head batch dim on every dot
 # (mirrors the forward's batched kernel): 4x fewer single-head matmul rounds per cell.
@@ -75,6 +84,15 @@ def _linear_attention_backward_batched_kernel(
 
     if log_f_cumsum_ref is not None and not f_diagonal:
         log_f = log_f_cumsum_[:, 0].astype(jnp.float32)
+        # Round 24a negative result: factoring f_ij_scalar = exp(a-b) as exp(a)*exp(-b)
+        # (outer product of two (BS,) vectors; the scalar residual is chunk-local so the
+        # bound class is unchanged) measured flat-equal tune (1492.1 vs 1490.1) — XLA/Mosaic
+        # already handles the (BS,BS) exp cheaply. Round 24b negative result: folding the
+        # decay into DOT OPERANDS (kf_inv=k*exp(-c) for qk; decay-scaled dy/v copies for
+        # dyv; raw k/q intra dots) REGRESSED (+1.5%: 1513.0) — extra bf16 operand copies
+        # feed the spill budget (LLO spill fractions 38-45%) — and DOUBLED dq rel error
+        # (0.0089 vs 0.0044 vs gold) from pre-MXU bf16 rounding of the scaled operands.
+        # Reverted to the shipped f32 matrix form below.
         f_ij_scalar = jnp.exp(log_f[:, None] - log_f[None, :])
         f_scalar = jnp.exp(log_f)
         f_last_scalar = jnp.exp(log_f[-1])
@@ -104,8 +122,16 @@ def _linear_attention_backward_batched_kernel(
 
                 f = jnp.exp(log_f_g)
                 f_last = jnp.exp(log_f_last)  # (G, K)
-                f_to_last = jnp.exp(log_f_last[:, None, :] - log_f_g)
                 f_inv = jnp.exp(-log_f_g)
+                # Round 23c: on the fused diagonal lane all window cumsums are chunk-local
+                # (TriL block-scanned residual), so exp(c_last - c) == f_last * f_inv exactly;
+                # trading a (G, BS, K) exp for a broadcast multiply relieves the VALU (LLO:
+                # VALU-bound at ~70%). The non-fused diagonal lane consumes GLOBAL cumsums,
+                # where factored exp must not overflow/underflow the same range, so it keeps
+                # the direct exp.
+                f_to_last = (
+                    f_last[:, None, :] * f_inv if fused_diag_scan else jnp.exp(log_f_last[:, None, :] - log_f_g)
+                )
 
                 qf = (q * f).astype(dtype)
                 kf_inv = (k * f_inv).astype(dtype)
@@ -125,6 +151,9 @@ def _linear_attention_backward_batched_kernel(
 
             qk = jnp.where(causal_mask[None], qk, 0).astype(dtype)
 
+        # Round-24c negative result: num_blocks_v==1 bf16 dyv narrowing (halving its live
+        # VMEM) regressed scalar +2.0% (bf16 dyv makes the f_ij post-multiply promote to
+        # f32 and cast back) and was flat on diag/none (1155.4/1835.1). f32 dyv restored.
         dyv = jnp.zeros((G, BLOCK_SIZE_S, BLOCK_SIZE_S), jnp.float32)
         dq = jnp.zeros((G, BLOCK_SIZE_S, K), jnp.float32)
         dk = jnp.zeros((G, BLOCK_SIZE_S, K), jnp.float32)
@@ -507,6 +536,14 @@ def _linear_attention_backward_core(
         )
     )
 
+    # Round-21 note: explicit input_output_aliases (dh0 over dht; df over dy) were tried
+    # to let the diagonal core compile STANDALONE at S>=1024 and reverted — any explicit
+    # alias overrides XLA's implicit composition-time choices (e.g. recycling the dead f32
+    # raw-log_f buffer, which pallas cannot express cross-dtype) and makes the COMPOSED
+    # pipeline E1001 instead. The shipped VJP relies on the implicit aliasing. For benchmark
+    # isolation the standalone diagonal call instead compiles under the benchmark-only env
+    # LIBTPU_INIT_ARGS="--xla_tpu_scoped_vmem_limit_kib=40960" — verified shipped-path-
+    # invariant (sweep deltas <=0.6%); see tune_bwd_core.py / OPTIMIZATION_LOG_R2 Round 21.
     kernel = pl.pallas_call(
         target,
         out_shape=(
