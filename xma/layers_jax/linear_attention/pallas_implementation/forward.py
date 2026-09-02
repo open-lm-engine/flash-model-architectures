@@ -166,27 +166,26 @@ def _linear_attention_forward_batched_kernel(
         v = v_[g]
         h = h_scratch[g]
 
-        if log_f_cumsum_ref is None or not f_diagonal:
-            qk = jax.lax.dot_general(q, k, (((2,), (2,)), ((0,), (0,))), preferred_element_type=jnp.float32)
-
-        if log_f_cumsum_ref is not None:
-            if f_diagonal:
-                log_f_g = log_f_cumsum_ref[...][:, g, :].transpose(1, 0, 2).astype(jnp.float32)
-                if fused_scan:
-                    log_f_g = jax.lax.dot_general(
-                        causal_batched, log_f_g, (((2,), (1,)), ((0,), (0,))), preferred_element_type=jnp.float32
-                    )
-
-                log_f_last = log_f_g[:, -1]  # (_BATCHED_HEAD_GROUP, K)
-
-                qf = (q * jnp.exp(log_f_g)).astype(dtype)
-                kf_inv = (k * jnp.exp(-log_f_g)).astype(dtype)
-                qk = jax.lax.dot_general(qf, kf_inv, (((2,), (2,)), ((0,), (0,))), preferred_element_type=jnp.float32)
-            else:
-                qf = (q * exp_log_f[None, :, None]).astype(dtype)
-                qk = qk * exp_decay[None]
-        else:
+        if log_f_cumsum_ref is None:
             qf = q
+            qk = jax.lax.dot_general(q, k, (((2,), (2,)), ((0,), (0,))), preferred_element_type=jnp.float32)
+        elif f_diagonal:
+            log_f_g = log_f_cumsum_ref[...][:, g, :].transpose(1, 0, 2).astype(jnp.float32)
+            if fused_scan:
+                log_f_g = jax.lax.dot_general(
+                    causal_batched, log_f_g, (((2,), (1,)), ((0,), (0,))), preferred_element_type=jnp.float32
+                )
+
+            log_f_last = log_f_g[:, -1]
+
+            qf = (q * jnp.exp(log_f_g)).astype(dtype)
+            kf_inv = (k * jnp.exp(-log_f_g)).astype(dtype)
+            qk = jax.lax.dot_general(qf, kf_inv, (((2,), (2,)), ((0,), (0,))), preferred_element_type=jnp.float32)
+        else:
+            qf = (q * exp_log_f[None, :, None]).astype(dtype)
+
+            qk = jax.lax.dot_general(q, k, (((2,), (2,)), ((0,), (0,))), preferred_element_type=jnp.float32)
+            qk *= exp_decay[None]
 
         qk = jnp.where(causal_mask[None], qk, 0).astype(dtype)
 
