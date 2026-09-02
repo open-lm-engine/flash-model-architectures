@@ -180,7 +180,7 @@ def _linear_attention_backward(
         attention_multiplier=attention_multiplier,
         BLOCK_SIZE_S=BLOCK_SIZE_S,
         BLOCK_SIZE_V=BLOCK_SIZE_V,
-        fused_diag_scan=fused_scan,
+        fused_scan=fused_scan,
         batched=batched_bwd,
     )
 

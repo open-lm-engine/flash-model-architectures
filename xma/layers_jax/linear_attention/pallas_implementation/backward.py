@@ -47,7 +47,7 @@ def _linear_attention_backward_batched_kernel(
     f_diagonal: bool,
     NUM_BLOCKS_V: int,
     NUM_BLOCKS_S: int,
-    fused_diag_scan: bool,
+    fused_scan: bool,
 ) -> None:
     S_CELLS_VISITED = pl.program_id(1)
 
@@ -75,7 +75,7 @@ def _linear_attention_backward_batched_kernel(
     K = q_.shape[-1]
 
     TriL_batched = None
-    if log_f_cumsum_ref is not None and f_diagonal and fused_diag_scan:
+    if log_f_cumsum_ref is not None and f_diagonal and fused_scan:
         TriL_batched = jnp.tril(jnp.ones((G, BLOCK_SIZE_S, BLOCK_SIZE_S), jnp.float32))
 
     TriU_batched = None
@@ -114,7 +114,7 @@ def _linear_attention_backward_batched_kernel(
         else:
             if f_diagonal:
                 log_f_g = log_f_cumsum_[:, g, :].transpose(1, 0, 2).astype(jnp.float32)
-                if fused_diag_scan:
+                if fused_scan:
                     log_f_g = jax.lax.dot_general(
                         TriL_batched, log_f_g, (((2,), (1,)), ((0,), (0,))), preferred_element_type=jnp.float32
                     )
@@ -129,9 +129,7 @@ def _linear_attention_backward_batched_kernel(
                 # VALU-bound at ~70%). The non-fused diagonal lane consumes GLOBAL cumsums,
                 # where factored exp must not overflow/underflow the same range, so it keeps
                 # the direct exp.
-                f_to_last = (
-                    f_last[:, None, :] * f_inv if fused_diag_scan else jnp.exp(log_f_last[:, None, :] - log_f_g)
-                )
+                f_to_last = f_last[:, None, :] * f_inv if fused_scan else jnp.exp(log_f_last[:, None, :] - log_f_g)
 
                 qf = (q * f).astype(dtype)
                 kf_inv = (k * f_inv).astype(dtype)
@@ -274,7 +272,7 @@ def _linear_attention_backward_kernel(
     f_diagonal: bool,
     NUM_BLOCKS_V: int,
     NUM_BLOCKS_S: int,
-    fused_diag_scan: bool,
+    fused_scan: bool,
 ) -> None:
     S_CELLS_VISITED = pl.program_id(1)
 
@@ -305,7 +303,7 @@ def _linear_attention_backward_kernel(
     causal_mask = _get_causal_mask(BLOCK_SIZE_S)
     K = q_.shape[-1]
 
-    if fused_diag_scan:
+    if fused_scan:
         # raw log_f in, chunk-local cumsum via triangular systolic matmul (see forward.py);
         # all chunk-products and df chains below are differences or chunk totals of the
         # cumsum, so the local scan is mathematically identical to the absolute one.
@@ -325,7 +323,7 @@ def _linear_attention_backward_kernel(
             kf_inv = None
         else:
             log_f = log_f_cumsum_[n // Gf].astype(jnp.float32)
-            if fused_diag_scan:
+            if fused_scan:
                 log_f = jax.lax.dot_general(TriL_scan, log_f, (((1,), (0,)), ((), ())))
             log_f_last = log_f[-1]
 
@@ -443,7 +441,7 @@ def _linear_attention_backward_kernel(
 
 @partial(
     jax.jit,
-    static_argnames=("attention_multiplier", "BLOCK_SIZE_S", "BLOCK_SIZE_V", "fused_diag_scan", "batched"),
+    static_argnames=("attention_multiplier", "BLOCK_SIZE_S", "BLOCK_SIZE_V", "fused_scan", "batched"),
 )
 def _linear_attention_backward_core(
     q: jax.Array,
@@ -456,7 +454,7 @@ def _linear_attention_backward_core(
     attention_multiplier: float,
     BLOCK_SIZE_S: int,
     BLOCK_SIZE_V: int,
-    fused_diag_scan: bool = False,
+    fused_scan: bool = False,
     batched: bool = False,
 ) -> tuple[jax.Array, jax.Array, jax.Array, jax.Array, jax.Array]:
     B, S, Nq, K = q.shape
@@ -516,7 +514,7 @@ def _linear_attention_backward_core(
             f_diagonal=f_diagonal,
             NUM_BLOCKS_V=NUM_BLOCKS_V,
             NUM_BLOCKS_S=NUM_BLOCKS_S,
-            fused_diag_scan=fused_diag_scan,
+            fused_scan=fused_scan,
         )
         if batched
         else partial(
@@ -532,7 +530,7 @@ def _linear_attention_backward_core(
             f_diagonal=f_diagonal,
             NUM_BLOCKS_V=NUM_BLOCKS_V,
             NUM_BLOCKS_S=NUM_BLOCKS_S,
-            fused_diag_scan=fused_diag_scan,
+            fused_scan=fused_scan,
         )
     )
 
