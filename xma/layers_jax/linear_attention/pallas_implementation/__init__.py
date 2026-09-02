@@ -134,7 +134,7 @@ def _linear_attention_backward(
 
     # a 4-d log_f_cumsum residual on the same batched-layout hypothesis as the VJP
     # forward is RAW log_f on the fused path (see _linear_attention_forward).
-    fused_diag_scan = (
+    fused_scan = (
         log_f_cumsum is not None
         and log_f_cumsum.ndim == 4
         and Nq == N
@@ -151,7 +151,7 @@ def _linear_attention_backward(
         N=N,
         BLOCK_SIZE_S=BLOCK_SIZE_S,
         BLOCK_SIZE_V=BLOCK_SIZE_V,
-        fused_diag_scan=fused_diag_scan,
+        fused_scan=fused_scan,
     )
 
     # batched bwd kernel: same eligibility as the forward's batched path (un-gated,
@@ -165,7 +165,7 @@ def _linear_attention_backward(
             or (log_f_cumsum.ndim == 3 and log_f_cumsum.shape[2] == 1)
             # diagonal: only the fused full-head layout (raw log_f; a chunked cross-head-shared
             # diagonal gate arrives as ndim==4 with Nf == 1 and must keep the per-head kernel)
-            or (log_f_cumsum.ndim == 4 and log_f_cumsum.shape[2] == N and fused_diag_scan)
+            or (log_f_cumsum.ndim == 4 and log_f_cumsum.shape[2] == N and fused_scan)
         )
     )
 

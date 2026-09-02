@@ -26,7 +26,7 @@ def _linear_attention_state_passing_kernel(
     f_diagonal: bool,
     NUM_BLOCKS_V: int,
     BLOCK_SIZE_V: int,
-    fused_diag_scan: bool,
+    fused_scan: bool,
     HEAD_GROUP: int,
 ) -> None:
     BLOCK_ID_S = pl.program_id(1)
@@ -52,31 +52,23 @@ def _linear_attention_state_passing_kernel(
         else:
             log_f_cumsum_ = log_f_cumsum_.transpose(1, 0)
 
-    # batched fused diagonal path: mirrors _linear_attention_forward_batched_kernel --
-    # the chunk-local prefix is HEAD_GROUP heads' (BS,BS)@(BS,K) f32 systolic matmuls issued
-    # as ONE batched dot; the unbatched per-head variant idles half the 256-wide systolic
-    # array (output width K=128) and serializes pipeline fill/drain per head (measured:
-    # +414 us on v6e at production, none/diagonal = 239.5/653.9 us).
-    batched_diag = fused_diag_scan and f_diagonal and Gk == 1 and Gv == 1 and Gf == 1 and N % HEAD_GROUP == 0
+    batched_diag = fused_scan and f_diagonal and Gk == 1 and Gv == 1 and Gf == 1 and N % HEAD_GROUP == 0
 
-    if fused_diag_scan:
-        # raw log_f in, chunk-local cumsum in-VMEM via a triangular systolic matmul;
-        # every downstream quantity is a chunk-relative difference or the chunk total,
-        # so the local cumsum is mathematically identical (see forward.py fused path).
-        BS = k_.shape[1]
+    if fused_scan:
+        BLOCK_SIZE_S = k_.shape[1]
+
         if batched_diag:
-            TriL_batched = jnp.tril(jnp.ones((HEAD_GROUP, BS, BS), jnp.float32))
+            causal_mask = jnp.tril(jnp.ones((HEAD_GROUP, BLOCK_SIZE_S, BLOCK_SIZE_S), jnp.float32))
         else:
-            TriL = jnp.tril(jnp.ones((BS, BS), jnp.float32))
+            causal_mask = jnp.tril(jnp.ones((BLOCK_SIZE_S, BLOCK_SIZE_S), jnp.float32))
 
     if batched_diag:
         for n0 in range(0, N, HEAD_GROUP):
             g = slice(n0, n0 + HEAD_GROUP)
-            # slice the head-group FIRST, then transpose (fwd comment: hoisting a full
-            # (N, S, K) transpose per cell costs 2x wall from extra VMEM traffic).
+
             log_f_g = log_f_cumsum_ref[...][:, g, :].transpose(1, 0, 2).astype(jnp.float32)
             log_f_g = jax.lax.dot_general(
-                TriL_batched, log_f_g, (((2,), (1,)), ((0,), (0,))), preferred_element_type=jnp.float32
+                causal_mask, log_f_g, (((2,), (1,)), ((0,), (0,))), preferred_element_type=jnp.float32
             )
             log_f_last_g = log_f_g[:, -1]  # (HEAD_GROUP, K)
 
@@ -100,8 +92,8 @@ def _linear_attention_state_passing_kernel(
 
             if log_f_cumsum_ is not None:
                 log_f = log_f_cumsum_[n // Gf].astype(jnp.float32)
-                if fused_diag_scan:
-                    log_f = jax.lax.dot_general(TriL, log_f, (((1,), (0,)), ((), ())))
+                if fused_scan:
+                    log_f = jax.lax.dot_general(causal_mask, log_f, (((1,), (0,)), ((), ())))
                 log_f_last = log_f[-1]
 
                 if f_diagonal:
@@ -128,7 +120,7 @@ def _linear_attention_state_passing_kernel(
                 h_scratch[n, :, start:end] = h
 
 
-@partial(jax.jit, static_argnames=("N", "BLOCK_SIZE_S", "BLOCK_SIZE_V", "fused_diag_scan", "HEAD_GROUP"))
+@partial(jax.jit, static_argnames=("N", "BLOCK_SIZE_S", "BLOCK_SIZE_V", "fused_scan", "HEAD_GROUP"))
 def _linear_attention_state_passing_core(
     k: jax.Array,
     v: jax.Array,
@@ -137,7 +129,7 @@ def _linear_attention_state_passing_core(
     N: int,
     BLOCK_SIZE_S: int,
     BLOCK_SIZE_V: int,
-    fused_diag_scan: bool = False,
+    fused_scan: bool = False,
     HEAD_GROUP: int = 8,
 ) -> jax.Array:
     B, S, Nk, K = k.shape
@@ -184,7 +176,7 @@ def _linear_attention_state_passing_core(
             f_diagonal=f_diagonal,
             NUM_BLOCKS_V=NUM_BLOCKS_V,
             BLOCK_SIZE_V=BLOCK_SIZE_V,
-            fused_diag_scan=fused_diag_scan,
+            fused_scan=fused_scan,
             HEAD_GROUP=HEAD_GROUP,
         ),
         out_shape=jax.ShapeDtypeStruct(shape=(B, NUM_BLOCKS_S * N, K, V), dtype=k.dtype),
@@ -204,7 +196,7 @@ def _linear_attention_state_passing_core(
                 if h0 is None
                 else pl.BlockSpec(
                     block_shape=(None, N, K, V),
-                    index_map=lambda BLOCK_ID_B, BLOCK_ID_S: (BLOCK_ID_B, 0, 0, 0),
+                    index_map=lambda BLOCK_ID_B, _: (BLOCK_ID_B, 0, 0, 0),
                 )
             ),
         ),
