@@ -59,40 +59,42 @@ def _backward_kernel(
     MASKED = S % BLOCK_SIZE_S != 0
     if MASKED:
         dy = jnp.where(MASK_S, dy_ref[...], 0).astype(jnp.float32)
-        x = jnp.where(MASK_S, x_ref[...], 0).astype(jnp.float32)
+        x_bf = jnp.where(MASK_S, x_ref[...], 0)
     else:
         dy = dy_ref[...].astype(jnp.float32)
-        x = x_ref[...].astype(jnp.float32)
+        x_bf = x_ref[...]  # kept in bf16; the per-tap fp32 cast commutes with the roll
 
     hist = h_ref[0].astype(jnp.float32)  # hist[PAD + j] == x[j] for j < 0
+    hist_pad = jnp.pad(hist, ((BLOCK_SIZE_S - PAD, 0), (0, 0)))
+    hist_pad_bf = jnp.pad(h_ref[0], ((BLOCK_SIZE_S - PAD, 0), (0, 0)))
 
-    def x_tap(k: int):
+    # taps with the boundary history folded in via a per-row select, so downstream
+    # sections (y recompute and dW accumulation) need no separate head corrections
+    def x_tap(k: int) -> jax.Array:  # fp32 (activation path)
         shift = K - 1 - k
-        return pltpu.roll(x, shift, axis=0) if shift > 0 else x
+        tap = pltpu.roll(x_bf, shift, axis=0).astype(jnp.float32) if shift > 0 else x_bf.astype(jnp.float32)
+        return jnp.where(BLOCK_S < shift, pltpu.roll(hist_pad, shift, axis=0), tap) if shift > 0 else tap
+
+    def x_tap_bf(k: int) -> jax.Array:  # bf16 (dW dot-RHS path, not activation math)
+        shift = K - 1 - k
+        return (
+            jnp.where(BLOCK_S < shift, pltpu.roll(hist_pad_bf, shift, axis=0), pltpu.roll(x_bf, shift, axis=0))
+            if shift > 0
+            else x_bf
+        )
+
+    W32 = W_ref[...].astype(jnp.float32)  # hoisted casts
+    b32 = b_ref[...].astype(jnp.float32) if b_ref is not None else None
 
     if ACTIVATION in ["silu", "swish"]:
+        # taps already carry the boundary history -> single y recompute path,
+        # fp32 all the way through (activation math must not touch bf16)
         y = jnp.zeros((BLOCK_SIZE_S, H), dtype=jnp.float32)
-        if b_ref is not None:
-            y += b_ref[...].astype(jnp.float32)
+        if b32 is not None:
+            y += b32
 
         for k in range(K):
-            y += W_ref[k, :].astype(jnp.float32)[None, :] * x_tap(k)
-
-        x_head = x[:PAD, :]
-        y_head = jnp.zeros((PAD, H), dtype=jnp.float32)
-        if b_ref is not None:
-            y_head += b_ref[...].astype(jnp.float32)
-
-        for k in range(K):
-            shift = K - 1 - k
-            if shift == 0:
-                y_head += W_ref[k, :].astype(jnp.float32)[None, :] * x_head
-            else:
-                W = W_ref[k, :].astype(jnp.float32)[None, :]
-                y_head += W * jnp.where(PATCH_R >= shift, pltpu.roll(x_head, shift, axis=0), 0)
-                y_head += W * jnp.where(PATCH_R < shift, pltpu.roll(hist, shift, axis=0), 0)
-
-        y = jnp.where(BLOCK_S < K - 1, jnp.pad(y_head, ((0, BLOCK_SIZE_S - PAD), (0, 0))), y)
+            y += W32[k, :][None, :] * x_tap(k)
 
         sigmoid = jax.nn.sigmoid(y)
         dy = dy * sigmoid * (1 + y * (1 - sigmoid))
@@ -112,7 +114,7 @@ def _backward_kernel(
     carry = dy_scratch[...]
     dx_tail = jnp.zeros((PAD, H), dtype=jnp.float32)
     for k in range(K):
-        W = W_ref[k, :].astype(jnp.float32)[None, :]
+        W = W32[k, :][None, :]
 
         shift = K - 1 - k
         if shift == 0:
@@ -132,16 +134,8 @@ def _backward_kernel(
     ones_row = jnp.ones((1, BLOCK_SIZE_S), dtype=dtype)
     db_ref[...] += jax.lax.dot(ones_row, dy_bf, preferred_element_type=jnp.float32)
 
-    d_head = dy[:PAD, :]
     for k in range(K):
-        shift = K - 1 - k
-        tap = x_tap(k)
-        acc = jax.lax.dot(ones_row, (dy * tap).astype(dtype), preferred_element_type=jnp.float32)[0]
-        if shift > 0:
-            acc += jnp.sum(
-                jnp.where(PATCH_R < shift, d_head * (pltpu.roll(hist, shift, axis=0) - tap[:PAD, :]), 0),
-                axis=0,
-            )
+        acc = jax.lax.dot(ones_row, dy_bf * x_tap_bf(k), preferred_element_type=jnp.float32)[0]
         dW_ref[k, :] += acc
 
     dx_ref[...] = (jnp.where(MASK_S, dx, 0) if MASKED else dx).astype(dtype)
@@ -162,15 +156,13 @@ def _backward_kernel(
                 update = jnp.zeros((BLOCK_SIZE_S, H), dtype=jnp.float32)
                 for p, row_in_block in rows:
                     update += jnp.where(BLOCK_S == row_in_block, dht_scratch[offset + p, :], 0)
-
                 dx_ref[...] += update.astype(dtype)
 
     @pl.when(BLOCK_ID_S == 0)
     def _():
         dh0 = jnp.zeros((BLOCK_SIZE_S, H), dtype=jnp.float32)
         for k in range(K):
-            W = W_ref[k, :].astype(jnp.float32)
-            dh0 += W[None, :] * jnp.where(BLOCK_S < k, 0, pltpu.roll(dy, k, axis=0))
+            dh0 += W32[k, :][None, :] * jnp.where(BLOCK_S < k, 0, pltpu.roll(dy, k, axis=0))
 
         dh0_ref[...] = pltpu.roll(dh0[:PAD, :], offset, axis=0)
 

@@ -44,7 +44,11 @@ def _forward_kernel(
     BLOCK_S = jax.lax.broadcasted_iota(jnp.int32, (BLOCK_SIZE_S, 1), 0)
     MASK_S = (BLOCK_ID_S * BLOCK_SIZE_S + BLOCK_S) < S
 
-    x = jnp.where(MASK_S, x_ref[...], 0).astype(dtype)
+    if S % BLOCK_SIZE_S != 0:
+        x = jnp.where(MASK_S, x_ref[...], 0).astype(dtype)
+    else:
+        x = x_ref[...]
+
     x_f32 = x.astype(jnp.float32)
     b = jnp.zeros((1, H), dtype=jnp.float32) if b_ref is None else b_ref[...].astype(jnp.float32)
 
