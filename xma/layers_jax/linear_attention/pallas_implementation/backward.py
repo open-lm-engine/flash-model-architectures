@@ -174,6 +174,11 @@ def _linear_attention_backward_batched_kernel(
             h = h_[g][:, :, start:end]
             dh = dh_group[:, :, start:end]
 
+            # Round-26 negative (none-lane dv pair): fusing the two dv dots into ONE by
+            # concatenating along the contracted axis (cat([qk,kf_last],2) @ cat([dy;dh],1))
+            # measured 2015.8 tuning-us standalone none core S=4096 vs 1004.2 (2x SLOWER —
+            # the per-window (G,256,384)+(G,384,128) bf16 concats feed the copy/spill budget)
+            # and broke the S=512 bitwise standalone-vs-VJP dv contract. Kept as two dots.
             dv = jax.lax.dot_general(qk, dy, (((1,), (1,)), ((0,), (0,))), preferred_element_type=jnp.float32)
             dv += jax.lax.dot_general(
                 kf_last, dh.astype(dtype), (((2,), (1,)), ((0,), (0,))), preferred_element_type=jnp.float32
